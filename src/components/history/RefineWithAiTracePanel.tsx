@@ -370,7 +370,7 @@ export function buildReply(
     }
     const head = `Turn ${turn.index} (${outcomeLabel(turn)} · ${fmtS(turn.latencyMs)})${turn.customer ? ` - Khách hỏi: "${clip(turn.customer.content)}"` : ""}`;
     const body = [
-      steps.length ? `Các bước agent đã chạy:\n${steps.map(s => `• ${s}`).join("\n")}` : "Agent trả lời trực tiếp, không qua bước tool / Guardrail / HITL nào.",
+      steps.length ? `Các bước Nhân sự số đã chạy:\n${steps.map(s => `• ${s}`).join("\n")}` : "Nhân sự số trả lời trực tiếp, không qua bước tool / Guardrail / HITL nào.",
       scoped.length ? `Điểm cần chú ý:\n${scoped.map(issueLine).join("\n")}` : "Không có tín hiệu kỹ thuật bất thường ở turn này.",
     ].join("\n\n");
     return {
@@ -391,7 +391,7 @@ export function buildReply(
       steps: [`Đọc ${n} turn`],
       msgs: [{
         role: "ai", text: `Conversation có ${n} turn:\n${outline.join("\n")}`,
-        followUps: issues.length ? ["Chỗ nào agent chạy sai?"] : undefined,
+        followUps: issues.length ? ["Chỗ nào Nhân sự số chạy sai?"] : undefined,
       }],
     };
   }
@@ -399,7 +399,7 @@ export function buildReply(
   // "Chỗ nào sai?" — and the fallback for anything else: where it went wrong, worst first.
   const ordered = [...issues].sort((a, b) => (a.severity === b.severity ? a.turnIndex - b.turnIndex : a.severity === "critical" ? -1 : 1));
   const instr = ordered.find(i => i.fix.kind === "instructions_diff" && !appliedIds.has(i.id));
-  const intro = WRONG_INTENT.test(text) ? "" : "Mình hiểu câu hỏi là đang tìm chỗ agent chạy không ổn. ";
+  const intro = WRONG_INTENT.test(text) ? "" : "Mình hiểu câu hỏi là đang tìm chỗ Nhân sự số chạy không ổn. ";
   return {
     steps: [`Quét ${n} turn`],
     msgs: [{
@@ -407,11 +407,11 @@ export function buildReply(
       text: ordered.length
         ? `${intro}${ordered.length} chỗ đáng chú ý, nặng nhất trước:\n${ordered.map(issueLine).join("\n")}` +
           (instr ? `\n\nTurn ${instr.turnIndex} có thể sửa ngay bằng Instructions.` : "")
-        : `${intro}Mình không thấy chỗ nào agent chạy sai về mặt kỹ thuật trong ${n} turn này.`,
+        : `${intro}Mình không thấy chỗ nào Nhân sự số chạy sai về mặt kỹ thuật trong ${n} turn này.`,
       actions: linkActions(ordered),
       followUps: [
         ...(instr ? [`Đề xuất sửa Instructions cho Turn ${instr.turnIndex}`] : []),
-        "Agent có làm gì kém hiệu quả không?",
+        "Nhân sự số có làm gì kém hiệu quả không?",
       ],
     }],
   };
@@ -421,7 +421,7 @@ function starterPrompts(issues: TraceIssue[], appliedIds: Set<string>): string[]
   const out: string[] = [];
   const instr = issues.find(i => i.fix.kind === "instructions_diff" && !appliedIds.has(i.id));
   if (instr) out.push(`Đề xuất sửa Instructions cho Turn ${instr.turnIndex}`);
-  out.push("Chỗ nào agent chạy sai?", "Agent có làm gì kém hiệu quả không?", "Tóm tắt những gì đã xảy ra");
+  out.push("Chỗ nào Nhân sự số chạy sai?", "Nhân sự số có làm gì kém hiệu quả không?", "Tóm tắt những gì đã xảy ra");
   return out;
 }
 

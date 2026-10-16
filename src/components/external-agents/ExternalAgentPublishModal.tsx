@@ -223,7 +223,7 @@ export default function ExternalAgentPublishModal({ agent, open, onClose, onPubl
               ref={noteRef}
               rows={3}
               maxLength={NOTE_MAX}
-              placeholder="Phiên bản này có gì mới? Người dùng agent sẽ đọc nội dung này."
+              placeholder="Phiên bản này có gì mới? Người dùng Nhân sự số sẽ đọc nội dung này."
               className={`w-full px-3 py-2.5 rounded-lg border bg-white text-sm outline-none focus:ring-2 transition-base resize-none ${
                 showNoteError ? "border-destructive focus:border-destructive focus:ring-destructive/20" : "border-border focus:border-primary focus:ring-primary/20"
               }`}

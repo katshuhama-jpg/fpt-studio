@@ -204,7 +204,7 @@ export default function WorkspaceGuardrails() {
       <div className="mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Guardrails</h1>
-          <p className="text-sm text-muted-foreground truncate">Chính sách an toàn dùng chung, áp dụng được cho mọi Agent - Giới hạn nội dung, bảo vệ dữ liệu, luồng phê duyệt và quy tắc tùy chỉnh.</p>
+          <p className="text-sm text-muted-foreground truncate">Chính sách an toàn dùng chung, áp dụng được cho mọi Nhân sự số - Giới hạn nội dung, bảo vệ dữ liệu, luồng phê duyệt và quy tắc tùy chỉnh.</p>
         </div>
         <button
           onClick={() => canCreateGuardrail && setShowCreate(true)}
@@ -245,14 +245,14 @@ export default function WorkspaceGuardrails() {
 
           const editBlocked = editBlockedFor(g, access);
           const shareBlocked = !hasOwner ? undefined
-            : g.allAgents ? "Guardrail đang áp dụng cho mọi Agent nên mọi người trong Space đều xem được. Bỏ \"Áp dụng cho mọi Agent\" trong Chỉnh sửa để đổi ai được dùng."
+            : g.allAgents ? "Guardrail đang áp dụng cho mọi Nhân sự số nên mọi người trong Space đều xem được. Bỏ \"Áp dụng cho mọi Nhân sự số\" trong Chỉnh sửa để đổi ai được dùng."
             : !manages ? "Chỉ chủ sở hữu hoặc Admin của Space mới đổi được ai được dùng guardrail này."
             : actor.isAdmin ? undefined
             : !access.hasPermission("publish") ? NO_ROLE_PERMISSION
             : !access.canAct("publish", accessible) ? NOT_OWNED_OR_SHARED
             : undefined;
           const deleteBlocked = g.mandatory ? SYSTEM_READ_ONLY
-            : g.allAgents ? "Guardrail đang áp dụng cho mọi Agent. Bỏ \"Áp dụng cho mọi Agent\" trong Chỉnh sửa trước khi xóa."
+            : g.allAgents ? "Guardrail đang áp dụng cho mọi Nhân sự số. Bỏ \"Áp dụng cho mọi Nhân sự số\" trong Chỉnh sửa trước khi xóa."
             : hasOwner && !manages ? "Chỉ chủ sở hữu hoặc Admin của Space mới xóa được guardrail này."
             : actor.isAdmin ? undefined
             : !access.hasPermission("delete") ? NO_ROLE_PERMISSION
@@ -267,7 +267,7 @@ export default function WorkspaceGuardrails() {
               {/* The list doesn't show how many Agents use a guardrail (see its detail popup);
                 * it only flags the ones that run on every Agent. */}
               {g.allAgents && !g.mandatory && (
-                <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary">Áp dụng cho mọi Agent</span>
+                <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary">Áp dụng cho mọi Nhân sự số</span>
               )}
               <div className="text-xs text-muted-foreground mt-1.5 leading-relaxed line-clamp-2">{g.desc}</div>
               <div className="text-xs mt-2">

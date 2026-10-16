@@ -138,7 +138,7 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
         <DialogContent className="sm:max-w-[520px] max-h-[85vh] overflow-y-auto" onOpenAutoFocus={e => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>{isEdit ? "Sửa FAQ" : "Tạo FAQ"}</DialogTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">Nhập câu hỏi và câu trả lời để Agent sử dụng khi phản hồi.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Nhập câu hỏi và câu trả lời để Nhân sự số sử dụng khi phản hồi.</p>
           </DialogHeader>
           {statusSource && (statusSource.status === "failed" || statusSource.status === "invalid") && (
             <div className={`rounded-lg px-3 py-2.5 text-xs leading-relaxed ${statusSource.status === "failed" ? "bg-[hsl(var(--destructive-soft))] text-destructive" : "bg-[hsl(var(--warning-soft))] text-warning"}`}>
@@ -172,7 +172,7 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
               {!agentId && matches.exact && (
                 <div className="mt-1.5 rounded-lg bg-[hsl(var(--warning-soft))] px-3 py-2">
                   <p className="text-xs text-warning leading-relaxed">
-                    Câu hỏi này đã tồn tại trong kho. Câu hỏi trùng nhau có thể khiến Agent trả lời thiếu nhất quán.
+                    Câu hỏi này đã tồn tại trong kho. Câu hỏi trùng nhau có thể khiến Nhân sự số trả lời thiếu nhất quán.
                   </p>
                   <button type="button" onClick={() => setPeekFaq(matches.exact)} className="text-xs font-semibold text-warning hover:underline mt-1">
                     Xem câu hỏi đã có
@@ -194,7 +194,7 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
               {agentId && agentDuplicate && (
                 <div className="mt-1.5 rounded-lg bg-[hsl(var(--warning-soft))] px-3 py-2">
                   <p className="text-xs text-warning leading-relaxed">
-                    Câu hỏi này đã tồn tại trong tri thức của Agent.
+                    Câu hỏi này đã tồn tại trong tri thức của Nhân sự số.
                   </p>
                 </div>
               )}
@@ -208,7 +208,7 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
                 rows={6} maxLength={ANSWER_MAX} value={answer}
                 onChange={e => setAnswer(e.target.value)}
                 onBlur={() => setAnswerTouched(true)}
-                placeholder="Nhập câu trả lời Agent sẽ dùng"
+                placeholder="Nhập câu trả lời Nhân sự số sẽ dùng"
                 className={`w-full px-3 py-2.5 rounded-lg border bg-white text-sm outline-none focus:ring-2 transition-base resize-none ${
                   answerError ? "border-destructive focus:ring-destructive/20" : "border-border focus:border-primary focus:ring-primary/20"
                 }`}
@@ -255,7 +255,7 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
           <AlertDialogHeader>
             <AlertDialogTitle>Câu hỏi này đã tồn tại</AlertDialogTitle>
             <AlertDialogDescription>
-              Một câu hỏi khác trong tri thức của Agent đã có nội dung giống hệt. Bạn vẫn muốn {isEdit ? "lưu thay đổi" : "tạo thêm"}?
+              Một câu hỏi khác trong tri thức của Nhân sự số đã có nội dung giống hệt. Bạn vẫn muốn {isEdit ? "lưu thay đổi" : "tạo thêm"}?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

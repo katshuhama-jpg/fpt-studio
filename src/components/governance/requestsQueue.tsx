@@ -109,7 +109,7 @@ function RequestTable({ rows, scope, onOpen }: { rows: GovRequest[]; scope: Scop
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead className="h-10">{scope === "agent" ? "Agent" : "Resource"}</TableHead>
+            <TableHead className="h-10">{scope === "agent" ? "Nhân sự số" : "Resource"}</TableHead>
             {scope === "resource" && <TableHead className="h-10 w-[130px]">Loại</TableHead>}
             <TableHead className="h-10 w-[180px]">Người gửi</TableHead>
             {scope === "resource" && <TableHead className="h-10 w-[170px]">Phạm vi dùng chung</TableHead>}
@@ -278,8 +278,8 @@ export function RequestsQueuePage({ scope, title, intro, note }: { scope: Scope;
       {tab === "all" ? (
         actionList.length === 0 && resolvedList.length === 0 ? (
           <EmptyState
-            title={scope === "agent" ? "Chưa có Agent nào chờ duyệt publish" : "Chưa có Resource nào chờ duyệt dùng chung"}
-            hint={scope === "agent" ? "Yêu cầu publish Agent tới đơn vị bạn quản lý sẽ xuất hiện ở đây." : "Yêu cầu đưa Knowledge/Skill/Guardrails/Connector vào Thư viện Space sẽ xuất hiện ở đây."}
+            title={scope === "agent" ? "Chưa có Nhân sự số nào chờ duyệt publish" : "Chưa có Resource nào chờ duyệt dùng chung"}
+            hint={scope === "agent" ? "Yêu cầu publish Nhân sự số tới đơn vị bạn quản lý sẽ xuất hiện ở đây." : "Yêu cầu đưa Knowledge/Skill/Guardrails/Connector vào Thư viện Space sẽ xuất hiện ở đây."}
           />
         ) : (
           <div className="space-y-6">

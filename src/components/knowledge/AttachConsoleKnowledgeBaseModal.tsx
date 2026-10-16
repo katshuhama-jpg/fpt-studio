@@ -57,7 +57,7 @@ function AttachWholeKb({ agentId, userId, onClose }: Props) {
       <DialogContent className="sm:max-w-[560px] p-0 gap-0 overflow-hidden" onOpenAutoFocus={e => e.preventDefault()}>
         <DialogHeader className="px-6 pt-6 pb-4">
           <DialogTitle>Liên kết kho tri thức</DialogTitle>
-          <DialogDescription>Chọn một hoặc nhiều kho tri thức trong Space. Agent tra cứu toàn bộ nội dung của kho đã liên kết.</DialogDescription>
+          <DialogDescription>Chọn một hoặc nhiều kho tri thức trong Space. Nhân sự số tra cứu toàn bộ nội dung của kho đã liên kết.</DialogDescription>
         </DialogHeader>
 
         {all.length === 0 ? (
@@ -204,7 +204,7 @@ function AttachWithScope({ agentId, userId, onClose, initialFocusKbId }: Props) 
       <DialogContent className="sm:max-w-[920px] p-0 gap-0 overflow-hidden" onOpenAutoFocus={e => e.preventDefault()}>
         <DialogHeader className="px-6 pt-6 pb-4">
           <DialogTitle>{initialFocusKbId ? "Đổi phạm vi liên kết" : "Liên kết kho tri thức"}</DialogTitle>
-          <DialogDescription>Chọn kho tri thức trong Space cho Agent tra cứu. Có thể liên kết cả kho hoặc chỉ một số thư mục, tài liệu.</DialogDescription>
+          <DialogDescription>Chọn kho tri thức trong Space cho Nhân sự số tra cứu. Có thể liên kết cả kho hoặc chỉ một số thư mục, tài liệu.</DialogDescription>
         </DialogHeader>
 
         {all.length === 0 ? (

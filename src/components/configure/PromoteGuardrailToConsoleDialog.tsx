@@ -44,7 +44,7 @@ export default function PromoteGuardrailToConsoleDialog({ agentId, item, current
           <DialogTitle>Chuyển thành guardrail chung</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Guardrail sẽ được chuyển sang mục Guardrails của Console và vẫn liên kết với Agent này.
+          Guardrail sẽ được chuyển sang mục Guardrails của Space và vẫn liên kết với Nhân sự số này.
         </p>
         <div>
           <div className="flex items-center justify-between mb-1.5">

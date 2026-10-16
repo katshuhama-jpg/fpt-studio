@@ -45,7 +45,7 @@ export function AgentDeploymentSection({ req }: { req: GovRequest }) {
         {/* Agent Workspace — always part of an Agent publish request. */}
         <div className="p-4">
           <div className="flex items-baseline justify-between gap-3 mb-3">
-            <p className="text-sm font-semibold">Agent Workspace</p>
+            <p className="text-sm font-semibold">Workspace</p>
             <p className="text-xs text-muted-foreground tabular-nums">
               {targets.length} phạm vi{people > 0 ? ` · khoảng ${people.toLocaleString("vi-VN")} người` : ""}
             </p>
@@ -84,7 +84,7 @@ export function AgentDeploymentSection({ req }: { req: GovRequest }) {
             <p className="text-xs text-muted-foreground tabular-nums">{channels.length} kênh</p>
           </div>
           {channels.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Không publish ra kênh ngoài - Chỉ dùng trong Agent Workspace.</p>
+            <p className="text-sm text-muted-foreground">Không publish ra kênh ngoài - Chỉ dùng trong Workspace.</p>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {channels.map(id => {
@@ -119,6 +119,6 @@ export function deploymentSummary(req: GovRequest): string {
   const who = community
     ? "toàn bộ Cộng đồng FPT AI Agent"
     : `${people > 0 ? `khoảng ${people.toLocaleString("vi-VN")} người` : "người dùng"} (${shown})`;
-  const where = channels.length > 0 ? ` và trên ${channels.join(", ")}` : " trong Agent Workspace";
-  return `Agent sẽ hoạt động với ${who}${where}.`;
+  const where = channels.length > 0 ? ` và trên ${channels.join(", ")}` : " trong Workspace";
+  return `Nhân sự số sẽ hoạt động với ${who}${where}.`;
 }

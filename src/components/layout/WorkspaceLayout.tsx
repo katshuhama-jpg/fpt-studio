@@ -40,7 +40,7 @@ const groups: Group[] = [
     id: "build",
     label: "Build",
     items: [
-      { to: "/agents", label: "Agents", icon: Bot },
+      { to: "/agents", label: "Nhân sự số", icon: Bot },
       { to: "/external-agents", label: "External Agents", icon: Globe },
       { to: "/workforce", label: "Workforce", icon: UsersRound },
     ],
@@ -65,7 +65,7 @@ const groups: Group[] = [
       // reach users) and Resource Requests (Tenant Admin: does a resource enter the Tenant
       // Library) are 2 different admin personas who land on their own page, not a shared queue
       // with a filter (see requestsQueue.tsx's doc comment).
-      { to: "/governance/requests", label: "Agent Requests", icon: ClipboardList },
+      { to: "/governance/requests", label: "Yêu cầu duyệt Nhân sự số", icon: ClipboardList },
       { to: "/governance/library-requests", label: "Resource Requests", icon: Library },
       { to: "/governance/audit-log", label: "Audit Log", icon: History },
       { to: "/roles", label: "Roles", icon: Shield },
@@ -167,7 +167,7 @@ export default function WorkspaceLayout() {
     );
   }
 
-  const BREADCRUMB_LABELS: Record<string, string> = { tools: "Skills", notifications: "Thông báo" };
+  const BREADCRUMB_LABELS: Record<string, string> = { tools: "Skills", notifications: "Thông báo", agents: "Nhân sự số", "my-agents": "Nhân sự số của tôi" };
   const persona = currentPersona();
   const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "General", structure: "Structure" };
   let breadcrumbLabel: string;
@@ -627,7 +627,7 @@ function HeaderNewMenu({ pathname }: { pathname: string }) {
   };
 
   const primary: NewItem[] = [
-    { to: "/agents/new", label: "New Agent", desc: "Build a custom AI agent from scratch", icon: Bot, hidden: hide.agent },
+    { to: "/agents/new", label: "Nhân sự số mới", desc: "Tạo Nhân sự số từ đầu", icon: Bot, hidden: hide.agent },
     { to: "/tools", label: "New Skill", desc: "Define a custom skill or integration", icon: Puzzle, hidden: hide.tool },
     { to: "/knowledge?new=1", label: "New Knowledge", desc: "Upload docs or connect a data source", icon: BookOpen, hidden: hide.knowledge },
   ];

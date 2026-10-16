@@ -20,7 +20,7 @@ export function PublishGateSection({ agentId }: { agentId: string }) {
       </div>
 
       {sets.length === 0 ? (
-        <EmptyState icon={Rocket01Icon} title="Chưa có bộ test để kiểm tra trước khi publish" desc="Tạo bộ test cho các nghiệp vụ quan trọng, sau đó bật ở đây để Agent chỉ được publish khi đạt yêu cầu.">
+        <EmptyState icon={Rocket01Icon} title="Chưa có bộ test để kiểm tra trước khi publish" desc="Tạo bộ test cho các nghiệp vụ quan trọng, sau đó bật ở đây để Nhân sự số chỉ được publish khi đạt yêu cầu.">
           <button className="btn-primary" onClick={() => go("test-sets")}>Đi tới Bộ test</button>
         </EmptyState>
       ) : (
@@ -31,7 +31,7 @@ export function PublishGateSection({ agentId }: { agentId: string }) {
                 <HugeiconsIcon icon={Alert02Icon} size={18} className="text-destructive shrink-0 mt-0.5" />
                 <div className="text-sm">
                   <div className="font-semibold text-destructive">Bản nháp hiện chưa publish được</div>
-                  <div className="text-foreground/80 mt-0.5">{blockers.map(b => b.rate === undefined ? `${b.set.name}: Chưa chạy` : `${b.set.name}: ${b.rate}% (cần ${b.gate.minPass}%)`).join(" · ")}. Sửa Agent rồi chạy lại các bộ test này.</div>
+                  <div className="text-foreground/80 mt-0.5">{blockers.map(b => b.rate === undefined ? `${b.set.name}: Chưa chạy` : `${b.set.name}: ${b.rate}% (cần ${b.gate.minPass}%)`).join(" · ")}. Sửa Nhân sự số rồi chạy lại các bộ test này.</div>
                 </div>
               </div>
             ) : (

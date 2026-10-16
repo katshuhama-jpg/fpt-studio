@@ -198,7 +198,7 @@ export default function Skills() {
         <div className="max-w-[1200px] mx-auto px-8 py-5 flex items-center justify-between">
           <div>
             <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Skills</h1>
-            <p className="text-sm text-muted-foreground">Skill dùng chung trong Space. Liên kết vào Agent nào cũng được.</p>
+            <p className="text-sm text-muted-foreground">Skill dùng chung trong Space. Liên kết vào Nhân sự số nào cũng được.</p>
           </div>
           <div className="flex items-center gap-2">
             <button className="btn-secondary flex items-center gap-1.5"><BookOpen size={14} /> Thư viện skill mẫu</button>
@@ -252,7 +252,7 @@ export default function Skills() {
             <Puzzle size={26} />
           </div>
           <h2 className="font-display text-xl font-semibold mb-2">Chưa có skill nào</h2>
-          <p className="text-sm text-muted-foreground max-w-sm mb-6">Skill giúp Agent xử lý một việc cụ thể. Tạo skill của riêng bạn, hoặc bắt đầu từ thư viện skill mẫu.</p>
+          <p className="text-sm text-muted-foreground max-w-sm mb-6">Skill giúp Nhân sự số xử lý một việc cụ thể. Tạo skill của riêng bạn, hoặc bắt đầu từ thư viện skill mẫu.</p>
           <div className="flex items-center gap-3">
             <button className="btn-secondary flex items-center gap-1.5"><BookOpen size={14} /> Thư viện skill mẫu</button>
             <button

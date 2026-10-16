@@ -197,7 +197,7 @@ export const DRIVE_OPTIONS: { value: string; label: string }[] = [
 ];
 
 export const DRIVE_FOLDER_OPTIONS: { value: string; label: string }[] = [
-  { value: "agents", label: "Agents" },
+  { value: "agents", label: "Nhân sự số" },
   { value: "reports", label: "Reports" },
   { value: "contracts", label: "Contracts" },
   { value: "shared", label: "Shared" },
@@ -295,7 +295,7 @@ function seedAgent(agentId: string) {
       name: "Daily report",
       type: "scheduled",
       enabled: true,
-      description: "Runs the agent every day at 08:00 to generate the daily report.",
+      description: "Chạy Nhân sự số lúc 08:00 mỗi ngày để tạo báo cáo ngày.",
       config: { schedule: { frequency: "daily", timeOfDay: "08:00", timezone: "GMT+07:00" } },
       lastFiredAt: now - 86_400_000,
       createdAt: now - 86_400_000 * 14,
@@ -306,7 +306,7 @@ function seedAgent(agentId: string) {
       name: "New customer email",
       type: "external",
       enabled: true,
-      description: "Triggers the agent when a new customer email arrives in Google Mail.",
+      description: "Kích hoạt Nhân sự số khi có email khách hàng mới trong Google Mail.",
       config: { external: { app: "gmail", accountId: "acct-gmail-1", event: "new_email", gmailMode: "inbox", includeAttachments: true } },
       lastFiredAt: now - 86_400_000 * 2,
       createdAt: now - 86_400_000 * 10,
@@ -317,7 +317,7 @@ function seedAgent(agentId: string) {
       name: "Order created",
       type: "developer",
       enabled: false,
-      description: "An external system pushes order-created events to the agent.",
+      description: "Hệ thống bên ngoài gửi sự kiện tạo đơn hàng tới Nhân sự số.",
       config: {
         developer: {
           webhookUrl: "https://agents.fpt.ai/console/api/webhooks/triggers/01M0F37JPXPMGYSMJ0VR9CFC7",

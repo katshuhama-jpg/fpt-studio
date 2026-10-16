@@ -57,13 +57,13 @@ const LEVELS: { id: ExportLevel; title: string; desc: string; slug: string }[] =
   {
     id: "message",
     title: "Toàn bộ tin nhắn",
-    desc: "Mỗi dòng là một tin nhắn, đủ nội dung của người dùng và Agent. Dùng để lưu trữ hoặc audit.",
+    desc: "Mỗi dòng là một tin nhắn, đủ nội dung của người dùng và Nhân sự số. Dùng để lưu trữ hoặc audit.",
     slug: "tin-nhan",
   },
   {
     id: "rated",
     title: "Câu trả lời được đánh giá",
-    desc: "Chỉ các câu trả lời người dùng đã like hoặc dislike, kèm câu hỏi và comment. Dùng để tìm chỗ cần sửa Agent.",
+    desc: "Chỉ các câu trả lời người dùng đã like hoặc dislike, kèm câu hỏi và comment. Dùng để tìm chỗ cần sửa Nhân sự số.",
     slug: "phan-hoi",
   },
 ];
@@ -119,7 +119,7 @@ function buildRows(convs: ConversationRecord[], level: ExportLevel, mask: boolea
       const { user, email } = who(c);
       for (const m of c.messages) {
         rows.push([
-          c.id, m.id, byMsg.get(m.id)?.turn ?? "", m.role === "agent" ? "Agent" : "Người dùng", fmt(m.at), m.content,
+          c.id, m.id, byMsg.get(m.id)?.turn ?? "", m.role === "agent" ? "Nhân sự số" : "Người dùng", fmt(m.at), m.content,
           ...(internal ? [(m.toolCalls ?? []).map(tc => `${tc.name} (${tc.status === "failed" ? "lỗi" : "ok"})`).join("; ")] : []),
           ratingVi(m.feedback), m.feedbackComment ?? "", CHANNEL_META[c.channel].label, user, email,
         ]);
@@ -128,7 +128,7 @@ function buildRows(convs: ConversationRecord[], level: ExportLevel, mask: boolea
     return rows;
   }
 
-  const header = ["ID cuộc trò chuyện", "ID tin nhắn", "Lượt", "Thứ tự trong lượt", "Đánh giá", "Comment", "Câu hỏi của người dùng", "Câu trả lời của Agent", "Thời gian", "Kênh", "Người dùng", "Email"];
+  const header = ["ID cuộc trò chuyện", "ID tin nhắn", "Lượt", "Thứ tự trong lượt", "Đánh giá", "Comment", "Câu hỏi của người dùng", "Câu trả lời của Nhân sự số", "Thời gian", "Kênh", "Người dùng", "Email"];
   const rows: (string | number)[][] = [header];
   for (const c of convs) {
     const { byMsg } = turnLookup(c);

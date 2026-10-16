@@ -247,7 +247,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
       </div>
       <h3 className="font-display text-lg font-semibold mb-1.5">No tasks yet</h3>
       <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">
-        Tasks are workflow recipes your agent can run. Create your first task to define what your agent should do.
+        Task là các công thức workflow mà Nhân sự số chạy được. Tạo task đầu tiên để định nghĩa việc Nhân sự số cần làm.
       </p>
       <button onClick={onCreate} className="btn-primary h-9 mx-auto">
         <Plus size={13} /> Create your first task

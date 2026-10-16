@@ -37,10 +37,10 @@ export function useCanShareAgent(agentId: string) {
 type Level = "role" | "view" | "edit" | "none";
 /** Level labels and what each one allows - the same wording in the menu and the doc. */
 export const LEVEL_META: Record<Level, { label: string; helper: string; icon: LucideIcon }> = {
-  role: { label: "Theo Vai trò", helper: "Ai có quyền tạo Agent được Chỉnh sửa, còn lại Chỉ xem.", icon: UserCog },
-  edit: { label: "Chỉnh sửa", helper: "Sửa Agent, tài nguyên của Agent và publish.", icon: Pencil },
-  view: { label: "Chỉ xem", helper: "Xem Agent, lịch sử hội thoại và chạy Evaluate.", icon: Eye },
-  none: { label: "Không có quyền", helper: "Không mở được Agent này.", icon: Lock },
+  role: { label: "Theo Vai trò", helper: "Ai có quyền tạo Nhân sự số được Chỉnh sửa, còn lại Chỉ xem.", icon: UserCog },
+  edit: { label: "Chỉnh sửa", helper: "Sửa Nhân sự số, tài nguyên của Nhân sự số và publish.", icon: Pencil },
+  view: { label: "Chỉ xem", helper: "Xem Nhân sự số, lịch sử hội thoại và chạy Evaluate.", icon: Eye },
+  none: { label: "Không có quyền", helper: "Không mở được Nhân sự số này.", icon: Lock },
 };
 /** Who works on the Agent - the same three choices as "Ai được dùng" on a resource. */
 type Scope = "me" | "space" | "specific";
@@ -175,14 +175,14 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
       const L = LEVEL_META[lv].label;
       notificationStore.push({
         ...base, recipients: ids,
-        title: `${actor.name} đã cấp quyền ${L} cho bạn trên Agent ${agent.name}`,
-        segments: [[actor.name, true], [` đã cấp quyền ${L} cho bạn trên Agent `], [agent.name, true]],
+        title: `${actor.name} đã cấp quyền ${L} cho bạn trên Nhân sự số ${agent.name}`,
+        segments: [[actor.name, true], [` đã cấp quyền ${L} cho bạn trên Nhân sự số `], [agent.name, true]],
       });
     }
     if (raisedIds.length) notificationStore.push({
       ...base, kind: "agent_access_changed", recipients: raisedIds,
-      title: `${actor.name} đã thay đổi quyền của bạn trên Agent ${agent.name}`,
-      segments: [[actor.name, true], [" đã thay đổi quyền của bạn trên Agent "], [agent.name, true]],
+      title: `${actor.name} đã thay đổi quyền của bạn trên Nhân sự số ${agent.name}`,
+      segments: [[actor.name, true], [" đã thay đổi quyền của bạn trên Nhân sự số "], [agent.name, true]],
     });
   };
 
@@ -212,11 +212,11 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
     const openEdit = opensEditToSpace(sh);
     if (!lowered && !openEdit) { go(); return; }
     const parts = [
-      lowered ? `${lowered} người sẽ mất quyền hoặc bị giảm quyền trên Agent này.` : "",
-      openEdit ? "Mọi thành viên Space sẽ sửa được Agent, tài nguyên của Agent và publish." : "",
+      lowered ? `${lowered} người sẽ mất quyền hoặc bị giảm quyền trên Nhân sự số này.` : "",
+      openEdit ? "Mọi thành viên Space sẽ sửa được Nhân sự số, tài nguyên của Nhân sự số và publish." : "",
     ].filter(Boolean);
     setConfirm({
-      title: lowered ? "Giảm quyền trên Agent?" : "Cho cả Space chỉnh sửa Agent?",
+      title: lowered ? "Giảm quyền trên Nhân sự số?" : "Cho cả Space chỉnh sửa Nhân sự số?",
       body: parts.join(" "),
       action: lowered && openEdit ? "Lưu thay đổi" : lowered ? "Giảm quyền" : "Cho phép",
       destructive: !!lowered,
@@ -247,7 +247,7 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
   const requestClose = () => {
     if (!dirty) { onClose(); return; }
     setConfirm({
-      title: "Bỏ thay đổi chưa lưu?", body: "Thay đổi về quyền trên Agent này sẽ không được lưu.",
+      title: "Bỏ thay đổi chưa lưu?", body: "Thay đổi về quyền trên Nhân sự số này sẽ không được lưu.",
       action: "Bỏ thay đổi", cancel: "Tiếp tục chỉnh sửa", destructive: true, onOk: onClose,
     });
   };
@@ -285,7 +285,7 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
         <div className="absolute left-0 right-0 top-[calc(100%+4px)] max-h-60 overflow-y-auto bg-white rounded-lg ring-1 ring-border shadow-elev z-30 p-1">
           {candidates.length === 0
             ? <p className="px-3 py-2.5 text-sm text-muted-foreground">{adminMatch
-                ? `${adminMatch.name} là Space Admin - Luôn chỉnh sửa được mọi Agent nên không cần thêm.`
+                ? `${adminMatch.name} là Space Admin - Luôn chỉnh sửa được mọi Nhân sự số nên không cần thêm.`
                 : `Không tìm thấy ai khớp với "${query.trim()}". Thử tên khác hoặc email.`}</p>
             : candidates.map(m => (
               <button key={m.id} type="button" onClick={() => pick(m)} className="w-full flex items-center gap-2.5 text-left px-2 py-2 rounded-md hover:bg-surface-muted transition-base">
@@ -307,9 +307,9 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
     { id: "specific", label: "Người cụ thể" },
   ];
   const scopeHelper: Record<Scope, string> = {
-    me: iAmOwner ? "Chỉ bạn và Space Admin mở được Agent này." : "Chỉ chủ sở hữu và Space Admin mở được Agent này.",
-    space: "Mọi thành viên Space mở được Agent này theo quyền chung bên dưới.",
-    specific: "Chỉ người bạn chọn mới mở được Agent này.",
+    me: iAmOwner ? "Chỉ bạn và Space Admin mở được Nhân sự số này." : "Chỉ chủ sở hữu và Space Admin mở được Nhân sự số này.",
+    space: "Mọi thành viên Space mở được Nhân sự số này theo quyền chung bên dưới.",
+    specific: "Chỉ người bạn chọn mới mở được Nhân sự số này.",
   };
   const addPlaceholder = scope === "space" ? "Thêm người có quyền khác Cả Space" : "Thêm người theo tên hoặc email";
 
@@ -355,13 +355,13 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
             <>
               <DialogHeader>
                 <DialogTitle className="pr-6">Cấp quyền trên "{agent.name}"</DialogTitle>
-                <DialogDescription>Chọn ai được xem hoặc chỉnh sửa Agent này trong Console.</DialogDescription>
+                <DialogDescription>Chọn ai được xem hoặc chỉnh sửa Nhân sự số này trong Space.</DialogDescription>
               </DialogHeader>
 
               {/* Who works on the Agent - same three choices as "Ai được dùng" on a resource. */}
               <div>
-                <h3 className="text-sm font-semibold mb-2">Ai có quyền trên Agent này</h3>
-                <div role="radiogroup" aria-label="Ai có quyền trên Agent này" className="grid grid-cols-3 p-1 rounded-lg bg-surface-muted gap-1">
+                <h3 className="text-sm font-semibold mb-2">Ai có quyền trên Nhân sự số này</h3>
+                <div role="radiogroup" aria-label="Ai có quyền trên Nhân sự số này" className="grid grid-cols-3 p-1 rounded-lg bg-surface-muted gap-1">
                   {SCOPES.map(o => (
                     <button key={o.id} type="button" role="radio" aria-checked={scope === o.id} onClick={() => setScope(o.id)}
                       className={`h-8 px-1 rounded-md text-xs sm:text-sm font-medium truncate transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${scope === o.id ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}>

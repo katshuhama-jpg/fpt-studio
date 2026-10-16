@@ -217,7 +217,7 @@ export default function WorkforceCanvasPage() {
     const n = nodes.find(nn => nn.id === nodeId);
     if (!n) return "-";
     switch (n.data.kind) {
-      case "agent": return AGENTS.find(a => a.id === n.data.agentId)?.name ?? "Agent";
+      case "agent": return AGENTS.find(a => a.id === n.data.agentId)?.name ?? "Nhân sự số";
       case "omni": return "Omni Supports";
       case "person": return members.find(m => m.id === n.data.memberId)?.name ?? "Người trong tổ chức";
       case "subprocess": return (n.data.workforceId ? workforceStore.get(n.data.workforceId)?.name : undefined) ?? "Sub-process";
@@ -256,7 +256,7 @@ export default function WorkforceCanvasPage() {
       steps: s.steps,
       edgeIds: [...s.edgeIds],
       conditionChoices,
-      errorReason: s.endReason === "unwired" ? `Trigger "${s.steps[0] ? describeRunNode(s.steps[0]) : "này"}" chưa kết nối tới Agent nào - Dừng ngay từ bước đầu.`
+      errorReason: s.endReason === "unwired" ? `Trigger "${s.steps[0] ? describeRunNode(s.steps[0]) : "này"}" chưa kết nối tới Nhân sự số nào - Dừng ngay từ bước đầu.`
         : s.endReason === "rejected" ? `${rejectedBy?.name ?? "Người duyệt"} đã từ chối.`
         : null,
     });
@@ -294,7 +294,7 @@ export default function WorkforceCanvasPage() {
       options.push({
         nodeId: n.id,
         name: record.name,
-        agentName: AGENTS.find(a => a.id === agentId)?.name ?? "Agent",
+        agentName: AGENTS.find(a => a.id === agentId)?.name ?? "Nhân sự số",
         instructions: record.config.manual?.instructions,
       });
     }
@@ -697,7 +697,7 @@ export default function WorkforceCanvasPage() {
       {configuringNode?.data.kind === "condition" && (() => {
         const { source, destination } = getRouteEndpoints(configuringNode.id, nodes as any, edges);
         const sourceLabel =
-          source?.data.kind === "agent" ? AGENTS.find(a => a.id === source.data.agentId)?.name ?? "Agent" :
+          source?.data.kind === "agent" ? AGENTS.find(a => a.id === source.data.agentId)?.name ?? "Nhân sự số" :
           source?.data.kind === "person" ? members.find(m => m.id === source.data.memberId)?.name ?? "Người trong tổ chức" :
           source?.data.kind === "subprocess" ? (source.data.workforceId ? workforceStore.get(source.data.workforceId)?.name : undefined) ?? "Sub-process" :
           "-";
@@ -705,7 +705,7 @@ export default function WorkforceCanvasPage() {
           ? destination.data.kind
           : "omni";
         const destinationLabel = !destination ? "-" :
-          destination.data.kind === "agent" ? AGENTS.find(a => a.id === destination.data.agentId)?.name ?? "Agent" :
+          destination.data.kind === "agent" ? AGENTS.find(a => a.id === destination.data.agentId)?.name ?? "Nhân sự số" :
           destination.data.kind === "omni" ? "Omni Supports" :
           destination.data.kind === "person" ? members.find(m => m.id === destination.data.memberId)?.name ?? "Người trong tổ chức" :
           destination.data.kind === "subprocess" ? (destination.data.workforceId ? workforceStore.get(destination.data.workforceId)?.name : undefined) ?? "Sub-process" : "-";

@@ -44,7 +44,7 @@ function PermissionChips({ kb, canManage, onOpenAccess, onOpenRetrieval }: {
   const isOwner = kb.ownerId === CURRENT_USER.id;
   const restrictedCount = knowledgeDocumentStore.countRestricted(kb.id);
   const chips = [
-    { key: "access", Icon: Users, prefix: ACCESS_COPY.chip, value: accessLabel(kb.sharing.mode, kb.sharing.people.length, kb.agentOnlyFor ? "Chỉ Agent này" : undefined), tip: ACCESS_COPY.title, onClick: onOpenAccess, badge: 0 },
+    { key: "access", Icon: Users, prefix: ACCESS_COPY.chip, value: accessLabel(kb.sharing.mode, kb.sharing.people.length, kb.agentOnlyFor ? "Chỉ Nhân sự số này" : undefined), tip: ACCESS_COPY.title, onClick: onOpenAccess, badge: 0 },
     { key: "retrieval", Icon: MessageSquareText, prefix: RETRIEVAL_COPY.chip, value: retrievalLabel(kb.querySharing), tip: RETRIEVAL_COPY.title, onClick: onOpenRetrieval, badge: restrictedCount },
   ];
   return (
@@ -53,7 +53,7 @@ function PermissionChips({ kb, canManage, onOpenAccess, onOpenRetrieval }: {
       {chips.map(({ key, Icon, prefix, value, tip, onClick, badge }) => {
         // Folders/documents with their own "Agent trả lời cho ai" show as a short "N mục riêng"
         // badge, so the chip keeps its main value short; the tooltip spells it out.
-        const badgeText = badge > 0 ? `${badge} thư mục hoặc tài liệu có cài đặt "Agent trả lời cho ai" riêng` : "";
+        const badgeText = badge > 0 ? `${badge} thư mục hoặc tài liệu có cài đặt "Nhân sự số trả lời cho ai" riêng` : "";
         const body = (
           <>
             <Icon size={13} className="shrink-0 text-muted-foreground" />
@@ -317,7 +317,7 @@ export default function KnowledgeDetail() {
                     {isOwner && (
                       <button
                         disabled={!canShare}
-                        title={!canShare ? "Chỉ chủ sở hữu mới đổi được Agent trả lời cho ai." : undefined}
+                        title={!canShare ? "Chỉ chủ sở hữu mới đổi được Nhân sự số trả lời cho ai." : undefined}
                         onClick={() => { setShowRetrieval(true); setShowMenu(false); }}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted disabled:text-muted-foreground/50 disabled:cursor-not-allowed transition-base"
                       >
@@ -374,7 +374,7 @@ export default function KnowledgeDetail() {
                   <Loader2 size={13} className="animate-spin" /> Đang xử lý
                 </span>
               </TooltipTrigger>
-              <TooltipContent side="left">Agent dùng được nội dung mới sau khi xử lý xong.</TooltipContent>
+              <TooltipContent side="left">Nhân sự số dùng được nội dung mới sau khi xử lý xong.</TooltipContent>
             </Tooltip>
           )}
         </div>
@@ -391,8 +391,8 @@ export default function KnowledgeDetail() {
         return (
           <div className="px-4 sm:px-6 py-2.5 bg-primary-soft/40 border-b border-border text-xs text-foreground shrink-0">
             {empty
-              ? `Agent ${getAgent(viaAgent).name} chưa tra cứu mục nào trong kho này vì các mục đã chọn không còn. Chọn lại phạm vi trong Agent.`
-              : `Agent ${getAgent(viaAgent).name} chỉ tra cứu ${label} trong kho này. Đổi phạm vi trong Agent nếu cần.`}
+              ? `Nhân sự số ${getAgent(viaAgent).name} chưa tra cứu mục nào trong kho này vì các mục đã chọn không còn. Chọn lại phạm vi trong Nhân sự số.`
+              : `Nhân sự số ${getAgent(viaAgent).name} chỉ tra cứu ${label} trong kho này. Đổi phạm vi trong Nhân sự số nếu cần.`}
           </div>
         );
       })()}

@@ -158,7 +158,7 @@ export default function AuthCard({ form, set }: { form: KitForm; set: (f: Partia
   const headersField = useField("headers");
   const o = form.oauth;
   return (
-    <SectionCard title="Xác thực" subtitle="Cách hệ thống gửi credential khi agent gọi API.">
+    <SectionCard title="Xác thực" subtitle="Cách hệ thống gửi credential khi Nhân sự số gọi API.">
       <div className="space-y-5">
         <div>
           <FieldLabel htmlFor="auth-type" required>Auth type</FieldLabel>

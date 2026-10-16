@@ -71,7 +71,7 @@ function SuccessDialog({ payload, kitKeyValue, onClose }: { payload: KitPayload;
           <DialogDescription>
             {oauth
               ? "Tool sẽ được lấy từ server sau khi người dùng kết nối và cấp quyền."
-              : <>{ops.length} tool sẵn sàng gắn vào agent. Key <code className="font-mono text-foreground">{kitKeyValue}</code>.</>}
+              : <>{ops.length} tool sẵn sàng gắn vào Nhân sự số. Key <code className="font-mono text-foreground">{kitKeyValue}</code>.</>}
           </DialogDescription>
         </DialogHeader>
         {!oauth && ops.length > 0 && (

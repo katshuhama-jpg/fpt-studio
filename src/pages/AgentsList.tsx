@@ -24,10 +24,10 @@ import { agentModelStore } from "@/components/configure/agentModelStore";
 
 /* ─── Data ─────────────────────────────────────────────────────────────── */
 
-const tabs = ["All agents", "Published", "Draft", "Removed", "Chờ duyệt", "Bị từ chối", "Shared with me"] as const;
+const tabs = ["Tất cả Nhân sự số", "Published", "Draft", "Removed", "Chờ duyệt", "Bị từ chối", "Shared with me"] as const;
 /** Display labels — "Published/Draft" read as "Đang live/Bản nháp" to match the card lines. */
 const TAB_LABEL: Partial<Record<typeof tabs[number], string>> = { Published: "Đang live", Draft: "Bản nháp", Removed: "Đã gỡ", "Shared with me": "Được thêm vào" };
-const kindFilters = ["All", "Agents", "Automation Agents"] as const;
+const kindFilters = ["All", "Nhân sự số", "Nhân sự số tự động"] as const;
 
 const SUGGESTIONS = [
   { label: "Customer support", prompt: "A customer-support agent that answers FAQs, guides users through documentation, and escalates tickets when needed." },
@@ -170,7 +170,7 @@ function TemplateModal({ onClose }: { onClose: () => void }) {
         <div className="flex items-start justify-between px-6 pt-6 pb-4 shrink-0">
           <div>
             <h2 className="font-display text-xl font-semibold">Template library</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Explore all templates optimized for each role and use case. Pick a template to start building an agent.</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Xem mọi mẫu theo vai trò và tình huống. Chọn một mẫu để bắt đầu tạo Nhân sự số.</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base mt-0.5 shrink-0">
             <HugeiconsIcon icon={Cancel01Icon} size={16} />
@@ -236,7 +236,7 @@ function AgentShareChip({ agentId }: { agentId: string }) {
   const named = s.people.filter(p => p.level !== "none").length;
   if (!canShare || (s.general === "none" && named === 0)) return null;
   return (
-    <span title="Số người được cấp quyền trên Agent này" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary-soft text-primary text-[11px] font-medium whitespace-nowrap shrink-0">
+    <span title="Số người được cấp quyền trên Nhân sự số này" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary-soft text-primary text-[11px] font-medium whitespace-nowrap shrink-0">
       <HugeiconsIcon icon={UserMultipleIcon} size={11} /> {s.general === "space" ? "Cả Space" : `${named} người`}
     </span>
   );
@@ -365,7 +365,7 @@ function GroupEmptyState({ message, onShowAll }: { message: string; onShowAll?: 
           onClick={onShowAll}
           className="mt-4 h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base"
         >
-          Show all agents
+          Xem tất cả Nhân sự số
         </button>
       )}
     </div>
@@ -401,14 +401,14 @@ export default function AgentsList() {
     [access.userId, shareVersion],
   );
 
-  const [activeTab, setActiveTab] = useState<typeof tabs[number]>("All agents");
+  const [activeTab, setActiveTab] = useState<typeof tabs[number]>("Tất cả Nhân sự số");
   const [kindFilter, setKindFilter] = useState<typeof kindFilters[number]>("All");
   const [search, setSearch] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
   const [prompt, setPrompt] = useState("");
 
   const tabCounts: Record<typeof tabs[number], number> = {
-    "All agents": visibleAgents.length,
+    "Tất cả Nhân sự số": visibleAgents.length,
     "Published": visibleAgents.filter(a => agentTabStatus(a) === "Published").length,
     "Draft": visibleAgents.filter(a => agentTabStatus(a) === "Draft").length,
     "Removed": visibleAgents.filter(a => agentTabStatus(a) === "Removed").length,
@@ -418,7 +418,7 @@ export default function AgentsList() {
   };
 
   const tabFiltered =
-    activeTab === "All agents"
+    activeTab === "Tất cả Nhân sự số"
       ? visibleAgents
       : activeTab === "Shared with me"
         ? sharedWithMe
@@ -438,14 +438,14 @@ export default function AgentsList() {
   const allConversationalCount = visibleAgents.filter(a => getAgentKind(a.id) === "conversational").length;
   const allAutomationCount = visibleAgents.filter(a => getAgentKind(a.id) === "automation").length;
 
-  const showConversational = kindFilter !== "Automation Agents";
-  const showAutomation = kindFilter !== "Agents";
+  const showConversational = kindFilter !== "Nhân sự số tự động";
+  const showAutomation = kindFilter !== "Nhân sự số";
   const singleKindView = kindFilter !== "All";
 
   const clearFilters = () => {
     setKindFilter("All");
     setSearch("");
-    setActiveTab("All agents");
+    setActiveTab("Tất cả Nhân sự số");
   };
 
   const handleBuild = () => {
@@ -465,9 +465,9 @@ export default function AgentsList() {
 
       {/* Page header */}
       <div className="mb-6">
-        <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Agents</h1>
+        <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Nhân sự số</h1>
         <p className="text-sm text-muted-foreground">
-          Manage every agent in this workspace - Build, test, deploy and monitor.
+          Quản lý mọi Nhân sự số trong Space - Tạo, kiểm thử, triển khai và theo dõi.
         </p>
       </div>
 
@@ -500,7 +500,7 @@ export default function AgentsList() {
             <button
               onClick={() => canCreateAgent && setShowTemplates(true)}
               disabled={!canCreateAgent}
-              title={!canCreateAgent ? "You don't have permission to create agents." : undefined}
+              title={!canCreateAgent ? "Bạn không có quyền tạo Nhân sự số." : undefined}
               className="text-sm text-muted-foreground hover:text-foreground transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
             >
               Use a template
@@ -508,11 +508,11 @@ export default function AgentsList() {
             <button
               onClick={handleBuild}
               disabled={prompt.trim().length < 20 || !canCreateAgent}
-              title={!canCreateAgent ? "You don't have permission to create agents." : undefined}
+              title={!canCreateAgent ? "Bạn không có quyền tạo Nhân sự số." : undefined}
               className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <HugeiconsIcon icon={SparklesIcon} size={14} />
-              Build agent
+              Tạo Nhân sự số
             </button>
           </div>
         </div>
@@ -535,7 +535,7 @@ export default function AgentsList() {
         <button
           onClick={() => canCreateAgent && navigate("/agents/new?tab=build&section=instructions")}
           disabled={!canCreateAgent}
-          title={!canCreateAgent ? "You don't have permission to create agents." : undefined}
+          title={!canCreateAgent ? "Bạn không có quyền tạo Nhân sự số." : undefined}
           className="btn-secondary mt-4 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-surface"
         >
           Create from blank
@@ -572,7 +572,7 @@ export default function AgentsList() {
           <div className="relative">
             <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
-              placeholder="Search agents…"
+              placeholder="Tìm Nhân sự số…"
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
@@ -606,15 +606,15 @@ export default function AgentsList() {
         <div className="mb-8">
           {!singleKindView && (
             <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-              Agents
+              Nhân sự số
               <span className="text-xs font-normal text-muted-foreground">{conversationalAgents.length}</span>
             </h2>
           )}
           {conversationalAgents.length === 0 ? (
             <GroupEmptyState
               message={allConversationalCount === 0
-                ? "No agents yet - Build one above and it will appear here."
-                : "No agents match your search"}
+                ? "Chưa có Nhân sự số nào - Tạo ở trên và Nhân sự số sẽ hiện ở đây."
+                : "Không có Nhân sự số nào khớp với từ khóa"}
               onShowAll={allConversationalCount > 0 ? clearFilters : undefined}
             />
           ) : (
@@ -629,15 +629,15 @@ export default function AgentsList() {
         <div className="mb-8">
           {!singleKindView && (
             <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-              Automation Agents
+              Nhân sự số tự động
               <span className="text-xs font-normal text-muted-foreground">{automationAgents.length}</span>
             </h2>
           )}
           {automationAgents.length === 0 ? (
             <GroupEmptyState
               message={allAutomationCount === 0
-                ? "No automation agents yet - Add a trigger to an agent in Console and it will appear here."
-                : "No agents match your search"}
+                ? "Chưa có Nhân sự số tự động nào - Thêm trigger cho một Nhân sự số và nó sẽ hiện ở đây."
+                : "Không có Nhân sự số nào khớp với từ khóa"}
               onShowAll={allAutomationCount > 0 ? clearFilters : undefined}
             />
           ) : (

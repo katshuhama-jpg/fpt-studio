@@ -203,7 +203,7 @@ export function resolveRef(agentId: string, ref: ParsedRef): ResolvedRef {
       return ok(`${c.name} › ${action}`, { detail: `Tool của ${c.name}`, state: c.unconnected ? "Chưa kết nối" : undefined });
     }
     case "kb": {
-      if (ref.payload === OWN_KB_ID) return ok("Cá nhân", { detail: "Tri thức riêng của Agent này" });
+      if (ref.payload === OWN_KB_ID) return ok("Cá nhân", { detail: "Tri thức riêng của Nhân sự số này" });
       const kb = knowledgeBaseStore.get(ref.payload);
       if (kb && knowledgeStore.listAttachedConsoleKbIds(agentId).includes(kb.id) && isResourceRevoked(agentId, "knowledge", kb.id)) return revoked(kb.name, kb.ownerName, "knowledge", kb.id);
       if (kb && !isKbAccessibleTo(kb, CURRENT_USER.id)) return restricted();
@@ -242,7 +242,7 @@ export function findBrokenRefs(agentId: string, text: string): BrokenRef[] {
   for (const seg of splitByRefs(text)) {
     if (seg.type !== "ref") continue;
     const r = resolveRef(agentId, seg.ref);
-    if (r.status === "missing") out.push({ ref: r, reason: "Không còn gắn với Agent" });
+    if (r.status === "missing") out.push({ ref: r, reason: "Không còn gắn với Nhân sự số" });
     else if (r.status === "restricted") out.push({ ref: r, reason: "Không có quyền truy cập" });
     else if (r.status === "revoked") out.push({ ref: r, reason: "Không còn khả dụng" });
   }
@@ -367,7 +367,7 @@ function ownItems(agentId: string, withLocation: boolean): MenuItem[] {
 function knowledgeRootItems(agentId: string): MenuItem[] {
   const items: MenuItem[] = [];
   if (knowledgeStore.list(agentId).length > 0) {
-    items.push({ key: "kb:own", token: makeToken("kb", OWN_KB_ID, "Cá nhân"), label: "Cá nhân", sub: "Tri thức riêng của Agent", glyph: "folder", child: { cat: "knowledge", kbId: OWN_KB_ID } });
+    items.push({ key: "kb:own", token: makeToken("kb", OWN_KB_ID, "Cá nhân"), label: "Cá nhân", sub: "Tri thức riêng của Nhân sự số", glyph: "folder", child: { cat: "knowledge", kbId: OWN_KB_ID } });
   }
   for (const kb of attachedKbs(agentId)) {
     const off = !knowledgeStore.isKbActive(agentId, kb.id);

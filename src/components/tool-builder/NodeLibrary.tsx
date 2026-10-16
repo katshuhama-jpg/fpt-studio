@@ -25,7 +25,7 @@ export const nodeSpecs: NodeSpec[] = [
   { kind: "query_processor", label: "Query Processor", description: "Pre-process the query (synonym mapping).", category: "ai", icon: FileSearch, color: "text-accent", bg: "bg-accent-soft" },
   { kind: "llm", label: "LLM", description: "Use an LLM to process info, classify, or answer.", category: "ai", icon: Sparkles, color: "text-accent", bg: "bg-accent-soft" },
   { kind: "param_extractor", label: "Parameter Extractor", description: "Extract variables from text with an LLM.", category: "ai", icon: FileSearch, color: "text-accent", bg: "bg-accent-soft" },
-  { kind: "agent", label: "Agent", description: "LLM-driven agent that auto-picks tools.", category: "ai", icon: Bot, color: "text-accent", bg: "bg-accent-soft" },
+  { kind: "agent", label: "Nhân sự số", description: "Nhân sự số chạy bằng LLM, tự chọn tool.", category: "ai", icon: Bot, color: "text-accent", bg: "bg-accent-soft" },
 
   { kind: "knowledge", label: "Knowledge Retrieval", description: "Retrieve relevant info from the knowledge base.", category: "knowledge", icon: BookOpen, color: "text-info", bg: "bg-info/10" },
   { kind: "hkg_retrieval", label: "H-KG Retrieval", description: "Retrieve from a hierarchical knowledge graph.", category: "knowledge", icon: Network, color: "text-info", bg: "bg-info/10" },

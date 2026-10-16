@@ -206,7 +206,7 @@ function MessageCard({ role, content }: { role: "HUMAN" | "AI"; content: string 
  * scoped here to this lookup's output rather than touching those classes globally. */
 const GUARDRAIL_ACTION_META: Record<string, { label: string; chipClass: string }> = {
   pass: { label: "Pass", chipClass: "chip-muted" },
-  agent_refusal: { label: "Agent refusal", chipClass: "chip-warning !text-[hsl(var(--warning-strong))]" },
+  agent_refusal: { label: "Nhân sự số từ chối", chipClass: "chip-warning !text-[hsl(var(--warning-strong))]" },
   blocked: { label: "Blocked", chipClass: "chip-danger !text-[hsl(var(--destructive-strong))]" },
   replaced: { label: "Replaced", chipClass: "chip-warning !text-[hsl(var(--warning-strong))]" },
 };
@@ -361,9 +361,9 @@ export default function ConversationTrace() {
   if (!canViewTrace) {
     return (
       <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background gap-3 px-6 text-center">
-        <p className="text-sm text-muted-foreground max-w-md">Bạn không có quyền xem lịch sử hội thoại của agent này. Liên hệ Admin nếu cần được cấp quyền "View agent history".</p>
+        <p className="text-sm text-muted-foreground max-w-md">Bạn không có quyền xem lịch sử hội thoại của Nhân sự số này. Liên hệ Admin nếu cần được cấp quyền "View Nhân sự số history".</p>
         <button onClick={() => navigate(`/agents/${agentId}`)} className="btn-primary h-9 px-4">
-          <ChevronLeft size={14} /> Về trang Agent
+          <ChevronLeft size={14} /> Về trang Nhân sự số
         </button>
       </div>
     );
@@ -629,7 +629,7 @@ export default function ConversationTrace() {
                             </div>
                           ))}
                           {turn.agentMessages.length === 0 && (
-                            <p className="px-3.5 py-3 text-sm text-muted-foreground">Cuộc hội thoại kết thúc - Chưa có phản hồi từ agent.</p>
+                            <p className="px-3.5 py-3 text-sm text-muted-foreground">Cuộc hội thoại kết thúc - Chưa có phản hồi từ Nhân sự số.</p>
                           )}
                         </div>
                       </div>

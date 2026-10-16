@@ -85,7 +85,7 @@ export function detectTraceIssues(trace: ConversationTrace): TraceIssue[] {
           diagnosis:
             action === "blocked" ? "Bị Guardrail chặn"
               : action === "replaced" ? "Guardrail đã chặn và thay câu trả lời"
-                : "Agent từ chối trả lời do Guardrail",
+                : "Nhân sự số từ chối trả lời do Guardrail",
           detail: msg.guardrail.rule ? `Rule: "${msg.guardrail.rule}"` : undefined,
           fix: { kind: "deeplink", ctaLabel: "Mở cấu hình Guardrail", section: "guardrails" },
         });

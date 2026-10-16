@@ -113,7 +113,7 @@ function seed() {
   put({
     id: "api-1",
     name: "Tra cứu đơn hàng",
-    description: "Lấy trạng thái và chi tiết một đơn hàng theo mã đơn. Agent gọi khi khách hỏi \"đơn của tôi tới đâu rồi\".",
+    description: "Lấy trạng thái và chi tiết một đơn hàng theo mã đơn. Nhân sự số gọi khi khách hỏi \"đơn của tôi tới đâu rồi\".",
     method: "GET",
     url: "https://api.client.com/orders/{order_id}",
     auth: { type: "header", headers: [{ key: "X-API-Key", value: "sk_live_••••••••••••cd42" }] },
@@ -130,7 +130,7 @@ function seed() {
   put({
     id: "api-2",
     name: "Tạo ticket hỗ trợ",
-    description: "Tạo một ticket khiếu nại/hỗ trợ mới trong hệ thống CSKH. Agent gọi khi không tự xử lý được yêu cầu của khách và cần chuyển cho nhân viên.",
+    description: "Tạo một ticket khiếu nại/hỗ trợ mới trong hệ thống CSKH. Nhân sự số gọi khi không tự xử lý được yêu cầu của khách và cần chuyển cho nhân viên.",
     method: "POST",
     url: "https://api.client.com/tickets",
     auth: { type: "header", headers: [{ key: "Authorization", value: "Bearer ••••••••••••••••" }] },

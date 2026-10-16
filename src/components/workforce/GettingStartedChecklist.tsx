@@ -26,8 +26,8 @@ export default function GettingStartedChecklist({ nodes, edges, name, status }: 
   const isPublished = status === "published";
 
   const steps: Step[] = [
-    { label: "Thêm Agent nguồn", done: hasAgent },
-    { label: "Kết nối Agent tới đích", done: hasRoute },
+    { label: "Thêm Nhân sự số nguồn", done: hasAgent },
+    { label: "Kết nối Nhân sự số tới đích", done: hasRoute },
     { label: "Cấu hình điều kiện chuyển giao", done: hasConfiguredCondition },
     { label: "Đặt tên cho Workforce", done: isNamed },
     { label: "Publish Workforce", done: isPublished },

@@ -29,7 +29,7 @@ const DEFAULT_OTHERS: Omit<BusinessProcess, "agentId"> = {
   id: "others",
   name: "others",
   description:
-    "Khả năng cơ bản của Agent có thể tham gia vào các cuộc trò chuyện và trả lời câu hỏi của người dùng đưa ra dựa vào knowledge/tool/task có thể truy cập.",
+    "Khả năng cơ bản của Nhân sự số có thể tham gia vào các cuộc trò chuyện và trả lời câu hỏi của người dùng đưa ra dựa vào knowledge/tool/task có thể truy cập.",
   goal: "Trả lời các câu hỏi chung của người dùng dựa trên knowledge/tool/task có thể truy cập.",
   strategy: "react",
   instruction:
@@ -136,7 +136,7 @@ export const businessProcessStore = {
 };
 
 export const STRATEGY_OPTIONS: { value: BpStrategy; label: string; desc: string }[] = [
-  { value: "react", label: "ReAct", desc: "Agent reasons step-by-step then chooses tools/tasks dynamically." },
-  { value: "predefined", label: "Predefined Plan", desc: "Agent follows the instruction in a fixed order." },
-  { value: "tool_execution", label: "Tool Execution", desc: "Agent directly executes a selected tool or task without reasoning." },
+  { value: "react", label: "ReAct", desc: "Nhân sự số suy luận từng bước rồi tự chọn tool/task phù hợp." },
+  { value: "predefined", label: "Predefined Plan", desc: "Nhân sự số làm theo hướng dẫn với thứ tự cố định." },
+  { value: "tool_execution", label: "Tool Execution", desc: "Nhân sự số chạy thẳng tool hoặc task đã chọn, không suy luận." },
 ];

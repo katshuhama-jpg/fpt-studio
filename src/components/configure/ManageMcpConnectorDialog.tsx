@@ -77,7 +77,7 @@ export default function ManageMcpConnectorDialog({ connectorId, canRemove, onClo
                   ? <span className="inline-flex items-center rounded-full border border-warning/50 px-2.5 py-0.5 text-xs font-medium text-warning">Authorization required</span>
                   : <span className="inline-flex items-center rounded-full border border-success/40 bg-success/5 px-2.5 py-0.5 text-xs font-medium text-success">Connected</span>}
               </div>
-              <DialogDescription className="mt-1">Manage the MCP server and review the tools it grants to agents.</DialogDescription>
+              <DialogDescription className="mt-1">Quản lý MCP server và xem các tool nó cấp cho Nhân sự số.</DialogDescription>
             </div>
           </div>
         </DialogHeader>
@@ -106,7 +106,7 @@ export default function ManageMcpConnectorDialog({ connectorId, canRemove, onClo
           </TabsContent>
 
           <TabsContent value="permissions" className="mt-5 flex-1 min-h-0 overflow-y-auto">
-            <p className="text-sm text-muted-foreground mb-3">You'll be able to configure the specific permissions once connected to an agent.</p>
+            <p className="text-sm text-muted-foreground mb-3">Bạn cấu hình được quyền cụ thể sau khi kết nối với một Nhân sự số.</p>
             {tools.length === 0 ? (
               <div className="rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
                 {pending ? "Tools appear after the server is authorized." : "This server didn't expose any tools. Try Sync."}

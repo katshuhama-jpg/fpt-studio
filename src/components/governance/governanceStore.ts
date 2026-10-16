@@ -91,7 +91,7 @@ export type GovChangeState = "new" | "modified" | "unchanged_approved";
 export type GovItemDecision = "approved" | "rejected";
 
 export const RESOURCE_TYPE_LABEL: Record<GovResourceType, string> = {
-  agent: "Agent",
+  agent: "Nhân sự số",
   knowledge: "Knowledge",
   skill: "Skill",
   guardrail: "Guardrails",
@@ -437,7 +437,7 @@ function seed() {
     {
       id: "req-1001", resourceType: "agent", resourceId: "hr", resourceName: "HR Onboarding Bot",
       resourceIcon: "🤝", requesterId: "m-fsoft-vn-1", requesterName: "Duy Nguyen",
-      audience: "org", note: "Mở rộng agent Onboarding cho toàn bộ phòng Nhân sự - Bổ sung lộ trình sản phẩm và cảnh báo leo thang.",
+      audience: "org", note: "Mở rộng Nhân sự số Onboarding cho toàn bộ phòng Nhân sự - Bổ sung lộ trình sản phẩm và cảnh báo leo thang.",
       version: "v1.1.0", status: "pending", submittedAt: t - 3 * HOUR, updatedAt: t - 3 * HOUR,
       scopeSummary: "Phòng Nhân sự (36 người)", channels: [],
       workspaceTargets: [{ kind: "department", name: "Phòng Nhân sự", members: 36 }, { kind: "department", name: "Ban Giám đốc", members: 3 }],
@@ -489,14 +489,14 @@ function seed() {
     {
       id: "req-1004", changeStateAtSubmit: "new", resourceType: "guardrail", resourceId: "g-9", resourceName: "Vendor pricing disclosure",
       requesterId: "m-plat-1", requesterName: "Mai Hoang",
-      audience: "org", note: "Áp dụng cho toàn bộ Agent bán hàng để tránh lộ giá vendor nội bộ.",
+      audience: "org", note: "Áp dụng cho toàn bộ Nhân sự số bán hàng để tránh lộ giá vendor nội bộ.",
       status: "rejected", submittedAt: t - 6 * DAY, updatedAt: t - 5 * DAY,
       reviewerId: "m-fsoft-ceo", reviewerName: "Tran Nam",
-      reviewNote: "Chưa rõ phạm vi áp dụng - Vui lòng làm rõ áp dụng cho Agent nào và bổ sung ví dụ câu trả lời mẫu trước khi gửi lại.",
+      reviewNote: "Chưa rõ phạm vi áp dụng - Vui lòng làm rõ áp dụng cho Nhân sự số nào và bổ sung ví dụ câu trả lời mẫu trước khi gửi lại.",
     },
     [
       hAt("submitted", "m-plat-1", "Mai Hoang", t - 6 * DAY),
-      hAt("rejected", "m-fsoft-ceo", "Tran Nam", t - 5 * DAY, "Chưa rõ phạm vi áp dụng - Vui lòng làm rõ áp dụng cho Agent nào và bổ sung ví dụ câu trả lời mẫu trước khi gửi lại."),
+      hAt("rejected", "m-fsoft-ceo", "Tran Nam", t - 5 * DAY, "Chưa rõ phạm vi áp dụng - Vui lòng làm rõ áp dụng cho Nhân sự số nào và bổ sung ví dụ câu trả lời mẫu trước khi gửi lại."),
     ],
   );
 
@@ -505,7 +505,7 @@ function seed() {
     {
       id: "req-1005", resourceType: "connector", resourceId: "cc-3", resourceName: "legal-search-mcp",
       requesterId: "m-fsoft-vn-1", requesterName: "Duy Nguyen",
-      audience: "org", note: "Kết nối tra cứu văn bản pháp lý - Đề xuất dùng chung cho các Agent pháp chế & tuân thủ.",
+      audience: "org", note: "Kết nối tra cứu văn bản pháp lý - Đề xuất dùng chung cho các Nhân sự số pháp chế & tuân thủ.",
       status: "pending", submittedAt: t - 6 * HOUR, updatedAt: t - 6 * HOUR,
     },
     [hAt("submitted", "m-fsoft-vn-1", "Duy Nguyen", t - 6 * HOUR)],
@@ -584,7 +584,7 @@ function seed() {
         { name: "risk-scorer", description: "Chấm điểm rủi ro hợp đồng theo checklist pháp chế.", model: "Claude 3.5", status: "paused" },
       ],
       starterPrompts: ["Có hợp đồng nào đang chờ Legal duyệt không?", "Tóm tắt rủi ro của hợp đồng mới nhất"],
-      note: "Mở Agent cho nhóm Pháp chế EOS dùng thử trước khi mở rộng.",
+      note: "Mở Nhân sự số cho nhóm Pháp chế EOS dùng thử trước khi mở rộng.",
       version: "v1.2.0", status: "pending", submittedAt: t - 5 * HOUR, updatedAt: t - 5 * HOUR,
       resourceRefs: [
         { type: "knowledge", resourceId: "kb-6", name: "Cổng tri thức pháp lý" },
@@ -623,7 +623,7 @@ function seed() {
       connections: [conn("Slack", "slack", "shared")],
       subAgents: [{ name: "vpn-helper", description: "Hướng dẫn cài đặt và xử lý lỗi VPN từng bước.", model: "DeepSeek V4 Flash", status: "active" }],
       starterPrompts: ["Tôi quên mật khẩu", "Hướng dẫn cài VPN trên macOS", "Tạo ticket hỗ trợ"],
-      note: "Agent đã chạy ổn định 1 tháng nội bộ - Đề xuất chia sẻ cho Cộng đồng FPT AI Agent làm mẫu Helpdesk L1.",
+      note: "Nhân sự số đã chạy ổn định 1 tháng nội bộ - Đề xuất chia sẻ cho Cộng đồng FPT AI Agent làm mẫu Helpdesk L1.",
       version: "v1.4.0", status: "pending", submittedAt: t - 2 * DAY, updatedAt: t - 2 * DAY,
       resourceRefs: [
         { type: "knowledge", resourceId: "kb-3", name: "Tài liệu vận hành nội bộ" },
@@ -659,15 +659,15 @@ function seed() {
       resourceIcon: "🎯", requesterId: "m-fsoft-vn-1", requesterName: "Duy Nguyen",
       audience: "community", channels: [],
       workspaceTargets: [{ kind: "community", name: "Cộng đồng FPT AI Agent" }],
-      note: "Chia sẻ Agent chấm điểm lead cho community.",
+      note: "Chia sẻ Nhân sự số chấm điểm lead cho community.",
       version: "v1.0.2", status: "rejected", submittedAt: t - 6 * DAY, updatedAt: t - 5 * DAY,
       resourceRefs: [{ type: "connector", resourceId: "cc-1", name: "internal-crm-mcp" }],
       reviewerId: "m-fsoft-coo", reviewerName: "Linh Phan",
-      reviewNote: "Agent đang gọi CRM nội bộ - Không phù hợp publish ra community. Vui lòng chọn phạm vi Công ty / phòng ban.",
+      reviewNote: "Nhân sự số đang gọi CRM nội bộ - Không phù hợp publish ra community. Vui lòng chọn phạm vi Công ty / phòng ban.",
     },
     [
       hAt("submitted", "m-fsoft-vn-1", "Duy Nguyen", t - 6 * DAY),
-      hAt("rejected", "m-fsoft-coo", "Linh Phan", t - 5 * DAY, "Agent đang gọi CRM nội bộ - Không phù hợp publish ra community. Vui lòng chọn phạm vi Công ty / phòng ban."),
+      hAt("rejected", "m-fsoft-coo", "Linh Phan", t - 5 * DAY, "Nhân sự số đang gọi CRM nội bộ - Không phù hợp publish ra community. Vui lòng chọn phạm vi Công ty / phòng ban."),
     ],
   );
   // Channel request: turn on API for the Legal Agent's live v1.1.0 — external channels are their
@@ -680,7 +680,7 @@ function seed() {
       resourceIcon: "⚖️", requesterId: "m-plat-1", requesterName: "Mai Hoang",
       audience: "org", scopeSummary: "Ban Pháp chế (14 người)", channels: ["slack", "api"],
       workspaceTargets: [{ kind: "department", name: "Ban Pháp chế", members: 14 }],
-      note: "Bật API để hệ thống quản lý hợp đồng gọi Agent kiểm tra điều khoản tự động.",
+      note: "Bật API để hệ thống quản lý hợp đồng gọi Nhân sự số kiểm tra điều khoản tự động.",
       version: "v1.1.0", status: "pending", submittedAt: t - 3 * HOUR, updatedAt: t - 3 * HOUR,
     },
     [hAt("submitted", "m-plat-1", "Mai Hoang", t - 3 * HOUR)],
@@ -707,7 +707,7 @@ function seed() {
       audience: "org", scopeSummary: "Ban Pháp chế (14 người)", channels: [],
       workspaceTargets: [{ kind: "department", name: "Ban Pháp chế", members: 14 }],
       externalSnap: externalSnapOf("ext-seed-4"),
-      note: "Agent đối tác rà soát điều khoản hợp đồng theo chính sách công ty - Dùng thử cho Ban Pháp chế.",
+      note: "Nhân sự số đối tác rà soát điều khoản hợp đồng theo chính sách công ty - Dùng thử cho Ban Pháp chế.",
       version: "v1.0.1", status: "pending", submittedAt: t - 5 * HOUR, updatedAt: t - 5 * HOUR,
     },
     [hAt("submitted", "m-plat-1", "Mai Hoang", t - 5 * HOUR)],
@@ -903,9 +903,9 @@ function seedShareNotifications() {
       kind, actorId, actorName, recipients: [to], href: `/agents/${agentId}`, resourceId: agentId, at,
       title: `${actorName}${text}${agentName}`, segments: [[actorName, true], [text], [agentName, true]],
     });
-  one("agent_shared", "m-fsoft-coo", "Linh Phan", "m-plat-7", "hr", "HR Onboarding Bot", " đã cấp quyền Chỉ xem cho bạn trên Agent ", t - 1 * DAY);
-  one("agent_shared", "m-plat-2", "Huy Le", "m-plat-1", "release-notes", "Trợ lý Release Note", " đã cấp quyền Chỉ xem cho bạn trên Agent ", t - 2 * DAY);
-  one("agent_access_changed", "m-plat-2", "Huy Le", "m-plat-1", "release-notes", "Trợ lý Release Note", " đã thay đổi quyền của bạn trên Agent ", t - 3 * HOUR);
+  one("agent_shared", "m-fsoft-coo", "Linh Phan", "m-plat-7", "hr", "HR Onboarding Bot", " đã cấp quyền Chỉ xem cho bạn trên Nhân sự số ", t - 1 * DAY);
+  one("agent_shared", "m-plat-2", "Huy Le", "m-plat-1", "release-notes", "Trợ lý Release Note", " đã cấp quyền Chỉ xem cho bạn trên Nhân sự số ", t - 2 * DAY);
+  one("agent_access_changed", "m-plat-2", "Huy Le", "m-plat-1", "release-notes", "Trợ lý Release Note", " đã thay đổi quyền của bạn trên Nhân sự số ", t - 3 * HOUR);
 }
 
 /* ───────────────────────── notifications ───────────────────────── */
@@ -943,7 +943,7 @@ function buildNotification(r: GovRequest, action: GovHistoryEntry["action"], act
       break;
     case "revoked":
       kind = isCh ? "channel_revoked" : "request_revoked";
-      seg = isCh ? [[`Kênh ${chs} của `], A, [" đã bị tắt"]] : [["Agent "], A, [r.revokedToVersion ? ` đã bị thu hồi, quay về ${r.revokedToVersion}` : " đã bị thu hồi"]];
+      seg = isCh ? [[`Kênh ${chs} của `], A, [" đã bị tắt"]] : [["Nhân sự số "], A, [r.revokedToVersion ? ` đã bị thu hồi, quay về ${r.revokedToVersion}` : " đã bị thu hồi"]];
       break;
     default:
       return null;

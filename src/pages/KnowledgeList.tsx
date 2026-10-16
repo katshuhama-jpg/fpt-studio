@@ -254,7 +254,7 @@ export default function KnowledgeList() {
       <div className="mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Kho tri thức</h1>
-          <p className="text-sm text-muted-foreground">Kho tri thức dùng chung của cả Space. Thêm tài liệu, website và FAQ một lần rồi liên kết vào các Agent cần tra cứu.</p>
+          <p className="text-sm text-muted-foreground">Kho tri thức dùng chung của cả Space. Thêm tài liệu, website và FAQ một lần rồi liên kết vào các Nhân sự số cần tra cứu.</p>
         </div>
         <div className="relative shrink-0" ref={addMenuRef}>
           <button
@@ -352,7 +352,7 @@ export default function KnowledgeList() {
           </div>
           <h3 className="font-display text-base font-semibold mb-1">Chưa có kho tri thức nào</h3>
           <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
-            Tạo kho tri thức đầu tiên để các Agent trong Space cùng tra cứu tài liệu, website và FAQ.
+            Tạo kho tri thức đầu tiên để các Nhân sự số trong Space cùng tra cứu tài liệu, website và FAQ.
           </p>
           <button onClick={() => canCreateKb && setShowCreate(true)} disabled={!canCreateKb} title={!canCreateKb ? NO_CREATE_KB : undefined} className="btn-primary h-9 mx-auto disabled:opacity-50 disabled:cursor-not-allowed">Tạo kho tri thức</button>
         </div>

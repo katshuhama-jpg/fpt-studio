@@ -64,7 +64,7 @@ export default function WorkforceTracePage() {
     const n = nodes.find(nn => nn.id === nodeId);
     if (!n) return "-";
     switch (n.data.kind) {
-      case "agent": return AGENTS.find(a => a.id === n.data.agentId)?.name ?? "Agent";
+      case "agent": return AGENTS.find(a => a.id === n.data.agentId)?.name ?? "Nhân sự số";
       case "omni": return "Omni Supports";
       case "person": return members.find(m => m.id === n.data.memberId)?.name ?? "Người trong tổ chức";
       case "subprocess": return (n.data.workforceId ? workforceStore.get(n.data.workforceId)?.name : undefined) ?? "Sub-process";

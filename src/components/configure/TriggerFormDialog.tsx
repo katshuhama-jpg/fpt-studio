@@ -28,9 +28,9 @@ const INSTRUCTIONS_MAX = 300;
 
 const CATEGORY_OPTIONS: { value: TriggerType; label: string; icon: any; desc: string }[] = [
   { value: "manual", label: "Chạy thủ công", icon: MessageSquare, desc: "Người dùng tự bắt đầu bằng cách gõ yêu cầu - Từ nút Chạy hoặc từ khung chat." },
-  { value: "scheduled", label: "Lịch", icon: Clock, desc: "Chạy agent tự động theo lịch lặp lại." },
-  { value: "developer", label: "Webhook", icon: Webhook, desc: "Nhận một URL để hệ thống bên ngoài gọi (POST) và kích hoạt agent." },
-  { value: "external", label: "Ứng dụng bên ngoài", icon: Globe, desc: "Kích hoạt agent khi có sự kiện ở ứng dụng khác." },
+  { value: "scheduled", label: "Lịch", icon: Clock, desc: "Chạy Nhân sự số tự động theo lịch lặp lại." },
+  { value: "developer", label: "Webhook", icon: Webhook, desc: "Nhận một URL để hệ thống bên ngoài gọi (POST) và kích hoạt Nhân sự số." },
+  { value: "external", label: "Ứng dụng bên ngoài", icon: Globe, desc: "Kích hoạt Nhân sự số khi có sự kiện ở ứng dụng khác." },
 ];
 
 const PRIMARY_FREQUENCY_OPTIONS: { value: Exclude<CustomScheduleUnit, "cron">; label: string }[] = [
@@ -243,7 +243,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     const e: typeof errors = {};
     if (!name.trim()) e.name = "Vui lòng nhập tên";
     else if (name.trim().length > NAME_MAX) e.name = `Tên không quá ${NAME_MAX} ký tự`;
-    else if (isDuplicateName) e.name = "Agent này đã có trigger dùng tên này. Hãy chọn tên khác.";
+    else if (isDuplicateName) e.name = "Nhân sự số này đã có trigger dùng tên này. Hãy chọn tên khác.";
     if (!description.trim()) e.description = "Vui lòng nhập mô tả";
     else if (description.length > DESC_MAX) e.description = `Mô tả không quá ${DESC_MAX} ký tự`;
     return e;
@@ -554,7 +554,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                     value={name}
                     onChange={e => { setName(e.target.value); if (errors.name) setErrors(er => ({ ...er, name: undefined })); }}
                     onBlur={() => {
-                      if (isDuplicateName) setErrors(er => ({ ...er, name: "Agent này đã có trigger dùng tên này. Hãy chọn tên khác." }));
+                      if (isDuplicateName) setErrors(er => ({ ...er, name: "Nhân sự số này đã có trigger dùng tên này. Hãy chọn tên khác." }));
                     }}
                     placeholder="ví dụ: Báo cáo hằng ngày"
                     className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
@@ -724,11 +724,11 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                     <p className="mt-1 text-[11px] text-destructive">Hãy chọn ngày chạy.</p>
                   ) : customUnit === "year" && month === 1 && dayOfMonth === 29 ? (
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      Ngày 29/2 chỉ có trong năm nhuận. Các năm khác, agent sẽ chạy vào ngày 28/2.
+                      Ngày 29/2 chỉ có trong năm nhuận. Các năm khác, Nhân sự số sẽ chạy vào ngày 28/2.
                     </p>
                   ) : customUnit === "month" && [29, 30, 31].includes(dayOfMonth) ? (
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      Những tháng không có ngày {dayOfMonth} sẽ chạy agent vào ngày cuối cùng của tháng đó.
+                      Những tháng không có ngày {dayOfMonth} sẽ chạy Nhân sự số vào ngày cuối cùng của tháng đó.
                     </p>
                   ) : (
                     <p className="mt-1 text-[11px] text-muted-foreground">Ngày trong tháng mà trigger này chạy.</p>
@@ -787,7 +787,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                   {errors.schedule === "Hãy chọn ngày chạy." ? (
                     <p className="mt-1 text-[11px] text-destructive">Hãy chọn ngày chạy.</p>
                   ) : (
-                    <p className="mt-1 text-[11px] text-muted-foreground">Các ngày trong tuần agent sẽ chạy.</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">Các ngày trong tuần Nhân sự số sẽ chạy.</p>
                   )}
                 </div>
               )}
@@ -862,7 +862,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
               <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-surface-muted/60">
                 <Info size={14} className="text-muted-foreground shrink-0 mt-0.5" />
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Không cần cấu hình lịch, webhook hay kết nối ứng dụng nào - Bất kỳ ai chạy Workforce này (từ nút "Chạy Workforce" hoặc khung chat) đều kích hoạt agent ngay khi gõ yêu cầu.
+                  Không cần cấu hình lịch, webhook hay kết nối ứng dụng nào - Bất kỳ ai chạy Workforce này (từ nút "Chạy Workforce" hoặc khung chat) đều kích hoạt Nhân sự số ngay khi gõ yêu cầu.
                 </p>
               </div>
               <div>
@@ -875,7 +875,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                   rows={4}
                   maxLength={INSTRUCTIONS_MAX}
                   onChange={e => setInstructions(e.target.value)}
-                  placeholder='Ví dụ: "Mô tả ngắn gọn giao dịch hoặc câu hỏi của khách hàng - Agent sẽ tự xử lý hoặc chuyển tiếp phù hợp."'
+                  placeholder='Ví dụ: "Mô tả ngắn gọn giao dịch hoặc câu hỏi của khách hàng - Nhân sự số sẽ tự xử lý hoặc chuyển tiếp phù hợp."'
                   className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm outline-none resize-none transition-base focus:border-primary"
                 />
                 <p className="mt-1 text-[11px] text-muted-foreground">
@@ -951,7 +951,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                   Payload dự kiến (JSON) <span className="text-[10px] font-normal text-muted-foreground">Tuỳ chọn</span>
                 </label>
                 <p className="text-[11px] text-muted-foreground mb-1.5">
-                  Một mẫu dữ liệu mà hệ thống bên ngoài sẽ gửi. Dùng để biết agent đọc được trường nào.
+                  Một mẫu dữ liệu mà hệ thống bên ngoài sẽ gửi. Dùng để biết Nhân sự số đọc được trường nào.
                 </p>
                 <textarea
                   value={payloadJson}
@@ -990,7 +990,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                 />
                 {errors.requiredFields && <p className="mt-1 text-[11px] text-destructive">{errors.requiredFields}</p>}
               </div>
-              <p className="text-[11px] text-muted-foreground">Payload sẽ được đưa vào ngữ cảnh của agent khi trigger này chạy.</p>
+              <p className="text-[11px] text-muted-foreground">Payload sẽ được đưa vào ngữ cảnh của Nhân sự số khi trigger này chạy.</p>
             </div>
           )}
 
@@ -1040,7 +1040,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                 <div className="flex items-start gap-2 mb-3 p-2.5 rounded-lg bg-surface-muted/60">
                   <Info size={13} className="text-muted-foreground shrink-0 mt-0.5" />
                   <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    Tài khoản này được dùng chung cho mọi người dùng của agent. Trigger được setup ở Workspace,
+                    Tài khoản này được dùng chung cho mọi người dùng của Nhân sự số. Trigger được setup ở Workspace,
                     không phải tài khoản cá nhân của từng người.
                   </p>
                 </div>
@@ -1352,7 +1352,7 @@ function QueueWorkHoursAccordion({
       {open && (
         <div className="px-3 pb-3.5 pt-1 space-y-4 border-t border-border">
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Kiểm soát cách và thời điểm agent xử lý sự kiện từ trigger này. Cấu hình bên dưới để khớp với giờ làm việc của bạn.
+            Kiểm soát cách và thời điểm Nhân sự số xử lý sự kiện từ trigger này. Cấu hình bên dưới để khớp với giờ làm việc của bạn.
           </p>
           <label className="flex items-center gap-2.5 cursor-pointer select-none">
             <input type="checkbox" checked={enabled} onChange={e => onEnabledChange(e.target.checked)} className="w-4 h-4 accent-primary" />
@@ -1360,7 +1360,7 @@ function QueueWorkHoursAccordion({
           </label>
           {!enabled && (
             <p className="text-[11px] text-muted-foreground -mt-2">
-              Chưa bật - Agent sẽ xử lý mọi sự kiện ngay khi nhận được.
+              Chưa bật - Nhân sự số sẽ xử lý mọi sự kiện ngay khi nhận được.
             </p>
           )}
           <div className={`space-y-4 transition-base ${enabled ? "" : "opacity-40"}`}>

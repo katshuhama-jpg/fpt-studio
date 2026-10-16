@@ -67,7 +67,7 @@ export default function TriggerNode({ id, data, selected }: NodeProps<TriggerNod
           </p>
         </div>
       </div>
-      {notConnected && <MissingTriggerNotice text="Chưa kết nối tới Agent - Sẽ không chạy" />}
+      {notConnected && <MissingTriggerNotice text="Chưa kết nối tới Nhân sự số - Sẽ không chạy" />}
       {notConfigured && <MissingTriggerNotice text="Chưa chọn trigger thật - Sẽ không chạy" />}
       <Handle type="source" position={Position.Right} className={HANDLE_CLASS} />
     </div>

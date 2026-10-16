@@ -99,7 +99,7 @@ export function ConnectorTemplateConnectModal({ template, onClose, onConnected }
             </div>
           ))}
 
-          <p className="text-[11px] text-muted-foreground leading-relaxed">Giá trị header là thông tin bí mật - Được lưu trữ an toàn và không chia sẻ với Agent.</p>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">Giá trị header là thông tin bí mật - Được lưu trữ an toàn và không chia sẻ với Nhân sự số.</p>
         </div>
 
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border shrink-0">
@@ -213,7 +213,7 @@ export function ConnectorTemplateManageModal({ template, onClose, onChanged }: {
                 </div>
               ) : (
                 <div className="flex flex-col gap-3">
-                  <p className="text-xs text-muted-foreground">Bạn sẽ cấu hình chế độ cho từng quyền cụ thể sau khi gắn connector này vào một Agent.</p>
+                  <p className="text-xs text-muted-foreground">Bạn sẽ cấu hình chế độ cho từng quyền cụ thể sau khi gắn connector này vào một Nhân sự số.</p>
                   {template.permissions.map(p => (
                     <div key={p.name} className="flex items-start justify-between gap-3 p-3 rounded-lg border border-border bg-surface">
                       <div className="min-w-0">
@@ -255,7 +255,7 @@ export function ConnectorTemplateManageModal({ template, onClose, onChanged }: {
         <AlertDialogContent className="z-[80]">
           <AlertDialogHeader>
             <AlertDialogTitle>Xóa credential "{removeTarget?.credentialName}"?</AlertDialogTitle>
-            <AlertDialogDescription>Các Agent đang dùng credential này sẽ mất quyền truy cập {template.name} qua credential đó. Hành động này không thể hoàn tác.</AlertDialogDescription>
+            <AlertDialogDescription>Các Nhân sự số đang dùng credential này sẽ mất quyền truy cập {template.name} qua credential đó. Hành động này không thể hoàn tác.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Hủy bỏ</AlertDialogCancel>
@@ -275,7 +275,7 @@ export function ConnectorTemplateManageModal({ template, onClose, onChanged }: {
             <AlertDialogTitle>Ngắt kết nối {template.name}?</AlertDialogTitle>
             <AlertDialogDescription className="flex items-start gap-2">
               <AlertTriangle size={14} className="shrink-0 mt-0.5 text-destructive" />
-              <span>Toàn bộ {accounts.length} credential đã kết nối sẽ bị xóa. Các Agent đang dùng {template.name} sẽ mất quyền truy cập ngay lập tức.</span>
+              <span>Toàn bộ {accounts.length} credential đã kết nối sẽ bị xóa. Các Nhân sự số đang dùng {template.name} sẽ mất quyền truy cập ngay lập tức.</span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

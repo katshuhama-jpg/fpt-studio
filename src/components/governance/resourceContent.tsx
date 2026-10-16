@@ -105,7 +105,7 @@ export function ResourceContentSection({ type, id }: { type: ResourceReqType; id
     return (
       <ContentBlock type={type}>
         <Field label="Loại">
-          {kb.type === "internal" ? "Nội bộ - Tài liệu / URL / FAQ tải lên Console" : "Kết nối API ngoài"}
+          {kb.type === "internal" ? "Nội bộ - Tài liệu / URL / FAQ tải lên Space" : "Kết nối API ngoài"}
         </Field>
         {kb.type === "internal" ? (
           <Field label="Quy mô nội dung">
@@ -227,8 +227,8 @@ export function AgentContentSection({ req }: { req: GovRequest }) {
         )}
       </Field>
 
-      <Field label={`Agent phụ (${subAgents.length})`}>
-        {subAgents.length === 0 ? <Empty>Không dùng agent phụ</Empty> : (
+      <Field label={`Nhân sự số phụ (${subAgents.length})`}>
+        {subAgents.length === 0 ? <Empty>Không dùng Nhân sự số phụ</Empty> : (
           <div className="space-y-2">
             {subAgents.map(sa => (
               <div key={sa.name} className="rounded-lg border border-border bg-white px-3 py-2.5">
@@ -274,7 +274,7 @@ export function ResourceUsageSection({ type, id }: { type: ResourceReqType; id: 
     <div className="mb-6">
       <div className="flex items-center gap-1.5 mb-1.5">
         <p className="text-sm font-semibold flex items-center gap-1.5">
-          <Users size={14} className="text-muted-foreground" /> Agent đang sử dụng thành phần này ({usage.length})
+          <Users size={14} className="text-muted-foreground" /> Nhân sự số đang sử dụng thành phần này ({usage.length})
         </p>
         <Tooltip delayDuration={200}>
           <TooltipTrigger asChild>
@@ -283,16 +283,16 @@ export function ResourceUsageSection({ type, id }: { type: ResourceReqType; id: 
             </button>
           </TooltipTrigger>
           <TooltipContent side="right" sideOffset={6} className="max-w-xs">
-            Đây là phạm vi ảnh hưởng nếu bạn từ chối - Các Agent đã Published vẫn tiếp tục chạy bình thường với bản riêng của mình, không bị gỡ.
+            Đây là phạm vi ảnh hưởng nếu bạn từ chối - Các Nhân sự số đã Published vẫn tiếp tục chạy bình thường với bản riêng của mình, không bị gỡ.
           </TooltipContent>
         </Tooltip>
       </div>
       <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
         {usage.length === 0
-          ? "Chưa có Agent nào dùng thành phần này."
+          ? "Chưa có Nhân sự số nào dùng thành phần này."
           : liveCount > 0
-            ? `${liveCount}/${usage.length} Agent đã Published.`
-            : `Cả ${usage.length} Agent đang ở trạng thái Draft.`}
+            ? `${liveCount}/${usage.length} Nhân sự số đã Published.`
+            : `Cả ${usage.length} Nhân sự số đang ở trạng thái Draft.`}
       </p>
       {usage.length > 0 && (
         <div className="space-y-2">
@@ -348,7 +348,7 @@ export function ExternalAgentContentSection({ req }: { req: GovRequest }) {
   if (!x) return null;
   return (
     <ContentBlock type="agent">
-      <Field label="Loại Agent">
+      <Field label="Loại Nhân sự số">
         <span className="inline-flex items-center gap-1.5 text-xs font-medium text-sky-800 bg-sky-50 border border-sky-200 rounded-full px-2.5 py-1">
           <Globe size={12} /> External Agent · chạy trên hệ thống của đối tác
         </span>

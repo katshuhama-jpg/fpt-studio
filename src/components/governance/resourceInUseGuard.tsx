@@ -108,7 +108,7 @@ export function ResourceInUseDialog({
           <div className="space-y-2 min-w-0">
             {/* One line summary first, so the size of the problem is clear before the list. */}
             <p className="text-xs text-muted-foreground">
-              {agents.length} Agent · của {groups.length} người
+              {agents.length} Nhân sự số · của {groups.length} người
             </p>
             {/* Grouped by owner (who has to act), biggest group first. The list scrolls inside a
              * fixed-height box, so 3 Agents or 300 never push the dialog off-screen; group headers
@@ -127,7 +127,7 @@ export function ResourceInUseDialog({
                       className={`shrink-0 text-muted-foreground transition-transform duration-150 ${expanded.has(groupKey(g.ownerId)) ? "" : "-rotate-90"}`}
                     />
                     <span className="text-xs font-semibold truncate min-w-0 flex-1">{ownerName(g.ownerId)}</span>
-                    <span className="text-xs text-muted-foreground shrink-0">{g.agents.length} Agent</span>
+                    <span className="text-xs text-muted-foreground shrink-0">{g.agents.length} Nhân sự số</span>
                   </button>
                   {expanded.has(groupKey(g.ownerId)) && (
                     <div className="py-1">

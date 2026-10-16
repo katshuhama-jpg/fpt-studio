@@ -11,7 +11,7 @@ export default function SkillOwnershipTag({ skill, userId }: { skill: Skill; use
   const skillsAccess = useGroupAccess("skills");
   const isOwner = skill.ownerId === userId;
   if (!isOwner && !skillsAccess.canSeeAll && !isAccessibleTo(skill.sharing, skill.ownerId, userId)) {
-    return <span className="chip chip-muted">{skillsAccess.hasPermission("manage") ? "Sửa được qua Agent này" : "Chỉ xem trong Agent"} · {skill.ownerName}</span>;
+    return <span className="chip chip-muted">{skillsAccess.hasPermission("manage") ? "Sửa được qua Nhân sự số này" : "Chỉ xem trong Nhân sự số"} · {skill.ownerName}</span>;
   }
   const tags = ownershipTags({ ownerId: skill.ownerId, sharing: skill.sharing, userId });
   return (

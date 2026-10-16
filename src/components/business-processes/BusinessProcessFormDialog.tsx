@@ -241,7 +241,7 @@ export default function BusinessProcessFormDialog({ open, onOpenChange, mode, ag
               value={instruction}
               rows={4}
               onChange={e => setInstruction(e.target.value)}
-              placeholder="Step-by-step guidance the Agent must follow to execute this business process correctly"
+              placeholder="Hướng dẫn từng bước Nhân sự số phải làm theo để thực hiện đúng quy trình nghiệp vụ này"
               className={textareaCls(!!errors.instruction)}
             />
           </Field>
@@ -283,7 +283,7 @@ export default function BusinessProcessFormDialog({ open, onOpenChange, mode, ag
               rows={2}
               maxLength={CONSTRAINT_MAX + 50}
               onChange={e => setConstraint(e.target.value)}
-              placeholder="Limitations or conditions the Agent must respect when executing this business process"
+              placeholder="Giới hạn hoặc điều kiện Nhân sự số phải tuân thủ khi thực hiện quy trình nghiệp vụ này"
               className={textareaCls(!!errors.constraint)}
             />
           </Field>

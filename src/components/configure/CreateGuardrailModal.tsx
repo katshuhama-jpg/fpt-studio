@@ -64,7 +64,7 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
     topic: topic.length > LIMITS.topic ? `Chủ đề không được vượt quá ${LIMITS.topic} ký tự.` : submitAttempted && !topic.trim() ? "Vui lòng nhập chủ đề." : "",
     desc: desc.length > LIMITS.desc ? `Mô tả không được vượt quá ${LIMITS.desc} ký tự.` : submitAttempted && !desc.trim() ? "Vui lòng nhập mô tả." : "",
     samples: samples.length > LIMITS.samples ? `Ví dụ mẫu không được vượt quá ${LIMITS.samples} ký tự.` : "",
-    fixed: response !== "fixed" ? "" : fixedText.length > LIMITS.fixed ? `Nội dung trả lời không được vượt quá ${LIMITS.fixed} ký tự.` : submitAttempted && !fixedText.trim() ? "Vui lòng nhập nội dung Agent sẽ trả lời." : "",
+    fixed: response !== "fixed" ? "" : fixedText.length > LIMITS.fixed ? `Nội dung trả lời không được vượt quá ${LIMITS.fixed} ký tự.` : submitAttempted && !fixedText.trim() ? "Vui lòng nhập nội dung Nhân sự số sẽ trả lời." : "",
   };
   const fieldsValid =
     !!topic.trim() && topic.length <= LIMITS.topic &&
@@ -93,8 +93,8 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
   };
 
   const responseOptions: { key: ResponseKind; title: string; desc: string }[] = [
-    { key: "auto",  title: "Tự tạo câu trả lời", desc: "Agent tự viết lại câu trả lời dựa trên hướng dẫn của bạn." },
-    { key: "fixed", title: "Câu trả lời cố định", desc: "Agent trả lời đúng nguyên văn nội dung bạn nhập." },
+    { key: "auto",  title: "Tự tạo câu trả lời", desc: "Nhân sự số tự viết lại câu trả lời dựa trên hướng dẫn của bạn." },
+    { key: "fixed", title: "Câu trả lời cố định", desc: "Nhân sự số trả lời đúng nguyên văn nội dung bạn nhập." },
   ];
 
   return createPortal(
@@ -105,7 +105,7 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
         <div className="flex items-start justify-between px-6 py-5 border-b border-border shrink-0">
           <div>
             <h2 className="font-display text-lg font-semibold">{readOnly ? initialData?.name : isEdit ? "Chỉnh sửa guardrail" : "Tạo guardrail"}</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">{readOnly ? "Bạn chỉ có quyền xem guardrail này." : "Định nghĩa rule và chọn cách Agent phản hồi."}</p>
+            <p className="text-sm text-muted-foreground mt-0.5">{readOnly ? "Bạn chỉ có quyền xem guardrail này." : "Định nghĩa rule và chọn cách Nhân sự số phản hồi."}</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base mt-0.5"><HugeiconsIcon icon={Cancel01Icon} size={15} /></button>
         </div>
@@ -138,7 +138,7 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
                 <textarea
                   disabled={readOnly}
                   rows={3}
-                  placeholder="Giải thích vì sao Agent không được đề cập chủ đề này."
+                  placeholder="Giải thích vì sao Nhân sự số không được đề cập chủ đề này."
                   aria-invalid={!!errors.desc}
                   className={`w-full px-3 py-2.5 rounded-lg border bg-white text-sm outline-none focus:ring-2 transition-base resize-none disabled:bg-surface-muted disabled:text-muted-foreground ${errCls(errors.desc)}`}
                   value={desc}
@@ -168,7 +168,7 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
 
           <div>
             <h3 className="text-sm font-semibold mb-1">Phản hồi <span className="text-destructive">*</span></h3>
-            <p className="text-xs text-muted-foreground mb-4">Chọn Agent sẽ làm gì khi rule này được kích hoạt.</p>
+            <p className="text-xs text-muted-foreground mb-4">Chọn Nhân sự số sẽ làm gì khi rule này được kích hoạt.</p>
             <div className="space-y-3">
               {responseOptions.map(opt => {
                 const selected = response === opt.key;
@@ -195,7 +195,7 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
                             <textarea
                               disabled={readOnly}
                               rows={4}
-                              placeholder="Nhập nguyên văn câu trả lời Agent sẽ gửi."
+                              placeholder="Nhập nguyên văn câu trả lời Nhân sự số sẽ gửi."
                               aria-invalid={!!errors.fixed}
                               className={`w-full px-3 py-2.5 rounded-lg border bg-white text-sm outline-none focus:ring-2 transition-base resize-none disabled:bg-surface-muted disabled:text-muted-foreground ${errCls(errors.fixed)}`}
                               value={fixedText}
@@ -225,8 +225,8 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
                 className="w-4 h-4 accent-primary shrink-0 mt-0.5"
               />
               <div>
-                <span className="text-sm font-medium">Áp dụng cho mọi Agent</span>
-                <p className="text-xs text-muted-foreground mt-0.5">Guardrail sẽ tự động chạy trên tất cả Agent trong Space.</p>
+                <span className="text-sm font-medium">Áp dụng cho mọi Nhân sự số</span>
+                <p className="text-xs text-muted-foreground mt-0.5">Guardrail sẽ tự động chạy trên tất cả Nhân sự số trong Space.</p>
               </div>
             </label>
           )}

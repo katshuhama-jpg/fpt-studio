@@ -112,14 +112,14 @@ function seedWorkforces(): Workforce[] {
       { id: "cond-auto", type: "condition", position: { x: 380, y: -20 }, data: {
         kind: "condition", type: "rule", ruleMatch: "all", approval: null,
         rules: [{ id: "r-auto", variable: "discount_percent", operator: "nhỏ hơn hoặc bằng", value: "10", numeric: true }],
-        llmText: "Mức chiết khấu Agent đề xuất trong báo giá ở mức 10% trở xuống - Nằm trong thẩm quyền tự phê duyệt của Sales theo chính sách EOS.",
+        llmText: "Mức chiết khấu Nhân sự số đề xuất trong báo giá ở mức 10% trở xuống - Nằm trong thẩm quyền tự phê duyệt của Sales theo chính sách EOS.",
       } },
 
       // Above the threshold — needs Finance's policy check, then a human approval.
       { id: "cond-escalate", type: "condition", position: { x: 380, y: 300 }, data: {
         kind: "condition", type: "rule", ruleMatch: "all", approval: null,
         rules: [{ id: "r-escalate", variable: "discount_percent", operator: "lớn hơn", value: "10", numeric: true }],
-        llmText: "Mức chiết khấu Agent đề xuất trong báo giá vượt quá 10% - Ngoài thẩm quyền tự phê duyệt, cần Tài chính kiểm tra và Quản lý phê duyệt.",
+        llmText: "Mức chiết khấu Nhân sự số đề xuất trong báo giá vượt quá 10% - Ngoài thẩm quyền tự phê duyệt, cần Tài chính kiểm tra và Quản lý phê duyệt.",
       } },
       { id: "finance-check", type: "agent", position: { x: 660, y: 300 }, data: { kind: "agent", agentId: "finance-check", keepContext: true } },
       // Approval now lives here, on the Condition/edge leading to Legal, instead of a separate

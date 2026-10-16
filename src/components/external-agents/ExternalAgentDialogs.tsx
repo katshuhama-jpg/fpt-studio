@@ -43,7 +43,7 @@ export function PauseExternalAgentDialog({ name, open, onOpenChange, onConfirm }
         <AlertDialogHeader>
           <AlertDialogTitle>Tạm dừng "{name}"?</AlertDialogTitle>
           <AlertDialogDescription>
-            Agent sẽ ngừng phản hồi ngay. Các hội thoại đang dùng Agent sẽ dừng cho tới khi bạn bấm Tiếp tục.
+            Nhân sự số sẽ ngừng phản hồi ngay. Các hội thoại đang dùng Nhân sự số sẽ dừng cho tới khi bạn bấm Tiếp tục.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

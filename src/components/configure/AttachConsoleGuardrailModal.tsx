@@ -52,7 +52,7 @@ export default function AttachConsoleGuardrailModal({ agentId, userId, onClose }
         <DialogHeader>
           <DialogTitle>Liên kết guardrail</DialogTitle>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground -mt-2">Agent sẽ dùng guardrail trực tiếp từ Console - Nội dung không được sao chép.</p>
+        <p className="text-sm text-muted-foreground -mt-2">Nhân sự số sẽ dùng guardrail trực tiếp từ Space - Nội dung không được sao chép.</p>
 
         {all.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">Không có guardrail nào để liên kết.</p>
@@ -88,7 +88,7 @@ export default function AttachConsoleGuardrailModal({ agentId, userId, onClose }
                         <div className="flex items-center gap-1.5">
                           <span className="text-sm font-medium truncate">{g.name}</span>
                           <span className="chip chip-muted px-1.5 py-0.5 shrink-0">
-                            {g.mandatory ? "Bắt buộc" : g.allAgents ? "Mọi Agent" : isMine ? "Của tôi" : "Được chia sẻ"}
+                            {g.mandatory ? "Bắt buộc" : g.allAgents ? "Mọi Nhân sự số" : isMine ? "Của tôi" : "Được chia sẻ"}
                           </span>
                         </div>
                         <div className="text-xs text-muted-foreground truncate">{g.desc}</div>

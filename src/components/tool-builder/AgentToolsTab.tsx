@@ -87,7 +87,7 @@ export default function AgentToolsTab({ agentId }: { agentId: string }) {
         <div className="flex-1 min-w-0">
           <h3 className="font-display font-semibold text-sm">Tools</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Browse the Tool Store, install built-in plugins or build your own - Your agent can call any tool here.
+            Xem Tool Store, cài plugin có sẵn hoặc tự tạo - Nhân sự số gọi được mọi tool ở đây.
           </p>
         </div>
 

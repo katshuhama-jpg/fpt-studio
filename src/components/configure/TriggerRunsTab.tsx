@@ -221,7 +221,7 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
     <div>
       <div className="mb-4">
         <h2 className="font-display text-xl font-semibold">Lịch sử chạy</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">Mỗi lần trigger chạy agent này, và kết quả.</p>
+        <p className="text-sm text-muted-foreground mt-0.5">Mỗi lần trigger chạy Nhân sự số này, và kết quả.</p>
       </div>
 
       <div className="flex items-center gap-2 mb-3 flex-wrap">
@@ -303,11 +303,11 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
             {isDraft
               ? "Chưa có lần chạy nào."
-              : "Chưa có lần chạy nào - Agent sẽ xuất hiện ở đây khi trigger chạy lần đầu."}
+              : "Chưa có lần chạy nào - Nhân sự số sẽ xuất hiện ở đây khi trigger chạy lần đầu."}
           </p>
           {isDraft && (
             <p className="text-sm text-muted-foreground max-w-md mx-auto mt-1">
-              Trigger sẽ bắt đầu chạy sau khi bạn publish agent này.
+              Trigger sẽ bắt đầu chạy sau khi bạn publish Nhân sự số này.
             </p>
           )}
         </div>

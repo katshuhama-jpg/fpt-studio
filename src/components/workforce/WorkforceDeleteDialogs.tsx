@@ -12,7 +12,7 @@ export function DeleteNodeDialog({ open, onOpenChange, onConfirm }: {
         <AlertDialogHeader>
           <AlertDialogTitle>Xóa node này?</AlertDialogTitle>
           <AlertDialogDescription>
-            Node và các đường nối liên quan sẽ bị xóa khỏi Workforce này. Agent hoặc dữ liệu gốc không bị ảnh hưởng.
+            Node và các đường nối liên quan sẽ bị xóa khỏi Workforce này. Nhân sự số hoặc dữ liệu gốc không bị ảnh hưởng.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -33,7 +33,7 @@ export function DeleteWorkforceDialog({ open, name, onOpenChange, onConfirm }: {
         <AlertDialogHeader>
           <AlertDialogTitle>Xóa "{name}"?</AlertDialogTitle>
           <AlertDialogDescription>
-            Toàn bộ canvas, node và route trong Workforce này sẽ bị xóa vĩnh viễn. Các Agent, kho tri thức hoặc dữ liệu khác không bị ảnh hưởng.
+            Toàn bộ canvas, node và route trong Workforce này sẽ bị xóa vĩnh viễn. Các Nhân sự số, kho tri thức hoặc dữ liệu khác không bị ảnh hưởng.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

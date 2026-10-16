@@ -134,7 +134,7 @@ function mockOutput(n: ToolNode): string {
     case "llm": return "model returned 142 tokens";
     case "extract": return "{ name: 'Nguyen V.', amount: 1500000 }";
     case "classify": return n.data.config?.categories?.split(",")[0]?.trim() || "label_a";
-    case "output": return "returned to agent ✓";
+    case "output": return "đã trả về Nhân sự số ✓";
     default: return "ok";
   }
 }

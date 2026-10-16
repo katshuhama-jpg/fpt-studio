@@ -47,11 +47,11 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
   },
 
   // Core group — hidden from the UI, always on.
-  { id: "manage-tools", name: "manage-tools", version: "1.0.0", icon: "🔧", visible: false, description: "Add or remove tools in the Agent's tool configuration." },
-  { id: "manage-subagents", name: "manage-subagents", version: "1.0.0", icon: "🤖", visible: false, description: "Create and manage sub-agents." },
+  { id: "manage-tools", name: "manage-tools", version: "1.0.0", icon: "🔧", visible: false, description: "Thêm hoặc bỏ tool trong cấu hình tool của Nhân sự số." },
+  { id: "manage-subagents", name: "manage-subagents", version: "1.0.0", icon: "🤖", visible: false, description: "Tạo và quản lý Nhân sự số con." },
   { id: "manage-skills", name: "manage-skills", version: "1.0.0", icon: "🧩", visible: false, description: "Decide what to store as a skill and create, update or share skills." },
   { id: "generate-skill", name: "generate-skill", version: "1.0.0", icon: "✨", visible: false, description: "Create a new skill or edit an existing one." },
-  { id: "generate-agent", name: "generate-agent", version: "1.0.0", icon: "⚙️", visible: false, description: "Run the Agent's full self-configuration flow." },
+  { id: "generate-agent", name: "generate-agent", version: "1.0.0", icon: "⚙️", visible: false, description: "Chạy toàn bộ luồng tự cấu hình của Nhân sự số." },
 ];
 
 /** The five a user actually sees and can toggle in Agent Details. */

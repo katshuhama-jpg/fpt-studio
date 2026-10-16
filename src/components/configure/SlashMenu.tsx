@@ -102,7 +102,7 @@ const SlashMenu = forwardRef<SlashMenuHandle, {
       return {
         rows: items.map(item => ({ type: "item" as const, item })),
         error: false,
-        emptyText: atTop ? `Agent chưa có ${CATEGORY_SINGULAR[nav.cat]} nào.` : "Không có mục nào ở đây.",
+        emptyText: atTop ? `Nhân sự số chưa có ${CATEGORY_SINGULAR[nav.cat]} nào.` : "Không có mục nào ở đây.",
         showAdd: atTop ? nav.cat : undefined,
       };
     } catch {

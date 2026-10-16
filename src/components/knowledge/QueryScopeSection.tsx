@@ -46,8 +46,8 @@ export function RadioCard({ selected, onSelect, label, helper, icon: Icon, child
  * with its own icon - people building Agents vs people chatting with an Agent. */
 export type PermissionAudience = "builders" | "askers";
 const AUDIENCE_META: Record<PermissionAudience, { label: string; icon: LucideIcon }> = {
-  builders: { label: "Người xây Agent", icon: Hammer },
-  askers: { label: "Người trò chuyện với Agent", icon: MessageCircle },
+  builders: { label: "Người xây Nhân sự số", icon: Hammer },
+  askers: { label: "Người trò chuyện với Nhân sự số", icon: MessageCircle },
 };
 export function AudienceTag({ audience }: { audience: PermissionAudience }) {
   const { label, icon: Icon } = AUDIENCE_META[audience];
@@ -110,17 +110,17 @@ export const ACCESS_COPY = {
   /** Short label for menus, buttons and detail rows. */
   menu: "Ai được dùng",
   chip: "Dùng",
-  description: "Người trong Space được liên kết kho này vào Agent khi xây dựng.",
-  agentDescription: "Người trong Space được dùng lại tri thức này khi xây Agent khác.",
+  description: "Người trong Space được liên kết kho này vào Nhân sự số khi xây dựng.",
+  agentDescription: "Người trong Space được dùng lại tri thức này khi xây Nhân sự số khác.",
   narrowTitle: "Thu hẹp người được dùng?",
   narrowAction: "Thu hẹp",
   toast: "Đã lưu thay đổi.",
 };
 export const RETRIEVAL_COPY = {
-  title: "Agent trả lời cho ai",
-  menu: "Agent trả lời cho ai",
+  title: "Nhân sự số trả lời cho ai",
+  menu: "Nhân sự số trả lời cho ai",
   chip: "Trả lời",
-  description: "Agent chỉ dùng kho này khi trả lời những người bạn chọn.",
+  description: "Nhân sự số chỉ dùng kho này khi trả lời những người bạn chọn.",
   narrowTitle: "Thu hẹp người được trả lời?",
   narrowBody: "Những người không có trong danh sách sẽ không còn nhận được câu trả lời từ kho này.",
   narrowAction: "Thu hẹp",
@@ -128,13 +128,13 @@ export const RETRIEVAL_COPY = {
 };
 
 export const ACCESS_OPTIONS: { value: SharingMode; label: string; helper: string; icon: LucideIcon }[] = [
-  { value: "all", label: "Cả Space", helper: "Mọi thành viên Space đều liên kết được kho này vào Agent.", icon: Users },
-  { value: "specific", label: "Người cụ thể", helper: "Chỉ người bạn chọn mới liên kết được kho này vào Agent.", icon: UserCheck },
+  { value: "all", label: "Cả Space", helper: "Mọi thành viên Space đều liên kết được kho này vào Nhân sự số.", icon: Users },
+  { value: "specific", label: "Người cụ thể", helper: "Chỉ người bạn chọn mới liên kết được kho này vào Nhân sự số.", icon: UserCheck },
 ];
 
 export const QUERY_SCOPE_OPTIONS: { value: QueryScopeMode; label: string; helper: string; icon: LucideIcon }[] = [
-  { value: "all_org", label: "Mọi người dùng Agent", helper: "Ai trò chuyện với Agent cũng nhận được câu trả lời từ kho này.", icon: UsersRound },
-  { value: "department", label: "Công ty / phòng ban", helper: "Chỉ những người bạn chọn mới nhận được câu trả lời từ kho này. Người khác vẫn trò chuyện với Agent như bình thường.", icon: Network },
+  { value: "all_org", label: "Mọi người dùng Nhân sự số", helper: "Ai trò chuyện với Nhân sự số cũng nhận được câu trả lời từ kho này.", icon: UsersRound },
+  { value: "department", label: "Công ty / phòng ban", helper: "Chỉ những người bạn chọn mới nhận được câu trả lời từ kho này. Người khác vẫn trò chuyện với Nhân sự số như bình thường.", icon: Network },
 ];
 
 /** Older data may still carry "private"/"specific" retrieval modes — both read as "Cả tổ chức"
@@ -157,7 +157,7 @@ function answerAudienceNames(q: QuerySharing, tree: OrgUnit = SEED_ORG_TREE): st
 /** Short label for chips/detail rows, e.g. "Mọi người dùng Agent" or "FPT Smart Cloud (35 người)". */
 export function retrievalLabel(v: QuerySharing | undefined): string {
   const q = normalizeQuerySharing(v);
-  if (q.mode !== "department") return "Mọi người dùng Agent";
+  if (q.mode !== "department") return "Mọi người dùng Nhân sự số";
   const names = answerAudienceNames(q);
   if (names.length === 0) return "Chưa chọn ai";
   return names.length <= 2 ? names.join(", ") : `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
@@ -198,12 +198,12 @@ export const SHARE_TO_SPACE_LABEL = "Chia sẻ lên Space";
 export function resourceAccessCopy(noun: string): AccessCopy {
   return {
     title: `Ai được dùng ${noun}`,
-    description: `Người trong Space được liên kết ${noun} vào Agent khi xây dựng.`,
-    agentDescription: `Người trong Space được dùng lại ${noun} khi xây Agent khác.`,
-    allHelper: `Mọi thành viên Space đều liên kết được ${noun} vào Agent.`,
-    specificHelper: `Chỉ người bạn chọn mới liên kết được ${noun} vào Agent.`,
-    privateHelper: `Không chia sẻ. Chỉ Agent bạn đang chỉnh sửa dùng được ${noun}.`,
-    switchHelper: `Bật để người khác trong Space liên kết được ${noun} vào Agent của họ.`,
+    description: `Người trong Space được liên kết ${noun} vào Nhân sự số khi xây dựng.`,
+    agentDescription: `Người trong Space được dùng lại ${noun} khi xây Nhân sự số khác.`,
+    allHelper: `Mọi thành viên Space đều liên kết được ${noun} vào Nhân sự số.`,
+    specificHelper: `Chỉ người bạn chọn mới liên kết được ${noun} vào Nhân sự số.`,
+    privateHelper: `Không chia sẻ. Chỉ Nhân sự số bạn đang chỉnh sửa dùng được ${noun}.`,
+    switchHelper: `Bật để người khác trong Space liên kết được ${noun} vào Nhân sự số của họ.`,
   };
 }
 
@@ -240,7 +240,7 @@ export function AccessScopeSection({ mode, people, onModeChange, onPeopleChange,
   const shared = mode !== "private";
   const lastShared = useRef<SharingMode>(mode === "private" ? defaultSharedMode : mode);
   if (mode !== "private") lastShared.current = mode;
-  const switchHelper = copy?.switchHelper ?? "Bật để người khác trong Space liên kết được kho này vào Agent của họ.";
+  const switchHelper = copy?.switchHelper ?? "Bật để người khác trong Space liên kết được kho này vào Nhân sự số của họ.";
   return (
     <div>
       <PermissionHeading title={copy?.title ?? ACCESS_COPY.title} description={description} hideTitle={hideTitle} audience={hideAudience ? undefined : "builders"} />

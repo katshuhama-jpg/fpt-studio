@@ -11,7 +11,7 @@ const KIND_ICON: Record<string, typeof Bot> = {
 function conditionSummary(node: WorkforceNode | undefined): string {
   if (!node || node.data.kind !== "condition") return "-";
   if (node.data.type === "llm") return node.data.llmText.trim() || "Chưa cấu hình điều kiện";
-  if (node.data.type === "agent-judgment") return node.data.llmText.trim() || "Agent tự quyết định";
+  if (node.data.type === "agent-judgment") return node.data.llmText.trim() || "Nhân sự số tự quyết định";
   return node.data.rules.length > 0 ? `${node.data.rules.length} điều kiện` : "Chưa cấu hình điều kiện";
 }
 
@@ -47,7 +47,7 @@ export default function RunTracePanel({
   const findNode = (id: string) => nodes.find(n => n.id === id);
 
   const endMessage =
-    state.endReason === "unwired" ? `Trigger này chưa kết nối tới Agent nào - Không thể ${mode === "manual" ? "chạy" : "chạy thử"}.` :
+    state.endReason === "unwired" ? `Trigger này chưa kết nối tới Nhân sự số nào - Không thể ${mode === "manual" ? "chạy" : "chạy thử"}.` :
     state.endReason === "stopped" ? `Đã dừng ${mode === "manual" ? "chạy" : "chạy thử"}.` :
     state.endReason === "rejected" ? `${describeMember(state.pendingApproval?.assigneeId ?? null)} đã từ chối - Dừng tại "${state.currentNodeId ? describeNode(state.currentNodeId) : "-"}".` :
     state.currentNodeId ? `Hoàn tất - Kết thúc tại "${describeNode(state.currentNodeId)}".` : "Hoàn tất.";
@@ -146,7 +146,7 @@ export default function RunTracePanel({
             <p className="text-[11.5px] font-semibold mb-2 flex items-center gap-1.5" style={{ color: "var(--wf-muted)" }}>
               <ShieldCheck size={12} />
               {state.pendingApproval.mode === "agent-decide"
-                ? `Agent đang tự đánh giá - ${describeMember(state.pendingApproval.assigneeId)} có thể can thiệp`
+                ? `Nhân sự số đang tự đánh giá - ${describeMember(state.pendingApproval.assigneeId)} có thể can thiệp`
                 : `Đang chờ ${describeMember(state.pendingApproval.assigneeId)} duyệt`}
             </p>
             <p className="text-[12.5px] font-semibold mb-2" style={{ color: "var(--wf-text)" }}>→ {describeNode(state.pendingApproval.option.targetId)}</p>

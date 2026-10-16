@@ -93,7 +93,7 @@ type AgentDraft = {
 };
 
 const emptyDraft: AgentDraft = {
-  name: "Untitled agent",
+  name: "Nhân sự số chưa đặt tên",
   emoji: "✨",
   persona: "-",
   description: "Describe what you want and Inventor will draft a full configuration.",
@@ -269,7 +269,7 @@ export default function Inventor() {
       id: crypto.randomUUID(),
       role: "ai",
       kind: "text",
-      text: "Cảm ơn - Mình sẽ dùng các thông tin trên để thiết kế agent.",
+      text: "Cảm ơn - Mình sẽ dùng các thông tin trên để thiết kế Nhân sự số.",
     });
     await wait(300);
     await runMainFlow(merged);
@@ -512,7 +512,7 @@ export default function Inventor() {
         <div className="ml-auto flex items-center gap-2">
           {fromOnboarding && (
             <span className="chip chip-primary text-[10px] hidden sm:inline-flex">
-              <Rocket size={11} /> First agent setup
+              <Rocket size={11} /> Thiết lập Nhân sự số đầu tiên
             </span>
           )}
           <button className="btn-secondary h-8 text-xs">
@@ -529,12 +529,12 @@ export default function Inventor() {
             }}
             title={
               fromOnboarding && configApplied
-                ? "Happy with it? Open your agent to test and tweak."
+                ? "Ưng rồi? Mở Nhân sự số để thử và chỉnh."
                 : undefined
             }
             className="btn-primary h-8 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Play size={12} /> Open agent
+            <Play size={12} /> Mở Nhân sự số
           </button>
         </div>
       </header>
@@ -575,7 +575,7 @@ export default function Inventor() {
                   }
                 }}
                 rows={2}
-                placeholder={pendingClarify ? "Trả lời các câu hỏi bên trên để tiếp tục…" : (messages.length === 0 ? "Ask Inventor to build anything..." : "Refine the agent - E.g. add Slack, change tone…")}
+                placeholder={pendingClarify ? "Trả lời các câu hỏi bên trên để tiếp tục…" : (messages.length === 0 ? "Ask Inventor to build anything..." : "Chỉnh Nhân sự số - Ví dụ thêm Slack, đổi giọng văn…")}
                 className="w-full resize-none bg-transparent text-sm placeholder:text-muted-foreground outline-none px-2.5 py-2 max-h-32"
               />
               <div className="flex items-center gap-1 px-1.5 pb-0.5">
@@ -612,7 +612,7 @@ function Welcome() {
       </div>
       <div className="text-sm font-semibold mb-1 font-display">Ask Inventor to build anything</div>
       <p className="text-[11px] text-muted-foreground max-w-[280px] mx-auto">
-        Try: <span className="text-foreground">"Tạo Agent viết báo cáo"</span> or
+        Try: <span className="text-foreground">"Tạo Nhân sự số viết báo cáo"</span> or
         <span className="text-foreground"> "HR onboarding assistant"</span>
       </p>
     </div>
@@ -930,7 +930,7 @@ function ConfigPanel({ draft, applied }: { draft: AgentDraft; applied: boolean }
           return (
             <div className="mt-2 rounded-lg border border-dashed border-border bg-surface/40 px-3 py-2.5">
               <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                Unassigned · attach later inside the agent
+                Chưa gắn · Gắn sau trong Nhân sự số
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {orphanTools.map(t => (
@@ -1001,7 +1001,7 @@ function ConfigPanel({ draft, applied }: { draft: AgentDraft; applied: boolean }
 
       {/* Footer hint */}
       <div className="rounded-xl border border-dashed border-border p-3 text-center text-[11px] text-muted-foreground bg-surface/40">
-        Configuration updates live as you chat. When you're ready, click <span className="font-semibold text-foreground">Open agent</span> to enter the full builder.
+        Configuration updates live as you chat. When you're ready, click <span className="font-semibold text-foreground">Mở Nhân sự số</span> to enter the full builder.
       </div>
     </div>
   );
@@ -1035,7 +1035,7 @@ function guessAgentName(p: string) {
   if (t.includes("hr") || t.includes("onboarding")) return "HR Onboarding Agent";
   if (t.includes("sales")) return "Sales Lead Qualifier";
   if (t.includes("support") || t.includes("customer")) return "Customer Support Agent";
-  return "New Agent";
+  return "Nhân sự số mới";
 }
 
 function needsClarification(prompt: string): ClarifyQ[] | null {
@@ -1046,13 +1046,13 @@ function needsClarification(prompt: string): ClarifyQ[] | null {
 
   if (/(hr|onboarding|nhân sự)/.test(t)) {
     return [
-      { id: "hr_scope", question: "Loại tài liệu/việc chính agent cần hỗ trợ?", options: ["Chính sách & handbook", "Paperwork & onboarding mới", "Phúc lợi & lương", "Hỗ trợ chung"] },
+      { id: "hr_scope", question: "Loại tài liệu/việc chính Nhân sự số cần hỗ trợ?", options: ["Chính sách & handbook", "Paperwork & onboarding mới", "Phúc lợi & lương", "Hỗ trợ chung"] },
       { id: "hr_lang", question: "Ngôn ngữ phục vụ chính?", options: ["Tiếng Việt", "English", "Song ngữ Việt–Anh"] },
     ];
   }
   if (/(report|báo cáo|research)/.test(t)) {
     return [
-      { id: "report_type", question: "Loại báo cáo agent sẽ tạo?", options: ["Báo cáo kinh doanh", "Research brief", "Báo cáo kỹ thuật", "Tổng hợp tin tức"] },
+      { id: "report_type", question: "Loại báo cáo Nhân sự số sẽ tạo?", options: ["Báo cáo kinh doanh", "Research brief", "Báo cáo kỹ thuật", "Tổng hợp tin tức"] },
       { id: "report_freq", question: "Tần suất chạy?", options: ["Theo yêu cầu (manual)", "Hằng tuần", "Hằng tháng"] },
     ];
   }
@@ -1063,7 +1063,7 @@ function needsClarification(prompt: string): ClarifyQ[] | null {
     ];
   }
   return [
-    { id: "generic_domain", question: "Agent này phục vụ lĩnh vực nào?", options: ["Customer support", "HR & onboarding", "Sales & marketing", "Research & reporting"] },
+    { id: "generic_domain", question: "Nhân sự số này phục vụ lĩnh vực nào?", options: ["Customer support", "HR & onboarding", "Sales & marketing", "Research & reporting"] },
     { id: "generic_audience", question: "Đối tượng người dùng chính?", options: ["Khách hàng cuối", "Nhân viên nội bộ", "Quản lý / lãnh đạo", "Đối tác bên ngoài"] },
   ];
 }
@@ -1134,7 +1134,7 @@ function ClarifyingCard({
         </button>
       ) : (
         <div className="flex items-center gap-1.5 text-[11px] text-primary font-medium">
-          <Check size={11} /> Cảm ơn - Đang tiếp tục thiết kế agent…
+          <Check size={11} /> Cảm ơn - Đang tiếp tục thiết kế Nhân sự số…
         </div>
       )}
     </div>

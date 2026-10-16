@@ -147,7 +147,7 @@ export default function TriggersTab({ agentId, onChange }: {
     const trimmed = newName.trim();
     if (!trimmed || trimmed === t.name) { setRenamingId(null); return; }
     if (triggerStore.isDuplicateName(agentId, trimmed, t.id)) {
-      toast.error("Agent này đã có trigger dùng tên này. Hãy chọn tên khác.");
+      toast.error("Nhân sự số này đã có trigger dùng tên này. Hãy chọn tên khác.");
       return;
     }
     triggerStore.update(agentId, t.id, { name: trimmed });
@@ -161,10 +161,10 @@ export default function TriggersTab({ agentId, onChange }: {
         <div>
           <h2 className="font-display text-xl font-semibold">Trigger</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Trigger giúp agent tự chạy - Theo lịch, qua webhook, hoặc theo sự kiện từ ứng dụng bên ngoài.
+            Trigger giúp Nhân sự số tự chạy - Theo lịch, qua webhook, hoặc theo sự kiện từ ứng dụng bên ngoài.
           </p>
           {isDraft && !isEmpty && (
-            <p className="text-xs text-muted-foreground mt-1">Trigger sẽ bắt đầu chạy sau khi bạn publish agent này.</p>
+            <p className="text-xs text-muted-foreground mt-1">Trigger sẽ bắt đầu chạy sau khi bạn publish Nhân sự số này.</p>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -211,7 +211,7 @@ export default function TriggersTab({ agentId, onChange }: {
       ) : limitReached && (
         <div className="flex items-start gap-2 text-xs text-warning bg-[hsl(var(--warning-soft))] border border-warning/25 rounded-lg px-3 py-2.5 mb-4">
           <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-          <p>Agent đã đạt giới hạn 10 trigger.</p>
+          <p>Nhân sự số đã đạt giới hạn 10 trigger.</p>
         </div>
       )}
 
@@ -338,7 +338,7 @@ export default function TriggersTab({ agentId, onChange }: {
           <AlertDialogHeader>
             <AlertDialogTitle>Tạm dừng tất cả trigger?</AlertDialogTitle>
             <AlertDialogDescription>
-              Agent sẽ ngừng tự chạy cho đến khi bạn bật lại ít nhất một trigger.
+              Nhân sự số sẽ ngừng tự chạy cho đến khi bạn bật lại ít nhất một trigger.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -366,7 +366,7 @@ function EmptyState({ onCreate, disabled }: { onCreate: () => void; disabled?: b
       </div>
       <h3 className="font-display text-lg font-semibold mb-1.5">Chưa có trigger nào</h3>
       <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">
-        Agent tự động chạy theo lịch, webhook hoặc sự kiện từ ứng dụng.
+        Nhân sự số tự động chạy theo lịch, webhook hoặc sự kiện từ ứng dụng.
       </p>
       <button onClick={onCreate} disabled={disabled} className="btn-primary h-9 mx-auto disabled:opacity-40 disabled:cursor-not-allowed">
         <Plus size={13} /> Thêm Trigger
@@ -427,7 +427,7 @@ function RowMenu({ enabled, needsSetup, duplicateBlocked, enableBlocked, onToggl
                   Bật trigger
                 </span>
               </TooltipTrigger>
-              <TooltipContent side="left" sideOffset={8} align="center">Agent đang dùng kết nối riêng - Xử lý việc này trước khi bật trigger.</TooltipContent>
+              <TooltipContent side="left" sideOffset={8} align="center">Nhân sự số đang dùng kết nối riêng - Xử lý việc này trước khi bật trigger.</TooltipContent>
             </Tooltip>
           ) : (
             <button

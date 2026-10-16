@@ -22,7 +22,7 @@ export function PendingRequestPill({ req, onChanged }: { req: GovRequest; onChan
 
   const withdraw = () => {
     governanceStore.withdraw(req.id, CURRENT_USER.id, CURRENT_USER.name, "Người gửi đã rút yêu cầu.");
-    toast.success(`Đã rút yêu cầu ${req.version ?? ""}. Agent giữ nguyên trạng thái trước khi gửi.`);
+    toast.success(`Đã rút yêu cầu ${req.version ?? ""}. Nhân sự số giữ nguyên trạng thái trước khi gửi.`);
     setConfirm(false);
     setOpen(false);
     onChanged();
@@ -43,7 +43,7 @@ export function PendingRequestPill({ req, onChanged }: { req: GovRequest; onChan
         <PopoverContent align="end" className="w-80 p-0">
           <div className="px-4 py-3 border-b border-border">
             <p className="text-sm font-semibold">Yêu cầu {req.version} đang chờ duyệt</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Admin sẽ duyệt trước khi Agent tới người dùng.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Admin sẽ duyệt trước khi Nhân sự số tới người dùng.</p>
           </div>
           <div className="px-4 py-3 space-y-2.5 text-sm">
             <div className="flex items-start justify-between gap-3">
@@ -85,7 +85,7 @@ export function PendingRequestPill({ req, onChanged }: { req: GovRequest; onChan
           <AlertDialogHeader>
             <AlertDialogTitle>Rút yêu cầu {req.version}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Admin sẽ không còn thấy yêu cầu này để duyệt. Agent giữ nguyên trạng thái hiện tại - Bạn có thể gửi lại bất cứ lúc nào.
+              Admin sẽ không còn thấy yêu cầu này để duyệt. Nhân sự số giữ nguyên trạng thái hiện tại - Bạn có thể gửi lại bất cứ lúc nào.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

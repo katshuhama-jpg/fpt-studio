@@ -213,7 +213,7 @@ export default function SkillDetail() {
           {!viaAgentOnly && (
           <div className="rounded-xl border border-border bg-surface p-5">
             <div className="text-sm font-semibold mb-1">Ai được dùng skill này</div>
-            <p className="text-xs text-muted-foreground mb-3">Người trong Space được liên kết skill này vào Agent khi xây dựng.</p>
+            <p className="text-xs text-muted-foreground mb-3">Người trong Space được liên kết skill này vào Nhân sự số khi xây dựng.</p>
             <p className="text-sm text-muted-foreground">
               {skill.sharing.mode === "private" && "Chỉ mình tôi"}
               {skill.sharing.mode === "all" && "Cả Space"}

@@ -237,7 +237,7 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h2 className="font-display text-xl font-semibold">Lịch sử hội thoại</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Xem lại các cuộc trò chuyện giữa Agent này và người dùng.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Xem lại các cuộc trò chuyện giữa Nhân sự số này và người dùng.</p>
             </div>
             {canExport && (
               <span title={filtered.length === 0 ? "Không có cuộc trò chuyện nào để xuất" : undefined}>
@@ -289,7 +289,7 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
         {!hasAnyConversations ? (
           <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
             <p className="text-sm text-muted-foreground max-w-md mx-auto">
-              Chưa có cuộc trò chuyện nào. Khi Agent được publish và người dùng bắt đầu trò chuyện, các cuộc trò chuyện sẽ hiện ở đây.
+              Chưa có cuộc trò chuyện nào. Khi Nhân sự số được publish và người dùng bắt đầu trò chuyện, các cuộc trò chuyện sẽ hiện ở đây.
             </p>
           </div>
         ) : filtered.length === 0 ? (

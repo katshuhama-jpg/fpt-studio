@@ -192,7 +192,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly, retrieval }: { k
             <p className="text-sm text-muted-foreground max-w-md mx-auto">Chủ sở hữu chưa thêm tài liệu vào kho tri thức này.</p>
           ) : (
             <>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto mb-2">Tải tài liệu lên để Agent có thể tra cứu nội dung.</p>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto mb-2">Tải tài liệu lên để Nhân sự số có thể tra cứu nội dung.</p>
               <p className="text-xs text-muted-foreground max-w-md mx-auto mb-4">{SUPPORTED_FORMATS_LINE}</p>
               <button onClick={() => setShowUpload(true)} className="btn-primary h-9 mx-auto">Tải tài liệu lên</button>
             </>

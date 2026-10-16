@@ -64,9 +64,9 @@ export default function TriggerConfigDrawer({
             <div className="w-11 h-11 mx-auto rounded-xl bg-primary-soft text-primary flex items-center justify-center mb-3">
               <Zap size={18} />
             </div>
-            <p className="text-sm font-medium mb-1">Chưa kết nối tới Agent</p>
+            <p className="text-sm font-medium mb-1">Chưa kết nối tới Nhân sự số</p>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Kéo một đường nối từ Trigger này sang một Agent để chọn trigger thật của Agent đó - Trigger được cấu hình theo từng Agent, giống như ở trang Agent Builder.
+              Kéo một đường nối từ Trigger này sang một Nhân sự số để chọn trigger thật của Nhân sự số đó - Trigger được cấu hình theo từng Nhân sự số, giống như ở trang Nhân sự số Builder.
             </p>
           </div>
         ) : (
@@ -78,7 +78,7 @@ export default function TriggerConfigDrawer({
 
             {triggers.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border p-5 text-center mb-3">
-                <p className="text-sm font-medium mb-1">Agent này chưa có trigger nào</p>
+                <p className="text-sm font-medium mb-1">Nhân sự số này chưa có trigger nào</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   Tạo trigger đầu tiên - Theo lịch, webhook, hoặc sự kiện từ ứng dụng bên ngoài.
                 </p>
@@ -135,7 +135,7 @@ export default function TriggerConfigDrawer({
             </button>
 
             <p className="text-xs text-muted-foreground mt-4 leading-relaxed">
-              Trigger là điểm bắt đầu của Workforce này - Dùng chung danh sách trigger với trang Agent Builder của {agent?.name ?? "agent này"}. Chọn hoặc tạo một trigger để Workforce có thể chạy.
+              Trigger là điểm bắt đầu của Workforce này - Dùng chung danh sách trigger với trang Nhân sự số Builder của {agent?.name ?? "Nhân sự số này"}. Chọn hoặc tạo một trigger để Workforce có thể chạy.
             </p>
           </>
         )}

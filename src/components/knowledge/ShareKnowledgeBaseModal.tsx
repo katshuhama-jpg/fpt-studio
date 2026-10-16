@@ -137,14 +137,14 @@ export default function ShareKnowledgeBaseModal({
             {mode === "private" ? (
               <>
                 <AlertDialogTitle>Tắt chia sẻ?</AlertDialogTitle>
-                <AlertDialogDescription>{agentOnlyFor ? `Chỉ Agent ${originAgentName ? `"${originAgentName}"` : "này"} dùng được kho này.` : `Chỉ ${onlyWho} liên kết được kho này vào Agent.`} Người khác sẽ không liên kết được kho vào Agent của họ nữa.</AlertDialogDescription>
+                <AlertDialogDescription>{agentOnlyFor ? `Chỉ Nhân sự số ${originAgentName ? `"${originAgentName}"` : "này"} dùng được kho này.` : `Chỉ ${onlyWho} liên kết được kho này vào Nhân sự số.`} Người khác sẽ không liên kết được kho vào Nhân sự số của họ nữa.</AlertDialogDescription>
               </>
             ) : (
               <>
                 <AlertDialogTitle>{ACCESS_COPY.narrowTitle}</AlertDialogTitle>
                 <AlertDialogDescription>{initialSharing.mode === "all"
-                  ? "Chỉ người trong danh sách còn liên kết được kho này vào Agent."
-                  : `${revokedCount} người sẽ không liên kết được kho này vào Agent nữa.`}</AlertDialogDescription>
+                  ? "Chỉ người trong danh sách còn liên kết được kho này vào Nhân sự số."
+                  : `${revokedCount} người sẽ không liên kết được kho này vào Nhân sự số nữa.`}</AlertDialogDescription>
               </>
             )}
           </AlertDialogHeader>

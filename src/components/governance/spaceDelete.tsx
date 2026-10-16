@@ -82,7 +82,7 @@ export function performSpaceDelete(type: RevocableType, res: SpaceRes, actor: Sp
   else if ((res.attachedByAgentIds ?? []).length) STORES[type].removeFromSpace(res.id, by);
   else STORES[type].remove(res.id);
   notifySpaceOwner(kept ? "resource_removed" : "resource_deleted", actor, res, noun, href);
-  if (kept) toast.success(`Đã gỡ ${noun} khỏi Space. Bạn vẫn tìm thấy trong Agent "${getAgent(kept).name}".`);
+  if (kept) toast.success(`Đã gỡ ${noun} khỏi Space. Bạn vẫn tìm thấy trong Nhân sự số "${getAgent(kept).name}".`);
   else toast.success(`Đã xóa ${noun} "${res.name}".`);
 }
 
@@ -114,12 +114,12 @@ export function SpaceDeleteDialog({ open, onClose, noun, name, originAgentId, at
   const kept = keptAgentFor(originAgentId, attachedAgentIds);
   const others = agentsUsing((attachedAgentIds ?? []).filter(id => id !== kept));
   const othersNote = others.length
-    ? ` Các Agent dưới đây sẽ báo "Không khả dụng" và chưa publish được cho tới khi gỡ ${noun} ra.`
+    ? ` Các Nhân sự số dưới đây sẽ báo "Không khả dụng" và chưa publish được cho tới khi gỡ ${noun} ra.`
     : "";
   const title = kept ? `Gỡ ${noun} "${name}" khỏi Space?` : `Xóa ${noun} "${name}"?`;
   const description = kept
-    ? `${cap(noun)} vẫn nằm trong Agent "${getAgent(kept).name}", bạn tìm lại được ở đó. Người khác sẽ không thấy ${noun} này trong thư viện nữa.${othersNote}`
-    : `${cap(noun)} sẽ bị xóa khỏi Space và khỏi mọi Agent đang dùng. Hành động này không thể hoàn tác.${othersNote}`;
+    ? `${cap(noun)} vẫn nằm trong Nhân sự số "${getAgent(kept).name}", bạn tìm lại được ở đó. Người khác sẽ không thấy ${noun} này trong thư viện nữa.${othersNote}`
+    : `${cap(noun)} sẽ bị xóa khỏi Space và khỏi mọi Nhân sự số đang dùng. Hành động này không thể hoàn tác.${othersNote}`;
   return (
     <ResourceInUseDialog
       open={open}
@@ -154,7 +154,7 @@ export function SpaceUnshareDialog({ open, onClose, noun, name, ownerName, owner
       open={open}
       onClose={onClose}
       title={losing.length ? REVOKED_COPY.confirmTitle(it) : `Tắt chia sẻ ${noun} "${name}"?`}
-      description={`${cap(noun)} vẫn ở Space nhưng chỉ ${who} liên kết được vào Agent. Người khác sẽ không liên kết được vào Agent của họ nữa.${losing.length ? ` Các Agent dưới đây sẽ báo "Không khả dụng" và chưa publish được cho tới khi gỡ ${noun} ra.` : ""}`}
+      description={`${cap(noun)} vẫn ở Space nhưng chỉ ${who} liên kết được vào Nhân sự số. Người khác sẽ không liên kết được vào Nhân sự số của họ nữa.${losing.length ? ` Các Nhân sự số dưới đây sẽ báo "Không khả dụng" và chưa publish được cho tới khi gỡ ${noun} ra.` : ""}`}
       agents={losing}
       onConfirm={() => { onConfirm(); onClose(); toast.success("Đã tắt chia sẻ."); }}
       confirmLabel="Tắt chia sẻ"

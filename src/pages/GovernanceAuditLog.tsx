@@ -81,7 +81,7 @@ export default function GovernanceAuditLog() {
             className="h-9 px-3 rounded-lg bg-surface-muted border border-border text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
           >
             <option value="all">Tất cả loại resource</option>
-            <option value="agent">Agent</option>
+            <option value="agent">Nhân sự số</option>
             <option value="knowledge">Knowledge</option>
             <option value="skill">Skill</option>
             <option value="guardrail">Guardrails</option>

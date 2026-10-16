@@ -102,13 +102,13 @@ export default function Canvas({
     onBeforeMutate();
     if (source.data.kind === "trigger") {
       setEdges(es => es.concat(createDirectEdge(source.id, target.id)));
-      toast("Đã kết nối Trigger với Agent");
+      toast("Đã kết nối Trigger với Nhân sự số");
       return;
     }
     const { condition, edges: newEdges } = createRoute(source.id, target.position, source.position, target.id);
     setNodes(ns => ns.concat(condition));
     setEdges(es => es.concat(newEdges));
-    toast("Đã thêm Agent đích vào Workforce");
+    toast("Đã thêm Nhân sự số đích vào Workforce");
   }, [nodes, setNodes, setEdges, toast, onBeforeMutate]);
 
   const onConnectStart = useCallback((_: any, params: OnConnectStartParams) => {
@@ -222,7 +222,7 @@ export default function Canvas({
       setNodes(ns => ns.concat(destNode));
       setEdges(es => es.concat(createDirectEdge(agentPicker.connectFrom!, destNode.id)));
       lastAddedPositionRef.current = destPos;
-      toast("Đã kết nối Trigger với Agent");
+      toast("Đã kết nối Trigger với Nhân sự số");
     } else if (agentPicker.connectFrom) {
       const source = findNode(agentPicker.connectFrom);
       const destPos: XYPosition = { x: agentPicker.position.x + 260, y: agentPicker.position.y };
@@ -231,11 +231,11 @@ export default function Canvas({
       setNodes(ns => ns.concat(condition, destNode));
       setEdges(es => es.concat(newEdges));
       lastAddedPositionRef.current = destPos;
-      toast("Đã thêm Agent đích vào Workforce");
+      toast("Đã thêm Nhân sự số đích vào Workforce");
     } else {
       setNodes(ns => ns.concat(createAgentNode(agentId, agentPicker.position, true)));
       lastAddedPositionRef.current = agentPicker.position;
-      toast("Đã thêm Agent vào Workforce");
+      toast("Đã thêm Nhân sự số vào Workforce");
     }
     setAgentPicker(null);
   };

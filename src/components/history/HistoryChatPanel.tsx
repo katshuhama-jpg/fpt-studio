@@ -175,7 +175,7 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
                           type="button"
                           onClick={() => setAuditMessage(m)}
                           title="Audit"
-                          aria-label="Agent audit"
+                          aria-label="Kiểm tra câu trả lời"
                           className="h-6 w-6 flex items-center justify-center rounded-md text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"
                         >
                           <ClipboardList size={13} />
@@ -233,7 +233,7 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
       <Dialog open={!!auditMessage} onOpenChange={open => { if (!open) setAuditMessage(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Agent audit</DialogTitle>
+            <DialogTitle>Kiểm tra câu trả lời</DialogTitle>
           </DialogHeader>
           {audit && (
             <div className="space-y-4">

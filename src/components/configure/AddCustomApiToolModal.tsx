@@ -168,7 +168,7 @@ export default function AddCustomApiToolModal({ editing, onClose, onCreated, onU
         <div className="flex items-start justify-between px-6 py-5 border-b border-border shrink-0">
           <div>
             <h2 className="font-display text-lg font-semibold">{isEditing ? "Sửa API Tool" : "Thêm API Tool"}</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Định nghĩa một API để cấp cho Agent gọi như một công cụ.</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Định nghĩa một API để cấp cho Nhân sự số gọi như một công cụ.</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base mt-0.5 shrink-0">
             <HugeiconsIcon icon={Cancel01Icon} size={15} />
@@ -190,7 +190,7 @@ export default function AddCustomApiToolModal({ editing, onClose, onCreated, onU
               <textarea
                 value={description}
                 onChange={e => setDescription(e.target.value)}
-                placeholder="API này dùng để làm gì, Agent gọi khi nào…"
+                placeholder="API này dùng để làm gì, Nhân sự số gọi khi nào…"
                 rows={2}
                 className="w-full px-2.5 py-2 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
               />

@@ -44,7 +44,7 @@ export default function PromoteSkillToConsoleDialog({ agentId, item, currentUser
           <DialogTitle>Chuyển thành skill chung</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Skill sẽ được chuyển sang mục Skills của Console và vẫn liên kết với Agent này.
+          Skill sẽ được chuyển sang mục Skills của Space và vẫn liên kết với Nhân sự số này.
         </p>
         <div>
           <div className="flex items-center justify-between mb-1.5">

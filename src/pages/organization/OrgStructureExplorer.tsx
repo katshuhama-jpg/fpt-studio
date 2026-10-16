@@ -326,7 +326,7 @@ function MemberTypeCell({
               <div className={`text-sm font-medium flex items-center gap-1.5 ${!isAdmin ? "text-primary" : "text-foreground"}`}>
                 <User size={12} /> Member
               </div>
-              <div className="text-xs text-muted-foreground mt-0.5 leading-snug">Dùng các Agent đã publish, tự tạo Agent/Skill/Knowledge cho riêng mình.</div>
+              <div className="text-xs text-muted-foreground mt-0.5 leading-snug">Dùng các Nhân sự số đã publish, tự tạo Nhân sự số/Skill/Knowledge cho riêng mình.</div>
             </div>
             {!isAdmin && <Check size={13} className="text-primary shrink-0 mt-0.5" />}
           </button>
@@ -340,7 +340,7 @@ function MemberTypeCell({
                 <Crown size={12} /> Admin
               </div>
               <div className="text-xs text-muted-foreground mt-0.5 leading-snug">
-                Duyệt yêu cầu publish Agent trong đơn vị này và mọi đơn vị con bên dưới.
+                Duyệt yêu cầu publish Nhân sự số trong đơn vị này và mọi đơn vị con bên dưới.
                 <span className="block mt-1 text-muted-foreground/70">Cũng sẽ hiện ở mục Unit Admins bên trên.</span>
               </div>
             </div>
@@ -642,7 +642,7 @@ export default function OrgStructureExplorer() {
       {removeAdminTarget && (
         <ConfirmDeleteModal
           title={`Gỡ "${removeAdminTarget.member.name}" khỏi Unit Admin?`}
-          desc={`${removeAdminTarget.member.name} sẽ không còn quyền duyệt publish Agent trong ${removeAdminTarget.sourceUnit.name} và mọi đơn vị con bên dưới.`}
+          desc={`${removeAdminTarget.member.name} sẽ không còn quyền duyệt publish Nhân sự số trong ${removeAdminTarget.sourceUnit.name} và mọi đơn vị con bên dưới.`}
           confirmLabel="Gỡ Admin"
           onClose={() => setRemoveAdminTarget(null)}
           onConfirm={() => {
@@ -823,7 +823,7 @@ export default function OrgStructureExplorer() {
             />
           </div>
           <p className="text-xs text-muted-foreground mb-2">
-            Unit Admin có thể duyệt yêu cầu publish Agent trong đơn vị này và mọi đơn vị con bên dưới.
+            Unit Admin có thể duyệt yêu cầu publish Nhân sự số trong đơn vị này và mọi đơn vị con bên dưới.
           </p>
           {effectiveAdmins.length === 0 ? (
             <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-4 text-center">

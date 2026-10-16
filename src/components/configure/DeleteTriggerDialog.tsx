@@ -21,7 +21,7 @@ export default function DeleteTriggerDialog({ agentId, target, onOpenChange, onD
           <AlertDialogTitle>Xoá trigger "{target?.name}"?</AlertDialogTitle>
           <AlertDialogDescription asChild>
             <ul className="space-y-1.5 text-left list-disc pl-4">
-              <li>Agent sẽ không còn tự chạy theo trigger này.</li>
+              <li>Nhân sự số sẽ không còn tự chạy theo trigger này.</li>
               <li>Cấu hình webhook URL / lịch / điều kiện sự kiện sẽ bị xoá và không khôi phục được.</li>
               <li>Lịch sử chạy đã ghi nhận vẫn được giữ lại.</li>
             </ul>

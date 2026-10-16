@@ -127,14 +127,14 @@ export default function ResourceAccessModal({
             {mode === "private" ? (
               <>
                 <AlertDialogTitle>Tắt chia sẻ?</AlertDialogTitle>
-                <AlertDialogDescription>{agentOnlyFor ? `Chỉ Agent ${originAgentName ? `"${originAgentName}"` : "này"} dùng được ${it}.` : `Chỉ ${onlyWho} liên kết được ${it} vào Agent.`} Người khác sẽ không liên kết được vào Agent của họ nữa.</AlertDialogDescription>
+                <AlertDialogDescription>{agentOnlyFor ? `Chỉ Nhân sự số ${originAgentName ? `"${originAgentName}"` : "này"} dùng được ${it}.` : `Chỉ ${onlyWho} liên kết được ${it} vào Nhân sự số.`} Người khác sẽ không liên kết được vào Nhân sự số của họ nữa.</AlertDialogDescription>
               </>
             ) : (
               <>
                 <AlertDialogTitle>{ACCESS_COPY.narrowTitle}</AlertDialogTitle>
                 <AlertDialogDescription>{narrowingFromAll
-                  ? `Chỉ người trong danh sách còn liên kết được ${it} vào Agent.`
-                  : `${revokedCount} người sẽ không liên kết được ${it} vào Agent nữa.`}</AlertDialogDescription>
+                  ? `Chỉ người trong danh sách còn liên kết được ${it} vào Nhân sự số.`
+                  : `${revokedCount} người sẽ không liên kết được ${it} vào Nhân sự số nữa.`}</AlertDialogDescription>
               </>
             )}
           </AlertDialogHeader>

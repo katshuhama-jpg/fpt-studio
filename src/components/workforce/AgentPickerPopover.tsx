@@ -6,7 +6,7 @@ import { AGENTS } from "@/components/configure/agentStore";
 import { useReturnFocus } from "./useReturnFocus";
 
 export default function AgentPickerPopover({
-  open, title = "Chọn Agent", excludeAgentId, onClose, onSelect,
+  open, title = "Chọn Nhân sự số", excludeAgentId, onClose, onSelect,
 }: {
   open: boolean;
   title?: string;
@@ -46,14 +46,14 @@ export default function AgentPickerPopover({
               autoFocus
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Tìm Agent..."
+              placeholder="Tìm Nhân sự số..."
               className="h-9 w-full pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
             />
           </div>
         </div>
         <div className="flex-1 overflow-y-auto px-2 pb-2">
           {filtered.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">Không tìm thấy Agent phù hợp.</p>
+            <p className="text-sm text-muted-foreground text-center py-8">Không tìm thấy Nhân sự số phù hợp.</p>
           ) : (
             filtered.map(a => {
               const disabled = a.id === excludeAgentId;
@@ -78,7 +78,7 @@ export default function AgentPickerPopover({
               return disabled ? (
                 <Tooltip key={a.id} delayDuration={200}>
                   <TooltipTrigger asChild><span>{row}</span></TooltipTrigger>
-                  <TooltipContent>Không thể chọn chính Agent đang là nguồn của route này.</TooltipContent>
+                  <TooltipContent>Không thể chọn chính Nhân sự số đang là nguồn của route này.</TooltipContent>
                 </Tooltip>
               ) : row;
             })
@@ -86,9 +86,9 @@ export default function AgentPickerPopover({
         </div>
         <div className="px-5 py-3 border-t border-border shrink-0">
           <p className="text-xs text-muted-foreground">
-            Không tìm thấy Agent bạn cần? Tạo Agent mới trong mục{" "}
+            Không tìm thấy Nhân sự số bạn cần? Tạo Nhân sự số mới trong mục{" "}
             <a href="/agents" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">
-              Agents
+              Nhân sự số
             </a>{" "}
             trước, sau đó quay lại đây.
           </p>

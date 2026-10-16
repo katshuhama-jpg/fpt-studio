@@ -156,7 +156,7 @@ function seed() {
   // Owned by current user — shared to all console users
   put({
     id: "kb-2", name: "FAQ chăm sóc khách hàng",
-    description: "Câu hỏi thường gặp dùng chung cho các Agent chăm sóc khách hàng.",
+    description: "Câu hỏi thường gặp dùng chung cho các Nhân sự số chăm sóc khách hàng.",
     type: "internal", ownerId: CURRENT_USER.id, ownerName: CURRENT_USER.name,
     sharing: { mode: "all", people: [] },
     querySharing: { mode: "all_org", departmentIds: [], people: [] },

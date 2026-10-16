@@ -12,7 +12,7 @@ function versionOptions(agentId: string) {
   const live = ps.placement !== null ? ps.version : null;
   return [
     { id: "draft", label: live ? `Bản nháp (sau ${live})` : "Bản nháp", hint: "Đang chỉnh sửa, chưa publish", disabled: false },
-    { id: "live", label: live ? `Live ${live}` : "Live", hint: live ? "Bản người dùng đang dùng" : "Agent chưa publish", disabled: !live },
+    { id: "live", label: live ? `Live ${live}` : "Live", hint: live ? "Bản người dùng đang dùng" : "Nhân sự số chưa publish", disabled: !live },
   ];
 }
 
@@ -58,7 +58,7 @@ export function RunDialog({ agentId, open, onOpenChange, presetSetId, presetCase
       <DialogContent data-viewonly-allow className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle>{presetCaseIds ? `Chạy ${presetCaseIds.length} test đã chọn` : "Chạy bộ test"}</DialogTitle>
-          <DialogDescription>Agent trả lời từng test case, sau đó hệ thống chấm theo các chỉ số gắn với bộ test.</DialogDescription>
+          <DialogDescription>Nhân sự số trả lời từng test case, sau đó hệ thống chấm theo các chỉ số gắn với bộ test.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <label className="block">
@@ -95,7 +95,7 @@ export function RunDialog({ agentId, open, onOpenChange, presetSetId, presetCase
             </button>
             {more && (
               <div className="px-3 pb-3 pt-1 border-t border-border space-y-1.5">
-                {extraOptions.length === 0 ? <p className="text-xs text-muted-foreground pt-2">Bộ test đã dùng mọi chỉ số của Agent.</p> : extraOptions.map(m => (
+                {extraOptions.length === 0 ? <p className="text-xs text-muted-foreground pt-2">Bộ test đã dùng mọi chỉ số của Nhân sự số.</p> : extraOptions.map(m => (
                   <label key={m.id} className="flex items-center gap-2 text-sm cursor-pointer pt-1.5">
                     <input type="checkbox" className="accent-[hsl(var(--primary))]" checked={extra.includes(m.id)} onChange={e => setExtra(e.target.checked ? [...extra, m.id] : extra.filter(x => x !== m.id))} />
                     {m.name} <span className="text-xs text-muted-foreground">· {m.vnName}</span>

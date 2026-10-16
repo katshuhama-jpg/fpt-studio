@@ -101,7 +101,7 @@ export function countByTab<T>(items: T[], tagsOf: (t: T) => OwnershipTag[]): Rec
 export function ownershipEmptyCopy(tab: OwnershipTab, noun: string): { title: string; body: string } | null {
   if (tab === "mine") return {
     title: `Bạn chưa chia sẻ ${noun} nào lên Space`,
-    body: `${cap(noun)} bạn tạo trong Agent mặc định chỉ Agent đó dùng. Mở "Ai được dùng" của ${noun} để chia sẻ cho cả Space.`,
+    body: `${cap(noun)} bạn tạo trong Nhân sự số mặc định chỉ Nhân sự số đó dùng. Mở "Ai được dùng" của ${noun} để chia sẻ cho cả Space.`,
   };
   if (tab === "shared") return {
     title: `Chưa có ai chia sẻ ${noun} cho bạn`,
@@ -169,7 +169,7 @@ export function OwnershipTabs({ tab, onChange, counts, noun }: {
     {tab === "mine" && noun && (
       <p className="flex items-start gap-1.5 text-xs text-muted-foreground leading-relaxed">
         <Info size={13} className="shrink-0 mt-0.5" aria-hidden />
-        <span>{cap(noun)} bạn đã chia sẻ lên Space. {cap(noun)} chỉ dùng trong một Agent không hiện ở đây.</span>
+        <span>{cap(noun)} bạn đã chia sẻ lên Space. {cap(noun)} chỉ dùng trong một Nhân sự số không hiện ở đây.</span>
       </p>
     )}
     </div>

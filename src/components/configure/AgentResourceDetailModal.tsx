@@ -69,14 +69,14 @@ function useCurrentUser(userId: string) {
 function sharingLabel(sharing?: { mode: string; people: unknown[] }): string {
   if (sharing?.mode === "specific") return `${sharing.people.length} người`;
   if (sharing?.mode === "all") return "Cả Space";
-  return "Chỉ Agent này";
+  return "Chỉ Nhân sự số này";
 }
 
 function usedByLabel(ids?: string[]): string {
   const n = ids?.length ?? 0;
-  if (n === 0) return "Chưa có Agent nào";
+  if (n === 0) return "Chưa có Nhân sự số nào";
   const names = ids!.slice(0, 2).map(id => getAgent(id)?.name ?? id);
-  return n <= 2 ? names.join(", ") : `${names.join(", ")} và ${n - 2} Agent khác`;
+  return n <= 2 ? names.join(", ") : `${names.join(", ")} và ${n - 2} Nhân sự số khác`;
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -257,7 +257,7 @@ function AgentSkillDetail({ agentId, id, onClose, onChanged }: { agentId: string
       onShare={isOwner ? () => setSub("share") : undefined}
     >
       <Meta rows={[
-        { label: "Loại", value: "Skill riêng của Agent" },
+        { label: "Loại", value: "Skill riêng của Nhân sự số" },
         { label: "Người tạo", value: isOwner ? "Bạn" : skill.ownerName },
         ...(isOwner ? [{ label: ACCESS_COPY.menu, value: sharingLabel(skill.sharing) }] : []),
       ]} />
@@ -327,7 +327,7 @@ function ConsoleGuardrailDetail({ agentId, id, onClose, onChanged }: { agentId: 
       <GuardrailBody g={g} meta={[
         { label: "Người tạo", value: !hasOwner ? "Hệ thống" : isOwner ? "Bạn" : g.ownerName },
         ...(isOwner ? [{ label: ACCESS_COPY.menu, value: sharingLabel(g.sharing) }] : []),
-        { label: "Đang dùng trong", value: g.allAgents ? "Mọi Agent trong Space" : usedByLabel(g.attachedByAgentIds) },
+        { label: "Đang dùng trong", value: g.allAgents ? "Mọi Nhân sự số trong Space" : usedByLabel(g.attachedByAgentIds) },
       ]} />
     </Shell>
   );
@@ -370,7 +370,7 @@ function AgentGuardrailDetail({ agentId, id, onClose, onChanged }: { agentId: st
       onShare={isOwner ? () => setSub("share") : undefined}
     >
       <GuardrailBody g={g} meta={[
-        { label: "Loại", value: "Guardrail riêng của Agent" },
+        { label: "Loại", value: "Guardrail riêng của Nhân sự số" },
         { label: "Người tạo", value: isOwner ? "Bạn" : g.ownerName ?? "-" },
         ...(isOwner ? [{ label: ACCESS_COPY.menu, value: sharingLabel(g.sharing) }] : []),
       ]} />
@@ -444,7 +444,7 @@ function KnowledgeBaseDetail({ agentId, id, onClose, onChanged }: { agentId: str
       <Meta rows={[
         { label: "Loại", value: kb.type === "external_api" ? "Kết nối kho tri thức ngoài" : "Kho tri thức nội bộ" },
         { label: "Người tạo", value: isOwner ? "Bạn" : kb.ownerName },
-        ...(isOwner ? [{ label: ACCESS_COPY.menu, value: accessLabel(kb.sharing.mode, kb.sharing.people.length, "Chỉ Agent này") }] : []),
+        ...(isOwner ? [{ label: ACCESS_COPY.menu, value: accessLabel(kb.sharing.mode, kb.sharing.people.length, "Chỉ Nhân sự số này") }] : []),
         { label: RETRIEVAL_COPY.menu, value: retrievalLabel(kb.querySharing) },
         ...(PARTIAL_LINK_ENABLED ? [{ label: "Phạm vi liên kết", value: scopeLabel(kb.id, linkScope).label }] : []),
         { label: "Đang dùng trong", value: usedByLabel(kb.attachedByAgentIds) },
@@ -473,8 +473,8 @@ function KnowledgeItemDetail({ agentId, id, onClose, onOpenFull, onChanged }: { 
   return (
     <Shell typeLabel={KIND_LABEL[item.kind].toLowerCase()} name={item.name} onClose={onClose} onEdit={onOpenFull} onShare={() => setSharing("access")} onRetrieval={() => setSharing("retrieval")}>
       <Meta rows={[
-        { label: "Loại", value: `${KIND_LABEL[item.kind]} riêng của Agent` },
-        { label: ACCESS_COPY.menu, value: "Chỉ Agent này" },
+        { label: "Loại", value: `${KIND_LABEL[item.kind]} riêng của Nhân sự số` },
+        { label: ACCESS_COPY.menu, value: "Chỉ Nhân sự số này" },
         { label: RETRIEVAL_COPY.menu, value: retrievalLabel(item.querySharing) },
         ...(item.chunkCount != null ? [{ label: "Số đoạn", value: String(item.chunkCount) }] : []),
       ]} />
@@ -593,7 +593,7 @@ export default function AgentResourceDetailModal({ agentId, target, onClose, onC
 
 /** Read-only detail for a platform ("Hệ thống") resource — built-in skills, mandatory
  * guardrails… Opened from the Space libraries; nothing to edit or share. */
-export function SystemResourceDetailModal({ typeLabel, name, description, usedBy = "Mọi Agent trong Space", onClose }: {
+export function SystemResourceDetailModal({ typeLabel, name, description, usedBy = "Mọi Nhân sự số trong Space", onClose }: {
   typeLabel: string;
   name: string;
   description?: string;

@@ -34,13 +34,13 @@ function RunList({ agentId }: { agentId: string }) {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="font-display text-xl font-semibold">Lượt chạy</h2>
-          <p className="text-sm text-muted-foreground mt-1">Mỗi lượt chạy cho Agent trả lời toàn bộ bộ test rồi chấm theo các chỉ số. So sánh 2 lượt để biết lần sửa gần nhất có làm Agent tốt hơn không.</p>
+          <p className="text-sm text-muted-foreground mt-1">Mỗi lượt chạy cho Nhân sự số trả lời toàn bộ bộ test rồi chấm theo các chỉ số. So sánh 2 lượt để biết lần sửa gần nhất có làm Nhân sự số tốt hơn không.</p>
         </div>
         {sets.length > 0 && <button className="btn-primary shrink-0" onClick={() => setOpen(true)}><HugeiconsIcon icon={PlayIcon} size={14} /> Chạy bộ test</button>}
       </div>
 
       {runs.length === 0 ? (
-        <EmptyState icon={PlayIcon} title="Chưa có lượt chạy nào" desc={sets.length ? "Chạy một bộ test để xem Agent đạt bao nhiêu phần trăm và sai ở đâu." : "Tạo bộ test trước, sau đó chạy để xem kết quả chấm."}>
+        <EmptyState icon={PlayIcon} title="Chưa có lượt chạy nào" desc={sets.length ? "Chạy một bộ test để xem Nhân sự số đạt bao nhiêu phần trăm và sai ở đâu." : "Tạo bộ test trước, sau đó chạy để xem kết quả chấm."}>
           {sets.length ? <button className="btn-primary" onClick={() => setOpen(true)}><HugeiconsIcon icon={PlayIcon} size={14} /> Chạy bộ test</button>
             : <button className="btn-primary" onClick={() => go("test-sets")}>Đi tới Bộ test</button>}
         </EmptyState>
@@ -437,7 +437,7 @@ function CaseDrawer({ run, open, onChange, onEditCase, onRefineWithAI }: {
                   <div className="rounded-lg border border-border bg-surface-muted px-3 py-2.5 text-sm leading-relaxed">{c.reference || <span className="italic text-muted-foreground">Chưa có đáp án mẫu</span>}</div>
                 </div>
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Câu trả lời của Agent</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Câu trả lời của Nhân sự số</div>
                   <div className="rounded-lg border border-border px-3 py-2.5 text-sm leading-relaxed">{reps[rep] ? (c.reference ?? OK_ANSWER) : (cell.answer ?? "Câu trả lời không đạt tiêu chí của chỉ số.")}</div>
                 </div>
               </div>
@@ -476,7 +476,7 @@ function CaseDrawer({ run, open, onChange, onEditCase, onRefineWithAI }: {
               {cellStatus(cell, run.runsPerCase) === "unstable" && (
                 <div className="flex gap-2 rounded-lg border border-border px-3 py-2.5 text-sm text-muted-foreground">
                   <HugeiconsIcon icon={Alert02Icon} size={16} className="text-warning shrink-0 mt-0.5" />
-                  Agent trả lời lúc đạt lúc không. Thường do Instructions chưa đủ rõ hoặc Knowledge có nhiều đoạn mâu thuẫn.
+                  Nhân sự số trả lời lúc đạt lúc không. Thường do Instructions chưa đủ rõ hoặc Knowledge có nhiều đoạn mâu thuẫn.
                 </div>
               )}
             </div>

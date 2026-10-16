@@ -59,7 +59,7 @@ export default function DeleteKnowledgeBaseDialog({
         open={open}
         onClose={onClose}
         title="Chưa thể xóa kho tri thức"
-        description={"Kho tri thức vẫn đang được các Agent dưới đây sử dụng. Chủ sở hữu cần gỡ kho tri thức khỏi Agent trước, sau đó bạn mới xóa được."}
+        description={"Kho tri thức vẫn đang được các Nhân sự số dưới đây sử dụng. Chủ sở hữu cần gỡ kho tri thức khỏi Nhân sự số trước, sau đó bạn mới xóa được."}
         agents={agentsUsing(blockingIds)}
       />
     );
@@ -81,7 +81,7 @@ export default function DeleteKnowledgeBaseDialog({
             <div className="flex items-start gap-2.5 rounded-lg border border-destructive/25 bg-[hsl(var(--destructive-soft))] px-3.5 py-3">
               <AlertTriangle size={14} className="shrink-0 mt-0.5 text-destructive" />
               <p className="text-xs text-destructive leading-relaxed">
-                {attachedAgentNames.length} Agent đang dùng kho tri thức này và sẽ mất nguồn tra cứu: {attachedAgentNames.join(", ")}.
+                {attachedAgentNames.length} Nhân sự số đang dùng kho tri thức này và sẽ mất nguồn tra cứu: {attachedAgentNames.join(", ")}.
               </p>
             </div>
           )}

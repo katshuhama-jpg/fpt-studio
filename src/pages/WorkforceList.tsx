@@ -120,7 +120,7 @@ function WorkforceCard({ wf, onOpen, onRename, onDelete }: { wf: Workforce; onOp
         </span>
 
         <p className="text-xs text-muted-foreground mb-3">
-          {agentIds.length} Agent nguồn · {routes} route
+          {agentIds.length} Nhân sự số nguồn · {routes} route
         </p>
 
         {shown.length > 0 && (
@@ -205,7 +205,7 @@ export default function WorkforceList() {
         <div className="min-w-0">
           <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Workforce</h1>
           <p className="text-sm text-muted-foreground">
-            Sắp xếp cách các Agent chuyển giao hội thoại cho nhau, cho Omni Supports, hoặc cho người trong tổ chức.
+            Sắp xếp cách các Nhân sự số chuyển giao hội thoại cho nhau, cho Omni Supports, hoặc cho người trong tổ chức.
           </p>
         </div>
         {hasAny && (
@@ -244,7 +244,7 @@ export default function WorkforceList() {
           </div>
           <h3 className="font-display text-base font-semibold mb-1">Chưa có Workforce nào</h3>
           <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
-            Tạo Workforce để cấu hình luồng chuyển giao hội thoại giữa các Agent, Omni Supports và người trong tổ chức.
+            Tạo Workforce để cấu hình luồng chuyển giao hội thoại giữa các Nhân sự số, Omni Supports và người trong tổ chức.
           </p>
           <button onClick={() => setShowCreate(true)} className="btn-primary h-9 mx-auto">
             <Plus size={14} /> Tạo Workforce mới

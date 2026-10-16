@@ -105,7 +105,7 @@ export default function AgentScaffold() {
         <div className="w-px h-5 bg-border" />
         <div className="flex items-center gap-2 text-sm">
           <Sparkles size={14} className="text-primary" />
-          <span className="font-semibold">Create agent from prompt</span>
+          <span className="font-semibold">Tạo Nhân sự số từ mô tả</span>
           <span className="chip chip-primary">AI scaffolder</span>
         </div>
         <div className="ml-auto flex items-center gap-1 text-[11px] text-muted-foreground">
@@ -146,7 +146,7 @@ function PromptStage({
           <Wand2 size={22} className="text-primary-foreground" />
         </div>
         <h1 className="font-display text-xl font-semibold tracking-tight mb-2">
-          Describe the agent you want
+          Mô tả Nhân sự số bạn muốn
         </h1>
         <p className="text-sm text-muted-foreground">
           One paragraph is enough. We will draft a persona, suggest knowledge, tools and tasks for you.
@@ -163,7 +163,7 @@ function PromptStage({
         />
         <div className="flex items-center justify-between px-2 pb-1">
           <div className="text-[10px] text-muted-foreground">
-            Tip: Include audience, tone, top 3 things the agent must do.
+            Mẹo: Nêu đối tượng, giọng văn và 3 việc chính Nhân sự số phải làm.
           </div>
           <button
             onClick={onGenerate}
@@ -208,7 +208,7 @@ function GeneratingStage({ prompt, stepIdx }: { prompt: string; stepIdx: number 
         <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-brand flex items-center justify-center shadow-elev mb-4 animate-pulse-soft">
           <Sparkles size={22} className="text-primary-foreground" />
         </div>
-        <h2 className="font-display text-2xl font-semibold mb-1">Building your agent…</h2>
+        <h2 className="font-display text-2xl font-semibold mb-1">Đang tạo Nhân sự số…</h2>
         <p className="text-sm text-muted-foreground">This usually takes a few seconds.</p>
       </div>
 

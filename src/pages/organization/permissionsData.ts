@@ -5,7 +5,7 @@ export type Section = "console" | "governance" | "org-management";
 export type FeatureGroup = { id: string; label: string; icon: any; section: Section; permissions: Permission[] };
 
 export const SECTIONS: { id: Section; label: string; desc: string }[] = [
-  { id: "console", label: "Console", desc: "Viewing, publishing, managing, pausing, and deleting agents, knowledge, skills, guardrails, and connectors in the shared workspace." },
+  { id: "console", label: "Console", desc: "Xem, publish, quản lý, tạm dừng và xóa Nhân sự số, knowledge, skill, guardrail và connector trong Space." },
   { id: "governance", label: "Governance", desc: "Managing roles, members, and publish-request reviews across the organization." },
   { id: "org-management", label: "Organization Management", desc: "Managing the unit structure and unit admins." },
 ];
@@ -18,7 +18,7 @@ export const SECTIONS: { id: Section; label: string; desc: string }[] = [
  * of these permissions control.
  */
 const FEATURES = [
-  { id: "agents", label: "Agents", icon: Bot, thing: "agents" },
+  { id: "agents", label: "Nhân sự số", icon: Bot, thing: "agents" },
   { id: "knowledge", label: "Knowledge", icon: BookOpen, thing: "knowledge sources" },
   { id: "skills", label: "Skills", icon: Puzzle, thing: "skills" },
   { id: "guardrails", label: "Guardrails", icon: Shield, thing: "guardrails" },
@@ -54,8 +54,8 @@ export const featureGroups: FeatureGroup[] = [
     // payloads, errors) in Insights → History, since Trace is reached from that same screen and
     // isn't meaningfully less sensitive than the list it's opened from.
     if (id === "agents") {
-      permissions.push({ id: "agents.history", name: "View agent history", desc: "See an agent's past conversations in Insights → History, including each conversation's full message content and its technical Trace (latency, tokens, tool-call payloads, errors)." });
-      permissions.push({ id: "agents.export", name: "Export conversation data", desc: "Space Admin only - Download the conversation history and user feedback (likes, dislikes, comments) of any agent or External Agent in the Space as Excel or CSV, up to 90 days per export. Always applies to the whole Space. Every export is recorded in the Audit log." });
+      permissions.push({ id: "agents.history", name: "Xem lịch sử Nhân sự số", desc: "Xem các cuộc hội thoại cũ của Nhân sự số trong Insights → History, gồm toàn bộ nội dung tin nhắn và Trace kỹ thuật (độ trễ, token, payload gọi tool, lỗi)." });
+      permissions.push({ id: "agents.export", name: "Export conversation data", desc: "Chỉ Space Admin - Tải lịch sử hội thoại và phản hồi của người dùng (like, dislike, bình luận) của mọi Nhân sự số hoặc External Agent trong Space dưới dạng Excel hoặc CSV, tối đa 90 ngày mỗi lần. Luôn áp dụng cho toàn Space. Mọi lần export đều ghi vào Audit log." });
     }
     return { id, label, icon, section: "console" as Section, permissions };
   }),
@@ -92,7 +92,7 @@ export const featureGroups: FeatureGroup[] = [
     icon: Shield,
     section: "governance",
     permissions: [
-      { id: "requests.review-agents", name: "Review Agent publish requests", desc: "Space Admin: see every Agent request in the Space and approve, reject, or revoke an Agent's publish to users, including their own. Unit Admins (Organization → Structure) decide only requests published to their unit or a unit below it, without needing this permission." },
+      { id: "requests.review-agents", name: "Duyệt yêu cầu publish Nhân sự số", desc: "Space Admin: Thấy mọi yêu cầu duyệt Nhân sự số trong Space và duyệt, từ chối hoặc thu hồi việc publish, kể cả của chính mình. Unit Admin (Organization → Structure) chỉ quyết các yêu cầu publish tới đơn vị mình hoặc đơn vị bên dưới, không cần quyền này." },
       { id: "requests.review-resources", name: "Review Resource sharing requests", desc: "See the Resource Requests queue and approve, reject, or revoke sharing a Knowledge, Skill, Guardrail or Connector into the Space Library." },
     ],
   },

@@ -37,7 +37,7 @@ export default function ChatOptimizationTab({ agentId }: { agentId: string }) {
       <div className="mb-5">
         <h2 className="font-display text-xl font-semibold">Chat optimization</h2>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Tune how the agent presents responses - Citations, openers, buttons, rich media, and follow-ups.
+          Điều chỉnh cách Nhân sự số trình bày câu trả lời - Trích dẫn, lời mở đầu, nút bấm, rich media và câu hỏi gợi ý.
         </p>
       </div>
 
@@ -81,8 +81,8 @@ function ReferencesPanel({ settings, update }: { settings: ChatOptimizationSetti
   return (
     <Section
       icon={FileText}
-      title="Agent response referencing"
-      desc="When enabled, the agent appends source citations next to each answer."
+      title="Trích dẫn nguồn trong câu trả lời"
+      desc="Khi bật, Nhân sự số ghi nguồn trích dẫn cạnh mỗi câu trả lời."
     >
       <RowToggle
         label="Show references"
@@ -202,11 +202,11 @@ function ButtonsPanel({ settings, update }: { settings: ChatOptimizationSettings
     <Section
       icon={MousePointerClick}
       title="Quick-reply buttons"
-      desc="Tappable shortcuts shown after the agent's reply."
+      desc="Lối tắt bấm được, hiện sau câu trả lời của Nhân sự số."
     >
       <RowToggle
         label="Enable quick-reply buttons"
-        description="Render buttons under selected agent messages."
+        description="Hiện nút bấm dưới một số tin nhắn của Nhân sự số."
         on={b.enabled}
         onChange={() => set({ enabled: !b.enabled })}
       />
@@ -260,13 +260,13 @@ function RichPanel({ settings, update }: { settings: ChatOptimizationSettings; u
     <Section icon={ImageIcon} title="Rich response" desc="Render multi-media: images, cards, and data-bound templates.">
       <RowToggle
         label="Enable rich response"
-        description="Allow the agent to send images, cards, and rich layouts."
+        description="Cho phép Nhân sự số gửi ảnh, thẻ và bố cục phong phú."
         on={r.enabled}
         onChange={() => set({ enabled: !r.enabled })}
       />
       <RowToggle
         label="Image from document"
-        description="The agent may extract images from PDFs/docs in Knowledge to include in answers."
+        description="Nhân sự số có thể lấy ảnh từ PDF/tài liệu trong Knowledge để đưa vào câu trả lời."
         on={r.imageFromDocument}
         onChange={() => set({ imageFromDocument: !r.imageFromDocument })}
       />
@@ -354,11 +354,11 @@ function FollowupPanel({ settings, update }: { settings: ChatOptimizationSetting
     <Section
       icon={Sparkles}
       title="Follow-up question suggestion"
-      desc="After each agent reply, surface 1-5 suggested next questions."
+      desc="Sau mỗi câu trả lời của Nhân sự số, gợi ý 1-5 câu hỏi tiếp theo."
     >
       <RowToggle
         label="Enable follow-up suggestions"
-        description="Show suggested questions under every agent reply."
+        description="Hiện câu hỏi gợi ý dưới mọi câu trả lời của Nhân sự số."
         on={f.enabled}
         onChange={() => set({ enabled: !f.enabled })}
       />

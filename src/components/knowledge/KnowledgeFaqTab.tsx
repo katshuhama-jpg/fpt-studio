@@ -274,7 +274,7 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
             <p className="text-sm text-muted-foreground max-w-md mx-auto">Chủ sở hữu chưa thêm câu hỏi nào vào kho tri thức này.</p>
           ) : (
             <>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">Thêm cặp câu hỏi – câu trả lời để Agent phản hồi nhanh và nhất quán.</p>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">Thêm cặp câu hỏi – câu trả lời để Nhân sự số phản hồi nhanh và nhất quán.</p>
               <div className="flex items-center justify-center gap-2">
                 <button onClick={() => setShowAdd(true)} className="btn-primary h-9">Tạo FAQ</button>
                 <button onClick={() => setShowImport(true)} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Nhập từ tệp</button>

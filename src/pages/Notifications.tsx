@@ -29,7 +29,7 @@ export default function Notifications() {
         <div>
           <h1 className="font-display text-xl font-semibold">Thông báo</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Những thay đổi ảnh hưởng tới agent do bạn tạo hoặc được chia sẻ, và yêu cầu đang chờ bạn duyệt.
+            Những thay đổi ảnh hưởng tới Nhân sự số do bạn tạo hoặc được chia sẻ, và yêu cầu đang chờ bạn duyệt.
           </p>
         </div>
       </div>
@@ -60,7 +60,7 @@ export default function Notifications() {
           <Bell size={22} className="mx-auto text-muted-foreground" />
           <p className="text-sm text-foreground mt-2">{tab === "all" ? "Chưa có thông báo nào." : "Bạn đã đọc hết thông báo."}</p>
           <p className="text-xs text-muted-foreground mt-1">
-            {tab === "all" ? "Kết quả duyệt Agent và yêu cầu cần bạn duyệt sẽ hiện ở đây." : "Thông báo mới sẽ hiện ở đây."}
+            {tab === "all" ? "Kết quả duyệt Nhân sự số và yêu cầu cần bạn duyệt sẽ hiện ở đây." : "Thông báo mới sẽ hiện ở đây."}
           </p>
         </div>
       ) : (

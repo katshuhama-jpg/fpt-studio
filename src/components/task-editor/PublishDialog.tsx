@@ -98,7 +98,7 @@ export default function PublishDialog({ open, onClose, agentId, taskId, taskName
                 ))}
                 {refs.length > 6 && <li className="text-muted-foreground">+ {refs.length - 6} more…</li>}
               </ul>
-              <p className="mt-2 text-[11px] text-muted-foreground">After publishing, the Task remains a workflow inside the Agent and can be exported to JSON.</p>
+              <p className="mt-2 text-[11px] text-muted-foreground">Sau khi publish, Task vẫn là một workflow trong Nhân sự số và xuất được ra JSON.</p>
             </div>
           )}
         </div>

@@ -99,17 +99,17 @@ export default function AgentCardBlock({ agentId, external = false }: { agentId:
     <div ref={rootRef} className="rounded-xl border border-border bg-surface overflow-hidden">
       <div className="flex items-center gap-2 px-3.5 py-3">
         <HugeiconsIcon icon={IdIcon} size={16} className="text-foreground shrink-0" aria-hidden="true" />
-        <span className="text-sm font-semibold flex-1">Danh thiếp Agent</span>
+        <span className="text-sm font-semibold flex-1">Danh thiếp Nhân sự số</span>
         <Switch
           checked={draft.enabled}
           onCheckedChange={v => agentCardStore.updateDraft(agentId, { enabled: v })}
-          aria-label="Bật danh thiếp Agent"
+          aria-label="Bật danh thiếp Nhân sự số"
         />
       </div>
 
       <div className="px-3.5 pb-3.5 -mt-1">
         <p className="text-[13px] text-muted-foreground leading-relaxed">
-          Giúp Agent khác trong Workspace biết Agent này làm gì để phối hợp xử lý công việc.
+          Giúp Nhân sự số khác trong Workspace biết Nhân sự số này làm gì để phối hợp xử lý công việc.
         </p>
 
         {draft.enabled && (
@@ -143,7 +143,7 @@ export default function AgentCardBlock({ agentId, external = false }: { agentId:
                   />
                   <div className="flex items-start gap-2 mt-1">
                     <span className={`text-xs flex-1 ${editError ? "text-destructive" : "text-muted-foreground"}`} role={editError ? "alert" : undefined}>
-                      {editError || "Agent này làm gì, khi nào nên giao việc."}
+                      {editError || "Nhân sự số này làm gì, khi nào nên giao việc."}
                     </span>
                     <span className="text-xs text-muted-foreground tabular-nums">{text.length}/{AGENT_CARD_DESC_MAX}</span>
                   </div>
@@ -164,7 +164,7 @@ export default function AgentCardBlock({ agentId, external = false }: { agentId:
                         value={ask}
                         onChange={e => { setAsk(e.target.value); if (askError) setAskError(""); }}
                         onKeyDown={e => { if (e.key === "Enter") runRefine(); }}
-                        placeholder={description ? "Ngắn hơn, nhấn mạnh rà soát hợp đồng" : "Agent rà soát hợp đồng cho Ban Pháp chế"}
+                        placeholder={description ? "Ngắn hơn, nhấn mạnh rà soát hợp đồng" : "Nhân sự số rà soát hợp đồng cho Ban Pháp chế"}
                         aria-label="Bạn muốn chỉnh phần giới thiệu thế nào"
                         aria-invalid={!!askError}
                         className={`w-full h-9 rounded-md border bg-background px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-primary/30 ${askError ? "border-destructive" : "border-border"}`}

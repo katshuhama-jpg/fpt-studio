@@ -180,7 +180,7 @@ export function AgentVersionsPanel({ agentId, agentName, onPublish, onChanged }:
       <div>
         <h2 className="font-display text-xl font-semibold">Phiên bản</h2>
         <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">
-          Mọi phiên bản của Agent theo trạng thái. Người dùng đang dùng {liveRow ? <b className="text-foreground font-mono">{liveRow.version}</b> : " - (chưa publish)"}. Bấm vào một phiên bản để xem chi tiết.
+          Mọi phiên bản của Nhân sự số theo trạng thái. Người dùng đang dùng {liveRow ? <b className="text-foreground font-mono">{liveRow.version}</b> : " - (chưa publish)"}. Bấm vào một phiên bản để xem chi tiết.
         </p>
       </div>
 
@@ -315,7 +315,7 @@ export function AgentVersionsPanel({ agentId, agentName, onPublish, onChanged }:
           <AlertDialogHeader>
             <AlertDialogTitle>Rút yêu cầu {withdrawRow?.version}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Admin sẽ không còn thấy yêu cầu này để duyệt. Agent giữ nguyên trạng thái hiện tại - Bạn có thể gửi lại bất cứ lúc nào.
+              Admin sẽ không còn thấy yêu cầu này để duyệt. Nhân sự số giữ nguyên trạng thái hiện tại - Bạn có thể gửi lại bất cứ lúc nào.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

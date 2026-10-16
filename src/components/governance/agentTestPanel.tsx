@@ -48,7 +48,7 @@ export function AgentTestPanel({ agentId, open, onOpenChange }: {
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col gap-0">
         <SheetTitle className="sr-only">Test {agent.name}</SheetTitle>
-        <SheetDescription className="sr-only">Cửa sổ chat thử để kiểm tra Agent này trước khi duyệt, không rời khỏi trang yêu cầu.</SheetDescription>
+        <SheetDescription className="sr-only">Cửa sổ chat thử để kiểm tra Nhân sự số này trước khi duyệt, không rời khỏi trang yêu cầu.</SheetDescription>
 
         {/* Agent header */}
         <div className="px-4 py-3 border-b border-border flex items-center gap-2.5 shrink-0">

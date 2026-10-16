@@ -256,7 +256,7 @@ export default function WorkspaceConnectors() {
         <div className="min-w-0">
           <h1 className="font-display text-2xl font-semibold tracking-tight mb-1">Kết nối</h1>
           <p className="text-sm text-muted-foreground line-clamp-2 max-w-2xl">
-            Kết nối Agent với Marketplace Connectors, Custom Connectors và các hệ thống bên ngoài để truy vấn dữ liệu và thực thi hành động.
+            Kết nối Nhân sự số với Marketplace Connectors, Custom Connectors và các hệ thống bên ngoài để truy vấn dữ liệu và thực thi hành động.
           </p>
         </div>
       </div>
@@ -356,7 +356,7 @@ export default function WorkspaceConnectors() {
                 <Server size={22} className="text-muted-foreground" />
               </div>
               <p className="text-base font-semibold mb-1">Chưa có Custom Connector nào</p>
-              <p className="text-sm text-muted-foreground max-w-[260px] mb-5">Thêm một MCP server để cấp thêm tool cho agent của bạn.</p>
+              <p className="text-sm text-muted-foreground max-w-[260px] mb-5">Thêm một MCP server để cấp thêm tool cho Nhân sự số của bạn.</p>
               <AddCustomConnectorMenu
                 disabled={!canCreateConnector}
                 disabledReason="Vai trò của bạn chưa có quyền tạo connector."
@@ -674,7 +674,7 @@ function CustomConnectorRowMenu({ onView, onEdit, onShare, onPublish, onToggleBl
           )}
           {onToggleBlock && (
             <button onClick={() => { setOpen(false); onToggleBlock(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
-              {isBlocked ? "Bỏ chặn agent mới" : "Chặn dùng trong Agent mới"}
+              {isBlocked ? "Bỏ chặn Nhân sự số mới" : "Chặn dùng trong Nhân sự số mới"}
             </button>
           )}
           {onDelete && (
@@ -745,7 +745,7 @@ function AddCustomConnectorMenu({ onPickMcp, onPickToolkit, disabled, disabledRe
 }) {
   const [open, setOpen] = useState(false);
   const options = [
-    { icon: Server, label: "MCP tùy chỉnh", sub: "Kết nối một MCP server để cấp các tool của nó cho agent.", onPick: onPickMcp },
+    { icon: Server, label: "MCP tùy chỉnh", sub: "Kết nối một MCP server để cấp các tool của nó cho Nhân sự số.", onPick: onPickMcp },
     { icon: Layers, label: "Tool kit (REST API)", sub: "Khai báo nhiều REST API trên một base URL; mỗi operation thành một tool.", onPick: onPickToolkit },
   ];
   return (
@@ -846,7 +846,7 @@ function ConnectorDetailModal({ connector, onClose, onDisconnect }: {
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
           <p className="text-sm text-muted-foreground leading-relaxed">{connector.desc}</p>
           <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Agent đang dùng connector này</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Nhân sự số đang dùng connector này</p>
             {connector.requestedBy && connector.requestedBy.length > 0 ? (
               <div className="flex flex-col gap-1.5">
                 {connector.requestedBy.map(name => (
@@ -857,7 +857,7 @@ function ConnectorDetailModal({ connector, onClose, onDisconnect }: {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Chưa có Agent nào dùng connector này.</p>
+              <p className="text-sm text-muted-foreground">Chưa có Nhân sự số nào dùng connector này.</p>
             )}
           </div>
           {confirming && (
@@ -866,7 +866,7 @@ function ConnectorDetailModal({ connector, onClose, onDisconnect }: {
               <p className="text-xs text-destructive leading-relaxed">
                 Ngắt kết nối {connector.name}? {connector.requestedBy && connector.requestedBy.length > 0
                   ? `${connector.requestedBy.length} Agent (${connector.requestedBy.join(", ")}) `
-                  : "Các Agent đang dùng connector này "}sẽ mất quyền truy cập ngay lập tức.
+                  : "Các Nhân sự số đang dùng connector này "}sẽ mất quyền truy cập ngay lập tức.
               </p>
             </div>
           )}

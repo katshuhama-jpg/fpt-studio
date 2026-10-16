@@ -518,7 +518,7 @@ export default function ChunkViewerModal({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Xóa đoạn này?</AlertDialogTitle>
-            <AlertDialogDescription>Nội dung của đoạn sẽ bị xóa vĩnh viễn khỏi kho tri thức và Agent sẽ không còn tra cứu được.</AlertDialogDescription>
+            <AlertDialogDescription>Nội dung của đoạn sẽ bị xóa vĩnh viễn khỏi kho tri thức và Nhân sự số sẽ không còn tra cứu được.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>

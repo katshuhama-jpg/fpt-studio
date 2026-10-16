@@ -130,8 +130,8 @@ export default function ConnectSharedConnectorModal({
   const chosenAccount = chosenAccountId ? sharedConnectorAccountStore.get(chosenAccountId) : undefined;
 
   const header = (() => {
-    if (step === "pick") return { title: "Thêm kết nối Dùng chung", sub: "Chọn một connector để kết nối cho agent này." };
-    if (step === "account") return { title: `Tài khoản cho ${selected?.name}`, sub: "Chọn tài khoản workspace mà agent sẽ chạy dưới quyền." };
+    if (step === "pick") return { title: "Thêm kết nối Dùng chung", sub: "Chọn một connector để kết nối cho Nhân sự số này." };
+    if (step === "account") return { title: `Tài khoản cho ${selected?.name}`, sub: "Chọn tài khoản workspace mà Nhân sự số sẽ chạy dưới quyền." };
     if (step === "oauth") return { title: `Đăng nhập ${selected?.name}`, sub: "Cấp quyền cho tài khoản dùng chung của workspace." };
     return { title: `Quyền cho ${selected?.name}`, sub: "Chọn mức xử lý cho từng action của connector." };
   })();
@@ -405,7 +405,7 @@ export default function ConnectSharedConnectorModal({
                 ))}
               </div>
               <p className="text-xs text-muted-foreground mt-2.5 leading-relaxed">
-                Auto: Agent tự chạy. Ask: Hỏi người dùng trước khi chạy. Block: Không cho chạy action này.
+                Auto: Nhân sự số tự chạy. Ask: Hỏi người dùng trước khi chạy. Block: Không cho chạy action này.
               </p>
             </div>
             <div className="flex items-center justify-between gap-2 px-6 py-4 border-t shrink-0">

@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { evaluationStore, useEvaluationStore, isMonitorable, monitorSeries, METRIC_GROUP_LABEL, type MonitorConfig, type MonitorStatusFilter, type CaseGroup } from "./evaluationStore";
 import { EmptyState, ThresholdBar, Delta } from "./shared";
 
-const CHANNELS = ["Web", "Zalo", "API", "Agent Workspace"];
+const CHANNELS = ["Web", "Zalo", "API", "Workspace"];
 const STATUS_FILTERS: { id: MonitorStatusFilter; label: string; short: string }[] = [
   { id: "all", label: "Tất cả", short: "" },
   { id: "completed", label: "Hoàn thành", short: "đã hoàn thành" },
@@ -38,9 +38,9 @@ export function MonitorSection({ agentId }: { agentId: string }) {
       <div className="p-8 w-full space-y-5 animate-fade-up">
         <div>
           <h2 className="font-display text-xl font-semibold">Quality</h2>
-          <p className="text-sm text-muted-foreground mt-1">Chấm chất lượng trên hội thoại thật sau khi Agent đã publish.</p>
+          <p className="text-sm text-muted-foreground mt-1">Chấm chất lượng trên hội thoại thật sau khi Nhân sự số đã publish.</p>
         </div>
-        <EmptyState icon={Activity01Icon} title="Phát hiện sớm khi Agent trả lời kém đi"
+        <EmptyState icon={Activity01Icon} title="Phát hiện sớm khi Nhân sự số trả lời kém đi"
           desc="Monitor lấy mẫu hội thoại thật, chấm bằng chính các chỉ số đánh giá bạn đã có và vẽ xu hướng theo ngày. Hội thoại không đạt có thể thêm vào bộ test để kiểm tra lại sau mỗi lần sửa.">
           <button className="btn-primary" onClick={() => setEditing(true)}><HugeiconsIcon icon={Add01Icon} size={14} /> Bật Monitor</button>
         </EmptyState>
@@ -198,7 +198,7 @@ function MonitorConfigSheet({ agentId, open, onOpenChange, existing }: { agentId
           </label>
           <fieldset>
             <legend className="text-sm font-medium mb-2">Chỉ số</legend>
-            {metrics.length === 0 ? <p className="text-sm text-muted-foreground">Agent chưa có chỉ số phù hợp - Thêm Faithfulness, Safety hoặc Style trong mục Chỉ số đánh giá.</p> : (
+            {metrics.length === 0 ? <p className="text-sm text-muted-foreground">Nhân sự số chưa có chỉ số phù hợp - Thêm Faithfulness, Safety hoặc Style trong mục Chỉ số đánh giá.</p> : (
               <div className="space-y-1.5">
                 {metrics.map(m => (
                   <label key={m.id} className="flex items-start gap-2.5 rounded-lg border border-border px-3 py-2 cursor-pointer hover:bg-surface-muted transition-base">
@@ -231,7 +231,7 @@ function MonitorConfigSheet({ agentId, open, onOpenChange, existing }: { agentId
               ))}
             </div>
           </fieldset>
-          <div className="rounded-lg bg-surface-muted px-3 py-2.5 text-xs text-muted-foreground">Hội thoại có thể chứa dữ liệu cá nhân của người dùng. Chỉ người có quyền xem lịch sử hội thoại của Agent mới xem được nội dung trong Monitor.</div>
+          <div className="rounded-lg bg-surface-muted px-3 py-2.5 text-xs text-muted-foreground">Hội thoại có thể chứa dữ liệu cá nhân của người dùng. Chỉ người có quyền xem lịch sử hội thoại của Nhân sự số mới xem được nội dung trong Monitor.</div>
         </div>
         <div className="px-6 py-3 border-t border-border flex justify-between gap-2">
           {existing ? <button className="btn-ghost text-destructive hover:text-destructive" onClick={() => { evaluationStore.deleteMonitor(agentId); onOpenChange(false); toast.success("Đã tắt Monitor"); }}>Tắt Monitor</button> : <span />}
@@ -268,7 +268,7 @@ function AddToSetDialog({ agentId, conv, onClose }: { agentId: string; conv: typ
           <label className="block"><span className="text-sm font-medium">Bộ test</span>
             <select className="ds-input mt-1.5" value={setId} onChange={e => setSetId(e.target.value)}>{sets.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
           <label className="block"><span className="text-sm font-medium">Đáp án mẫu</span>
-            <textarea className="ds-textarea mt-1.5" rows={3} value={ref} onChange={e => setRef(e.target.value)} placeholder="Câu trả lời đúng mà Agent cần đưa ra" /></label>
+            <textarea className="ds-textarea mt-1.5" rows={3} value={ref} onChange={e => setRef(e.target.value)} placeholder="Câu trả lời đúng mà Nhân sự số cần đưa ra" /></label>
         </div>
         <DialogFooter>
           <button className="btn-secondary" onClick={onClose}>Hủy</button>

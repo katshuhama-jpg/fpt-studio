@@ -51,7 +51,7 @@ export default function BusinessProcessesGrid({ agentId }: { agentId: string }) 
         <div>
           <h2 className="font-display text-xl font-semibold">Business processes</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Each process bundles a goal, instruction, tasks and tools the Agent uses for one scenario.
+            Mỗi quy trình gồm mục tiêu, hướng dẫn, task và tool mà Nhân sự số dùng cho một tình huống.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -221,7 +221,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
       </div>
       <h3 className="font-display text-lg font-semibold mb-1.5">No processes yet</h3>
       <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">
-        Business processes orchestrate tasks and tools for a specific scenario. Create your first process to define how your agent should operate.
+        Quy trình nghiệp vụ điều phối task và tool cho một tình huống cụ thể. Tạo quy trình đầu tiên để định nghĩa cách Nhân sự số làm việc.
       </p>
       <button onClick={onCreate} className="btn-primary h-9 mx-auto">
         <Plus size={13} /> Create your first process

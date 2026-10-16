@@ -183,7 +183,7 @@ function RoleStep({ onNext }: { onNext: () => void }) {
       <Header
         eyebrow="About you"
         title="What's your role?"
-        subtitle="Helps us recommend the right starter agents."
+        subtitle="Giúp chúng tôi gợi ý Nhân sự số phù hợp để bắt đầu."
       />
       <div className="mt-6 grid gap-2">
         {ROLES.map((r) => {
@@ -306,7 +306,7 @@ function PersonalizingStep({ onDone }: { onDone: () => void }) {
 /* ───────────────── Step: Prompt ───────────────── */
 
 const SUGGESTIONS = [
-  "A 24/7 customer-care agent that handles FAQs and bookings",
+  "Nhân sự số chăm sóc khách hàng 24/7, trả lời FAQ và đặt lịch",
   "A sales assistant that qualifies leads from web forms",
   "An internal HR helper that answers policy questions",
 ];
@@ -324,7 +324,7 @@ function PromptStep({
   return (
     <div>
       <Header
-        eyebrow="Your first agent"
+        eyebrow="Nhân sự số đầu tiên"
         title="Describe what you want to build"
         subtitle="One sentence is enough. We'll scaffold the persona, knowledge and tools."
       />
@@ -336,7 +336,7 @@ function PromptStep({
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           rows={2}
-          placeholder="e.g. A 24/7 banking customer-care agent that can lock cards, look up loan rates and book consultations…"
+          placeholder="Ví dụ: Nhân sự số chăm sóc khách hàng ngân hàng 24/7, khóa thẻ, tra lãi suất vay và đặt lịch tư vấn…"
           className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none leading-relaxed min-h-[56px]"
           onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && prompt.trim()) onGenerate(prompt.trim()); }}
         />
@@ -360,7 +360,7 @@ function PromptStep({
               onClick={() => onGenerate(prompt.trim())}
               className="btn-primary h-9 px-4 rounded-full disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <HugeiconsIcon icon={SparklesIcon} size={14} /> Build agent <HugeiconsIcon icon={SentIcon} size={13} />
+              <HugeiconsIcon icon={SparklesIcon} size={14} /> Tạo Nhân sự số <HugeiconsIcon icon={SentIcon} size={13} />
             </button>
           </div>
         </div>

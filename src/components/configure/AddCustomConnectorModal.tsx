@@ -143,7 +143,7 @@ export default function AddCustomConnectorModal({ editing, onClose, onCreated, o
       <DialogContent className="z-[70] sm:max-w-[450px] p-0 gap-0 rounded-xl flex flex-col max-h-[90vh] overflow-hidden">
         <DialogHeader className="px-6 pt-6 pb-4 shrink-0 text-left">
           <DialogTitle className="text-lg">{isEditing ? "Sửa MCP tùy chỉnh" : "Thêm MCP tùy chỉnh"}</DialogTitle>
-          <DialogDescription>Kết nối một MCP server để cấp các tool của nó cho agent.</DialogDescription>
+          <DialogDescription>Kết nối một MCP server để cấp các tool của nó cho Nhân sự số.</DialogDescription>
         </DialogHeader>
 
         <form

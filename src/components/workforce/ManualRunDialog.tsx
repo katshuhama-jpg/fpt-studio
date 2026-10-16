@@ -114,7 +114,7 @@ export default function ManualRunDialog({
               </div>
               {selected && (
                 <p className="text-[11.5px] mt-1.5" style={{ color: "var(--wf-muted)" }}>
-                  → Agent: <span style={{ color: "var(--wf-text)", fontWeight: 600 }}>{selected.agentName}</span>
+                  → Nhân sự số: <span style={{ color: "var(--wf-text)", fontWeight: 600 }}>{selected.agentName}</span>
                 </p>
               )}
             </div>

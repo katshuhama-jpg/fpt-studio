@@ -21,7 +21,7 @@ export default function BrokenRefsDialog({ agentId, broken, onView, onPublishAny
         <AlertDialogHeader>
           <AlertDialogTitle>Instructions có {broken.length} tham chiếu lỗi</AlertDialogTitle>
           <AlertDialogDescription>
-            Agent sẽ không dùng được các tài nguyên dưới đây khi chạy. Bạn có thể xem và sửa, hoặc vẫn publish.
+            Nhân sự số sẽ không dùng được các tài nguyên dưới đây khi chạy. Bạn có thể xem và sửa, hoặc vẫn publish.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <ul className="max-h-60 overflow-y-auto space-y-2">

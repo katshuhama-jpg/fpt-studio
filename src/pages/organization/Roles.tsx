@@ -28,7 +28,7 @@ function ScopePill({ value, onChange, readOnly, granted = true }: { value: Scope
         disabled={!interactive}
         className={optionClass(granted && value === "all", "all")}
       >
-        All in Console
+        All in Space
       </button>
       <button
         type="button"
@@ -419,13 +419,13 @@ function scopeNeutralDesc(verb: ScopableVerb, r: ResourceWords): string {
 function scopeLineParts(verb: ScopableVerb, r: ResourceWords): { all: string; ownShared: string } {
   const ownShared = `only ${r.thing} you created or that were shared with you.`;
   switch (verb) {
-    case "view": return { all: `every ${r.singular} in the Console, including ones not shared with you.`, ownShared };
-    case "publish": return { all: `publish any ${r.singular} in the Console.`, ownShared };
-    case "manage": return { all: `edit any ${r.singular} in the Console.`, ownShared };
-    case "pause": return { all: `pause any ${r.singular} in the Console.`, ownShared };
-    case "delete": return { all: `delete any ${r.singular} in the Console.`, ownShared };
-    case "history": return { all: `see conversation history for any ${r.singular} in the Console.`, ownShared };
-    case "export": return { all: `export conversation data for any ${r.singular} in the Console.`, ownShared };
+    case "view": return { all: `every ${r.singular} in the Space, including ones not shared with you.`, ownShared };
+    case "publish": return { all: `publish any ${r.singular} in the Space.`, ownShared };
+    case "manage": return { all: `edit any ${r.singular} in the Space.`, ownShared };
+    case "pause": return { all: `pause any ${r.singular} in the Space.`, ownShared };
+    case "delete": return { all: `delete any ${r.singular} in the Space.`, ownShared };
+    case "history": return { all: `see conversation history for any ${r.singular} in the Space.`, ownShared };
+    case "export": return { all: `export conversation data for any ${r.singular} in the Space.`, ownShared };
   }
 }
 
@@ -433,7 +433,7 @@ function ScopeLine({ verb, resource }: { verb: ScopableVerb; resource: ResourceW
   const { all, ownShared } = scopeLineParts(verb, resource);
   return (
     <div className="mt-2 px-3.5 py-2.5 rounded-lg bg-surface-muted border border-dashed border-border-strong text-[13.5px] leading-relaxed text-muted-foreground">
-      <b className="text-primary">All in Console:</b> {all}
+      <b className="text-primary">All in Space:</b> {all}
       <span className="text-border-strong mx-1.5">·</span>
       <b className="text-warning">Own &amp; Shared:</b> {ownShared}
     </div>
@@ -479,7 +479,7 @@ function PermissionsModal({ onClose }: { onClose: () => void }) {
 
           <div className="rounded-xl border border-border bg-surface-muted p-4">
             <p className="text-sm text-muted-foreground leading-relaxed">
-              <b className="text-foreground">Scope:</b> Some permissions can also be scoped. <b className="text-primary">All in Console</b> applies to every resource of that type. <b className="text-warning">Own &amp; Shared</b> limits it to resources this role's member created or was shared with.
+              <b className="text-foreground">Scope:</b> Some permissions can also be scoped. <b className="text-primary">All in Space</b> applies to every resource of that type. <b className="text-warning">Own &amp; Shared</b> limits it to resources this role's member created or was shared with.
             </p>
           </div>
 

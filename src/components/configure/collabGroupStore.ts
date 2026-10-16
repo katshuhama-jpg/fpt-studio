@@ -201,7 +201,7 @@ export function recheckAgentGroupPublish(agentId: string, tree: OrgUnit) {
     resourceType: "agent", resourceId: agentId, resourceName: agent.name, resourceIcon: agentEmoji(agentId),
     requesterId: group.ownerId, requesterName: group.ownerName,
     audience: "group", version: publish.version,
-    note: `Nhóm "${group.name}" có thêm ${added.length} thành viên (${addedNames.join(", ")}). ${approved.size} thành viên đã được duyệt vẫn dùng Agent bình thường; thành viên mới chỉ dùng được khi yêu cầu này được duyệt.`,
+    note: `Nhóm "${group.name}" có thêm ${added.length} thành viên (${addedNames.join(", ")}). ${approved.size} thành viên đã được duyệt vẫn dùng Nhân sự số bình thường; thành viên mới chỉ dùng được khi yêu cầu này được duyệt.`,
     resourceRefs: listAgentResourceRefs(agentId),
     scopeSummary: `Nhóm cộng tác "${group.name}" (${group.memberIds.length} người, +${added.length} mới)`,
     workspaceTargets: [{ kind: "group", name: group.name, members: group.memberIds.length, detail: `Thêm ${added.length} thành viên: ${addedNames.join(", ")}` }],

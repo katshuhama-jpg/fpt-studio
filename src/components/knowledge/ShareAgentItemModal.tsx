@@ -136,8 +136,8 @@ export default function ShareAgentItemModal({ agentId, items, onClose, section }
             <AlertDialogDescription>{!downgrading
               ? "Những người không có trong danh sách sẽ không còn nhận được câu trả lời từ tri thức này."
               : buildMode === "private"
-                ? "Chỉ Agent này dùng được tri thức này. Người khác sẽ không liên kết được vào Agent của họ nữa."
-                : "Chỉ người trong danh sách còn liên kết được tri thức này vào Agent."}</AlertDialogDescription>
+                ? "Chỉ Nhân sự số này dùng được tri thức này. Người khác sẽ không liên kết được vào Nhân sự số của họ nữa."
+                : "Chỉ người trong danh sách còn liên kết được tri thức này vào Nhân sự số."}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>

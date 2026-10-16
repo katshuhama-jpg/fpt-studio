@@ -23,7 +23,7 @@ def handler(kwargs):
 `;
 
 const DEFAULT_PARAMS: ToolParam[] = [
-  { name: "reason", type: "string", required: false, description: "Reason the agent wants to hand off." },
+  { name: "reason", type: "string", required: false, description: "Lý do Nhân sự số muốn chuyển tiếp." },
 ];
 
 const DEFAULT_CARD = `{
@@ -104,7 +104,7 @@ export default function ToolBuilder() {
           onClick={() => navigate(`/agents/${agentId}?tab=build&section=tool`)}
           className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-base"
         >
-          <ChevronLeft size={15} /> Back to agent
+          <ChevronLeft size={15} /> Về Nhân sự số
         </button>
         <div className="w-px h-5 bg-border" />
 
@@ -153,11 +153,11 @@ export default function ToolBuilder() {
           {/* Description strip */}
           <div className="px-5 pt-4 pb-3 border-b border-border bg-surface/60 shrink-0">
             <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-              Description (used by the agent for tool selection)
+              Mô tả (Nhân sự số dùng để chọn tool)
             </label>
             <input
               className="ds-input"
-              placeholder="Describe when the agent should call this tool…"
+              placeholder="Mô tả khi nào Nhân sự số nên gọi tool này…"
               value={description}
               onChange={e => setDescription(e.target.value)}
             />
@@ -305,7 +305,7 @@ function MetadataEditor({
         <div className="flex items-center justify-between mb-2">
           <div>
             <div className="text-sm font-semibold">Input schema</div>
-            <div className="text-[11px] text-muted-foreground">Parameters the agent will extract from the user before calling this tool.</div>
+            <div className="text-[11px] text-muted-foreground">Tham số Nhân sự số sẽ lấy từ người dùng trước khi gọi tool này.</div>
           </div>
           <button onClick={add} className="h-8 px-2.5 rounded-md border border-border bg-surface hover:bg-surface-muted text-xs flex items-center gap-1 transition-base">
             <Plus size={12} /> Add parameter

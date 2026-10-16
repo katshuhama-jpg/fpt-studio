@@ -528,7 +528,7 @@ function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
       email: "dang.thi.hoa@gmail.com",
       startedAt: now - 28 * DAY - 4 * MIN,
       endedAt: now - 28 * DAY,
-      error: "Guardrail: Phản hồi đầu tiên bị chặn vì tiết lộ số dư tài khoản chưa xác thực danh tính, agent đã sinh lại câu trả lời.",
+      error: "Guardrail: Phản hồi đầu tiên bị chặn vì tiết lộ số dư tài khoản chưa xác thực danh tính, Nhân sự số đã sinh lại câu trả lời.",
       messages: buildMessages("CV-1004", now - 28 * DAY, [
         { role: "customer", content: "Why was I charged a 50,000 VND monthly fee? I thought my account was fee-free." },
         {
@@ -567,7 +567,7 @@ function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
       messages: buildMessages("CV-1045", now - 18 * MIN, [
         { role: "agent", content: "Xin chào! Quý khách cần hỗ trợ gì về khoản vay hôm nay?" },
         { role: "customer", content: "Cho mình hỏi thử lãi suất vay tín chấp hiện tại." },
-        { role: "agent", content: "Lãi suất vay tín chấp hiện tại từ 1.6%/tháng, tuỳ hồ sơ. Đây là phản hồi thử nghiệm từ Preview & Test, dùng để kiểm tra agent trước khi triển khai ra kênh thật." },
+        { role: "agent", content: "Lãi suất vay tín chấp hiện tại từ 1.6%/tháng, tuỳ hồ sơ. Đây là phản hồi thử nghiệm từ Preview & Test, dùng để kiểm tra Nhân sự số trước khi triển khai ra kênh thật." },
       ]),
     },
     {

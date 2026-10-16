@@ -112,7 +112,7 @@ const SHARE_STATUS_STYLE: Record<ResourceShareStatus, string> = {
 const SHARE_STATUS_LABEL: Record<ResourceShareStatus, string> = {
   shared: "Đã dùng chung trong Thư viện Space",
   pending_review: "Đang chờ Space Admin duyệt dùng chung",
-  private: "Riêng tư - Chỉ dùng trong Agent này",
+  private: "Riêng tư - Chỉ dùng trong Nhân sự số này",
 };
 
 export function ResourceShareStatusBadge({ status }: { status: ResourceShareStatus }) {

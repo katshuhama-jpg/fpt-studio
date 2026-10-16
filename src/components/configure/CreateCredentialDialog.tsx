@@ -70,7 +70,7 @@ export default function CreateCredentialDialog({ open, onOpenChange, authType, o
       <DialogContent className="sm:max-w-[440px]">
         <DialogHeader>
           <DialogTitle className="font-display">Tạo credential mới</DialogTitle>
-          <DialogDescription>Thêm credential để agent truy cập an toàn vào dịch vụ bên ngoài.</DialogDescription>
+          <DialogDescription>Thêm credential để Nhân sự số truy cập an toàn vào dịch vụ bên ngoài.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">

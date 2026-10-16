@@ -51,7 +51,7 @@ export default function ExternalAgentChannelsTab({ agent, onRefresh, onViewVersi
       actorId: CURRENT_USER.id, actorName: CURRENT_USER.name, action: "channel_off",
       resourceType: "agent", resourceId: agent.id, resourceName: agent.name, note: `Tắt kênh ${getChannelName(id)}`, at: Date.now(),
     });
-    toast.success(`Đã tắt ${getChannelName(id)}. Agent không còn nhận tin nhắn từ kênh này.`);
+    toast.success(`Đã tắt ${getChannelName(id)}. Nhân sự số không còn nhận tin nhắn từ kênh này.`);
     refresh();
   };
 
@@ -64,7 +64,7 @@ export default function ExternalAgentChannelsTab({ agent, onRefresh, onViewVersi
           </div>
           <div>
             <h1 className="text-xl font-semibold">Kênh triển khai</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Agent đang chạy ở đâu và người dùng đang dùng phiên bản nào.</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Nhân sự số đang chạy ở đâu và người dùng đang dùng phiên bản nào.</p>
           </div>
         </div>
 
@@ -105,7 +105,7 @@ export default function ExternalAgentChannelsTab({ agent, onRefresh, onViewVersi
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate">{ch.name}</p>
                     <p className={`text-xs truncate ${live ? "text-success" : pending ? "text-warning" : "text-muted-foreground"}`}>
-                      {ch.available === false ? "Sắp có" : !isLive ? "Publish Agent trước để bật kênh" : live ? `Live · ${pub.version}` : pending ? "Chờ duyệt bật kênh" : "Chưa bật"}
+                      {ch.available === false ? "Sắp có" : !isLive ? "Publish Nhân sự số trước để bật kênh" : live ? `Live · ${pub.version}` : pending ? "Chờ duyệt bật kênh" : "Chưa bật"}
                     </p>
                   </div>
                   {!unavailable && (live ? (
@@ -128,8 +128,8 @@ export default function ExternalAgentChannelsTab({ agent, onRefresh, onViewVersi
             <AlertDialogTitle>{confirm?.mode === "on" ? `Gửi yêu cầu bật ${confirm ? getChannelName(confirm.id) : ""}?` : `Tắt ${confirm ? getChannelName(confirm.id) : ""}?`}</AlertDialogTitle>
             <AlertDialogDescription>
               {confirm?.mode === "on"
-                ? `Kênh ngoài đưa Agent ra ngoài Agent Workspace nên cần Admin duyệt trước khi hoạt động. Bản live ${pub.version} và phạm vi Workspace giữ nguyên.`
-                : "Agent sẽ ngừng nhận tin nhắn từ kênh này ngay. Muốn bật lại sẽ cần gửi duyệt."}
+                ? `Kênh ngoài đưa Nhân sự số ra ngoài Workspace nên cần Admin duyệt trước khi hoạt động. Bản live ${pub.version} và phạm vi Workspace giữ nguyên.`
+                : "Nhân sự số sẽ ngừng nhận tin nhắn từ kênh này ngay. Muốn bật lại sẽ cần gửi duyệt."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -145,7 +145,7 @@ export function AgentStatusCluster({ agentId, publishState, isAutomation, pendin
   const withdraw = () => {
     if (!pending) return;
     governanceStore.withdraw(pending.id, CURRENT_USER.id, CURRENT_USER.name, "Người gửi đã rút yêu cầu.");
-    toast.success(`Đã rút yêu cầu ${pending.version ?? ""}. Agent giữ nguyên trạng thái trước khi gửi.`);
+    toast.success(`Đã rút yêu cầu ${pending.version ?? ""}. Nhân sự số giữ nguyên trạng thái trước khi gửi.`);
     setConfirmWithdraw(false);
     onChanged();
   };
@@ -185,10 +185,10 @@ export function AgentStatusCluster({ agentId, publishState, isAutomation, pendin
             <Header
               icon={<Pencil size={16} />}
               iconBox="bg-surface-muted text-muted-foreground"
-              title={removed ? "Agent đã gỡ" : "Agent chưa publish"}
+              title={removed ? "Nhân sự số đã gỡ" : "Nhân sự số chưa publish"}
               sub={removed
-                ? <>Người dùng không còn dùng được Agent này (bản live cuối: <span className="font-mono">{publishState.version}</span>). Publish lại để chia sẻ - Phạm vi rộng sẽ cần Admin duyệt.</>
-                : "Chưa ai dùng được Agent này. Publish để chia sẻ - Phạm vi rộng sẽ cần Admin duyệt."}
+                ? <>Người dùng không còn dùng được Nhân sự số này (bản live cuối: <span className="font-mono">{publishState.version}</span>). Publish lại để chia sẻ - Phạm vi rộng sẽ cần Admin duyệt.</>
+                : "Chưa ai dùng được Nhân sự số này. Publish để chia sẻ - Phạm vi rộng sẽ cần Admin duyệt."}
             />
             <div className="px-4 py-3 border-t border-border bg-surface-muted/40 flex justify-end">
               <button onClick={onPublish} className="h-8 px-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors">
@@ -211,7 +211,7 @@ export function AgentStatusCluster({ agentId, publishState, isAutomation, pendin
                 ? <>Thành viên đã được duyệt vẫn dùng <span className="font-mono text-foreground">{publishState.version}</span>; {pending.addedMemberNames.join(", ")} chỉ dùng được sau khi duyệt.</>
                 : published
                 ? <>Người dùng vẫn dùng <span className="font-mono text-foreground">{publishState.version}</span> cho tới khi bản này được duyệt.</>
-                : "Agent sẽ tới người dùng khi Admin duyệt."}
+                : "Nhân sự số sẽ tới người dùng khi Admin duyệt."}
             />
             <ReviewSteps />
             <dl className="px-4 pb-3 border-t border-border pt-2">
@@ -273,7 +273,7 @@ export function AgentStatusCluster({ agentId, publishState, isAutomation, pendin
           <AlertDialogHeader>
             <AlertDialogTitle>Rút yêu cầu {pending?.version}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Admin sẽ không còn thấy yêu cầu này để duyệt. Agent giữ nguyên trạng thái hiện tại - Bạn có thể gửi lại bất cứ lúc nào.
+              Admin sẽ không còn thấy yêu cầu này để duyệt. Nhân sự số giữ nguyên trạng thái hiện tại - Bạn có thể gửi lại bất cứ lúc nào.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -59,9 +59,9 @@ const recent = [
 ];
 
 const getStarted = [
-  { label: "Video guide", title: "Build your first Agent in 5 minutes",      kind: "video", bg: "bg-blue-500",   href: "https://www.youtube.com/results?search_query=fpt+ai+agent+studio+tutorial" },
+  { label: "Video guide", title: "Tạo Nhân sự số đầu tiên trong 5 phút",      kind: "video", bg: "bg-blue-500",   href: "https://www.youtube.com/results?search_query=fpt+ai+agent+studio+tutorial" },
   { label: "Video guide", title: "Connect a Connector and go live",         kind: "video", bg: "bg-indigo-500", href: "https://www.youtube.com/results?search_query=fpt+ai+agent+studio+connectors" },
-  { label: "Web guide",   title: "Agent Studio documentation",              kind: "doc",   bg: "bg-amber-500",  href: "https://docs.fpt.ai" },
+  { label: "Web guide",   title: "Tài liệu hướng dẫn",              kind: "doc",   bg: "bg-amber-500",  href: "https://docs.fpt.ai" },
   { label: "Web guide",   title: "Best practices for writing instructions", kind: "doc",   bg: "bg-emerald-500", href: "https://docs.fpt.ai/guides/instructions" },
 ];
 
@@ -305,7 +305,7 @@ function CreateAgentModal({ onClose }: { onClose: () => void }) {
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-lg">
         <DialogHeader className="text-left">
-          <DialogTitle>Start to build your agent today</DialogTitle>
+          <DialogTitle>Bắt đầu tạo Nhân sự số ngay hôm nay</DialogTitle>
           <DialogDescription>Describe what you need and we'll build it for you</DialogDescription>
         </DialogHeader>
 
@@ -313,7 +313,7 @@ function CreateAgentModal({ onClose }: { onClose: () => void }) {
           <textarea
             autoFocus
             className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none leading-relaxed min-h-[80px] border-0 p-0"
-            placeholder="e.g. A 24/7 banking customer-care agent that can lock cards, look up loan rates and book consultations…"
+            placeholder="Ví dụ: Nhân sự số chăm sóc khách hàng ngân hàng 24/7, khóa thẻ, tra lãi suất vay và đặt lịch tư vấn…"
             rows={3}
             value={prompt}
             onChange={e => setPrompt(e.target.value)}
@@ -327,7 +327,7 @@ function CreateAgentModal({ onClose }: { onClose: () => void }) {
             <div className="flex items-center gap-3">
               <button type="button" onClick={() => setShowTemplates(true)} className="text-sm text-muted-foreground hover:text-foreground transition-base">Use a template</button>
               <button type="button" onClick={handleBuild} disabled={!prompt.trim()} className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
-                <Sparkles size={14} /> Build agent
+                <Sparkles size={14} /> Tạo Nhân sự số
               </button>
             </div>
           </div>
@@ -372,7 +372,7 @@ export default function Home() {
       <div className="px-6 pt-6 mb-6">
         <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Home</h1>
         <p className="text-sm text-muted-foreground">
-          Workspace overview - Pick up a recent agent or create a new one.
+          Tổng quan - Mở lại Nhân sự số gần đây hoặc tạo mới.
         </p>
       </div>
 
@@ -384,24 +384,24 @@ export default function Home() {
         <div className="flex items-center justify-between px-10 py-10 gap-8">
           <div className="flex-1 min-w-0">
             <h2 className="font-display text-3xl font-bold text-foreground mb-2 tracking-tight">
-              Welcome to FPT AI Agent Console
+              Chào mừng bạn đến với FPT AI EOS Console
             </h2>
             <p className="text-sm text-muted-foreground mb-7 max-w-sm leading-relaxed">
-              Build, connect, and operate your enterprise AI Agent workforce.
+              Xây dựng, kết nối và vận hành nhân sự số AI của doanh nghiệp bạn.
             </p>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => canCreateAgent && setShowCreate(true)}
                 disabled={!canCreateAgent}
-                title={!canCreateAgent ? "You don't have permission to create agents." : undefined}
+                title={!canCreateAgent ? "Bạn không có quyền tạo Nhân sự số." : undefined}
                 className="btn-primary h-10 px-5 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Create new Agent <ArrowRight size={15} />
+                Tạo Nhân sự số mới <ArrowRight size={15} />
               </button>
               <button
                 onClick={() => canCreateAgent && setShowTemplates(true)}
                 disabled={!canCreateAgent}
-                title={!canCreateAgent ? "You don't have permission to create agents." : undefined}
+                title={!canCreateAgent ? "Bạn không có quyền tạo Nhân sự số." : undefined}
                 className="btn-secondary h-10 px-5 rounded-lg bg-surface/70 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Browse templates
@@ -464,7 +464,7 @@ export default function Home() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-display text-lg font-semibold">Recent</h2>
             <Link to="/agents" className="text-xs text-primary flex items-center gap-1 hover:text-primary-glow transition-base">
-              All Agents <ArrowRight size={12} />
+              Tất cả Nhân sự số <ArrowRight size={12} />
             </Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

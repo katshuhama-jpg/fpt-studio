@@ -43,8 +43,8 @@ const TOP_TABS: { id: Tab; label: string; Icon: any }[] = [
 
 const ENDPOINTS: { method: string; path: string; purpose: string; required: boolean }[] = [
   { method: "GET", path: "/health", purpose: "Trạng thái và phiên bản protocol.", required: true },
-  { method: "POST", path: "/runs", purpose: "Gọi Agent chạy.", required: true },
-  { method: "GET", path: "/tools", purpose: "Liệt kê các tool Agent khai báo.", required: false },
+  { method: "POST", path: "/runs", purpose: "Gọi Nhân sự số chạy.", required: true },
+  { method: "GET", path: "/tools", purpose: "Liệt kê các tool Nhân sự số khai báo.", required: false },
   { method: "POST", path: "/credentials", purpose: "Đăng ký credential theo người dùng (tùy chọn, chưa bật ở phase này).", required: false },
   { method: "POST", path: "/credentials/revoke", purpose: "Thu hồi credential theo người dùng (tùy chọn, chưa bật ở phase này).", required: false },
 ];
@@ -287,7 +287,7 @@ export default function ExternalAgentDetail() {
           />
           <button
             disabled={!validationPassed || agent.status === "paused"}
-            title={!validationPassed ? "Kiểm tra kết nối trước khi publish." : agent.status === "paused" ? "Resume Agent trước khi publish." : undefined}
+            title={!validationPassed ? "Kiểm tra kết nối trước khi publish." : agent.status === "paused" ? "Resume Nhân sự số trước khi publish." : undefined}
             onClick={() => requestPublish()}
             className="btn-primary h-9 whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
           >
@@ -302,7 +302,7 @@ export default function ExternalAgentDetail() {
             <button
               onClick={() => {
                 externalAgentStore.resume(agent.id);
-                toast.success(`Đã tiếp tục "${agent.name}". Agent đang phục vụ người dùng trở lại.`);
+                toast.success(`Đã tiếp tục "${agent.name}". Nhân sự số đang phục vụ người dùng trở lại.`);
                 refresh();
               }}
               className="btn-primary h-9 whitespace-nowrap"
@@ -340,7 +340,7 @@ export default function ExternalAgentDetail() {
                         </button>
                       </span>
                     </TooltipTrigger>
-                    {agent.status === "published" && <TooltipContent side="left">Tạm dừng Agent trước khi xóa.</TooltipContent>}
+                    {agent.status === "published" && <TooltipContent side="left">Tạm dừng Nhân sự số trước khi xóa.</TooltipContent>}
                   </Tooltip>
                 </div>
               </>
@@ -509,7 +509,7 @@ export default function ExternalAgentDetail() {
                   <HugeiconsIcon icon={Alert01Icon} size={14} className="shrink-0 mt-0.5 text-destructive" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-destructive leading-relaxed">
-                      Không kết nối được tới Agent từ{" "}
+                      Không kết nối được tới Nhân sự số từ{" "}
                       {agent.lastHealthyAt ? new Date(agent.lastHealthyAt).toLocaleDateString("vi-VN") : "lần kết nối đầu tiên"}.
                       Hội thoại trên các kênh đã publish có thể đang lỗi.
                     </p>
@@ -591,7 +591,7 @@ export default function ExternalAgentDetail() {
                           setCheckingHealth(false);
                           refresh();
                           if (ok) toast.success("Kết nối ổn - Các endpoint bắt buộc đều phản hồi.");
-                          else toast.error("Không kết nối được - Agent không phản hồi. Xem trạng thái endpoint bên dưới.");
+                          else toast.error("Không kết nối được - Nhân sự số không phản hồi. Xem trạng thái endpoint bên dưới.");
                         }, 700);
                       }}
                       className="h-7 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base disabled:opacity-50 flex items-center gap-1.5"
@@ -601,7 +601,7 @@ export default function ExternalAgentDetail() {
                     </button>
                   </div>
                 </div>
-                <p className="text-sm text-muted-foreground mb-3">Các địa chỉ nền tảng gọi tới Agent của bạn.</p>
+                <p className="text-sm text-muted-foreground mb-3">Các địa chỉ nền tảng gọi tới Nhân sự số của bạn.</p>
                 <div className="rounded-lg border border-border overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>

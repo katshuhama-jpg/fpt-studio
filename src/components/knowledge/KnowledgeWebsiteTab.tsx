@@ -234,7 +234,7 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
             <p className="text-sm text-muted-foreground max-w-md mx-auto">Chủ sở hữu chưa thêm đường dẫn website vào kho tri thức này.</p>
           ) : (
             <>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">Thêm đường dẫn website để Agent luôn tra cứu được nội dung mới nhất.</p>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">Thêm đường dẫn website để Nhân sự số luôn tra cứu được nội dung mới nhất.</p>
               <button onClick={() => setShowAddUrl(true)} className="btn-primary h-9 mx-auto">Thêm URL</button>
             </>
           )}

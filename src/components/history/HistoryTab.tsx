@@ -167,7 +167,7 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="font-display text-xl font-semibold">Lịch sử hội thoại</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Xem lại các cuộc trò chuyện giữa Agent này và người dùng.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Xem lại các cuộc trò chuyện giữa Nhân sự số này và người dùng.</p>
           </div>
           {/* Same Export button as External Agent → History. Space Admin only - hidden otherwise. */}
           {canExport && (
@@ -236,7 +236,7 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
         <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
           <h3 className="font-display text-lg font-semibold mb-1.5">Chưa có cuộc trò chuyện nào</h3>
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Khi người dùng bắt đầu trò chuyện với Agent này, các cuộc trò chuyện sẽ hiện ở đây.
+            Khi người dùng bắt đầu trò chuyện với Nhân sự số này, các cuộc trò chuyện sẽ hiện ở đây.
           </p>
         </div>
       ) : visibleConversations.length === 0 ? (

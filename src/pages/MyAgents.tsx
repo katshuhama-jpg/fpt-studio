@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Send, Paperclip, Mic, Sparkles, AtSign, Plus, MessageSquare, Bot } from "lucide-react";
 
 const agents = [
-  { id: "default", name: "FPT Assistant", emoji: "✨", desc: "Default workspace agent", color: "bg-primary-soft text-primary" },
+  { id: "default", name: "FPT Assistant", emoji: "✨", desc: "Nhân sự số mặc định của Workspace", color: "bg-primary-soft text-primary" },
   { id: "cskh", name: "Banking ABC", emoji: "🏦", desc: "Customer care", color: "bg-accent-soft text-accent" },
   { id: "hr", name: "HR Onboarding", emoji: "🤝", desc: "Internal HR helper", color: "bg-primary-soft text-primary" },
   { id: "sales", name: "Sales Qualifier", emoji: "🎯", desc: "Lead scoring", color: "bg-surface-muted text-foreground" },
@@ -135,7 +135,7 @@ export default function MyAgents() {
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 rows={1}
-                placeholder="Ask anything, or @mention an agent…"
+                placeholder="Hỏi bất cứ điều gì, hoặc @nhắc tới một Nhân sự số…"
                 className="flex-1 resize-none bg-transparent text-sm placeholder:text-muted-foreground outline-none py-2 px-1 max-h-32"
               />
               <button className="h-9 w-9 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base">

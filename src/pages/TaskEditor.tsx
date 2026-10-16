@@ -202,7 +202,7 @@ export default function TaskEditor() {
         </button>
         <div className="w-px h-5 bg-border" />
         <nav className="flex items-center gap-1.5 text-sm min-w-0">
-          <Link to="/agents" className="text-muted-foreground hover:text-foreground">Agents</Link>
+          <Link to="/agents" className="text-muted-foreground hover:text-foreground">Nhân sự số</Link>
           <span className="text-muted-foreground">/</span>
           <Link to={`/agents/${agentId}?tab=build&section=task`} className="text-muted-foreground hover:text-foreground">Tasks</Link>
           <span className="text-muted-foreground">/</span>

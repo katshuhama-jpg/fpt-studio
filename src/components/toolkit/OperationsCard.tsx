@@ -158,7 +158,7 @@ export default function OperationsCard({ ops, kitKey, baseUrl, expanded, statusF
     <SectionCard
       id="operations"
       title="Operations"
-      subtitle="Mỗi operation lưu thành một dòng tool_registries và là một tool agent gọi được."
+      subtitle="Mỗi operation lưu thành một dòng tool_registries và là một tool Nhân sự số gọi được."
       actions={<>
         <span className="text-sm text-muted-foreground tabular-nums">{ops.length} operation</span>
         <Button type="button" variant="secondary" size="sm" onClick={onAdd}><Icon icon={Add01Icon} /> Thêm operation</Button>

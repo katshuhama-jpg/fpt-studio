@@ -10,9 +10,9 @@ import { coveredBy, scopeItemCount, UNCATEGORIZED_FAQ, UNCATEGORIZED_FAQ_LABEL, 
 
 export const SCOPE_COPY = {
   allLabel: "Toàn bộ kho",
-  allHelper: "Agent dùng mọi nội dung trong kho, kể cả nội dung thêm sau này.",
+  allHelper: "Nhân sự số dùng mọi nội dung trong kho, kể cả nội dung thêm sau này.",
   partLabel: "Chọn một phần",
-  partHelper: "Agent chỉ dùng các mục bạn chọn. Tài liệu thêm sau vào thư mục đã chọn cũng được dùng.",
+  partHelper: "Nhân sự số chỉ dùng các mục bạn chọn. Tài liệu thêm sau vào thư mục đã chọn cũng được dùng.",
   emptyError: "Chọn ít nhất một mục, hoặc chuyển về Toàn bộ kho.",
   failedTip: "Tài liệu xử lý thất bại nên chưa dùng được.",
   processingNote: "Đang xử lý",

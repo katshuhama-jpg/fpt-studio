@@ -111,7 +111,7 @@ const NOUN: Record<RevocableType, string> = { skill: "skill", knowledge: "kho tr
 
 function reasonFor(type: RevocableType, res: Revocable & { ownerName?: string }): string {
   const d = res.deletedFromSpace;
-  const why = d?.takenBackTo ? `Đã được kéo về Agent "${getAgent(d.takenBackTo).name}".`
+  const why = d?.takenBackTo ? `Đã được kéo về Nhân sự số "${getAgent(d.takenBackTo).name}".`
     : d ? `${d.byName} đã xóa khỏi Space.`
     : `${res.ownerName ?? "Chủ sở hữu"} đã tắt chia sẻ hoặc thu hẹp quyền dùng.`;
   return `${why} Test chat không còn dùng ${NOUN[type]} này. Gỡ ra để publish.`;
@@ -132,23 +132,23 @@ export const REVOKED_COPY = {
   chip: "Không khả dụng",
   chipDeleted: "Không khả dụng",
   tooltipDeleted: (byName: string, type: RevocableType) =>
-    `${byName} đã xóa ${NOUN[type]} này khỏi Space. Gỡ khỏi Agent để publish được.`,
+    `${byName} đã xóa ${NOUN[type]} này khỏi Space. Gỡ khỏi Nhân sự số để publish được.`,
   tooltip: (ownerName: string, type: RevocableType) =>
-    `${ownerName} đã thu hồi quyền dùng ${NOUN[type]} này. Gỡ khỏi Agent hoặc nhờ chủ sở hữu chia sẻ lại.`,
-  banner: (n: number) => `${n} thành phần không còn khả dụng. Test chat bỏ qua các thành phần này - Gỡ khỏi Agent để publish được.`,
+    `${ownerName} đã thu hồi quyền dùng ${NOUN[type]} này. Gỡ khỏi Nhân sự số hoặc nhờ chủ sở hữu chia sẻ lại.`,
+  banner: (n: number) => `${n} thành phần không còn khả dụng. Test chat bỏ qua các thành phần này - Gỡ khỏi Nhân sự số để publish được.`,
   checklist: (n: number) => `Gỡ ${n} thành phần không khả dụng`,
   publishBlocked: (items: { name: string }[]) =>
-    `Không thể publish - Agent đang dùng ${items.length} thành phần không còn khả dụng: ${items.map(i => i.name).join(", ")}. Gỡ thành phần này khỏi Agent trước khi publish.`,
+    `Không thể publish - Nhân sự số đang dùng ${items.length} thành phần không còn khả dụng: ${items.map(i => i.name).join(", ")}. Gỡ thành phần này khỏi Nhân sự số trước khi publish.`,
   testChat: (items: { name: string }[]) =>
     `Test chat đang bỏ qua ${items.length} thành phần không khả dụng: ${items.map(i => i.name).join(", ")}.`,
   /** Owner side: confirming a narrowing that takes the resource away from Agents using it. */
   confirmTitle: (it: string) => `Thu hồi quyền dùng ${it}?`,
   confirmBody: (n: number, it: string, noun: string) =>
-    `${n} Agent đang dùng ${it} sẽ mất quyền dùng. Các Agent này không publish được cho tới khi gỡ ${noun}, người xây Agent sẽ thấy cảnh báo trong Agent.`,
+    `${n} Nhân sự số đang dùng ${it} sẽ mất quyền dùng. Các Nhân sự số này không publish được cho tới khi gỡ ${noun}, người xây Nhân sự số sẽ thấy cảnh báo trong Nhân sự số.`,
   confirmAction: "Vẫn thu hồi",
   /** "Chỉ Agent này" in the Agent a Space resource came from, while other Agents still link it. */
-  takeBackTitle: (it: string) => `Chỉ để Agent này dùng ${it}?`,
+  takeBackTitle: (it: string) => `Chỉ để Nhân sự số này dùng ${it}?`,
   takeBackBody: (n: number, it: string, noun: string) =>
-    `${it[0].toUpperCase() + it.slice(1)} rời thư viện Space, chỉ Agent này dùng. ${n} Agent khác đang dùng sẽ báo "Không khả dụng" và chưa publish được cho tới khi gỡ ${noun} ra.`,
-  takeBackAction: "Chỉ Agent này dùng",
+    `${it[0].toUpperCase() + it.slice(1)} rời thư viện Space, chỉ Nhân sự số này dùng. ${n} Nhân sự số khác đang dùng sẽ báo "Không khả dụng" và chưa publish được cho tới khi gỡ ${noun} ra.`,
+  takeBackAction: "Chỉ Nhân sự số này dùng",
 };

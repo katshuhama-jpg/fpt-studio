@@ -40,7 +40,7 @@ export default function AgentNode({ id, data, selected }: NodeProps<AgentNodeDat
     >
       <NodeToolbarMenu visible={!!selected} onDelete={() => onDelete(id)} />
       <Handle type="target" position={Position.Left} className={HANDLE_CLASS} />
-      <NodeTypeTab icon={<Bot size={12} />} label="Agent" kind="agent" />
+      <NodeTypeTab icon={<Bot size={12} />} label="Nhân sự số" kind="agent" />
       <div className="flex items-start gap-[11px]" style={{ padding: "12px 14px 14px" }}>
         <div
           className="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center shrink-0"
@@ -50,7 +50,7 @@ export default function AgentNode({ id, data, selected }: NodeProps<AgentNodeDat
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-[13.5px] font-bold leading-snug truncate m-0 [font-family:var(--wf-font-display)]" style={{ color: "var(--wf-text)" }}>
-            {agent?.name ?? "Agent không tồn tại"}
+            {agent?.name ?? "Nhân sự số không tồn tại"}
           </p>
           <p className="text-[12px] leading-[1.45] truncate mt-[3px] mb-0" style={{ color: "var(--wf-muted)", fontFamily: "var(--wf-font-body)" }}>
             {agent?.desc}
@@ -58,7 +58,7 @@ export default function AgentNode({ id, data, selected }: NodeProps<AgentNodeDat
         </div>
         <button
           type="button"
-          aria-label="Mở Agent"
+          aria-label="Mở Nhân sự số"
           onClick={openAgent}
           className="nodrag w-8 h-8 min-w-[44px] min-h-[44px] -m-2 rounded-md flex items-center justify-center shrink-0 transition-base hover:text-[var(--wf-agent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           style={{ color: "var(--wf-muted)" }}

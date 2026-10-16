@@ -59,7 +59,7 @@ export function chipParts(r: ResolvedRef): ChipParts {
   const tip: ChipTip = revoked
     ? { type: r.typeLabel, name: r.label, detail: r.reason ? r.reason : r.deletedBy ? REVOKED_COPY.tooltipDeleted(r.deletedBy, r.revokedType ?? "skill") : REVOKED_COPY.tooltip(r.revokedBy ?? "Chủ sở hữu", r.revokedType ?? "skill"), status: r.deletedBy ? REVOKED_COPY.chipDeleted : REVOKED_COPY.chip, tone: "removed" }
     : r.status === "missing"
-    ? { type: r.typeLabel, name: r.label, detail: "Tài nguyên này không còn gắn với Agent.", status: "Đã bị gỡ", tone: "removed" }
+    ? { type: r.typeLabel, name: r.label, detail: "Tài nguyên này không còn gắn với Nhân sự số.", status: "Đã bị gỡ", tone: "removed" }
     : r.status === "restricted"
       ? { type: r.typeLabel, name: r.label, detail: "Bạn không có quyền xem tài nguyên này.", status: "Không có quyền truy cập", tone: "restricted" }
       : { type: r.typeLabel, name: r.label, detail: r.detail, status: r.state ? `Hợp lệ · ${r.state}` : "Hợp lệ", tone: "ok" };

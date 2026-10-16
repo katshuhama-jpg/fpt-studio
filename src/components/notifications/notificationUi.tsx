@@ -72,12 +72,12 @@ function resolvedLabel(n: AppNotification): string | null {
 function contextLabel(n: AppNotification, userId: string): string | null {
   if (n.kind === "request_submitted") return resolvedLabel(n);
   if (n.kind === "resource_unshared" || n.kind === "resource_deleted" || n.kind === "resource_removed") return "Tài nguyên của bạn";
-  if (n.kind === "agent_shared" || n.kind === "agent_access_changed") return "Agent bạn được cấp quyền";
+  if (n.kind === "agent_shared" || n.kind === "agent_access_changed") return "Nhân sự số bạn được cấp quyền";
   if (!n.resourceId) return null;
-  if (n.resourceId.startsWith("ext-")) return "Agent của bạn";
+  if (n.resourceId.startsWith("ext-")) return "Nhân sự số của bạn";
   const a = getAgent(n.resourceId) as { ownerId?: string; sharedWith?: string[] } | undefined;
-  if (a?.ownerId === userId) return "Agent của bạn";
-  if (a?.sharedWith?.includes(userId)) return "Agent bạn được cấp quyền";
+  if (a?.ownerId === userId) return "Nhân sự số của bạn";
+  if (a?.sharedWith?.includes(userId)) return "Nhân sự số bạn được cấp quyền";
   return "Yêu cầu bạn đã gửi";
 }
 

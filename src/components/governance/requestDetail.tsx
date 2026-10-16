@@ -145,7 +145,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
             {isChannelReq
               ? <>Bạn đang quyết định <span className="font-medium text-foreground">có bật thêm kênh ngoài {(req.channelsAdded ?? []).map(channelLabel).join(", ")} cho bản đang live hay không</span>. Phiên bản và phạm vi Workspace giữ nguyên.</>
               : isAgent
-              ? <>Bạn đang quyết định <span className="font-medium text-foreground">Agent này có được publish tới người dùng hay không</span>.</>
+              ? <>Bạn đang quyết định <span className="font-medium text-foreground">Nhân sự số này có được publish tới người dùng hay không</span>.</>
               : <>Bạn đang quyết định <span className="font-medium text-foreground">thành phần này có được đưa vào Thư viện Space để Builder khác dùng chung hay không</span>.</>}
           </p>
         </div>
@@ -349,7 +349,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
           {readOnlyNote && (
             <div className="rounded-xl border border-border bg-surface-muted/40 p-3.5">
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Bạn đang xem ở chế độ chỉ đọc. Chỉ vai trò có quyền “{isAgent ? "Review Agent publish requests" : "Review Resource sharing requests"}” mới duyệt được yêu cầu này.
+                Bạn đang xem ở chế độ chỉ đọc. Chỉ vai trò có quyền “{isAgent ? "Duyệt yêu cầu publish Nhân sự số" : "Review Resource sharing requests"}” mới duyệt được yêu cầu này.
               </p>
             </div>
           )}
@@ -364,7 +364,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
               </button>
               <p className="text-xs text-muted-foreground leading-relaxed mt-2">
                 {isAgent
-                  ? (revokeFallback ? `Ngừng phục vụ ${req.version ?? "bản này"} ngay - Bạn chọn quay về ${revokeFallback.version} hoặc ngừng hẳn Agent.` : "Agent ngừng phục vụ người dùng ngay lập tức. Muốn publish lại cần gửi yêu cầu mới.")
+                  ? (revokeFallback ? `Ngừng phục vụ ${req.version ?? "bản này"} ngay - Bạn chọn quay về ${revokeFallback.version} hoặc ngừng hẳn Nhân sự số.` : "Nhân sự số ngừng phục vụ người dùng ngay lập tức. Muốn publish lại cần gửi yêu cầu mới.")
                   : "Thành phần ngừng dùng chung trong Thư viện Space ngay lập tức. Muốn dùng chung lại cần gửi yêu cầu mới."}
               </p>
             </div>
@@ -403,7 +403,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
               {dialog === "approve" && (isChannelReq
-                ? `Agent sẽ hoạt động thêm trên ${(req.channelsAdded ?? []).map(channelLabel).join(", ")}. Bản live và phạm vi Workspace giữ nguyên.`
+                ? `Nhân sự số sẽ hoạt động thêm trên ${(req.channelsAdded ?? []).map(channelLabel).join(", ")}. Bản live và phạm vi Workspace giữ nguyên.`
                 : isAgent
                 ? (() => {
                     const live = agentPublishStore.get(req.resourceId);
@@ -412,19 +412,19 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
                   })()
                 : "Sau khi duyệt, thành phần này sẽ xuất hiện trong Thư viện Space để các Builder khác dùng chung.")}
               {dialog === "reject" && "Người gửi sẽ nhận được lý do từ chối và cần tạo yêu cầu mới nếu muốn gửi lại."}
-              {dialog === "withdraw" && "Admin sẽ không còn thấy yêu cầu này để duyệt. Agent giữ nguyên trạng thái hiện tại - Bạn có thể gửi lại bất cứ lúc nào."}
+              {dialog === "withdraw" && "Admin sẽ không còn thấy yêu cầu này để duyệt. Nhân sự số giữ nguyên trạng thái hiện tại - Bạn có thể gửi lại bất cứ lúc nào."}
               {dialog === "revoke" && (isChannelReq
-                ? `Agent sẽ ngừng hoạt động trên ${(req.channelsAdded ?? []).map(channelLabel).join(", ")} ngay lập tức. Bản live trong Agent Workspace không bị ảnh hưởng.`
+                ? `Nhân sự số sẽ ngừng hoạt động trên ${(req.channelsAdded ?? []).map(channelLabel).join(", ")} ngay lập tức. Bản live trong Workspace không bị ảnh hưởng.`
                 : isAgent
-                ? (revokeFallback ? `${req.version ?? "Bản này"} sẽ ngừng phục vụ ngay. Chọn điều xảy ra tiếp theo:` : "Agent sẽ ngừng publish ngay lập tức và cần được gửi duyệt lại từ đầu nếu muốn publish lại. Hành động này không thể hoàn tác.")
-                : "Thành phần sẽ ngừng dùng chung ngay lập tức (các Agent đang dùng bản riêng của họ không bị ảnh hưởng) và cần được gửi duyệt lại từ đầu. Hành động này không thể hoàn tác.")}
+                ? (revokeFallback ? `${req.version ?? "Bản này"} sẽ ngừng phục vụ ngay. Chọn điều xảy ra tiếp theo:` : "Nhân sự số sẽ ngừng publish ngay lập tức và cần được gửi duyệt lại từ đầu nếu muốn publish lại. Hành động này không thể hoàn tác.")
+                : "Thành phần sẽ ngừng dùng chung ngay lập tức (các Nhân sự số đang dùng bản riêng của họ không bị ảnh hưởng) và cần được gửi duyệt lại từ đầu. Hành động này không thể hoàn tác.")}
             </p>
             {dialog === "revoke" && revokeFallback && (
               <fieldset className="mb-4 space-y-2">
                 <legend className="sr-only">Sau khi thu hồi</legend>
                 {([
                   ["previous", `Quay về ${revokeFallback.version}`, `Người dùng dùng lại ${revokeFallback.version} - Bản đã được duyệt trước đó (${revokeFallback.scopeSummary ?? "phạm vi cũ"}).`],
-                  ["stop", "Ngừng phục vụ hoàn toàn", "Agent chuyển sang Đã gỡ - Người dùng không dùng được nữa. Muốn publish lại cần gửi yêu cầu mới."],
+                  ["stop", "Ngừng phục vụ hoàn toàn", "Nhân sự số chuyển sang Đã gỡ - Người dùng không dùng được nữa. Muốn publish lại cần gửi yêu cầu mới."],
                 ] as const).map(([v, t, d]) => (
                   <label key={v} className={`flex items-start gap-2.5 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors ${revokeMode === v ? "border-primary bg-primary-soft/40" : "border-border hover:bg-surface-muted"}`}>
                     <input type="radio" name="revoke-mode" value={v} checked={revokeMode === v} onChange={() => setRevokeMode(v)} className="mt-1 accent-primary" />
@@ -450,7 +450,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
                   onChange={e => { setReason(e.target.value); if (e.target.value.trim()) setReasonError(false); }}
                   aria-invalid={reasonError}
                   aria-describedby="gov-reason-help"
-                  placeholder={dialog === "reject" ? "Ví dụ: Cần bổ sung Guardrails cho câu hỏi về lương thưởng." : "Ví dụ: Agent trả lời sai chính sách mới, tạm dừng để sửa."}
+                  placeholder={dialog === "reject" ? "Ví dụ: Cần bổ sung Guardrails cho câu hỏi về lương thưởng." : "Ví dụ: Nhân sự số trả lời sai chính sách mới, tạm dừng để sửa."}
                   className={`w-full px-3 py-2.5 rounded-lg border bg-white text-sm outline-none focus:ring-2 transition-base resize-none ${
                     reasonError ? "border-destructive focus:border-destructive focus:ring-destructive/20" : "border-border focus:border-primary focus:ring-primary/20"
                   }`}
@@ -458,7 +458,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
                 <div id="gov-reason-help" className="flex items-start justify-between gap-3 mt-1">
                   <p className={`text-xs ${reasonError ? "text-destructive" : "text-muted-foreground"}`}>
                     {reasonError
-                      ? (dialog === "reject" ? "Nhập lý do để người gửi biết cần sửa gì." : "Nhập lý do để người gửi biết vì sao Agent bị thu hồi.")
+                      ? (dialog === "reject" ? "Nhập lý do để người gửi biết cần sửa gì." : "Nhập lý do để người gửi biết vì sao Nhân sự số bị thu hồi.")
                       : "Người gửi sẽ thấy lý do này."}
                   </p>
                   <span className="text-xs text-muted-foreground tabular-nums shrink-0">{reason.length}/{REASON_MAX}</span>
@@ -514,7 +514,7 @@ function OutcomeBanner({ req, isAgent, isChannelReq }: { req: import("@/componen
       title: isChannelReq ? `Đã duyệt - Đã bật ${(req.channelsAdded ?? []).map(channelLabel).join(", ")}` : isAgent ? `Đã duyệt - ${req.version ?? "bản này"} đã được publish` : "Đã duyệt - Đã có trong Thư viện Space" },
     rejected: { box: "border-destructive/25 bg-destructive/5", icon: XCircle, iconCls: "text-destructive", title: "Đã từ chối" },
     revoked: { box: "border-destructive/25 bg-destructive/5", icon: Undo2, iconCls: "text-destructive",
-      title: isChannelReq ? `Đã thu hồi - Đã tắt ${(req.channelsAdded ?? []).map(channelLabel).join(", ")}` : isAgent ? (req.revokedToVersion ? `Đã thu hồi - Người dùng quay về ${req.revokedToVersion}` : "Đã thu hồi - Agent đã ngừng publish") : "Đã thu hồi - Đã gỡ khỏi Thư viện Space" },
+      title: isChannelReq ? `Đã thu hồi - Đã tắt ${(req.channelsAdded ?? []).map(channelLabel).join(", ")}` : isAgent ? (req.revokedToVersion ? `Đã thu hồi - Người dùng quay về ${req.revokedToVersion}` : "Đã thu hồi - Nhân sự số đã ngừng publish") : "Đã thu hồi - Đã gỡ khỏi Thư viện Space" },
     withdrawn: { box: "border-border bg-surface-muted/50", icon: Undo2, iconCls: "text-muted-foreground", title: "Đã rút yêu cầu" },
     pending: { box: "", icon: Info, iconCls: "", title: "" },
   }[req.status];
@@ -584,7 +584,7 @@ function AgentComponents({ agentId, refs, privateKnowledge }: {
   return (
     <div className="mb-6">
       <p className="text-sm font-semibold flex items-center gap-1.5 mb-3">
-        <Layers size={14} className="text-muted-foreground" /> Tài nguyên gán với Agent ({rows.length})
+        <Layers size={14} className="text-muted-foreground" /> Tài nguyên gán với Nhân sự số ({rows.length})
       </p>
       {types.length > 1 && (
         <div role="tablist" aria-label="Lọc tài nguyên theo loại" className="flex items-center gap-1 flex-wrap mb-3">
@@ -616,7 +616,7 @@ function AgentComponents({ agentId, refs, privateKnowledge }: {
             <p className="min-w-0 flex-1 text-sm font-medium text-foreground truncate" title={it.name}>{it.name}</p>
             {it.privateKind && (
               <span className="text-[11px] font-medium text-muted-foreground bg-surface-muted border border-border rounded-full px-2 py-0.5 whitespace-nowrap">
-                Riêng của Agent · {PRIVATE_KIND_LABEL[it.privateKind]}
+                Riêng của Nhân sự số · {PRIVATE_KIND_LABEL[it.privateKind]}
               </span>
             )}
             <ResourceTypePill type={it.type} />

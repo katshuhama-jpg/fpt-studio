@@ -19,7 +19,7 @@ export default function ConditionNode({ id, data, selected }: NodeProps<Conditio
     : data.type === "llm"
       ? data.llmText
       : data.type === "agent-judgment"
-        ? (data.llmText.trim() || "Agent tự quyết định")
+        ? (data.llmText.trim() || "Nhân sự số tự quyết định")
         : `${data.rules.length} điều kiện`;
 
   // Exactly two visual states: warn (empty/unconfigured — including the post-publish "invalid"

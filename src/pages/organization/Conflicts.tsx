@@ -66,7 +66,7 @@ function ResolveModal({ conflict, onClose }: { conflict: Conflict; onClose: () =
           Member <span className="font-semibold text-foreground">{member?.name ?? conflict.memberId}</span> is in a different unit between the manually managed data and the Auto Sync data.
         </p>
         <CompareRow
-          leftLabel="Currently in Agent Console"
+          leftLabel="Hiện có trong Space"
           leftValue={currentUnit ? unitPathLabel(tree, currentUnit.id) : "-"}
           rightLabel="From Auto Sync (FPT Identity)"
           rightValue={syncedUnit ? unitPathLabel(tree, syncedUnit.id) : "-"}
@@ -103,10 +103,10 @@ function ResolveModal({ conflict, onClose }: { conflict: Conflict; onClose: () =
     body = (
       <>
         <p className="text-sm text-muted-foreground mb-4">
-          Auto Sync is proposing a unit named <span className="font-semibold text-foreground">"{conflict.incomingUnitName}"</span> - Matching the name of a unit that already exists in Agent Console, but under a different branch of the organization.
+          Auto Sync is proposing a unit named <span className="font-semibold text-foreground">"{conflict.incomingUnitName}"</span> - Matching the name of a unit that already exists in Space, but under a different branch of the organization.
         </p>
         <CompareRow
-          leftLabel="Already in Agent Console"
+          leftLabel="Đã có trong Space"
           leftValue={existingUnit ? unitPathLabel(tree, existingUnit.id) : "-"}
           rightLabel="Proposed by Auto Sync"
           rightValue={incomingParent ? `${unitPathLabel(tree, incomingParent.id)} › ${conflict.incomingUnitName}` : conflict.incomingUnitName}
@@ -145,7 +145,7 @@ function ResolveModal({ conflict, onClose }: { conflict: Conflict; onClose: () =
     body = (
       <>
         <p className="text-sm text-muted-foreground mb-4">
-          Auto Sync no longer sees member <span className="font-semibold text-foreground">{member?.name ?? conflict.memberId}</span> in the source system (FPT Identity), but they're still <span className="font-semibold text-foreground">Active</span> in Agent Console.
+          Auto Sync no longer sees member <span className="font-semibold text-foreground">{member?.name ?? conflict.memberId}</span> in the source system (FPT Identity), but they're still <span className="font-semibold text-foreground">Active</span> in Space.
         </p>
         <div className="rounded-lg border border-destructive/30 bg-destructive-soft/40 p-3">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-destructive mb-1">Current status</div>

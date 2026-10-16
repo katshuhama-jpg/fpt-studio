@@ -44,7 +44,7 @@ function conditionSummary(node: WorkforceNode | undefined): string {
   if (!node || node.data.kind !== "condition") return "-";
   const data = node.data as ConditionNodeData;
   if (data.type === "llm") return data.llmText.trim() || "Chưa cấu hình điều kiện";
-  if (data.type === "agent-judgment") return data.llmText.trim() || "Agent tự quyết định";
+  if (data.type === "agent-judgment") return data.llmText.trim() || "Nhân sự số tự quyết định";
   return data.rules.length > 0 ? `${data.rules.length} điều kiện` : "Chưa cấu hình điều kiện";
 }
 
@@ -144,7 +144,7 @@ function seedRuns(): WorkforceRunRecord[] {
       steps: ["trigger-cskh"],
       edgeIds: [],
       conditionChoices: [],
-      errorReason: "Trigger này chưa kết nối tới Agent nào - Dừng ngay từ bước đầu.",
+      errorReason: "Trigger này chưa kết nối tới Nhân sự số nào - Dừng ngay từ bước đầu.",
     }),
   ];
 }
@@ -169,7 +169,7 @@ function seedSalesQuoteRuns(): WorkforceRunRecord[] {
       edgeIds: ["e-trigger-quote", "e-sales-cond-auto", "e-cond-auto-legal"],
       conditionChoices: [{
         conditionId: "cond-auto",
-        conditionLabel: "Mức chiết khấu Agent đề xuất trong báo giá ở mức 10% trở xuống - Nằm trong thẩm quyền tự phê duyệt của Sales theo chính sách EOS.",
+        conditionLabel: "Mức chiết khấu Nhân sự số đề xuất trong báo giá ở mức 10% trở xuống - Nằm trong thẩm quyền tự phê duyệt của Sales theo chính sách EOS.",
         targetLabel: "AI Agent Pháp chế - Điều khoản hợp đồng",
       }],
     }),
@@ -192,7 +192,7 @@ function seedSalesQuoteRuns(): WorkforceRunRecord[] {
       conditionChoices: [
         {
           conditionId: "cond-escalate",
-          conditionLabel: "Mức chiết khấu Agent đề xuất trong báo giá vượt quá 10% - Ngoài thẩm quyền tự phê duyệt, cần Tài chính kiểm tra và Quản lý phê duyệt.",
+          conditionLabel: "Mức chiết khấu Nhân sự số đề xuất trong báo giá vượt quá 10% - Ngoài thẩm quyền tự phê duyệt, cần Tài chính kiểm tra và Quản lý phê duyệt.",
           targetLabel: "AI Agent Tài chính - Kiểm duyệt chiết khấu",
         },
         {
@@ -218,7 +218,7 @@ function seedSalesQuoteRuns(): WorkforceRunRecord[] {
       edgeIds: ["e-trigger-quote", "e-sales-cond-escalate", "e-cond-escalate-finance"],
       conditionChoices: [{
         conditionId: "cond-escalate",
-        conditionLabel: "Mức chiết khấu Agent đề xuất trong báo giá vượt quá 10% - Ngoài thẩm quyền tự phê duyệt, cần Tài chính kiểm tra và Quản lý phê duyệt.",
+        conditionLabel: "Mức chiết khấu Nhân sự số đề xuất trong báo giá vượt quá 10% - Ngoài thẩm quyền tự phê duyệt, cần Tài chính kiểm tra và Quản lý phê duyệt.",
         targetLabel: "AI Agent Tài chính - Kiểm duyệt chiết khấu",
       }],
       errorReason: "Phan My Ngan đã từ chối - Mức 22% vượt quá khẩu vị rủi ro cho phép trong quý này.",

@@ -114,7 +114,7 @@ export default function CreateSkillModal({ onClose, onSubmit, initialData, curre
                 maxLength={DESC_MAX}
                 value={description}
                 onChange={e => setDescription(e.target.value)}
-                placeholder="Khi nào Agent nên dùng skill này?"
+                placeholder="Khi nào Nhân sự số nên dùng skill này?"
                 className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
               />
             </div>

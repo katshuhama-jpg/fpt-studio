@@ -41,13 +41,13 @@ export default function AgentCapabilitiesModal({ agentId, onClose, onChanged }: 
         <div className="flex items-start justify-between gap-3 px-6 pt-5 pb-4 border-b shrink-0">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold">Agent capabilities</h2>
+              <h2 className="text-lg font-semibold">Khả năng của Nhân sự số</h2>
               <span className="text-xs font-medium tabular-nums rounded-sm px-1.5 py-0.5 bg-muted text-muted-foreground">
                 {onCount}/{capabilities.length}
               </span>
             </div>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Bật/tắt các năng lực mặc định của Agent này.
+              Bật/tắt các năng lực mặc định của Nhân sự số này.
             </p>
           </div>
           <button onClick={onClose} aria-label="Đóng" className="w-8 h-8 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground transition-colors shrink-0">

@@ -9,7 +9,7 @@ const LLM_MAX = 500;
 const CUSTOM_VARIABLE = "__custom__";
 
 const VARIABLES: { key: string; label: string; type: "text" | "number" }[] = [
-  { key: "agent_output", label: "Kết quả cuối (Agent output)", type: "text" },
+  { key: "agent_output", label: "Kết quả cuối (Nhân sự số output)", type: "text" },
   { key: "topic", label: "Chủ đề hội thoại", type: "text" },
   { key: "language", label: "Ngôn ngữ khách hàng", type: "text" },
   { key: "turns", label: "Số lượt hội thoại", type: "number" },
@@ -33,7 +33,7 @@ function ruleVariableType(r: ConditionRule): "text" | "number" {
 
 const APPROVAL_MODE_META: { value: ApprovalMode; label: string; desc: string }[] = [
   { value: "required", label: "Bắt buộc người duyệt", desc: "Luồng dừng lại, chờ người được chọn Duyệt hoặc Từ chối trước khi tiếp tục." },
-  { value: "agent-decide", label: "Để Agent tự quyết", desc: "Agent tự đánh giá - Chỉ dừng chờ người duyệt khi Agent không đủ tự tin." },
+  { value: "agent-decide", label: "Để Nhân sự số tự quyết", desc: "Nhân sự số tự đánh giá - Chỉ dừng chờ người duyệt khi Nhân sự số không đủ tự tin." },
 ];
 
 export default function ConditionDrawer({
@@ -105,7 +105,7 @@ export default function ConditionDrawer({
               onClick={() => setType(t)}
               className={`px-3 h-7 rounded-md text-xs font-medium transition-base ${type === t ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
-              {t === "llm" ? "LLM-based" : t === "rule" ? "Rule-based" : "Agent tự quyết"}
+              {t === "llm" ? "LLM-based" : t === "rule" ? "Rule-based" : "Nhân sự số tự quyết"}
             </button>
           ))}
         </div>
@@ -115,7 +115,7 @@ export default function ConditionDrawer({
         {type === "agent-judgment" ? (
           <>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-sm font-medium">Gợi ý cho Agent (không bắt buộc)</label>
+              <label className="text-sm font-medium">Gợi ý cho Nhân sự số (không bắt buộc)</label>
               <span className="text-xs text-muted-foreground">{llmText.length}/{LLM_MAX}</span>
             </div>
             <textarea
@@ -127,7 +127,7 @@ export default function ConditionDrawer({
               className="ds-textarea"
             />
             <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-              Không có tiêu chí cố định - Agent nguồn tự quyết định có chuyển sang nhánh này hay không dựa trên ngữ cảnh và độ tự tin của chính nó, giống "AI connection" của Relevance AI thay vì một điều kiện tường minh.
+              Không có tiêu chí cố định - Nhân sự số nguồn tự quyết định có chuyển sang nhánh này hay không dựa trên ngữ cảnh và độ tự tin của chính nó, giống "AI connection" của Relevance AI thay vì một điều kiện tường minh.
             </p>
 
             {destinationKind === "agent" && (
@@ -152,7 +152,7 @@ export default function ConditionDrawer({
               className="ds-textarea"
             />
             <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-              Hệ thống dùng mô hình ngôn ngữ để đối chiếu mô tả này với phản hồi và ngữ cảnh gần nhất của Agent nguồn ở mỗi lượt hội thoại.
+              Hệ thống dùng mô hình ngôn ngữ để đối chiếu mô tả này với phản hồi và ngữ cảnh gần nhất của Nhân sự số nguồn ở mỗi lượt hội thoại.
             </p>
 
             {destinationKind === "agent" && (
@@ -241,7 +241,7 @@ export default function ConditionDrawer({
                         )}
                         {custom && (
                           <p className="text-[10.5px] text-muted-foreground mt-1.5 leading-snug">
-                            Lấy giá trị từ output có cấu trúc của Agent nguồn (vd Agent trả JSON có trường <code className="font-mono">{r.variable || "…"}</code>).
+                            Lấy giá trị từ output có cấu trúc của Nhân sự số nguồn (vd Nhân sự số trả JSON có trường <code className="font-mono">{r.variable || "…"}</code>).
                           </p>
                         )}
                       </div>

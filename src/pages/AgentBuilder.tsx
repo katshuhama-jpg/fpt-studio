@@ -149,7 +149,7 @@ const developNav = [
   { id: "knowledge",    label: "Knowledge",      icon: NoteIcon },
   { id: "triggers",     label: "Triggers",       icon: TimeScheduleIcon },
   { id: "versions",     label: "Phiên bản",      icon: HistoryIcon },
-  { id: "sub-agents",   label: "Sub-Agents",     icon: UserMultipleIcon, comingSoon: true, hidden: true },
+  { id: "sub-agents",   label: "Nhân sự số con",     icon: UserMultipleIcon, comingSoon: true, hidden: true },
 ];
 
 const INSIGHTS_SUBTABS = [
@@ -336,12 +336,12 @@ export default function AgentBuilder() {
           <button onClick={() => navigate("/agents")} className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
             <HugeiconsIcon icon={ChevronLeftIcon} size={16} />
           </button>
-          <Link to="/agents" className="text-sm text-muted-foreground hover:text-foreground transition-base">Agents</Link>
+          <Link to="/agents" className="text-sm text-muted-foreground hover:text-foreground transition-base">Nhân sự số</Link>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
-          <p className="text-sm text-muted-foreground max-w-md mb-4">Bạn không có quyền trên Agent này. Liên hệ chủ sở hữu Agent để được cấp quyền.</p>
+          <p className="text-sm text-muted-foreground max-w-md mb-4">Bạn không có quyền trên Nhân sự số này. Liên hệ chủ sở hữu Nhân sự số để được cấp quyền.</p>
           <Link to="/agents" className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base flex items-center">
-            Về danh sách Agent
+            Về danh sách Nhân sự số
           </Link>
         </div>
       </div>
@@ -355,14 +355,14 @@ export default function AgentBuilder() {
         <button onClick={() => navigate("/agents")} className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
           <HugeiconsIcon icon={ChevronLeftIcon} size={16} />
         </button>
-        <Link to="/agents" className="hidden xl:inline text-xs text-muted-foreground hover:text-foreground transition-base shrink-0">Agents</Link>
+        <Link to="/agents" className="hidden xl:inline text-xs text-muted-foreground hover:text-foreground transition-base shrink-0">Nhân sự số</Link>
         <span className="hidden xl:inline text-xs text-muted-foreground/50 shrink-0">/</span>
         {/* Name keeps a minimum width so it never gets squeezed out by the tabs/status on narrow screens (G12). */}
         <div className="flex items-center gap-2 min-w-[140px] max-w-[260px] shrink">
           <div className="w-7 h-7 rounded-md bg-surface-muted border border-border flex items-center justify-center text-base shrink-0">{agent.emoji}</div>
           <span className="font-semibold text-sm truncate">{agent.name}</span>
           {viewOnly && (
-            <span title="Bạn có quyền Chỉ xem trên Agent này." className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded bg-surface-muted text-muted-foreground border border-border shrink-0">
+            <span title="Bạn có quyền Chỉ xem trên Nhân sự số này." className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded bg-surface-muted text-muted-foreground border border-border shrink-0">
               <HugeiconsIcon icon={EyeIcon} size={11} /> Chỉ xem
             </span>
           )}
@@ -418,7 +418,7 @@ export default function AgentBuilder() {
           {!viewOnly && <button
             onClick={() => canPublishAgent && requestPublish()}
             disabled={!canPublishAgent || revokedAll.length > 0}
-            title={!canPublishAgent ? "Bạn không có quyền publish agent này." : revokedAll.length > 0 ? REVOKED_COPY.publishBlocked(revokedAll) : undefined}
+            title={!canPublishAgent ? "Bạn không có quyền publish Nhân sự số này." : revokedAll.length > 0 ? REVOKED_COPY.publishBlocked(revokedAll) : undefined}
             className="btn-primary h-9 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <HugeiconsIcon icon={Rocket01Icon} size={13} /> Publish
@@ -436,7 +436,7 @@ export default function AgentBuilder() {
                 <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded-lg border border-border bg-white shadow-elev py-1">
                   <button
                     disabled={!published || !canPublishAgent}
-                    title={!canPublishAgent ? "Bạn không có quyền publish agent này." : undefined}
+                    title={!canPublishAgent ? "Bạn không có quyền publish Nhân sự số này." : undefined}
                     onClick={() => {
                       setShowAgentMenu(false);
                       setConfirmUnpublish(true);
@@ -458,7 +458,7 @@ export default function AgentBuilder() {
           <AlertDialogHeader>
             <AlertDialogTitle>Gỡ publish "{agent.name}"?</AlertDialogTitle>
             <AlertDialogDescription>
-              Người dùng sẽ không dùng được Agent này nữa (đang live {publishState.version}) và Agent chuyển sang Đã gỡ. Muốn dùng lại, bạn publish lại hoặc khôi phục một bản đã được duyệt trong Phiên bản.
+              Người dùng sẽ không dùng được Nhân sự số này nữa (đang live {publishState.version}) và Nhân sự số chuyển sang Đã gỡ. Muốn dùng lại, bạn publish lại hoặc khôi phục một bản đã được duyệt trong Phiên bản.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -469,7 +469,7 @@ export default function AgentBuilder() {
                 agentPublishStore.unpublish(id);
                 setPublishTick(t => t + 1);
                 setConfirmUnpublish(false);
-                toast.success(`Đã gỡ publish "${agent.name}". Người dùng không còn dùng được Agent này.`);
+                toast.success(`Đã gỡ publish "${agent.name}". Người dùng không còn dùng được Nhân sự số này.`);
               }}
             >
               Gỡ publish
@@ -571,7 +571,7 @@ export default function AgentBuilder() {
             <HugeiconsIcon icon={SparklesIcon} size={14} />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold text-foreground">🎉 Your first agent is ready</div>
+            <div className="text-sm font-semibold text-foreground">🎉 Nhân sự số đầu tiên của bạn đã sẵn sàng</div>
             <div className="text-xs text-muted-foreground truncate">
               Try chatting on the right, or tweak knowledge & tools below.
             </div>
@@ -751,7 +751,7 @@ export default function AgentBuilder() {
         {/* Content + Preview — locked for a view-only member (Insights stays browsable). */}
         <div
           className={`flex-1 flex overflow-hidden ${lockContent ? "agent-view-only" : ""}`}
-          title={lockContent ? "Bạn chỉ xem được Agent này." : undefined}
+          title={lockContent ? "Bạn chỉ xem được Nhân sự số này." : undefined}
           onClickCapture={e => { if (lockContent && !isAllowed(e.target)) { e.preventDefault(); e.stopPropagation(); } }}
           onPointerDownCapture={e => { if (lockContent && !isAllowed(e.target)) { e.preventDefault(); e.stopPropagation(); } }}
           onMouseDownCapture={e => { if (lockContent && !isAllowed(e.target)) { e.preventDefault(); e.stopPropagation(); } }}
@@ -872,7 +872,7 @@ function AiBuildSidebar({
     if (lower.includes("gmail") || lower.includes("email") || lower.includes("outlook")) {
       const svc = lower.includes("outlook") ? "Outlook" : "Gmail";
       await runTool(`check_connector_auth("${svc}")`);
-      streamAi(`The agent needs access to ${svc} to send and read email on your behalf. Please confirm the connection below.`);
+      streamAi(`Nhân sự số cần quyền truy cập ${svc} to send and read email on your behalf. Please confirm the connection below.`);
       await new Promise(r => setTimeout(r, 800));
       push({
         kind: "connector",
@@ -890,11 +890,11 @@ function AiBuildSidebar({
     await runTool(`analyze_request("${msg.slice(0, 22)}…")`);
     push({
       kind: "clarify",
-      question: `"${msg.slice(0, 32)}${msg.length > 32 ? "…" : ""}" - How should the agent handle this?`,
+      question: `"${msg.slice(0, 32)}${msg.length > 32 ? "…" : ""}" - Nhân sự số nên xử lý thế nào?`,
       options: [
-        { icon: "bolt", title: "Fully autonomous", desc: "Agent decides on its own, no need to ask further" },
-        { icon: "eye", title: "Propose, you approve", desc: "Agent drafts a proposal, you approve before it's applied" },
-        { icon: "hand-stop", title: "Only when asked", desc: "Agent waits for a specific instruction from the user" },
+        { icon: "bolt", title: "Fully autonomous", desc: "Nhân sự số tự quyết, không cần hỏi thêm" },
+        { icon: "eye", title: "Propose, you approve", desc: "Nhân sự số soạn đề xuất, bạn duyệt rồi mới áp dụng" },
+        { icon: "hand-stop", title: "Only when asked", desc: "Nhân sự số chờ hướng dẫn cụ thể từ người dùng" },
       ],
     });
   };
@@ -904,12 +904,12 @@ function AiBuildSidebar({
     await new Promise(r => setTimeout(r, 400));
     const replies = [
       "Got it - Fully autonomous mode. Updating instructions:",
-      "Understood - The agent will draft proposals before applying them:",
-      "OK - The agent will wait for instructions, no autonomy:",
+      "Đã hiểu - Nhân sự số sẽ soạn đề xuất trước khi áp dụng:",
+      "OK - Nhân sự số sẽ chờ hướng dẫn, không tự quyết:",
     ];
     streamAi(idx === -1 ? `Got it - "${answer.slice(0, 55)}". I'll configure this based on your request:` : replies[idx]);
     await new Promise(r => setTimeout(r, 600));
-    push({ kind: "diff", before: "Current agent behavior.", after: idx === -1 ? answer.slice(0, 80) : ["Act autonomously without confirmation.", "Always draft a proposal for user review before applying.", "Only act when explicitly instructed."][idx] });
+    push({ kind: "diff", before: "Cách Nhân sự số đang hoạt động.", after: idx === -1 ? answer.slice(0, 80) : ["Act autonomously without confirmation.", "Always draft a proposal for user review before applying.", "Only act when explicitly instructed."][idx] });
   };
 
   const handleConnectorConnect = (service: string) =>
@@ -929,7 +929,7 @@ function AiBuildSidebar({
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold leading-tight">Refine với AI</div>
-          <div className="text-xs text-muted-foreground leading-tight">Chat to edit your agent</div>
+          <div className="text-xs text-muted-foreground leading-tight">Chat để chỉnh Nhân sự số</div>
         </div>
         <button onClick={onClose} className="h-8 w-8 rounded-md hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base">
           <HugeiconsIcon icon={Cancel01Icon} size={15} />
@@ -1038,7 +1038,7 @@ function AiBuildSidebar({
                     <span className="text-lg">{msg.logo}</span>
                   )}
                 </div>
-                <div><div className="text-xs font-medium">{msg.service}</div><div className="text-xs text-muted-foreground">The agent needs access to perform tasks on your behalf.</div></div>
+                <div><div className="text-xs font-medium">{msg.service}</div><div className="text-xs text-muted-foreground">Nhân sự số cần quyền truy cập để làm việc thay bạn.</div></div>
               </div>
               <div className="text-xs font-medium mb-1.5">Permissions requested:</div>
               {msg.perms.map((p, pi) => <div key={pi} className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><HugeiconsIcon icon={CheckmarkCircle01Icon} size={10} className="text-success" />{p}</div>)}
@@ -1094,7 +1094,7 @@ function AiBuildSidebar({
 
 /* ============ GENERAL ============ */
 const MODELS = [
-  { id: "deepseek-v4-flash", name: "DeepSeek V4 Flash", desc: "Fast, cost-efficient model for most agent workloads.", badge: "Recommended", icon: "⚡" },
+  { id: "deepseek-v4-flash", name: "DeepSeek V4 Flash", desc: "Model nhanh, tiết kiệm, hợp với phần lớn việc của Nhân sự số.", badge: "Recommended", icon: "⚡" },
   { id: "glm-5-1",           name: "GLM 5.1",           desc: "Most capable model for hard reasoning.",             badge: "Powerful",     icon: "🧠" },
   { id: "deepseek-v4",       name: "DeepSeek V4",        desc: "Balanced performance and cost.",                    badge: "",             icon: "✨" },
   { id: "qwen-turbo",        name: "Qwen Turbo",         desc: "Ultra-fast responses, great for simple tasks.",    badge: "Fast",         icon: "🚀" },
@@ -1263,7 +1263,7 @@ function GeneralTab({ agentId, onRefineWithAI, onChatToTest, previewCollapsed, o
             <input
               className="w-full text-base font-semibold bg-transparent border border-transparent rounded-md px-2 py-0.5 -mx-2 outline-none hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base"
               defaultValue={initialName}
-              placeholder="Agent name…"
+              placeholder="Tên Nhân sự số…"
             />
             <input
               className="w-full text-sm text-muted-foreground bg-transparent border border-transparent rounded-md px-2 py-0.5 -mx-2 outline-none hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base truncate"
@@ -1348,7 +1348,7 @@ function GeneralTab({ agentId, onRefineWithAI, onChatToTest, previewCollapsed, o
             value={instructions}
             onChange={onInstructionsChange}
             onAdd={goAdd}
-            placeholder="Write your agent instructions here… Type / to insert a Skill, Tool, or Knowledge file."
+            placeholder="Viết hướng dẫn cho Nhân sự số ở đây… Gõ / để chèn Skill, Tool hoặc file Knowledge."
             className="w-full bg-transparent border border-transparent rounded-xl px-3 py-3 -mx-3 text-sm leading-relaxed hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base font-sans min-h-[160px]"
           />
         )}
@@ -1602,7 +1602,7 @@ function AgentKbCard({ icon, name, description, onOpen, menu, scope, revoked }: 
           scope.empty ? (
             <Tooltip delayDuration={200}>
               <TooltipTrigger asChild><span className="chip chip-warning min-w-0 truncate">Chưa chọn mục nào</span></TooltipTrigger>
-              <TooltipContent className="max-w-xs">Các mục đã chọn không còn trong kho. Chọn lại phạm vi để Agent tiếp tục tra cứu.</TooltipContent>
+              <TooltipContent className="max-w-xs">Các mục đã chọn không còn trong kho. Chọn lại phạm vi để Nhân sự số tiếp tục tra cứu.</TooltipContent>
             </Tooltip>
           ) : <span className="chip chip-muted min-w-0 truncate">{scope.label}</span>
         )}
@@ -1636,7 +1636,7 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
  * - Rename / "Ai được dùng" / "Agent trả lời cho ai" / delete a KB: its owner, and only if
  *   their Role has Build / Publish / Delete for Knowledge.
  * Messages explain which of the two is missing. */
-const NO_AGENT_BUILD = "Bạn chưa có quyền chỉnh sửa Agent này.";
+const NO_AGENT_BUILD = "Bạn chưa có quyền chỉnh sửa Nhân sự số này.";
 function kbActionBlocks(kb: { ownerId: string; agentOnlyFor?: string; sharing?: { mode: string } }, kbAccess: ReturnType<typeof useGroupAccess>, agentLevel?: "owner" | "edit" | "view" | null) {
   const isOwner = kb.ownerId === KB_CURRENT_USER.id;
   const spaceAdmin = kbAccess.hasPermission("manage") && kbAccess.scopeOf("manage") === "all";
@@ -1644,7 +1644,7 @@ function kbActionBlocks(kb: { ownerId: string; agentOnlyFor?: string; sharing?: 
   // like their owner. A knowledge base from the Space library is view-and-use only.
   const collaborator = !isOwner && !spaceAdmin && agentLevel === "edit";
   const notMine = !kb.agentOnlyFor && !spaceAdmin
-    ? "Kho tri thức của Space - Bạn chỉ xem và dùng được trong Agent này."
+    ? "Kho tri thức của Space - Bạn chỉ xem và dùng được trong Nhân sự số này."
     : collaborator ? undefined : "Chỉ chủ sở hữu mới có thể sửa kho tri thức này.";
   return {
     edit: !isOwner ? notMine : !kbAccess.hasPermission("manage") ? "Vai trò của bạn chưa có quyền sửa kho tri thức." : undefined,
@@ -1750,8 +1750,8 @@ function AgentKnowledgeGrid({ agentId }: { agentId: string }) {
     <div className="p-8 w-full space-y-8 animate-fade-up">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="font-display text-xl font-semibold">Tri thức của Agent</h2>
-          <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">Kho tri thức Agent này dùng để tra cứu khi trả lời. Gồm kho riêng của Agent và kho liên kết từ Space.</p>
+          <h2 className="font-display text-xl font-semibold">Tri thức của Nhân sự số</h2>
+          <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">Kho tri thức Nhân sự số này dùng để tra cứu khi trả lời. Gồm kho riêng của Nhân sự số và kho liên kết từ Space.</p>
           {revokedKbCount > 0 && <div className="mt-3 max-w-2xl"><RevokedBanner count={revokedKbCount} /></div>}
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -1775,9 +1775,9 @@ function AgentKnowledgeGrid({ agentId }: { agentId: string }) {
       </div>
 
       <div>
-        {sectionHeader("Kho tri thức riêng của Agent", filteredOwn.length)}
+        {sectionHeader("Kho tri thức riêng của Nhân sự số", filteredOwn.length)}
         {ownKbs.length === 0 ? (
-          emptyBox("Chưa có kho tri thức riêng", "Tạo kho tri thức để thêm tài liệu, website và câu hỏi thường gặp chỉ Agent này dùng.")
+          emptyBox("Chưa có kho tri thức riêng", "Tạo kho tri thức để thêm tài liệu, website và câu hỏi thường gặp chỉ Nhân sự số này dùng.")
         ) : filteredOwn.length === 0 ? noMatch : (
           <div className={GRID}>{filteredOwn.map(renderCardFor)}</div>
         )}
@@ -1841,7 +1841,7 @@ function AgentKnowledgeGrid({ agentId }: { agentId: string }) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Gỡ liên kết kho tri thức?</AlertDialogTitle>
-            <AlertDialogDescription>Agent sẽ không còn tra cứu được nội dung trong kho này. Kho tri thức vẫn được giữ nguyên.</AlertDialogDescription>
+            <AlertDialogDescription>Nhân sự số sẽ không còn tra cứu được nội dung trong kho này. Kho tri thức vẫn được giữ nguyên.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
@@ -1945,10 +1945,10 @@ function AdvancedTab() {
     { id: "opening", label: "Opening questions", desc: "Suggested first messages shown to users." },
     { id: "suggest", label: "Auto-suggestion", desc: "Follow-up prompts surfaced after each reply." },
     { id: "ref", label: "Show references", desc: "Display source citations alongside answers." },
-    { id: "convo", label: "Conversation memory", desc: "How long the agent remembers context." },
-    { id: "topics", label: "Topics", desc: "Restrict the agent to defined topic areas." },
+    { id: "convo", label: "Conversation memory", desc: "Nhân sự số nhớ ngữ cảnh trong bao lâu." },
+    { id: "topics", label: "Topics", desc: "Giới hạn Nhân sự số trong các chủ đề đã định." },
     { id: "reminders", label: "Reminders", desc: "Scheduled nudges and re-engagement." },
-    { id: "auth", label: "Credentials", desc: "Per-agent secrets and API tokens." },
+    { id: "auth", label: "Credentials", desc: "Secret và API token riêng của Nhân sự số." },
   ];
   return (
     <div className="p-8 w-full animate-fade-up">
@@ -2058,15 +2058,15 @@ function PublishAgentModal({ onClose, onPublish }: {
   const options = [
     {
       id: "workspace" as const, icon: UserGroupIcon, label: "Everyone in the Workspace",
-      desc: "Anyone in the Workspace can use this Agent once published.",
+      desc: "Mọi người trong Workspace dùng được Nhân sự số này sau khi publish.",
     },
     {
       id: "org" as const, icon: Building02Icon, label: "Company / Department", badge: "Coming soon", disabled: true,
-      desc: "Choose specific employees in your org to use this agent.",
+      desc: "Chọn nhân viên cụ thể trong tổ chức được dùng Nhân sự số này.",
     },
     {
       id: "me" as const, icon: UserIcon, label: "Only me",
-      desc: "Only you can use it - The agent goes straight to My Agents in the Workspace.",
+      desc: "Chỉ bạn dùng được - Nhân sự số vào thẳng mục Nhân sự số của tôi trong Workspace.",
     },
   ];
 
@@ -2077,8 +2077,8 @@ function PublishAgentModal({ onClose, onPublish }: {
         {/* Header */}
         <div className="flex items-start justify-between px-6 pt-6 pb-1">
           <div>
-            <h2 className="text-xl font-bold">Publish agent</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Choose who can use this Agent</p>
+            <h2 className="text-xl font-bold">Publish Nhân sự số</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">Chọn ai được dùng Nhân sự số này</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
             <HugeiconsIcon icon={Cancel01Icon} size={18} />
@@ -2171,10 +2171,10 @@ function PublishSuccessModal({ url, onClose }: { url: string; onClose: () => voi
           <h2 className="text-xl font-bold text-success">Published successfully</h2>
           <HugeiconsIcon icon={CheckmarkCircle01Icon} size={22} className="text-success" />
         </div>
-        <p className="text-sm text-muted-foreground mb-6">Your agent has been published to Agent Workspace.</p>
+        <p className="text-sm text-muted-foreground mb-6">Nhân sự số đã được publish lên Workspace.</p>
 
         <div className="w-full text-left mb-6">
-          <p className="text-sm font-semibold mb-2">Share the public link on Agent Workspace</p>
+          <p className="text-sm font-semibold mb-2">Chia sẻ link công khai trên Workspace</p>
           <div className="flex items-center gap-2">
             <div className="flex-1 h-11 px-3.5 rounded-xl border border-border bg-surface-muted flex items-center text-sm text-muted-foreground truncate">
               {url}
@@ -2470,7 +2470,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
           {tab === "config" ? (
             <div className="px-6 py-5">
               <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-                Configure live chat integration for your business website by setting up allowed domains. You can then use the URL to interact directly with the Agent or embed the integration script into your website.
+                Cấu hình live chat cho website doanh nghiệp bằng cách khai báo các domain được phép. Sau đó dùng URL để trò chuyện trực tiếp với Nhân sự số hoặc nhúng script vào website.
               </p>
 
               {/* Whitelist domains */}
@@ -2509,7 +2509,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
               {/* URL */}
               <div className="mb-6">
                 <p className="text-sm font-semibold mb-1">URL</p>
-                <p className="text-xs text-muted-foreground italic mb-3">Share this URL with the users to interact with your Agent.</p>
+                <p className="text-xs text-muted-foreground italic mb-3">Gửi URL này cho người dùng để trò chuyện với Nhân sự số.</p>
                 <div className="flex items-center gap-2">
                   <div className="flex-1 h-11 px-3.5 rounded-xl border border-border bg-surface-muted flex items-center text-sm text-muted-foreground truncate font-mono">
                     {url}
@@ -2799,7 +2799,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                                 This is a carousel message.
                               </div>
                               <div className="flex gap-2 overflow-x-auto pb-1">
-                                {[{ title: "Visa Credit Card", sub: "Up to 5% cashback", color: theme.brand }, { title: "24/7 Support", sub: "Talk to an agent", color: "#F5A623" }].map((c, i) => (
+                                {[{ title: "Visa Credit Card", sub: "Up to 5% cashback", color: theme.brand }, { title: "24/7 Support", sub: "Nói chuyện với nhân viên hỗ trợ", color: "#F5A623" }].map((c, i) => (
                                   <div key={i} className="shrink-0 rounded-lg border border-border bg-white overflow-hidden" style={{ width: "132px" }}>
                                     <div className="h-14 flex items-center justify-center text-[9px] font-bold text-white text-center px-2 leading-tight" style={{ background: c.color }}>{c.title}</div>
                                     <div className="p-2 flex flex-col gap-1">
@@ -2910,7 +2910,7 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
       resourceType: "agent", resourceId: agentId, resourceName: getAgent(agentId).name,
       note: `Tắt kênh ${getChannelName(id)}`, at: Date.now(),
     });
-    toast.success(`Đã tắt ${getChannelName(id)}. Agent không còn nhận tin nhắn từ kênh này.`);
+    toast.success(`Đã tắt ${getChannelName(id)}. Nhân sự số không còn nhận tin nhắn từ kênh này.`);
     refresh();
   };
 
@@ -2944,7 +2944,7 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
         </div>
         <div>
           <h1 className="text-xl font-semibold">Kênh triển khai</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Agent đang chạy ở đâu và người dùng đang dùng phiên bản nào.</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Nhân sự số đang chạy ở đâu và người dùng đang dùng phiên bản nào.</p>
         </div>
       </div>
 
@@ -2986,7 +2986,7 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-foreground mb-1">Automation</p>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Agent tự chạy theo {agentTriggers.length} trigger đã cài trong Console, cho cả tổ chức. Không ai cài Agent này vào Workspace hay chat trực tiếp với nó.
+                  Nhân sự số tự chạy theo {agentTriggers.length} trigger đã cài trong Space, cho cả tổ chức. Không ai cài Nhân sự số này vào Workspace hay chat trực tiếp với nó.
                 </p>
                 {onViewTriggers && (
                   <button type="button" onClick={onViewTriggers} className="text-sm font-semibold text-primary hover:underline mt-2">
@@ -3000,7 +3000,7 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
       ) : (
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-3">
-            <h2 className="text-lg font-semibold">Agent Workspace</h2>
+            <h2 className="text-lg font-semibold">Workspace</h2>
             {published && recipients.length === 0 ? (
               <span className="text-sm text-muted-foreground">Đang live cho: <span className="text-foreground font-medium">{publishState.scopeSummary ?? "Chỉ mình tôi"}</span></span>
             ) : recipients.length > 0 ? (
@@ -3035,14 +3035,14 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
               <div className="w-12 h-12 rounded-xl bg-surface-muted flex items-center justify-center mb-4">
                 <HugeiconsIcon icon={Share08Icon} size={20} className="text-muted-foreground" />
               </div>
-              <h3 className="text-base font-semibold mb-1.5">Chưa ai dùng được Agent này</h3>
+              <h3 className="text-base font-semibold mb-1.5">Chưa ai dùng được Nhân sự số này</h3>
               <p className="text-sm text-muted-foreground max-w-sm mb-5 leading-relaxed">
                 Publish cho một nhóm nhỏ trước, rồi mở rộng dần.
               </p>
               <button
                 onClick={() => canPublishAgent && (onOpenPublish ? onOpenPublish() : setShowPublish(true))}
                 disabled={!canPublishAgent}
-                title={!canPublishAgent ? "Bạn không có quyền publish agent này." : undefined}
+                title={!canPublishAgent ? "Bạn không có quyền publish Nhân sự số này." : undefined}
                 className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Publish
@@ -3096,7 +3096,7 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">{c.name}</p>
                   <p className={`text-xs truncate ${live ? "text-success" : pending ? "text-warning" : "text-muted-foreground"}`}>
-                    {c.available === false ? "Sắp có" : !published ? "Publish Agent trước để bật kênh" : live ? `Live · ${servingVersion}` : pending ? "Chờ duyệt bật kênh" : "Chưa bật"}
+                    {c.available === false ? "Sắp có" : !published ? "Publish Nhân sự số trước để bật kênh" : live ? `Live · ${servingVersion}` : pending ? "Chờ duyệt bật kênh" : "Chưa bật"}
                   </p>
                 </div>
                 {!unavailable && (
@@ -3127,8 +3127,8 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {channelConfirm?.mode === "on"
-                ? `Kênh ngoài đưa Agent ra ngoài Agent Workspace nên cần Admin duyệt trước khi hoạt động. Bản live ${servingVersion} và phạm vi Workspace giữ nguyên.`
-                : `Agent sẽ ngừng nhận tin nhắn từ kênh này ngay. Muốn bật lại sẽ cần gửi duyệt.`}
+                ? `Kênh ngoài đưa Nhân sự số ra ngoài Workspace nên cần Admin duyệt trước khi hoạt động. Bản live ${servingVersion} và phạm vi Workspace giữ nguyên.`
+                : `Nhân sự số sẽ ngừng nhận tin nhắn từ kênh này ngay. Muốn bật lại sẽ cần gửi duyệt.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -3238,7 +3238,7 @@ function RightConfigPanel({ embedded, model, onModelChange }: { embedded?: boole
       </div>
       {/* Knowledge */}
       <ConfigSection icon={BookOpen01Icon} title="Knowledge" badge={<span className="text-xs text-warning font-medium mr-1">Not set</span>}>
-        <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Documents and sources your agent can look things up in.</p>
+        <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Tài liệu và nguồn Nhân sự số tra cứu được.</p>
         <button className="flex items-center gap-1 text-xs text-primary hover:underline"><HugeiconsIcon icon={Add01Icon} size={12} /> Add</button>
       </ConfigSection>
       {/* Skills */}
@@ -3248,7 +3248,7 @@ function RightConfigPanel({ embedded, model, onModelChange }: { embedded?: boole
       </ConfigSection>
       {/* Shared Connectors */}
       <ConfigSection icon={UserCheck01Icon} title="Shared Connectors">
-        <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Agent always uses the same account, no matter who's asking.</p>
+        <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Nhân sự số luôn dùng cùng một tài khoản, dù ai hỏi.</p>
         <ConnectorItem logo="G" name="Google Docs" connected color="bg-primary-soft text-primary" />
         <button className="flex items-center gap-1 text-xs text-primary hover:underline mt-1"><HugeiconsIcon icon={Add01Icon} size={12} /> Add connection</button>
       </ConfigSection>
@@ -3262,11 +3262,11 @@ function RightConfigPanel({ embedded, model, onModelChange }: { embedded?: boole
       <GuardrailsConfigSection />
       {/* Schedules */}
       <ConfigSection icon={Clock01Icon} title="Schedules" badge={<span className="text-xs text-warning font-medium mr-1">Not set</span>}>
-        <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Run this agent automatically - Like a daily summary.</p>
+        <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Chạy Nhân sự số này tự động - Ví dụ bản tóm tắt hằng ngày.</p>
         <button className="flex items-center gap-1 text-xs text-primary hover:underline"><HugeiconsIcon icon={Add01Icon} size={12} /> Add</button>
       </ConfigSection>
       {/* Sub-Agents */}
-      <ConfigSection icon={Robot01Icon} title="Sub-Agents" badge={<span className="text-xs text-muted-foreground mr-1">1 subagent</span>}>
+      <ConfigSection icon={Robot01Icon} title="Nhân sự số con" badge={<span className="text-xs text-muted-foreground mr-1">1 subagent</span>}>
         <div className="flex items-center gap-2 py-1 mb-1">
           <div className="w-6 h-6 rounded-lg bg-surface-muted border border-border flex items-center justify-center shrink-0"><HugeiconsIcon icon={Robot01Icon} size={12} className="text-muted-foreground" /></div>
           <div className="flex-1 min-w-0">
@@ -3329,7 +3329,7 @@ function SharedConnectorsCard() {
       </button>
       {open && (
         <div className="border-t border-border px-3 pb-2">
-          <p className="text-xs text-muted-foreground mt-2 mb-2 leading-relaxed">Agent always uses the same account, no matter who's asking.</p>
+          <p className="text-xs text-muted-foreground mt-2 mb-2 leading-relaxed">Nhân sự số luôn dùng cùng một tài khoản, dù ai hỏi.</p>
           <div className="flex items-center gap-2 py-1.5">
             <div className="w-5 h-5 rounded bg-primary-soft flex items-center justify-center text-xs font-bold text-primary shrink-0">G</div>
             <span className="text-xs flex-1">Google Docs</span>
@@ -3385,7 +3385,7 @@ function SchedulesCard() {
       </button>
       {open && (
         <div className="border-t border-border px-3 pb-2">
-          <p className="text-xs text-muted-foreground mt-2 mb-1 leading-relaxed">No schedules yet. Add one to run this agent automatically - Like a daily summary.</p>
+          <p className="text-xs text-muted-foreground mt-2 mb-1 leading-relaxed">Chưa có lịch nào. Thêm lịch để chạy Nhân sự số này tự động - Ví dụ bản tóm tắt hằng ngày.</p>
           <button className="flex items-center gap-1 text-xs text-primary mt-1 hover:underline">
             <HugeiconsIcon icon={Add01Icon} size={12} /> Add
           </button>
@@ -3401,7 +3401,7 @@ function SubAgentsCard() {
     <div className="rounded-xl border border-border bg-surface overflow-hidden">
       <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-surface-muted transition-base">
         <HugeiconsIcon icon={Robot01Icon} size={15} className="text-muted-foreground shrink-0" />
-        <span className="text-sm font-medium flex-1 text-left">Sub-Agents</span>
+        <span className="text-sm font-medium flex-1 text-left">Nhân sự số con</span>
         <span className="text-xs text-muted-foreground">1 subagent</span>
         {open ? <HugeiconsIcon icon={ChevronUpIcon} size={13} className="text-muted-foreground" /> : <HugeiconsIcon icon={ChevronDownIcon} size={13} className="text-muted-foreground" />}
       </button>
@@ -3526,7 +3526,7 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
 
   const advancedSections = [
     {
-      id: "sub-agents", icon: UserMultipleIcon, label: "Sub-Agents",
+      id: "sub-agents", icon: UserMultipleIcon, label: "Nhân sự số con",
       onAdd: () => subAgentsAddRef.current?.(),
       disabled: !canManageSubAgents,
       content: (
@@ -3541,11 +3541,11 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
       ),
     },
     {
-      id: "agent-card", icon: UserCheck01Icon, label: "Danh thiếp Agent",
+      id: "agent-card", icon: UserCheck01Icon, label: "Danh thiếp Nhân sự số",
       content: <AgentCardBlock agentId={agentId} />,
     },
     {
-      id: "capabilities", icon: BoltIcon, label: "Agent capabilities",
+      id: "capabilities", icon: BoltIcon, label: "Khả năng của Nhân sự số",
       content: <CapabilitiesInner agentId={agentId} />,
     },
   ];
@@ -3718,7 +3718,7 @@ function PreviewPanel({ agentId, view, onViewChange, onConnectionsChange, onClos
           {unavailableForChat.length > 0 && (
             <div role="status" className="mx-3 mt-3 flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive shrink-0">
               <HugeiconsIcon icon={Alert01Icon} size={14} className="shrink-0 mt-px" />
-              <span>{REVOKED_COPY.testChat(unavailableForChat)} Gỡ khỏi Agent để publish được.</span>
+              <span>{REVOKED_COPY.testChat(unavailableForChat)} Gỡ khỏi Nhân sự số để publish được.</span>
             </div>
           )}
           {/* Messages */}
@@ -4060,7 +4060,7 @@ function OrgReachNotice({ count, summary, reviewers }: { count: number; summary:
     <div role="status" className="mt-2 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2">
       <HugeiconsIcon icon={Alert01Icon} size={14} className="text-warning shrink-0 mt-0.5" />
       <div className="min-w-0 text-xs leading-relaxed">
-        <p className="text-foreground"><b>Cần Admin duyệt</b> · Agent sẽ hiển thị cho khoảng {count} người.</p>
+        <p className="text-foreground"><b>Cần Admin duyệt</b> · Nhân sự số sẽ hiển thị cho khoảng {count} người.</p>
         <p className="text-muted-foreground truncate" title={summary}>{summary}</p>
         {reviewers && (
           <p className="text-foreground mt-0.5">
@@ -4277,7 +4277,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
   // Also refuse while a linked Space resource has been revoked (its owner took access away).
   const revokedAtPublish = () => listRevokedResources(agentId);
   const blockedToastMessage = (items: ReturnType<typeof listAgentResourceRefs>) =>
-    `Không thể tiếp tục - Agent đang dùng ${items.length} thành phần đã bị chặn sử dụng trong agent mới: ${items.map(it => it.name).join(", ")}. Vui lòng gỡ thành phần này khỏi Agent trước khi publish.`;
+    `Không thể tiếp tục - Nhân sự số đang dùng ${items.length} thành phần đã bị chặn sử dụng trong Nhân sự số mới: ${items.map(it => it.name).join(", ")}. Vui lòng gỡ thành phần này khỏi Nhân sự số trước khi publish.`;
 
   // G10: a direct (no-review) publish while a request is still pending would let that older
   // request get approved later and roll the Agent back — so it withdraws the pending one first.
@@ -4379,7 +4379,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
     if (effectiveAudience === "org" && !orgNeedsReview) {
       const keep = !publishToOpen && current.placement !== null;
       if (!keep && orgSelection.size === 0) {
-        toast.error("Chọn công ty, phòng ban hoặc người sẽ thấy Agent này.");
+        toast.error("Chọn công ty, phòng ban hoặc người sẽ thấy Nhân sự số này.");
         return;
       }
       { const rv = revokedAtPublish(); if (rv.length > 0) { toast.error(REVOKED_COPY.publishBlocked(rv)); return; } }
@@ -4403,7 +4403,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
           .find(r => (r.kind ?? "publish") === "publish" && r.status === "approved" && r.version === current.version)?.workspaceTargets
       : undefined;
     if (!keepScope && effectiveAudience === "org" && orgSelection.size === 0) {
-      toast.error("Chọn công ty, phòng ban hoặc nhân viên cụ thể sẽ thấy được Agent này trước khi gửi duyệt.");
+      toast.error("Chọn công ty, phòng ban hoặc nhân viên cụ thể sẽ thấy được Nhân sự số này trước khi gửi duyệt.");
       return;
     }
     { const rv = revokedAtPublish(); if (rv.length > 0) { toast.error(REVOKED_COPY.publishBlocked(rv)); return; } }
@@ -4423,7 +4423,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
         : [{ kind: "community", name: "Cộng đồng FPT AI Agent" }],
       ...(!keepScope && effectiveAudience === "org" && orgReviewers ? { reviewUnits: orgReviewers.units, reviewMode: orgReviewers.mode } : {}),
     });
-    toast.success(`Đã gửi yêu cầu duyệt ${versionName}. Agent sẽ được publish khi Admin duyệt - Theo dõi trạng thái ngay trên trang này.`);
+    toast.success(`Đã gửi yêu cầu duyệt ${versionName}. Nhân sự số sẽ được publish khi Admin duyệt - Theo dõi trạng thái ngay trên trang này.`);
     onPublished?.();
     onClose();
   };
@@ -4558,7 +4558,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
             </div>
             <p className="text-sm text-muted-foreground">
               {versionType === "patch" && "Sửa lỗi nhỏ - Các tính năng hiện có giữ nguyên."}
-              {versionType === "minor" && "Thêm tính năng mới, không thay đổi cách Agent đang hoạt động."}
+              {versionType === "minor" && "Thêm tính năng mới, không thay đổi cách Nhân sự số đang hoạt động."}
               {versionType === "major" && "Thay đổi lớn, có thể không tương thích với bản trước."}
             </p>
           </div>
@@ -4575,7 +4575,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
               <textarea
                 rows={3}
                 maxLength={NOTE_MAX}
-                placeholder="Bản này có gì mới? Người dùng Agent sẽ đọc phần này."
+                placeholder="Bản này có gì mới? Người dùng Nhân sự số sẽ đọc phần này."
                 className="w-full px-3 pt-2.5 pb-7 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
                 value={note}
                 onChange={e => setNote(e.target.value)}
@@ -4607,7 +4607,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
             {publishToOpen && (
               <div className="mt-4 pt-4 border-t border-border space-y-4">
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Agent Workspace</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Workspace</p>
                   {hasTrigger && needsSetupCount > 0 && (
                     <p className="text-xs text-warning mb-2">
                       {needsSetupCount} trigger{needsSetupCount > 1 ? "s" : ""} still need setup and won't run after publishing.{" "}
@@ -4632,7 +4632,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
                     <AudienceRadioRow
                       icon={UserIcon}
                       title="Chỉ mình tôi"
-                      description="Chỉ bạn dùng được Agent này. Agent được thêm ngay vào Agents trong Workspace."
+                      description="Chỉ bạn dùng được Nhân sự số này. Nhân sự số được thêm ngay vào Nhân sự số trong Workspace."
                       review="instant"
                       selected={audience === "me"}
                       liveNow={current.placement !== null && currentAudience === "me"}
@@ -4976,7 +4976,7 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
       </div>
       <p className="text-[11px] text-muted-foreground leading-relaxed mb-2">
         {activeScope === "shared"
-          ? "Agent luôn dùng chung một tài khoản workspace, bất kể ai đang thao tác."
+          ? "Nhân sự số luôn dùng chung một tài khoản workspace, bất kể ai đang thao tác."
           : "Mỗi người tự kết nối và sử dụng tài khoản riêng của mình."}
       </p>
       {activeList.length === 0 ? (
@@ -4996,7 +4996,7 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
         <div className="mt-2 flex items-start gap-2 px-3 py-2.5 rounded-lg border border-blue-200 bg-blue-50">
           <HugeiconsIcon icon={InformationCircleIcon} size={14} className="text-blue-600 shrink-0 mt-0.5" />
           <p className="text-xs text-blue-800 leading-relaxed">
-            Agent này có Trigger nên chạy bằng tài khoản Dùng chung. Trigger được setup ở Workspace.
+            Nhân sự số này có Trigger nên chạy bằng tài khoản Dùng chung. Trigger được setup ở Workspace.
           </p>
         </div>
       )}
@@ -5042,7 +5042,7 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
               <div className="mt-1 flex items-start gap-2 px-3 py-2.5 rounded-xl border border-warning/25 bg-[hsl(var(--warning-soft))]">
                 <HugeiconsIcon icon={Alert01Icon} size={13} className="shrink-0 mt-0.5 text-warning" />
                 <p className="text-[11px] text-warning leading-relaxed">
-                  Agent đang có Trigger nên chỉ dùng được kết nối Dùng chung.
+                  Nhân sự số đang có Trigger nên chỉ dùng được kết nối Dùng chung.
                 </p>
               </div>
             )}
@@ -5112,7 +5112,7 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Gỡ liên kết "{detachConnTarget?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>Agent sẽ không còn dùng kết nối này. Kết nối vẫn được giữ nguyên trong thư viện Connectors.</AlertDialogDescription>
+            <AlertDialogDescription>Nhân sự số sẽ không còn dùng kết nối này. Kết nối vẫn được giữ nguyên trong thư viện Connectors.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
@@ -5241,7 +5241,7 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
       {total === 0 ? (
         <EmptyStateBox
           icon={PuzzleIcon}
-          description="Năng lực Agent dùng lại được khi làm việc."
+          description="Năng lực Nhân sự số dùng lại được khi làm việc."
           addLabel="Thêm kỹ năng"
           onAdd={e => {
             const r = e.currentTarget.getBoundingClientRect();
@@ -5276,7 +5276,7 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
 
           {items.length > 0 && (
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Skills riêng của Agent</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Skills riêng của Nhân sự số</div>
               <div className="flex flex-col gap-1.5">
                 {items.map(s => (
                   <div
@@ -5380,7 +5380,7 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Gỡ liên kết skill?</AlertDialogTitle>
-            <AlertDialogDescription>Agent sẽ không còn dùng được skill này. Skill vẫn được giữ nguyên trên Console.</AlertDialogDescription>
+            <AlertDialogDescription>Nhân sự số sẽ không còn dùng được skill này. Skill vẫn được giữ nguyên trên Space.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
@@ -5398,7 +5398,7 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Xóa skill này?</AlertDialogTitle>
-            <AlertDialogDescription>Skill sẽ bị xóa vĩnh viễn khỏi Agent. Hành động này không thể hoàn tác.</AlertDialogDescription>
+            <AlertDialogDescription>Skill sẽ bị xóa vĩnh viễn khỏi Nhân sự số. Hành động này không thể hoàn tác.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
@@ -5481,7 +5481,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       // Same Của tôi / Được chia sẻ pills as the Kho tri thức library (+ creator for someone
       // else's KB); a KB the viewer only reaches through this Agent keeps its own wording.
       chip: kb.ownerId !== KB_CURRENT_USER.id && !kbCanSeeAll && !isKbAccessibleTo(kb, KB_CURRENT_USER.id) ? (
-        <span className="chip chip-muted">{kbAccess.hasPermission("manage") && !kbCollaborator ? "Sửa được qua Agent này" : "Chỉ xem trong Agent"} · {kb.ownerName}</span>
+        <span className="chip chip-muted">{kbAccess.hasPermission("manage") && !kbCollaborator ? "Sửa được qua Nhân sự số này" : "Chỉ xem trong Nhân sự số"} · {kb.ownerName}</span>
       ) : (() => {
         const tags = ownershipTags({ ownerId: kb.ownerId, sharing: kb.sharing, userId: KB_CURRENT_USER.id });
         return (
@@ -5518,12 +5518,12 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
   const menuItems = [
     {
       label: "Liên kết kho tri thức có sẵn",
-      description: "Dùng chung một kho tri thức đã có với Agent khác",
+      description: "Dùng chung một kho tri thức đã có với Nhân sự số khác",
       onClick: () => setShowAttach(true),
     },
     {
       label: "Tạo kho tri thức",
-      description: "Kho tri thức riêng cho Agent này",
+      description: "Kho tri thức riêng cho Nhân sự số này",
       onClick: goCreateNew,
     },
   ];
@@ -5533,7 +5533,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       {rows.length === 0 ? (
         <EmptyStateBox
           icon={BookOpen01Icon}
-          description="Nguồn tri thức Agent tra cứu khi trả lời."
+          description="Nguồn tri thức Nhân sự số tra cứu khi trả lời."
           addLabel="Thêm tri thức"
           onAdd={e => {
             const r = e.currentTarget.getBoundingClientRect();
@@ -5552,7 +5552,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
               icon={row.icon}
               name={row.name}
               revoked={row.revoked}
-              chip={row.scope ? <span className="flex items-center gap-1.5 min-w-0 flex-wrap">{row.chip}<span className={`chip shrink-0 ${row.scope.empty ? "chip-warning" : "chip-muted"}`} title={row.scope.empty ? "Các mục đã chọn không còn trong kho. Chọn lại phạm vi để Agent tiếp tục tra cứu." : undefined}>{row.scope.label}</span></span> : row.chip}
+              chip={row.scope ? <span className="flex items-center gap-1.5 min-w-0 flex-wrap">{row.chip}<span className={`chip shrink-0 ${row.scope.empty ? "chip-warning" : "chip-muted"}`} title={row.scope.empty ? "Các mục đã chọn không còn trong kho. Chọn lại phạm vi để Nhân sự số tiếp tục tra cứu." : undefined}>{row.scope.label}</span></span> : row.chip}
               onOpen={row.open}
               onRemove={row.remove}
               onShare={row.share}
@@ -5617,7 +5617,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
             <AlertDialogDescription>
               {detachIsOwn
                 ? `Kho "${detachTarget?.name}" cùng toàn bộ tài liệu, website và câu hỏi thường gặp bên trong sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.`
-                : "Agent sẽ không còn tra cứu được nội dung trong kho này. Kho tri thức vẫn được giữ nguyên."}
+                : "Nhân sự số sẽ không còn tra cứu được nội dung trong kho này. Kho tri thức vẫn được giữ nguyên."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -5652,7 +5652,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Xóa nguồn tri thức này?</AlertDialogTitle>
-            <AlertDialogDescription>Nội dung cùng các đoạn đã xử lý sẽ bị xóa vĩnh viễn khỏi Agent. Hành động này không thể hoàn tác.</AlertDialogDescription>
+            <AlertDialogDescription>Nội dung cùng các đoạn đã xử lý sẽ bị xóa vĩnh viễn khỏi Nhân sự số. Hành động này không thể hoàn tác.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
@@ -5713,7 +5713,7 @@ function validateSubAgentName(raw: string, existingNames: string[]): string | un
   if (!v) return "Name is required.";
   if (v.length < 3 || v.length > 50) return "Name must be 3–50 characters.";
   if (!SUB_AGENT_NAME_PATTERN.test(v)) return "Use lowercase letters, numbers, and hyphens only, e.g. candidate-email-sender.";
-  if (existingNames.includes(v.toLowerCase())) return "A sub-agent with this name already exists.";
+  if (existingNames.includes(v.toLowerCase())) return "Đã có Nhân sự số con trùng tên.";
   return undefined;
 }
 
@@ -5863,7 +5863,7 @@ function AddCustomMcpModal({ onClose, onCreated }: { onClose: () => void; onCrea
         <div className="flex items-start justify-between px-6 pt-6 pb-2 shrink-0">
           <div>
             <h2 className="text-lg font-semibold">Thêm MCP tuỳ chỉnh</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Kết nối một MCP server để cấp công cụ cho agent.</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Kết nối một MCP server để cấp công cụ cho Nhân sự số.</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
             <HugeiconsIcon icon={Cancel01Icon} size={16} />
@@ -6045,7 +6045,7 @@ function ConnectorPickerModal({ connectors, customConnectors, apiTools, added, o
                 </button>
               )}
             </div>
-            <p className="text-sm text-muted-foreground mt-0.5">Những gì agent này có thể làm.</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Những gì Nhân sự số này có thể làm.</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
             <HugeiconsIcon icon={Cancel01Icon} size={16} />
@@ -6302,8 +6302,8 @@ function CreateSubAgentModal({ onClose, onSave, initial, existingNames }: {
             {/* Header */}
             <div className="flex items-start justify-between px-6 pt-6 pb-4 shrink-0 border-b border-border">
               <div>
-                <h2 className="text-lg font-semibold">{editing ? "Edit sub-agent" : "Create sub-agent"}</h2>
-                <p className="text-sm text-muted-foreground mt-0.5">A specialized agent this agent can delegate tasks to.</p>
+                <h2 className="text-lg font-semibold">{editing ? "Sửa Nhân sự số con" : "Tạo Nhân sự số con"}</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">Nhân sự số chuyên trách mà Nhân sự số này giao việc được.</p>
               </div>
               <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
                 <HugeiconsIcon icon={Cancel01Icon} size={16} />
@@ -6345,7 +6345,7 @@ function CreateSubAgentModal({ onClose, onSave, initial, existingNames }: {
 
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-foreground">Instructions (agent.md)</label>
+                  <label className="text-xs font-semibold text-foreground">Hướng dẫn (agent.md)</label>
                   <button
                     type="button"
                     onClick={() => setEditingInstructions(true)}
@@ -6383,7 +6383,7 @@ function CreateSubAgentModal({ onClose, onSave, initial, existingNames }: {
                     className="w-full rounded-xl border-2 border-dashed border-border flex flex-col items-center justify-center gap-1.5 py-5 text-center hover:bg-surface-muted transition-base"
                   >
                     <HugeiconsIcon icon={ConnectIcon} size={18} className="text-muted-foreground/50" />
-                    <span className="text-xs text-muted-foreground">The outside accounts and systems this sub-agent may use.</span>
+                    <span className="text-xs text-muted-foreground">Tài khoản và hệ thống bên ngoài Nhân sự số con này được dùng.</span>
                   </button>
                 ) : (
                   <div className="flex flex-col gap-1.5">
@@ -6434,7 +6434,7 @@ function CreateSubAgentModal({ onClose, onSave, initial, existingNames }: {
                 onClick={handleSave}
                 className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-base"
               >
-                {editing ? "Save changes" : "Create sub-agent"}
+                {editing ? "Save changes" : "Tạo Nhân sự số con"}
               </button>
             </div>
           </>
@@ -6456,7 +6456,7 @@ function DeleteSubAgentDialog({ name, open, onOpenChange, onConfirm, onPauseInst
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete sub-agent?</AlertDialogTitle>
+          <AlertDialogTitle>Xóa Nhân sự số con?</AlertDialogTitle>
           <AlertDialogDescription>
             This will permanently delete "{name}" and its configuration. This can't be undone.
           </AlertDialogDescription>
@@ -6544,7 +6544,7 @@ function SubAgentRowMenu({ paused, canManage, canPause, canDelete, onEdit, onTog
         type="button"
         onClick={() => (open ? setOpen(false) : openMenu())}
         className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base shrink-0"
-        aria-label="Sub-agent actions"
+        aria-label="Thao tác với Nhân sự số con"
       >
         <HugeiconsIcon icon={MoreHorizontalIcon} size={13} />
       </button>
@@ -6555,10 +6555,10 @@ function SubAgentRowMenu({ paused, canManage, canPause, canDelete, onEdit, onTog
           style={{ top: pos.top, bottom: pos.bottom, left: pos.left }}
           onMouseDown={e => e.stopPropagation()}
         >
-          {item("Edit", onEdit, canManage, "You don't have permission to edit sub-agents.")}
+          {item("Edit", onEdit, canManage, "Bạn không có quyền sửa Nhân sự số con.")}
           {item(paused ? "Activate" : "Deactivate", onTogglePause, canPause, `You don't have permission to ${paused ? "activate" : "deactivate"} sub-agents.`)}
           <div className="h-px bg-border my-1" />
-          {item("Delete", onDelete, canDelete, "You don't have permission to delete sub-agents.", true)}
+          {item("Delete", onDelete, canDelete, "Bạn không có quyền xóa Nhân sự số con.", true)}
         </div>,
         document.body
       )}
@@ -6588,7 +6588,7 @@ function SubAgentsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) =>
     setSubAgents(prev => prev.map(x => {
       if (x.id !== id) return x;
       const next = x.status === "paused" ? "active" : "paused";
-      toast.success(next === "paused" ? "Sub-agent deactivated" : "Sub-agent activated");
+      toast.success(next === "paused" ? "Đã tắt Nhân sự số con" : "Đã bật Nhân sự số con");
       return { ...x, status: next };
     }));
   };
@@ -6636,7 +6636,7 @@ function SubAgentsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) =>
           <button
             onClick={() => canManage && setShowCreate(true)}
             disabled={!canManage}
-            title={!canManage ? "You don't have permission to add sub-agents." : undefined}
+            title={!canManage ? "Bạn không có quyền thêm Nhân sự số con." : undefined}
             className="w-full h-9 rounded-lg border-2 border-dashed border-border flex items-center justify-center gap-1.5 text-sm font-medium text-primary hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <HugeiconsIcon icon={Add01Icon} size={14} /> Add subagent
@@ -6717,7 +6717,7 @@ function StarterPromptModal({ initial, onClose, onSave, onDelete }: {
         <div className="flex items-start justify-between px-6 pt-6 pb-2 shrink-0">
           <div>
             <h2 className="text-lg font-semibold">{initial ? "Edit Starter Prompt" : "Add Starter Prompt"}</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Shown to help people start a conversation with this agent.</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Hiện ra để giúp mọi người bắt đầu trò chuyện với Nhân sự số này.</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
             <HugeiconsIcon icon={Cancel01Icon} size={16} />
@@ -6854,7 +6854,7 @@ function CapabilitiesInner({ agentId }: { agentId: string }) {
       <div className="rounded-xl border border-border bg-surface overflow-hidden">
         <div className="flex items-center gap-2 px-3.5 py-3">
           <HugeiconsIcon icon={BoltIcon} size={16} className="text-foreground shrink-0" />
-          <span className="text-sm font-semibold flex-1">Agent capabilities</span>
+          <span className="text-sm font-semibold flex-1">Khả năng của Nhân sự số</span>
           <span className="text-sm text-muted-foreground tabular-nums shrink-0">{onCount}/{capabilities.length}</span>
           <button
             onClick={() => setShowEditor(true)}
@@ -7099,8 +7099,8 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
     <div className="p-8 w-full space-y-8 animate-fade-up">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="font-display text-xl font-semibold">Guardrail của Agent</h2>
-          <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">Giới hạn những điều Agent không được làm - Chặn chủ đề nhạy cảm, bảo vệ dữ liệu và giữ lại các hành động rủi ro để duyệt trước.</p>
+          <h2 className="font-display text-xl font-semibold">Guardrail của Nhân sự số</h2>
+          <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">Giới hạn những điều Nhân sự số không được làm - Chặn chủ đề nhạy cảm, bảo vệ dữ liệu và giữ lại các hành động rủi ro để duyệt trước.</p>
           {revokedGuardrailCount > 0 && <div className="mt-3 max-w-2xl"><RevokedBanner count={revokedGuardrailCount} /></div>}
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -7115,15 +7115,15 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
 
       <div>
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-xs font-bold uppercase tracking-wide text-foreground">Áp dụng cho mọi Agent</span>
+          <span className="text-xs font-bold uppercase tracking-wide text-foreground">Áp dụng cho mọi Nhân sự số</span>
           <span className="min-w-[20px] h-5 px-1 rounded-full bg-surface-muted text-muted-foreground text-xs font-semibold flex items-center justify-center">{appliedAllGuardrails.length}</span>
           <div className="flex-1 h-px bg-border" />
         </div>
-        <p className="text-xs text-muted-foreground -mt-1 mb-3">Được áp dụng cho tất cả Agent trong Space. Các guardrail này luôn chạy trên Agent, bạn chỉ xem được, không tắt hay gỡ được.</p>
+        <p className="text-xs text-muted-foreground -mt-1 mb-3">Được áp dụng cho tất cả Nhân sự số trong Space. Các guardrail này luôn chạy trên Nhân sự số, bạn chỉ xem được, không tắt hay gỡ được.</p>
         {appliedAllGuardrails.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border p-8 text-center">
-            <p className="text-sm font-medium mb-1">Chưa có guardrail nào áp dụng cho mọi Agent</p>
-            <p className="text-xs text-muted-foreground">Khi một guardrail được áp dụng cho mọi Agent trong Space, guardrail đó sẽ hiện ở đây.</p>
+            <p className="text-sm font-medium mb-1">Chưa có guardrail nào áp dụng cho mọi Nhân sự số</p>
+            <p className="text-xs text-muted-foreground">Khi một guardrail được áp dụng cho mọi Nhân sự số trong Space, guardrail đó sẽ hiện ở đây.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -7150,7 +7150,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
                   <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 flex-1">{g.desc}</p>
                   <div className="flex items-center justify-between mt-1 text-xs">
                     <span className="inline-flex items-center gap-1 font-medium text-primary">
-                      <HugeiconsIcon icon={SquareLock01Icon} size={12} /> Áp dụng cho mọi Agent
+                      <HugeiconsIcon icon={SquareLock01Icon} size={12} /> Áp dụng cho mọi Nhân sự số
                     </span>
                     {!g.enabled && <span className="text-muted-foreground">Đang tạm dừng</span>}
                   </div>
@@ -7163,14 +7163,14 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
 
       <div>
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-xs font-bold uppercase tracking-wide text-foreground">Guardrail riêng của Agent</span>
+          <span className="text-xs font-bold uppercase tracking-wide text-foreground">Guardrail riêng của Nhân sự số</span>
           <span className="min-w-[20px] h-5 px-1 rounded-full bg-surface-muted text-muted-foreground text-xs font-semibold flex items-center justify-center">{items.length}</span>
           <div className="flex-1 h-px bg-border" />
         </div>
         {items.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border p-8 text-center">
-            <p className="text-sm font-medium mb-1">Agent này chưa có guardrail riêng nào</p>
-            <p className="text-xs text-muted-foreground">Tạo một guardrail để giới hạn những gì Agent được phép trả lời.</p>
+            <p className="text-sm font-medium mb-1">Nhân sự số này chưa có guardrail riêng nào</p>
+            <p className="text-xs text-muted-foreground">Tạo một guardrail để giới hạn những gì Nhân sự số được phép trả lời.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -7221,7 +7221,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
             // "Áp dụng cho mọi Agent" makes it a Space-wide guardrail, so it's created in the
             // Console library (not as this Agent's private one) and shows up read-only in every
             // Agent's "Áp dụng cho mọi Agent" section, this one included.
-            if (g.allAgents) { guardrailConsoleStore.create(g); toast.success("Đã tạo guardrail và áp dụng cho mọi Agent."); }
+            if (g.allAgents) { guardrailConsoleStore.create(g); toast.success("Đã tạo guardrail và áp dụng cho mọi Nhân sự số."); }
             else agentGuardrailStore.create(agentId, g);
             refresh();
           }}
@@ -7251,7 +7251,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Gỡ liên kết "{detachTarget?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>Agent này sẽ ngừng áp dụng guardrail này. Guardrail vẫn được giữ nguyên trong workspace.</AlertDialogDescription>
+            <AlertDialogDescription>Nhân sự số này sẽ ngừng áp dụng guardrail này. Guardrail vẫn được giữ nguyên trong workspace.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy</AlertDialogCancel>
@@ -7269,7 +7269,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Xóa "{deleteTarget?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>Guardrail này sẽ bị xóa vĩnh viễn khỏi Agent. Không thể hoàn tác.</AlertDialogDescription>
+            <AlertDialogDescription>Guardrail này sẽ bị xóa vĩnh viễn khỏi Nhân sự số. Không thể hoàn tác.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy</AlertDialogCancel>
@@ -7350,7 +7350,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
             * only (see agentContextAccess.tsx) — say so, and whose it is. */}
           {!revoked && s.ownerId && s.sharing && s.ownerId !== accessUserId && !skillsAccess.canSeeAll && !isSkillAccessibleTo(s.sharing, s.ownerId, accessUserId) && (
             <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-              <HugeiconsIcon icon={EyeIcon} size={12} className="shrink-0" /> {skillsAccess.hasPermission("manage") && !skillCollaborator ? "Sửa được qua Agent này" : "Chỉ xem trong Agent"} · {s.ownerName}
+              <HugeiconsIcon icon={EyeIcon} size={12} className="shrink-0" /> {skillsAccess.hasPermission("manage") && !skillCollaborator ? "Sửa được qua Nhân sự số này" : "Chỉ xem trong Nhân sự số"} · {s.ownerName}
             </p>
           )}
         </div>
@@ -7387,8 +7387,8 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
     <div className="p-8 w-full space-y-8 animate-fade-up">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="font-display text-xl font-semibold">Kỹ năng của Agent</h2>
-          <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">Tập hợp hướng dẫn, tài nguyên và mã thực thi mà Agent tải khi cần.</p>
+          <h2 className="font-display text-xl font-semibold">Kỹ năng của Nhân sự số</h2>
+          <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">Tập hợp hướng dẫn, tài nguyên và mã thực thi mà Nhân sự số tải khi cần.</p>
           {revokedSkillCount > 0 && <div className="mt-3 max-w-2xl"><RevokedBanner count={revokedSkillCount} /></div>}
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -7403,9 +7403,9 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
 
       {/* Agent-only — created here, owned here, editable here. */}
       <div>
-        {sectionHeader("Kỹ năng riêng của Agent", items.length)}
+        {sectionHeader("Kỹ năng riêng của Nhân sự số", items.length)}
         {items.length === 0 ? (
-          emptyBox("Agent này chưa có kỹ năng riêng nào", "Tạo một kỹ năng để trang bị thêm năng lực cho Agent này.")
+          emptyBox("Nhân sự số này chưa có kỹ năng riêng nào", "Tạo một kỹ năng để trang bị thêm năng lực cho Nhân sự số này.")
         ) : (
           <div className={GRID}>
             {items.map(s => renderSkillCard(s, (
@@ -7457,7 +7457,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
           </button>
         ))}
         <p className="text-sm text-muted-foreground -mt-1 mb-3">
-          Kỹ năng mà mọi Agent đều có sẵn. Tắt một kỹ năng thì Agent sẽ ngừng dùng kỹ năng đó.
+          Kỹ năng mà mọi Nhân sự số đều có sẵn. Tắt một kỹ năng thì Nhân sự số sẽ ngừng dùng kỹ năng đó.
           {builtinsOffCount > 0 && ` Đã tắt ${builtinsOffCount}/${builtinSkills.length}.`}
         </p>
         <div className={GRID}>
@@ -7544,7 +7544,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Tắt {builtinOffTarget?.name}?</AlertDialogTitle>
-            <AlertDialogDescription>Agent sẽ ngừng dùng kỹ năng này cho đến khi bạn bật lại.</AlertDialogDescription>
+            <AlertDialogDescription>Nhân sự số sẽ ngừng dùng kỹ năng này cho đến khi bạn bật lại.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy</AlertDialogCancel>
@@ -7563,7 +7563,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Khôi phục kỹ năng mặc định?</AlertDialogTitle>
             <AlertDialogDescription>
-              Mọi kỹ năng tích hợp sẵn sẽ được bật lại cho Agent này. Kỹ năng riêng và kỹ năng đã liên kết của bạn không bị ảnh hưởng.
+              Mọi kỹ năng tích hợp sẵn sẽ được bật lại cho Nhân sự số này. Kỹ năng riêng và kỹ năng đã liên kết của bạn không bị ảnh hưởng.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -7587,7 +7587,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Gỡ liên kết "{detachTarget?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>Agent này sẽ ngừng dùng skill này. Skill vẫn được giữ nguyên trong workspace.</AlertDialogDescription>
+            <AlertDialogDescription>Nhân sự số này sẽ ngừng dùng skill này. Skill vẫn được giữ nguyên trong workspace.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-white border border-border text-foreground hover:bg-surface-muted">Hủy</AlertDialogCancel>
@@ -7605,7 +7605,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Xóa "{deleteTarget?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>Skill này sẽ bị xóa vĩnh viễn khỏi Agent. Không thể hoàn tác.</AlertDialogDescription>
+            <AlertDialogDescription>Skill này sẽ bị xóa vĩnh viễn khỏi Nhân sự số. Không thể hoàn tác.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-white border border-border text-foreground hover:bg-surface-muted">Hủy</AlertDialogCancel>
@@ -7700,7 +7700,7 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
       {rows.length === 0 ? (
         <EmptyStateBox
           icon={Shield01Icon}
-          description="Giới hạn giúp Agent trả lời an toàn."
+          description="Giới hạn giúp Nhân sự số trả lời an toàn."
           addLabel="Thêm guardrail"
           onAdd={e => {
             const r = e.currentTarget.getBoundingClientRect();
@@ -7749,7 +7749,7 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
             // "Áp dụng cho mọi Agent" makes it a Space-wide guardrail, so it's created in the
             // Console library (not as this Agent's private one) and shows up read-only in every
             // Agent's "Áp dụng cho mọi Agent" section, this one included.
-            if (g.allAgents) { guardrailConsoleStore.create(g); toast.success("Đã tạo guardrail và áp dụng cho mọi Agent."); }
+            if (g.allAgents) { guardrailConsoleStore.create(g); toast.success("Đã tạo guardrail và áp dụng cho mọi Nhân sự số."); }
             else agentGuardrailStore.create(agentId, g);
             refresh();
           }}
@@ -7766,7 +7766,7 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Gỡ liên kết guardrail?</AlertDialogTitle>
-            <AlertDialogDescription>Agent sẽ không còn áp dụng guardrail này. Guardrail vẫn được giữ nguyên trên Console.</AlertDialogDescription>
+            <AlertDialogDescription>Nhân sự số sẽ không còn áp dụng guardrail này. Guardrail vẫn được giữ nguyên trên Space.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
@@ -7784,7 +7784,7 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Xóa guardrail này?</AlertDialogTitle>
-            <AlertDialogDescription>Guardrail sẽ bị xóa vĩnh viễn khỏi Agent. Hành động này không thể hoàn tác.</AlertDialogDescription>
+            <AlertDialogDescription>Guardrail sẽ bị xóa vĩnh viễn khỏi Nhân sự số. Hành động này không thể hoàn tác.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
@@ -7849,7 +7849,7 @@ function TriggersInner({ agentId, onRegisterAdd, onConnectionsChange }: { agentI
     const trimmed = newName.trim();
     if (!trimmed || trimmed === t.name) { setRenamingId(null); return; }
     if (triggerStore.isDuplicateName(agentId, trimmed, t.id)) {
-      toast.error("Agent này đã có trigger dùng tên này. Hãy chọn tên khác.");
+      toast.error("Nhân sự số này đã có trigger dùng tên này. Hãy chọn tên khác.");
       return;
     }
     triggerStore.update(agentId, t.id, { name: trimmed });
@@ -7862,7 +7862,7 @@ function TriggersInner({ agentId, onRegisterAdd, onConnectionsChange }: { agentI
       {triggers.length === 0 ? (
         <EmptyStateBox
           icon={TimeScheduleIcon}
-          description="Agent tự động chạy theo lịch, webhook hoặc sự kiện từ ứng dụng."
+          description="Nhân sự số tự động chạy theo lịch, webhook hoặc sự kiện từ ứng dụng."
           addLabel="Thêm Trigger"
           onAdd={openCreate}
           disabled={personalConnectorBlocked}
@@ -8051,7 +8051,7 @@ function TriggerRowMenu({ enabled, needsSetup, duplicateBlocked, enableBlocked, 
                   Bật trigger
                 </span>
               </TooltipTrigger>
-              <TooltipContent side="left" sideOffset={8} align="center">Agent đang dùng kết nối riêng - Xử lý việc này trước khi bật trigger.</TooltipContent>
+              <TooltipContent side="left" sideOffset={8} align="center">Nhân sự số đang dùng kết nối riêng - Xử lý việc này trước khi bật trigger.</TooltipContent>
             </Tooltip>
           ) : (
             <button type="button" onClick={() => { onToggle(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">

@@ -38,7 +38,7 @@ export default function Login() {
             <Sparkles size={11} /> Setup takes less than 2 minutes
           </div>
           <h1 className="font-display text-5xl font-semibold tracking-tight text-balance leading-[1.05] mb-4">
-            Build AI agents <br /> for your team.
+            Tạo Nhân sự số <br /> for your team.
           </h1>
           <p className="text-base text-muted-foreground max-w-md">
             Automate workflows, connect your tools, and create reusable AI assistants - All in one workspace.
@@ -46,7 +46,7 @@ export default function Login() {
 
           <div className="mt-12 grid gap-3 max-w-sm">
             {[
-              { icon: Bot, label: "Drag-and-drop agent builder" },
+              { icon: Bot, label: "Tạo Nhân sự số bằng kéo thả" },
               { icon: BookOpen, label: "Plug in your knowledge base" },
               { icon: Wrench, label: "Connect 50+ business tools" },
             ].map(({ icon: Icon, label }) => (
@@ -74,7 +74,7 @@ export default function Login() {
         <div className="w-full max-w-md">
           <div className="lg:hidden mb-8 text-center">
             <h1 className="font-display text-3xl font-semibold tracking-tight mb-2">
-              Build AI agents for your team
+              Tạo Nhân sự số cho đội của bạn
             </h1>
             <p className="text-sm text-muted-foreground">
               Automate workflows and ship reusable AI assistants.
@@ -116,7 +116,7 @@ export default function Login() {
             </button>
 
             <p className="text-xs text-muted-foreground text-center mt-6">
-              Next: Tell us about your team → Create your first AI agent
+              Tiếp theo: Giới thiệu về đội của bạn → Tạo Nhân sự số đầu tiên
             </p>
           </div>
 

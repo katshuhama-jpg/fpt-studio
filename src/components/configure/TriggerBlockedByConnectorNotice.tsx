@@ -33,12 +33,12 @@ export default function TriggerBlockedByConnectorNotice({ agentId, onSwitched }:
       <div className="flex items-start gap-2">
         <AlertTriangle size={14} className="shrink-0 mt-0.5 text-warning" />
         <div className="space-y-1.5 min-w-0">
-          <p className="text-xs font-semibold text-foreground">Chưa thêm được Trigger cho agent này</p>
+          <p className="text-xs font-semibold text-foreground">Chưa thêm được Trigger cho Nhân sự số này</p>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Agent đang dùng kết nối Riêng cá nhân ({nameList}). Trigger chạy nền khi không có ai đăng nhập, nên không có tài khoản cá nhân nào để agent dùng.
+            Nhân sự số đang dùng kết nối Riêng cá nhân ({nameList}). Trigger chạy nền khi không có ai đăng nhập, nên không có tài khoản cá nhân nào để Nhân sự số dùng.
           </p>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Muốn giữ kết nối Riêng cá nhân? Mỗi người vẫn có thể tự đặt trigger trên bản agent họ cài trong Workspace.
+            Muốn giữ kết nối Riêng cá nhân? Mỗi người vẫn có thể tự đặt trigger trên bản Nhân sự số họ cài trong Workspace.
           </p>
         </div>
       </div>

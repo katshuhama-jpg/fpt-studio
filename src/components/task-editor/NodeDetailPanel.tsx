@@ -320,7 +320,7 @@ function KnowledgeForm({ cfg, set }: any) {
         </>
       )}
       <Row><Toggle label="Parent-Child merging" checked={cfg.parentChild !== false} onChange={v => set({ parentChild: v })} /></Row>
-      <Row><Label>Source</Label><Select value={cfg.source ?? "Agent Knowledge"} onChange={v => set({ source: v })} options={["Agent Knowledge", "My Storage"]} /></Row>
+      <Row><Label>Source</Label><Select value={cfg.source ?? "Knowledge của Nhân sự số"} onChange={v => set({ source: v })} options={["Knowledge của Nhân sự số", "My Storage"]} /></Row>
       <Row><Label>File filter</Label><Select value={cfg.fileFilter ?? "Disable"} onChange={v => set({ fileFilter: v })} options={["Disable", "Manual"]} /></Row>
       <Row><Label>Metadata filter</Label><Select value={cfg.metadataFilter ?? "Disable"} onChange={v => set({ metadataFilter: v })} options={["Disable", "Manual"]} /></Row>
     </>
@@ -595,7 +595,7 @@ function VarAssignerForm({ cfg, set }: any) {
 function KnowledgeLookupForm({ cfg, set }: any) {
   return (
     <>
-      <Row><Label>Source</Label><Select value={cfg.source ?? "Agent Knowledge"} onChange={v => set({ source: v })} options={["Agent Knowledge", "My Storage"]} /></Row>
+      <Row><Label>Source</Label><Select value={cfg.source ?? "Knowledge của Nhân sự số"} onChange={v => set({ source: v })} options={["Knowledge của Nhân sự số", "My Storage"]} /></Row>
       <Row><Label>File filter</Label><Select value={cfg.fileFilter ?? "Disable"} onChange={v => set({ fileFilter: v })} options={["Disable", "Manual"]} /></Row>
       <Row><Label>Metadata filter</Label><Select value={cfg.metadataFilter ?? "Disable"} onChange={v => set({ metadataFilter: v })} options={["Disable", "Manual"]} /></Row>
       <Row><Label>Aggregation method</Label><Select value={cfg.aggregation ?? "Unique by file name"} onChange={v => set({ aggregation: v })} options={["Unique by file name", "All"]} /></Row>

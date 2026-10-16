@@ -19,7 +19,7 @@ const KIND_HINT: Record<MetricKind, string> = {
   judge: "AI Judge - AI chấm câu trả lời theo tiêu chí bạn viết",
   contains: "Phải chứa - Kiểm tra cụm từ, không dùng LLM",
   equals: "Khớp chính xác - So nguyên văn, không dùng LLM",
-  tool: "Dùng tool - Kiểm tra Agent gọi Skill/Connector, không dùng LLM",
+  tool: "Dùng tool - Kiểm tra Nhân sự số gọi Skill/Connector, không dùng LLM",
 };
 /** Skills + Connectors of the Agent, plus tool names already used as "Tool mong đợi" in its tests. */
 export function agentToolNames(agentId: string): string[] {
@@ -48,7 +48,7 @@ export function MetricsSection({ agentId }: { agentId: string }) {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="font-display text-xl font-semibold">Chỉ số đánh giá</h2>
-          <p className="text-sm text-muted-foreground mt-1">Tiêu chí để chấm câu trả lời của Agent. Tạo một lần, dùng lại cho nhiều bộ test và cho Insights → Quality.</p>
+          <p className="text-sm text-muted-foreground mt-1">Tiêu chí để chấm câu trả lời của Nhân sự số. Tạo một lần, dùng lại cho nhiều bộ test và cho Insights → Quality.</p>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild><button className="btn-primary shrink-0"><HugeiconsIcon icon={Add01Icon} size={14} /> Tạo chỉ số <HugeiconsIcon icon={ArrowDown01Icon} size={14} /></button></DropdownMenuTrigger>
@@ -63,7 +63,7 @@ export function MetricsSection({ agentId }: { agentId: string }) {
               <div><div className="font-medium">Khớp chính xác</div><div className="text-xs text-muted-foreground">Câu trả lời phải giống hệt nội dung mong đợi - Không tốn token</div></div>
             </DropdownMenuItem>
             <DropdownMenuItem className="items-start py-2" onClick={() => create("tool")}>
-              <div><div className="font-medium">Dùng tool</div><div className="text-xs text-muted-foreground">Agent có gọi đúng Skill/Connector, đúng số lần, đúng tham số - Không tốn token</div></div>
+              <div><div className="font-medium">Dùng tool</div><div className="text-xs text-muted-foreground">Nhân sự số có gọi đúng Skill/Connector, đúng số lần, đúng tham số - Không tốn token</div></div>
             </DropdownMenuItem>
             <DropdownMenuItem className="items-start py-2" onClick={() => setView("library")}>
               <div><div className="font-medium">Dùng template</div><div className="text-xs text-muted-foreground">Chọn từ thư viện chỉ số có sẵn</div></div>
@@ -74,7 +74,7 @@ export function MetricsSection({ agentId }: { agentId: string }) {
 
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex gap-1 rounded-lg bg-surface-muted p-0.5" role="tablist">
-          {([["agent", `Của Agent (${metrics.length})`], ["library", `Thư viện template (${TEMPLATE_METRICS.length})`]] as const).map(([id, label]) => (
+          {([["agent", `Của Nhân sự số (${metrics.length})`], ["library", `Thư viện template (${TEMPLATE_METRICS.length})`]] as const).map(([id, label]) => (
             <button key={id} role="tab" aria-selected={view === id} onClick={() => setView(id)}
               className={`px-3 h-8 rounded-md text-sm font-medium transition-base cursor-pointer ${view === id ? "bg-surface shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{label}</button>
           ))}
@@ -87,7 +87,7 @@ export function MetricsSection({ agentId }: { agentId: string }) {
 
       {view === "agent" ? (
         metrics.length === 0 ? (
-          <EmptyState icon={CheckListIcon} title="Agent chưa có chỉ số nào" desc="Bắt đầu với 4 chỉ số chuẩn của FPT: Correctness, Faithfulness, Safety, Style. Bạn chỉnh tiêu chí sau khi thêm.">
+          <EmptyState icon={CheckListIcon} title="Nhân sự số chưa có chỉ số nào" desc="Bắt đầu với 4 chỉ số chuẩn của FPT: Correctness, Faithfulness, Safety, Style. Bạn chỉnh tiêu chí sau khi thêm.">
             <button className="btn-primary" onClick={() => { ["tpl-correctness", "tpl-faithfulness", "tpl-safety", "tpl-style"].forEach(t => evaluationStore.addFromTemplate(agentId, t)); toast.success("Đã thêm 4 chỉ số chuẩn"); }}>Thêm 4 chỉ số chuẩn</button>
             <button className="btn-secondary" onClick={() => setView("library")}>Xem thư viện</button>
           </EmptyState>
@@ -160,7 +160,7 @@ export function MetricsSection({ agentId }: { agentId: string }) {
               </section>
             );
           })}
-          <p className="text-xs text-muted-foreground">Chuẩn FPT: Theo tài liệu AI-Agents Quality Metrics (thang điểm và ngưỡng nghiệm thu QnA). Thư viện mở rộng: Chỉ số phổ biến cho hỏi đáp và dùng tool.</p>
+          <p className="text-xs text-muted-foreground">Chuẩn FPT: Theo tài liệu AI-Nhân sự số Quality Metrics (thang điểm và ngưỡng nghiệm thu QnA). Thư viện mở rộng: Chỉ số phổ biến cho hỏi đáp và dùng tool.</p>
         </div>
       )}
 
@@ -274,7 +274,7 @@ export function MetricEditor({ agentId, metric, onClose, onSaved, stacked }: { a
                     <option value="">Chọn Skill hoặc Connector</option>
                     {agentToolNames(agentId).map(t => <option key={t} value={t}>{t}</option>)}
                   </select></label>
-                <label className="block"><span className="text-sm font-medium">Agent phải gọi</span>
+                <label className="block"><span className="text-sm font-medium">Nhân sự số phải gọi</span>
                   <select className="ds-input mt-1.5" value={m.toolRule ?? "atLeast"} onChange={e => patch({ toolRule: e.target.value as ToolRule })}>
                     {(Object.keys(TOOL_RULE_LABEL) as ToolRule[]).map(r => <option key={r} value={r}>{TOOL_RULE_LABEL[r]}</option>)}
                   </select></label>
@@ -377,7 +377,7 @@ export function MetricEditor({ agentId, metric, onClose, onSaved, stacked }: { a
                 {preview === "done" && (
                   <div className="mt-3 rounded-lg border border-border px-3 py-2.5 text-sm" role="status">
                     <div className="flex items-center gap-2 mb-1"><span className="chip chip-success !py-0.5">{m.levels.find(l => l.pass)?.label ?? "Đạt"}</span><span className="text-xs text-muted-foreground">Giá trị {m.levels.find(l => l.pass)?.value}</span></div>
-                    {m.includeReasoning && <p className="text-muted-foreground">Câu trả lời của Agent đáp ứng tiêu chí "{m.vnName || m.name}" cho câu hỏi này.</p>}
+                    {m.includeReasoning && <p className="text-muted-foreground">Câu trả lời của Nhân sự số đáp ứng tiêu chí "{m.vnName || m.name}" cho câu hỏi này.</p>}
                   </div>
                 )}
               </>
