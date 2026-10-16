@@ -238,9 +238,9 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
     if (addBlocked) return n.length === 1
       ? `${n[0].name} đã có ${levelName(n[0])} từ quyền chung - Hãy chọn mức khác.`
       : "Mọi người đã có quyền này từ quyền chung - Hãy chọn mức khác.";
-    return n.length === 1
-      ? `${n[0].name} đã có ${levelName(n[0])} từ quyền chung nên sẽ không được thêm. Đổi mức hoặc bỏ ${n[0].name}.`
-      : `${n.map(m => m.name).join(", ")} đã có quyền này từ quyền chung nên sẽ không được thêm. Đổi mức hoặc bỏ họ khỏi danh sách.`;
+    if (n.length === 1) return `${n[0].name} đã có ${levelName(n[0])} từ quyền chung, sẽ không được thêm.`;
+    const who = n.length === 2 ? `${n[0].name}, ${n[1].name}` : `${n[0].name} và ${n.length - 1} người khác`;
+    return `${who} đã có quyền này từ quyền chung, sẽ không được thêm.`;
   })();
   const addingOnlyNone = added.length > 0 && added.every(a => a.level === "none");
   /** Drive's "Send": saves the people in the add step right away, then closes. */
@@ -355,9 +355,9 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
               </DialogHeader>
               {searchBox(addPlaceholder)}
               {sameAsGeneral.length > 0 && (
-                <p className="text-xs text-amber-700 -mt-1 flex items-start gap-1.5" role="status">
-                  <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden />
-                  <span>{sameNotice}</span>
+                <p className="text-xs text-amber-700 -mt-1 flex items-center gap-1.5 min-w-0" role="status" title={sameNotice}>
+                  <AlertTriangle size={13} className="shrink-0" aria-hidden />
+                  <span className="truncate">{sameNotice}</span>
                 </p>
               )}
               {!addingOnlyNone && !addBlocked && (
