@@ -55,6 +55,7 @@ const KIND_META: Record<NotificationKind, { icon: typeof Bell; tone: Tone; chip:
   resource_removed: { icon: EyeOff, tone: "warning", chip: "Đã gỡ khỏi Space" },
   agent_shared: { icon: Users, tone: "info", chip: "Được cấp quyền" },
   agent_access_changed: { icon: Users, tone: "info", chip: "Đổi quyền" },
+  agent_admin_unpublished: { icon: Ban, tone: "danger", chip: "Bị gỡ publish" },
 };
 
 /** "Agent của bạn" / "Agent được chia sẻ với bạn" for outcomes; nothing extra for incoming. */
@@ -109,6 +110,7 @@ export function NotificationItem({ n, viewer, onOpen, compact }: { n: AppNotific
         <span className={`block mt-1 text-sm leading-snug line-clamp-2 ${read ? "text-muted-foreground" : "text-foreground"}`}>
           {(n.segments ?? [[n.title]]).map(([t, b], i) => b ? <strong key={i} className={`font-semibold ${read ? "text-foreground/80" : "text-foreground"}`}>{t}</strong> : <span key={i}>{t}</span>)}
         </span>
+        {n.note && <span className="block mt-0.5 text-xs text-muted-foreground line-clamp-2">Lý do: {n.note}</span>}
       </span>
       <span className={`w-2 h-2 rounded-full mt-2 shrink-0 ${read ? "bg-transparent" : "bg-primary"}`} aria-hidden />
     </button>

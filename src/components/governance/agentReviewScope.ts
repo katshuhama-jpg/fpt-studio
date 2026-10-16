@@ -12,8 +12,9 @@
 import { useCallback, useMemo } from "react";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { useOrg } from "@/pages/organization/orgStore";
-import { collectUnits, findPath, type OrgUnit } from "@/pages/organization/orgData";
-import { workspaceTargetsOf, type GovRequest } from "./governanceStore";
+import { collectUnits, findPath, findMemberUnit, type OrgUnit } from "@/pages/organization/orgData";
+import { AGENTS } from "@/components/configure/agentStore";
+import { governanceStore, workspaceTargetsOf, type GovRequest } from "./governanceStore";
 
 /** Seeded requests name their target departments in Vietnamese; the synced org tree names its
  * units in English. Maps those seed names to the org unit they stand for. Requests created in the
@@ -65,4 +66,24 @@ export function useAgentReviewScope() {
   }, [isSpaceAdmin, isUnitAdmin, tree, userId]);
 
   return { isSpaceAdmin, isUnitAdmin, canOpenQueue: isSpaceAdmin || isUnitAdmin, inScope };
+}
+
+/** Who may take a live Nhân sự số down as an Admin ("Gỡ publish" by Admin, confirmed with Tyler
+ * 16/10 for TOVA-6290) - any live version, including direct publishes (Chỉ mình tôi, 1-4 người)
+ * that never went through a request:
+ *   - Space Admin: every Nhân sự số in the Space;
+ *   - Unit Admin: those whose owner sits in their unit (or below), or whose latest approved
+ *     request targets their unit (or below). */
+export function useCanAdminUnpublish(agentId: string | undefined): boolean {
+  const { tree } = useOrg();
+  const { userId } = useMyPermissions();
+  const { isSpaceAdmin, isUnitAdmin, inScope } = useAgentReviewScope();
+  if (!agentId || agentId === "new") return false;
+  if (isSpaceAdmin) return true;
+  if (!isUnitAdmin) return false;
+  const owner = AGENTS.find(a => a.id === agentId)?.ownerId;
+  const ownerUnit = owner ? findMemberUnit(tree, owner) : null;
+  if (ownerUnit && isUnitAdminOf(tree, ownerUnit.id, userId)) return true;
+  const req = governanceStore.listForResource("agent", agentId).find(r => r.status === "approved");
+  return !!req && inScope(req);
 }

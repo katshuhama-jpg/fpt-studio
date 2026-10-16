@@ -101,13 +101,16 @@ import { PendingRequestPill } from "@/components/governance/agentRequestPill";
 import { agentModelStore, modelName } from "@/components/configure/agentModelStore";
 import type { WorkspaceTarget } from "@/components/governance/governanceStore";
 import { formatDateTime as formatGovDateTime } from "@/components/governance/governanceUi";
+import { useCanAdminUnpublish } from "@/components/governance/agentReviewScope";
+import { notificationStore } from "@/components/notifications/notificationStore";
+import { currentPersona } from "@/lib/demoPersona";
 import { collabGroupStore, groupReviewers, recheckAgentGroupPublish, QUICK_SHARE_MAX, ORG_SHARE_REVIEW_MIN, type CollabGroup, type GroupReviewers } from "@/components/configure/collabGroupStore";
 import { resourceBlockStore } from "@/components/governance/resourceBlockStore";
 import { KnowledgeStatusPill } from "@/components/knowledge/knowledgeStatus";
 import AttachConsoleKnowledgeBaseModal from "@/components/knowledge/AttachConsoleKnowledgeBaseModal";
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
 import ShareAgentModal, { useCanShareAgent } from "@/components/configure/ShareAgentModal";
-import { useAgentShareVersion, useAgentAccessLevel, useAgentPerms, useIsAgentCollaborator } from "@/components/configure/agentShareStore";
+import { useAgentShareVersion, useAgentAccessLevel, useAgentPerms, useIsAgentCollaborator, memberById } from "@/components/configure/agentShareStore";
 import ShareAgentItemModal from "@/components/knowledge/ShareAgentItemModal";
 import OrgSharePicker, { orgSelectionSummary } from "@/components/governance/OrgSharePicker";
 import { ACCESS_COPY, RETRIEVAL_COPY } from "@/components/knowledge/QueryScopeSection";
@@ -261,6 +264,8 @@ export default function AgentBuilder() {
   const [showAgentMenu, setShowAgentMenu] = useState(false);
   // "Gỡ publish" is destructive (users lose the Agent right away) - always confirm first.
   const [confirmUnpublish, setConfirmUnpublish] = useState(false);
+  const [unpublishReason, setUnpublishReason] = useState("");
+  const [unpublishReasonError, setUnpublishReasonError] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showShare, setShowShare] = useState(false);
   useAgentShareVersion();
@@ -303,7 +308,12 @@ export default function AgentBuilder() {
   // applies to a real, existing agent; "/agents/new" is governed by "agents.create" instead,
   // which has no Scope dimension.
   const existingAgent = id !== "new" ? AGENTS.find(a => a.id === id) : undefined;
-  const canAccessAgent = !existingAgent || access.canSeeAll || isOwnedOrShared(existingAgent, access.userId);
+  // Space Admin / in-scope Unit Admin may take any live Nhân sự số down (incl. direct publishes),
+  // with a reason the Builder sees. They open it read-only when they have no other access.
+  const canAdminUnpublish = useCanAdminUnpublish(existingAgent?.id);
+  const adminActor = !!existingAgent && canAdminUnpublish && existingAgent.ownerId !== access.userId;
+  const ownerName = (existingAgent?.ownerId && memberById(existingAgent.ownerId)?.name) || "Chủ sở hữu";
+  const canAccessAgent = !existingAgent || access.canSeeAll || isOwnedOrShared(existingAgent, access.userId) || (adminActor && published);
   // Level on this Agent: "Chỉnh sửa" (picked by hand or via Role) can edit and publish even when
   // the Role alone couldn't; "Chỉ xem" reads it, runs Evaluate and exports history.
   // People added to the Agent get exactly the permissions set in Cấp quyền (Theo Vai trò or Tuỳ
@@ -429,7 +439,7 @@ export default function AgentBuilder() {
           >
             <HugeiconsIcon icon={Rocket01Icon} size={13} /> Publish
           </button>}
-          {!viewOnly && <div className="relative">
+          {(!viewOnly || adminActor) && <div className="relative">
             <button
               onClick={() => setShowAgentMenu(o => !o)}
               aria-label="Thao tác khác" aria-haspopup="menu" aria-expanded={showAgentMenu}
@@ -442,25 +452,26 @@ export default function AgentBuilder() {
                 <div className="fixed inset-0 z-10" onClick={() => setShowAgentMenu(false)} />
                 <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded-lg border border-border bg-white shadow-elev py-1">
                   <button
-                    disabled={!published || !canPublishAgent}
-                    title={!canPublishAgent ? "Bạn không có quyền publish Nhân sự số này." : undefined}
+                    disabled={!published || !(canPublishAgent || adminActor)}
+                    title={!(canPublishAgent || adminActor) ? "Bạn không có quyền publish Nhân sự số này." : !published ? "Nhân sự số chưa publish." : undefined}
                     onClick={() => {
                       setShowAgentMenu(false);
+                      setUnpublishReason(""); setUnpublishReasonError(false);
                       setConfirmUnpublish(true);
                     }}
                     className="w-full text-left px-3 py-1.5 text-xs text-foreground hover:bg-surface-muted disabled:text-muted-foreground/50 disabled:cursor-not-allowed"
                   >
                     Gỡ publish
                   </button>
-                  <div className="my-1 h-px bg-border" />
-                  <button
+                  {!viewOnly && <div className="my-1 h-px bg-border" />}
+                  {!viewOnly && <button
                     disabled={!canDeleteAgent}
                     title={!canDeleteAgent ? "Bạn không có quyền xóa Nhân sự số này." : undefined}
                     onClick={() => { setShowAgentMenu(false); setConfirmDelete(true); }}
                     className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-surface-muted disabled:text-muted-foreground/50 disabled:cursor-not-allowed"
                   >
                     Xóa Nhân sự số
-                  </button>
+                  </button>}
                 </div>
               </>
             )}
@@ -474,15 +485,54 @@ export default function AgentBuilder() {
           <AlertDialogHeader>
             <AlertDialogTitle>Gỡ publish "{agent.name}"?</AlertDialogTitle>
             <AlertDialogDescription>
-              Người dùng sẽ không dùng được Nhân sự số này nữa (đang live {publishState.version}) và Nhân sự số chuyển sang Đã gỡ. Muốn dùng lại, bạn publish lại hoặc khôi phục một bản đã được duyệt trong Phiên bản.
+              {adminActor
+                ? <>Người dùng sẽ không dùng được Nhân sự số này nữa (đang live {publishState.version}) và Nhân sự số chuyển sang Đã gỡ. {ownerName} và những người đang build Nhân sự số sẽ nhận thông báo kèm lý do.</>
+                : <>Người dùng sẽ không dùng được Nhân sự số này nữa (đang live {publishState.version}) và Nhân sự số chuyển sang Đã gỡ. Muốn dùng lại, bạn publish lại hoặc khôi phục một bản đã được duyệt trong Phiên bản.</>}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {adminActor && (
+            <div>
+              <label htmlFor="admin-unpublish-reason" className="block text-sm font-medium mb-1.5">Lý do gỡ publish <span className="text-destructive">*</span></label>
+              <textarea
+                id="admin-unpublish-reason"
+                rows={3}
+                autoFocus
+                maxLength={500}
+                value={unpublishReason}
+                onChange={e => { setUnpublishReason(e.target.value); if (e.target.value.trim()) setUnpublishReasonError(false); }}
+                aria-invalid={unpublishReasonError}
+                aria-describedby="admin-unpublish-help"
+                placeholder="Ví dụ: Nhân sự số trả lời sai chính sách mới, tạm dừng để sửa."
+                className={`w-full px-3 py-2.5 rounded-lg border bg-white text-sm outline-none focus:ring-2 transition-base resize-none ${unpublishReasonError ? "border-destructive focus:border-destructive focus:ring-destructive/20" : "border-border focus:border-primary focus:ring-primary/20"}`}
+              />
+              <div id="admin-unpublish-help" className="flex items-start justify-between gap-3 mt-1">
+                <p className={`text-xs ${unpublishReasonError ? "text-destructive" : "text-muted-foreground"}`}>
+                  {unpublishReasonError ? "Nhập lý do để người build biết vì sao Nhân sự số bị gỡ." : "Người build sẽ thấy lý do này."}
+                </p>
+                <span className="text-xs text-muted-foreground tabular-nums shrink-0">{unpublishReason.length}/500</span>
+              </div>
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                agentPublishStore.unpublish(id);
+              onClick={e => {
+                if (adminActor) {
+                  const reason = unpublishReason.trim();
+                  if (!reason) { e.preventDefault(); setUnpublishReasonError(true); return; }
+                  const me = currentPersona();
+                  agentPublishStore.unpublish(id, { byId: me.id, byName: me.name, reason });
+                  notificationStore.push({
+                    kind: "agent_admin_unpublished", actorId: me.id, actorName: me.name,
+                    recipients: [existingAgent!.ownerId, ...(existingAgent!.sharedWith ?? [])].filter((x): x is string => !!x),
+                    title: `${me.name} đã gỡ publish Nhân sự số ${agent.name}`,
+                    segments: [[me.name, true], [" đã gỡ publish Nhân sự số "], [agent.name, true]],
+                    note: reason, href: `/agents/${id}`, resourceId: id,
+                  });
+                } else {
+                  agentPublishStore.unpublish(id);
+                }
                 setPublishTick(t => t + 1);
                 setConfirmUnpublish(false);
                 toast.success(`Đã gỡ publish "${agent.name}". Người dùng không còn dùng được Nhân sự số này.`);
@@ -567,6 +617,33 @@ export default function AgentBuilder() {
       {/* Rejection banner — the Builder's side of a rejected publish request: why, by whom, and
           the way forward. Hidden with "Ẩn" (per session); clicking the red pill brings it back;
           disappears on its own once a newer request is sent. */}
+      {/* Builder's side of an Admin "Gỡ publish": who, when, why - and the way back. Gone once
+          the Nhân sự số is published again. */}
+      {!published && publishState.removedByAdmin && (
+        <div className="px-4 pt-3 shrink-0">
+          <div role="status" className="rounded-xl border border-destructive/20 bg-white shadow-soft flex items-start gap-3 pl-3 pr-2 py-2.5 border-l-[3px] border-l-destructive">
+            <span className="w-8 h-8 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
+              <HugeiconsIcon icon={Alert01Icon} size={16} />
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground">
+                Nhân sự số đã bị gỡ publish
+                <span className="font-normal text-muted-foreground"> · {publishState.removedByAdmin.byName} gỡ lúc {formatGovDateTime(publishState.removedByAdmin.at)}</span>
+              </p>
+              <p className="text-sm text-foreground/80 mt-0.5 leading-relaxed line-clamp-2" title={publishState.removedByAdmin.reason}>“{publishState.removedByAdmin.reason}”</p>
+            </div>
+            {canPublishAgent && (
+              <button
+                onClick={() => requestPublish()}
+                className="h-8 px-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium transition-colors self-center shrink-0"
+              >
+                Sửa &amp; publish lại
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {rejectedGovRequest && showRejectBanner && (
         <div className="px-4 pt-3 shrink-0">
           <div role="status" className="rounded-xl border border-destructive/20 bg-white shadow-soft flex items-start gap-3 pl-3 pr-2 py-2.5 border-l-[3px] border-l-destructive">

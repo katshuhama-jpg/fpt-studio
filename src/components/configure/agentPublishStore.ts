@@ -53,6 +53,10 @@ export interface AgentPublishState {
    * pulled back to pending review (see that function) and this flags why, for the banner on
    * the Agent's own page. Cleared on the request's next approval. */
   needsRegovernance?: { reason: string; unitName: string; overlapPct: number; at: number };
+  /** Set when a Space Admin / in-scope Unit Admin took the live version down ("Gỡ publish" by
+   * Admin, incl. direct publishes that never went through a request). Shown to the Builder as a
+   * banner with the reason; cleared by the next publish. */
+  removedByAdmin?: { byId: string; byName: string; reason: string; at: number };
 }
 
 /** One entry per version that actually went live (direct publish, approved request, or
@@ -148,7 +152,7 @@ export const agentPublishStore = {
     // added after some sessions had already persisted state without it.
     return {
       placement: s.placement, audience: s.audience, channels: s.channels ?? [], version: s.version ?? BASELINE_VERSION,
-      scopeSummary: s.scopeSummary, groupId: s.groupId, groupMemberIds: s.groupMemberIds, reach: s.reach, needsRegovernance: s.needsRegovernance,
+      scopeSummary: s.scopeSummary, groupId: s.groupId, groupMemberIds: s.groupMemberIds, reach: s.reach, needsRegovernance: s.needsRegovernance, removedByAdmin: s.removedByAdmin,
     };
   },
   publish(agentId: string, placement: Placement, channels: string[], version: string, audience?: PublishAudience, extra?: { scopeSummary?: string; groupId?: string; groupMemberIds?: string[]; reach?: number; via?: ReleaseEntry["via"]; byName?: string }) {
@@ -185,10 +189,10 @@ export const agentPublishStore = {
     store.set(agentId, { ...cur, channels });
     persist();
   },
-  unpublish(agentId: string) {
+  unpublish(agentId: string, byAdmin?: { byId: string; byName: string; reason: string }) {
     seedAgent(agentId);
     const cur = this.get(agentId);
-    store.set(agentId, { ...cur, placement: null, channels: [] });
+    store.set(agentId, { ...cur, placement: null, channels: [], removedByAdmin: byAdmin ? { ...byAdmin, at: Date.now() } : undefined });
     persist();
   },
   /** The Agent's own state for users (independent of any publish request):

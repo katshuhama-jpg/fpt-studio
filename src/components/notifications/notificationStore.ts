@@ -32,7 +32,9 @@ export type NotificationKind =
   /** Someone gave you access to an Agent in the Console ("… đã cấp quyền <Mức> cho bạn …"). */
   | "agent_shared"
   /** Your own level on an Agent was raised on the Cấp quyền main screen. */
-  | "agent_access_changed";
+  | "agent_access_changed"
+  /** A Space Admin / Unit Admin took a live Nhân sự số down, with a reason (to owner + collaborators). */
+  | "agent_admin_unpublished";
 
 export interface AppNotification {
   id: string;
@@ -46,6 +48,8 @@ export interface AppNotification {
   title: string;
   /** Same sentence split so names render bold: [text, bold?][]. */
   segments?: [string, boolean?][];
+  /** Extra line under the sentence - e.g. the Admin's reason. */
+  note?: string;
   href: string;
   resourceId?: string;
   resourceIcon?: string;
