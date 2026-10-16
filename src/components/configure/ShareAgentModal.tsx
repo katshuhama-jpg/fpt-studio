@@ -59,29 +59,29 @@ function Avatar({ name, icon }: { name?: string; icon?: React.ReactNode }) {
 }
 
 /** Theo Vai trò / Tuỳ chỉnh / Gỡ quyền. `count` shows "Tuỳ chỉnh · 4/7" on the trigger. */
-function ModeSelect({ mode, count, onPick, picks, ariaLabel, variant = "text" }: {
+function ModeSelect({ mode, count, onPick, picks, ariaLabel, variant = "text", disabled, blocked = [], blockedHint }: {
   mode: "role" | "custom" | "none"; count?: number; onPick: (p: MenuPick) => void; picks: MenuPick[]; ariaLabel: string;
-  variant?: "text" | "inline";
+  variant?: "text" | "inline"; disabled?: boolean; blocked?: MenuPick[]; blockedHint?: string;
 }) {
   const label = mode === "custom" ? `${MODE_COPY.custom.label}${count !== undefined ? ` · ${count}/${ALL_AGENT_PERMS.length}` : ""}`
     : mode === "none" ? "Không có quyền" : MODE_COPY.role.label;
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <button type="button" aria-label={`${ariaLabel}: ${label}`}
-          className={variant === "inline"
+        <button type="button" aria-label={`${ariaLabel}: ${label}`} disabled={disabled}
+          className={`disabled:opacity-60 disabled:cursor-not-allowed ${variant === "inline"
             ? "self-stretch px-3 border-l border-border flex items-center gap-1 text-muted-foreground hover:bg-surface-muted hover:text-foreground rounded-r-lg shrink-0 transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring text-xs font-medium whitespace-nowrap"
-            : `h-8 px-2.5 text-xs rounded-lg border bg-white hover:bg-surface-muted font-medium flex items-center gap-1 whitespace-nowrap shrink-0 transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${mode === "none" ? "border-border text-destructive" : "border-border"}`}>
+            : `h-8 px-2.5 text-xs rounded-lg border bg-white hover:bg-surface-muted font-medium flex items-center gap-1 whitespace-nowrap shrink-0 transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${mode === "none" ? "border-border text-destructive" : "border-border"}`}`}>
           {label}<ChevronDown size={13} className="text-muted-foreground" aria-hidden />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72 p-1">
         {picks.filter(p => p === "role" || p === "custom").map(p => (
-          <DropdownMenuItem key={p} onSelect={() => onPick(p)} className="flex items-start gap-2.5 py-2 cursor-pointer">
+          <DropdownMenuItem key={p} disabled={blocked.includes(p)} onSelect={() => onPick(p)} className="flex items-start gap-2.5 py-2 cursor-pointer">
             <span className="w-4 pt-0.5 shrink-0">{mode === p && <Check size={14} className="text-primary" aria-hidden />}</span>
             <span className="min-w-0">
               <span className="block text-sm font-medium">{MODE_COPY[p].label}</span>
-              <span className="block text-xs text-muted-foreground mt-0.5">{MODE_COPY[p].helper}</span>
+              <span className="block text-xs text-muted-foreground mt-0.5">{blocked.includes(p) && blockedHint ? blockedHint : MODE_COPY[p].helper}</span>
             </span>
           </DropdownMenuItem>
         ))}
@@ -101,8 +101,10 @@ function ModeSelect({ mode, count, onPick, picks, ariaLabel, variant = "text" }:
 }
 
 /** The ticked permissions, always reachable by expanding the row. */
-function PermList({ id, perms, rolePerms, hint, onToggle }: {
+function PermList({ id, perms, rolePerms, hint, onToggle, allowed, readOnly }: {
   id: string; perms: AgentPerm[]; rolePerms?: AgentPerm[]; hint: string; onToggle: (p: AgentPerm, on: boolean) => void;
+  /** Someone granting through "Cấp quyền tiếp" can only tick what they hold themselves. */
+  allowed?: Set<AgentPerm>; readOnly?: boolean;
 }) {
   return (
     <div id={id} role="group" className="mt-1 mb-1 ml-11 rounded-lg border border-border bg-surface-muted px-3 py-2.5 grid sm:grid-cols-2 gap-x-4 gap-y-1.5">
@@ -111,8 +113,9 @@ function PermList({ id, perms, rolePerms, hint, onToggle }: {
         const on = perms.includes(p.id);
         const over = on && rolePerms && !rolePerms.includes(p.id);
         return (
-          <label key={p.id} className="flex items-start gap-2 text-sm cursor-pointer">
-            <input type="checkbox" checked={on} onChange={e => onToggle(p.id, e.target.checked)} className="mt-0.5 w-4 h-4 accent-primary shrink-0" />
+          <label key={p.id} className={`flex items-start gap-2 text-sm ${readOnly || (allowed && !allowed.has(p.id)) ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+            title={!readOnly && allowed && !allowed.has(p.id) ? "Bạn không có quyền này nên không cấp được." : undefined}>
+            <input type="checkbox" checked={on} disabled={readOnly || (allowed && !allowed.has(p.id))} onChange={e => onToggle(p.id, e.target.checked)} className="mt-0.5 w-4 h-4 accent-primary shrink-0" />
             <span className="min-w-0">
               <span className="font-medium">{p.name}</span>
               {over && <span className="ml-1.5 text-[11px] font-semibold text-[hsl(var(--warning-strong))]">Vượt Vai trò</span>}
@@ -147,6 +150,13 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
   const owner = byId.get(agent.ownerId ?? "");
   const iAmOwner = agent.ownerId === userId;
   const roleOf = (id: string) => rolePermsOf(byId.get(id));
+  // Not the owner and not a Space Admin = granting through "Cấp quyền tiếp": capped at own permissions,
+  // can't touch people who hold more, can't change who the Agent is open to (confirmed with Tyler 16/10).
+  const mine = useAgentPerms(agentId);
+  const capped = !iAmOwner && !isSpaceAdmin(byId.get(userId));
+  const allowed: Set<AgentPerm> | undefined = capped ? new Set(mine?.perms ?? []) : undefined;
+  const within = (ps: AgentPerm[]) => !allowed || ps.every(p => allowed.has(p));
+  const BLOCK_HINT = "Vai trò của người này có quyền bạn không có.";
 
   const [saved, setSaved] = useState<AgentShare>(() => agentShareStore.get(agentId));
   const [people, setPeople] = useState<AgentMember[]>(() => saved.people);
@@ -251,7 +261,10 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
   };
 
   // ── Add step ────────────────────────────────────────────────────────────
-  const addedAll: AgentMember[] = adding.map(m => addMode === "none" ? { userId: m.id, mode: "none" } : addMode === "role" ? { userId: m.id, mode: "role" } : fromPerms(m.id, addPerms));
+  const roleOkAll = adding.every(m => within(roleOf(m.id)));
+  const effAddMode = addMode === "role" && !roleOkAll ? "custom" : addMode;
+  const effAddPerms = effAddMode === "custom" && addMode === "role" ? (adding[0] ? roleOf(adding[0].id).filter(p => allowed?.has(p)) : []) : addPerms;
+  const addedAll: AgentMember[] = adding.map(m => effAddMode === "none" ? { userId: m.id, mode: "none" } : effAddMode === "role" ? { userId: m.id, mode: "role" } : fromPerms(m.id, effAddPerms.length ? effAddPerms : ["view"]));
   /** Under Cả Space, a setting equal to what the person already gets from it adds nothing. */
   const added = scope === "space" ? addedAll.filter(a => !samePerms(permsOfMember(a), generalOf(spaceDraft, a.userId))) : addedAll;
   const addingOnlyNone = added.length > 0 && added.every(a => a.mode === "none");
@@ -312,7 +325,8 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
         </div>
         {adding.length > 0 && (
           <ModeSelect variant="inline" ariaLabel="Quyền của người được thêm"
-            mode={addMode} count={addMode === "custom" ? addPerms.length : undefined}
+            mode={effAddMode} count={effAddMode === "custom" ? effAddPerms.length : undefined}
+            blocked={roleOkAll ? [] : ["role"]} blockedHint={BLOCK_HINT}
             picks={scope === "space" ? ["role", "custom", "remove"] : ["role", "custom"]}
             onPick={k => {
               if (k === "role") setAddMode("role");
@@ -368,7 +382,7 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
   const roleHint = (name: string) => `Đang theo Vai trò ${name}. Đổi một quyền bất kỳ sẽ chuyển sang Tuỳ chỉnh.`;
   const customHint = (name: string) => `Quyền tự chọn, không đổi theo Vai trò. Chọn lại đúng như Vai trò ${name} sẽ quay về Theo Vai trò.`;
   const firstRole = adding[0] ? roleOf(adding[0].id) : [];
-  const addListPerms = addMode === "custom" ? addPerms : firstRole;
+  const addListPerms = effAddMode === "custom" ? effAddPerms : firstRole;
 
   return (
     <>
@@ -395,7 +409,7 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
                   </button>
                   {addOpen && (
                     <div className="-ml-11">
-                      <PermList id="add-perms" perms={addListPerms}
+                      <PermList id="add-perms" perms={addListPerms} allowed={allowed}
                         rolePerms={adding.length === 1 ? firstRole : undefined}
                         hint={addMode === "custom"
                           ? (adding.length > 1 ? `Áp cho cả ${adding.length} người. Ai trùng Vai trò của mình sẽ tự về Theo Vai trò.` : customHint(roleNameOf(byId.get(adding[0].id))))
@@ -431,13 +445,13 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
                 <h3 className="text-sm font-semibold mb-2">Ai có quyền trên Nhân sự số này</h3>
                 <div role="radiogroup" aria-label="Ai có quyền trên Nhân sự số này" className="grid grid-cols-3 p-1 rounded-lg bg-surface-muted gap-1">
                   {SCOPES.map(o => (
-                    <button key={o.id} type="button" role="radio" aria-checked={scope === o.id} onClick={() => setScope(o.id)}
+                    <button key={o.id} type="button" role="radio" aria-checked={scope === o.id} disabled={capped} onClick={() => setScope(o.id)}
                       className={`h-8 px-1 rounded-md text-xs sm:text-sm font-medium truncate transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${scope === o.id ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
                       {o.label}
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">{scopeHelper[scope]}</p>
+                <p className="text-xs text-muted-foreground mt-2">{capped ? `${scopeHelper[scope]} Chỉ chủ sở hữu hoặc Space Admin đổi được phạm vi.` : scopeHelper[scope]}</p>
               </div>
 
               {scope === "space" && <div className="-my-2">{ownerRow}</div>}
@@ -450,14 +464,14 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
                       <span className="block text-sm font-medium">Mọi thành viên Space</span>
                       <span className="block text-xs text-muted-foreground">Quyền chung cho cả Space.</span>
                     </span>
-                    <ModeSelect ariaLabel="Quyền chung của Cả Space" mode={generalMode} count={generalMode === "custom" ? generalPerms.length : undefined}
+                    <ModeSelect ariaLabel="Quyền chung của Cả Space" disabled={capped} mode={generalMode} count={generalMode === "custom" ? generalPerms.length : undefined}
                       picks={["role", "custom"]}
                       onPick={k => { if (k === "role") setGeneralMode("role"); else { setGeneralMode("custom"); setExpanded(s => new Set(s).add("__general")); } }} />
                   </div>
                   {expanded.has("__general") && (
                     generalMode === "role"
                       ? <p id="perms-general" className="mt-1 mb-1 ml-11 rounded-lg border border-border bg-surface-muted px-3 py-2.5 text-xs text-muted-foreground">Mỗi người nhận quyền theo Vai trò của mình. Chọn Tuỳ chỉnh để đặt một bộ quyền chung cho cả Space.</p>
-                      : <PermList id="perms-general" perms={generalPerms} hint="Áp cho mọi thành viên Space, không đổi theo Vai trò."
+                      : <PermList id="perms-general" perms={generalPerms} readOnly={capped} hint="Áp cho mọi thành viên Space, không đổi theo Vai trò."
                           onToggle={(p, on) => { const nx = togglePerm(generalPerms, p, on); setGeneralPerms(nx.length ? nx : ["view"]); }} />
                   )}
                 </div>
@@ -481,6 +495,7 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
                     const sameAsSpace = scope === "space" && p.mode !== "none" && samePerms(perms, generalOf(spaceDraft, p.userId));
                     const isOpen = expanded.has(p.userId) && p.mode !== "none";
                     const roleName = roleNameOf(m);
+                    const locked = !within(perms);
                     return (
                       <div key={p.userId} className="py-1.5">
                         <div className="flex items-center gap-3">
@@ -490,14 +505,14 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
                           <Avatar name={name} />
                           <span className="min-w-0 flex-1">
                             <span className="block text-sm font-medium truncate">{name}</span>
-                            <span className="block text-xs text-muted-foreground truncate">{sameAsSpace ? "Giống quyền chung - Sẽ tự bỏ khi lưu." : m?.email}</span>
+                            <span className="block text-xs text-muted-foreground truncate">{locked ? "Có quyền bạn không có - Bạn không đổi được." : sameAsSpace ? "Giống quyền chung - Sẽ tự bỏ khi lưu." : m?.email}</span>
                           </span>
-                          <ModeSelect ariaLabel={`Quyền của ${name}`} mode={p.mode} count={p.mode === "custom" ? perms.length : undefined}
+                          <ModeSelect ariaLabel={`Quyền của ${name}`} disabled={locked} blocked={within(roleOf(p.userId)) ? [] : ["role"]} blockedHint={BLOCK_HINT} mode={p.mode} count={p.mode === "custom" ? perms.length : undefined}
                             picks={scope === "space" ? ["role", "custom", "remove", "general"] : ["role", "custom", "remove"]}
                             onPick={k => onPickPerson(p, k)} />
                         </div>
                         {isOpen && (
-                          <PermList id={`perms-${p.userId}`} perms={perms} rolePerms={roleOf(p.userId)}
+                          <PermList id={`perms-${p.userId}`} perms={perms} rolePerms={roleOf(p.userId)} allowed={allowed} readOnly={locked}
                             hint={p.mode === "role" ? roleHint(roleName) : customHint(roleName)}
                             onToggle={(perm, on) => {
                               const nx = togglePerm(perms, perm, on);

@@ -18,13 +18,12 @@ import { DEFAULT_ROLE_ID } from "@/pages/organization/Members";
  * Mirrored onto the AgentRecord (sharedWith / sharedAll / sharedExcept) so Scope checks
  * (scopeAccess.isOwnedOrShared) keep working; kept in sessionStorage so a persona switch
  * (which reloads the app) still sees it. */
-export type AgentPerm = "view" | "history" | "build" | "publish" | "pause" | "delete" | "share";
+export type AgentPerm = "view" | "history" | "build" | "publish" | "delete" | "share";
 export const AGENT_PERMS: { id: AgentPerm; name: string; desc: string; need?: AgentPerm[] }[] = [
   { id: "view", name: "Xem Nhân sự số", desc: "Mở, xem cấu hình, chạy Evaluate." },
   { id: "history", name: "Xem lịch sử hội thoại", desc: "Insights › History và Trace.", need: ["view"] },
   { id: "build", name: "Build", desc: "Sửa Instructions, Skill, Knowledge, Channels.", need: ["view"] },
   { id: "publish", name: "Publish / Gỡ publish", desc: "Gửi yêu cầu duyệt, gỡ bản đang live.", need: ["build"] },
-  { id: "pause", name: "Tạm dừng", desc: "Tạm dừng hoặc chạy lại bản đang live.", need: ["view"] },
   { id: "delete", name: "Xóa", desc: "Xóa hẳn Nhân sự số.", need: ["build"] },
   { id: "share", name: "Cấp quyền tiếp", desc: "Mở popup Cấp quyền, thêm người khác.", need: ["view"] },
 ];
@@ -40,7 +39,7 @@ const KEY = "agent_share_v3";
 const saved = loadMap<string, AgentShare>(KEY);
 
 // One-time carry-over from v2 ({ generalLevel, people: { level } }) so a demo already set up keeps working.
-const V2: Record<string, AgentPerm[]> = { view: ["view", "history"], edit: ["view", "history", "build", "publish", "pause"] };
+const V2: Record<string, AgentPerm[]> = { view: ["view", "history"], edit: ["view", "history", "build", "publish"] };
 const fromV2 = (level: string): Pick<AgentMember, "mode" | "perms"> =>
   level === "none" ? { mode: "none" } : V2[level] ? { mode: "custom", perms: V2[level] } : { mode: "role" };
 for (const [id, old] of loadMap<string, { general: AgentGeneralAccess; generalLevel: string; people: { userId: string; level: string }[] }>("agent_share_v2")) {
@@ -106,7 +105,6 @@ export function rolePerms(permissionIds: Set<string> | undefined): AgentPerm[] {
   if (has("agents.history")) out.push("history");
   if (has("agents.manage")) out.push("build");
   if (has("agents.manage") && has("agents.publish")) out.push("publish");
-  if (has("agents.pause")) out.push("pause");
   if (has("agents.manage") && has("agents.delete")) out.push("delete");
   return ALL_AGENT_PERMS.filter(p => out.includes(p));
 }

@@ -35,7 +35,7 @@ import {
   type PublishAudience,
 } from "@/components/configure/agentPublishStore";
 import { getAgentKind, type AgentKind } from "@/components/configure/agentKindStore";
-import { AGENTS, getAgent } from "@/components/configure/agentStore";
+import { AGENTS, getAgent, deleteAgent } from "@/components/configure/agentStore";
 import { useGroupAccess, isOwnedOrShared } from "@/pages/organization/scopeAccess";
 import { useOrg } from "@/pages/organization/orgStore";
 import { collectMembers, countAll, unitMatches, findMember, type OrgUnit, type OrgMember } from "@/pages/organization/orgData";
@@ -261,6 +261,7 @@ export default function AgentBuilder() {
   const [showAgentMenu, setShowAgentMenu] = useState(false);
   // "Gỡ publish" is destructive (users lose the Agent right away) - always confirm first.
   const [confirmUnpublish, setConfirmUnpublish] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [showShare, setShowShare] = useState(false);
   useAgentShareVersion();
   const canShareAgent = useCanShareAgent(id ?? "new");
@@ -322,6 +323,7 @@ export default function AgentBuilder() {
   // without seeing that Agent's conversation history, since Viewer has no "agents.history" by
   // default. A new, unsaved agent ("new") has no conversations yet, so this never applies there.
   // Added to the Agent (Chỉ xem or Chỉnh sửa) always includes its conversation history.
+  const canDeleteAgent = !!existingAgent && canAccessAgent && (sharedPerms ? sharedPerms.has("delete") : access.canAct("delete", isOwnedOrShared(existingAgent, access.userId)));
   const canSeeHistory = canAccessAgent && (!existingAgent || (sharedPerms ? sharedPerms.has("history") : access.canAct("history", isOwnedOrShared(existingAgent, access.userId))));
 
   // A deep link straight to ?tab=insights&section=history (bookmarked, shared, or just an old
@@ -430,6 +432,7 @@ export default function AgentBuilder() {
           {!viewOnly && <div className="relative">
             <button
               onClick={() => setShowAgentMenu(o => !o)}
+              aria-label="Thao tác khác" aria-haspopup="menu" aria-expanded={showAgentMenu}
               className="h-9 w-9 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base"
             >
               <HugeiconsIcon icon={MoreHorizontalIcon} size={16} />
@@ -448,6 +451,15 @@ export default function AgentBuilder() {
                     className="w-full text-left px-3 py-1.5 text-xs text-foreground hover:bg-surface-muted disabled:text-muted-foreground/50 disabled:cursor-not-allowed"
                   >
                     Gỡ publish
+                  </button>
+                  <div className="my-1 h-px bg-border" />
+                  <button
+                    disabled={!canDeleteAgent}
+                    title={!canDeleteAgent ? "Bạn không có quyền xóa Nhân sự số này." : undefined}
+                    onClick={() => { setShowAgentMenu(false); setConfirmDelete(true); }}
+                    className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-surface-muted disabled:text-muted-foreground/50 disabled:cursor-not-allowed"
+                  >
+                    Xóa Nhân sự số
                   </button>
                 </div>
               </>
@@ -477,6 +489,35 @@ export default function AgentBuilder() {
               }}
             >
               Gỡ publish
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa "{agent.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {published
+                ? "Nhân sự số đang live sẽ dừng phục vụ người dùng ngay. Cấu hình, phiên bản và quyền đã cấp sẽ bị xóa hẳn, không khôi phục được."
+                : "Cấu hình, phiên bản và quyền đã cấp sẽ bị xóa hẳn, không khôi phục được."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                const name = agent.name;
+                if (published) agentPublishStore.unpublish(id);
+                deleteAgent(id);
+                setConfirmDelete(false);
+                toast.success(`Đã xóa "${name}".`);
+                navigate("/agents");
+              }}
+            >
+              Xóa Nhân sự số
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

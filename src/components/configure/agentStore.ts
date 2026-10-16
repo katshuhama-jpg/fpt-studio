@@ -378,6 +378,16 @@ const FALLBACK: Omit<AgentRecord, "id"> = {
   instructions: "",
 };
 
+/** Deleted Nhân sự số stay gone for the rest of the demo session (persona switches reload). */
+const DELETED_KEY = "agents_deleted_v1";
+function deletedIds(): string[] { try { return JSON.parse(sessionStorage.getItem(DELETED_KEY) ?? "[]"); } catch { return []; } }
+for (const id of deletedIds()) { const i = AGENTS.findIndex(a => a.id === id); if (i >= 0) AGENTS.splice(i, 1); }
+export function deleteAgent(id: string) {
+  const i = AGENTS.findIndex(a => a.id === id);
+  if (i >= 0) AGENTS.splice(i, 1);
+  try { sessionStorage.setItem(DELETED_KEY, JSON.stringify([...new Set([...deletedIds(), id])])); } catch { /* ignore */ }
+}
+
 export function getAgent(id: string): AgentRecord {
   const found = AGENTS.find(a => a.id === id);
   if (found) return found;
