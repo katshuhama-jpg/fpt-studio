@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { format, differenceInCalendarDays } from "date-fns";
-import { Download, AlertTriangle, ShieldCheck } from "lucide-react";
+import { Download, AlertTriangle } from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -359,10 +359,7 @@ export function ExportHistoryDialog({
           </p>
         )}
 
-        <DialogFooter className="items-center sm:justify-between gap-3">
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <ShieldCheck size={13} aria-hidden /> Được ghi vào Audit log
-          </span>
+        <DialogFooter className="items-center sm:justify-end gap-3">
           <div className="flex gap-2">
             <button type="button" onClick={() => onOpenChange(false)} className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm transition-base focus-ring">
               Hủy
