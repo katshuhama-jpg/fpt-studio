@@ -139,9 +139,10 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
   const candidates = matches.filter(m => !isSpaceAdmin(m)).slice(0, 8);
   const adminMatch = matches.find(m => isSpaceAdmin(m));
 
-  /** Under "Cả Space" someone is added to get a different level, so suggest the other one. */
   const spaceLevelOf = (id: string): Level => (generalLevel === "role" ? roleDefault(id) : generalLevel);
-  const addDefault = (id: string): Level => (scope === "space" ? (spaceLevelOf(id) === "view" ? "edit" : "view") : roleDefault(id));
+  /** Pre-selected level when adding someone: what their Role allows, in every scope. The person
+   * adding changes it to override the Role (confirmed with Tyler 16/10). */
+  const addDefault = (id: string): Level => roleDefault(id);
   const addDefaults = adding.map(m => addDefault(m.id));
   const addLabelValue: Level | null = addLevel ?? (addDefaults.every(l => l === addDefaults[0]) ? addDefaults[0] ?? null : null);
   const addLevels: Level[] = scope === "space" ? ["edit", "view", "none"] : ["edit", "view"];
@@ -160,18 +161,29 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
       : ps.filter(p => p.level !== spaceLevelOf(p.userId)),
   });
 
-  const persist = (next: { people: AgentMember[]; general: AgentGeneralAccess; generalLevel: AgentAccessLevel }, addedIds: string[]) => {
+  /** In-app notices: people added by name hear which level they got (also when they already
+   * reached the Agent through Cả Space); people whose own level was raised on the main screen hear
+   * that it changed. Lowering or removing access sends nothing. */
+  const persist = (next: { people: AgentMember[]; general: AgentGeneralAccess; generalLevel: AgentAccessLevel }, granted: AgentMember[], raisedIds: string[]) => {
     agentShareStore.set(agentId, next);
     setSaved(next);
-    if (addedIds.length && notify) {
-      const actor = currentPersona();
+    const actor = currentPersona();
+    const base = { kind: "agent_shared" as const, actorId: actor.id, actorName: actor.name, href: `/agents/${agentId}`, resourceId: agentId };
+    for (const lv of ["edit", "view"] as const) {
+      const ids = granted.filter(g => g.level === lv).map(g => g.userId);
+      if (!ids.length) continue;
+      const L = LEVEL_META[lv].label;
       notificationStore.push({
-        kind: "agent_shared", recipients: addedIds, actorId: actor.id, actorName: actor.name,
-        title: `${actor.name} đã thêm bạn vào Agent ${agent.name}`,
-        segments: [[actor.name, true], [" đã thêm bạn vào Agent "], [agent.name, true]],
-        href: `/agents/${agentId}`, resourceId: agentId,
+        ...base, recipients: ids,
+        title: `${actor.name} đã cấp quyền ${L} cho bạn trên Agent ${agent.name}`,
+        segments: [[actor.name, true], [` đã cấp quyền ${L} cho bạn trên Agent `], [agent.name, true]],
       });
     }
+    if (raisedIds.length) notificationStore.push({
+      ...base, recipients: raisedIds,
+      title: `${actor.name} đã thay đổi quyền của bạn trên Agent ${agent.name}`,
+      segments: [[actor.name, true], [" đã thay đổi quyền của bạn trên Agent "], [agent.name, true]],
+    });
   };
 
   // Main screen: scope, levels and removals are saved with "Lưu"; the add step saves with
@@ -191,8 +203,11 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
   const dirty = adding.length > 0 || norm(next) !== norm(saved);
 
   /** Saves `sh`, asking first when someone loses access or the whole Space gets Chỉnh sửa. */
-  const commit = (sh: Share, addedIds: string[], message: string) => {
-    const go = () => { persist(sh, addedIds); toast.success(message); onClose(); };
+  const commit = (sh: Share, granted: AgentMember[], message: string) => {
+    // Raised = a person with their own level who ends up higher than before (not via Cả Space).
+    const grantedIds = new Set(granted.map(g => g.userId));
+    const raisedIds = sh.people.filter(p => !grantedIds.has(p.userId) && rank(effective(p.userId, sh)) > rank(effective(p.userId, saved))).map(p => p.userId);
+    const go = () => { persist(sh, granted, raisedIds); toast.success(message); onClose(); };
     const lowered = loweredIn(sh);
     const openEdit = opensEditToSpace(sh);
     if (!lowered && !openEdit) { go(); return; }
@@ -209,16 +224,21 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
     });
   };
 
-  const added = adding.map(m => ({ userId: m.id, level: addLevel ?? addDefault(m.id) }));
+  const addedAll = adding.map(m => ({ userId: m.id, level: addLevel ?? addDefault(m.id) }));
+  /** Under Cả Space, a level equal to what the person already gets from it adds nothing. */
+  const sameAsGeneral = scope === "space" ? adding.filter(m => (addLevel ?? addDefault(m.id)) === spaceLevelOf(m.id)) : [];
+  const added = addedAll.filter(a => !sameAsGeneral.some(m => m.id === a.userId));
+  const addBlocked = adding.length > 0 && added.length === 0;
   const addingOnlyNone = added.length > 0 && added.every(a => a.level === "none");
   /** Drive's "Send": saves the people in the add step right away, then closes. */
   const sendAdd = () => {
+    if (addBlocked) return;
     const nextPeople = [...people.filter(p => !added.some(a => a.userId === p.userId)), ...added];
-    const one = adding.length === 1 ? adding[0].name : null;
+    const one = added.length === 1 ? (byId.get(added[0].userId)?.name ?? "") : null;
     const message = addingOnlyNone
       ? (one ? `Đã cập nhật quyền của ${one}.` : `Đã cập nhật quyền của ${added.length} người.`)
       : (one ? `Đã cấp quyền cho ${one}.` : `Đã cấp quyền cho ${added.length} người.`);
-    commit(toShare(scope, nextPeople), added.filter(a => a.level !== "none").map(a => a.userId), message);
+    commit(toShare(scope, nextPeople), notify ? added.filter(a => a.level !== "none") : [], message);
   };
   const saveMain = () => commit(next, [], "Đã lưu thay đổi.");
 
@@ -319,7 +339,12 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
                 </DialogDescription>
               </DialogHeader>
               {searchBox(addPlaceholder)}
-              {!addingOnlyNone && (
+              {sameAsGeneral.length > 0 && (
+                <p className="text-xs text-amber-700 -mt-1" role="status">
+                  {sameAsGeneral.length === 1 ? `${sameAsGeneral[0].name} đã` : `${sameAsGeneral.length} người đã`} có quyền này từ quyền chung - Hãy chọn mức khác.
+                </p>
+              )}
+              {!addingOnlyNone && !addBlocked && (
                 <label className="flex items-center gap-2 text-sm cursor-pointer w-fit">
                   <input type="checkbox" checked={notify} onChange={e => setNotify(e.target.checked)} className="w-4 h-4 accent-primary" />
                   Thông báo cho người được cấp quyền
@@ -327,7 +352,7 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
               )}
               <DialogFooter>
                 <button onClick={cancelAdd} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Hủy bỏ</button>
-                <button onClick={sendAdd} className="btn-primary h-9 justify-center">{addingOnlyNone ? "Lưu" : "Cấp quyền"}</button>
+                <button onClick={sendAdd} disabled={addBlocked} className="btn-primary h-9 justify-center disabled:opacity-40 disabled:cursor-not-allowed">{addingOnlyNone ? "Lưu" : "Cấp quyền"}</button>
               </DialogFooter>
             </>
           ) : (

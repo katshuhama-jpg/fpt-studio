@@ -339,7 +339,7 @@ export default function AgentBuilder() {
           <Link to="/agents" className="text-sm text-muted-foreground hover:text-foreground transition-base">Agents</Link>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
-          <p className="text-sm text-muted-foreground max-w-md mb-4">Bạn chưa được thêm vào Agent này. Liên hệ chủ sở hữu Agent để được thêm.</p>
+          <p className="text-sm text-muted-foreground max-w-md mb-4">Bạn không có quyền trên Agent này. Liên hệ chủ sở hữu Agent để được cấp quyền.</p>
           <Link to="/agents" className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base flex items-center">
             Về danh sách Agent
           </Link>
@@ -362,7 +362,7 @@ export default function AgentBuilder() {
           <div className="w-7 h-7 rounded-md bg-surface-muted border border-border flex items-center justify-center text-base shrink-0">{agent.emoji}</div>
           <span className="font-semibold text-sm truncate">{agent.name}</span>
           {viewOnly && (
-            <span title="Vai trò của bạn chỉ xem được Agent này." className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded bg-surface-muted text-muted-foreground border border-border shrink-0">
+            <span title="Bạn có quyền Chỉ xem trên Agent này." className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded bg-surface-muted text-muted-foreground border border-border shrink-0">
               <HugeiconsIcon icon={EyeIcon} size={11} /> Chỉ xem
             </span>
           )}
