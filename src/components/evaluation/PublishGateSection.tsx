@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Rocket01Icon, Alert02Icon, Tick02Icon, Loading03Icon } from "@hugeicons/core-free-icons";
 import { Switch } from "@/components/ui/switch";
-import { evaluationStore, useEvaluationStore, runStats } from "./evaluationStore";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { MetricsPicker } from "./RunDialog";
+import { evaluationStore, useEvaluationStore, runStats, type SetMetric, type TestSet } from "./evaluationStore";
 import { EmptyState, ThresholdBar, useEvalNav, CURRENT_USER } from "./shared";
 
 export function PublishGateSection({ agentId }: { agentId: string }) {
@@ -11,12 +13,13 @@ export function PublishGateSection({ agentId }: { agentId: string }) {
   const sets = evaluationStore.sets(agentId);
   const blockers = evaluationStore.publishBlockers(agentId);
   const enabled = sets.filter(s => evaluationStore.gate(s.id).enabled);
+  const [editing, setEditing] = useState<TestSet | null>(null);
 
   return (
     <div className="p-8 w-full space-y-5 animate-fade-up">
       <div>
         <h2 className="font-display text-xl font-semibold">Điều kiện publish</h2>
-        <p className="text-sm text-muted-foreground mt-1">Chọn bộ test phải đạt trước khi gửi publish. Khi bấm Publish, các bộ test đang bật sẽ tự chạy trên bản nháp với chỉ số của lượt chạy gần nhất và so với Min. pass.</p>
+        <p className="text-sm text-muted-foreground mt-1">Chọn bộ test phải đạt trước khi gửi publish. Khi bấm Publish, các bộ test đang bật sẽ tự chạy trên bản nháp, chấm theo chỉ số chọn ở đây và so với Min. pass.</p>
       </div>
 
       {sets.length === 0 ? (
@@ -48,6 +51,7 @@ export function PublishGateSection({ agentId }: { agentId: string }) {
                   <th className="text-left font-medium px-4 py-2.5 w-16">Dùng</th>
                   <th className="text-left font-medium px-4 py-2.5">Bộ test</th>
                   <th className="text-left font-medium px-4 py-2.5 w-[260px]">Lượt chạy mới nhất</th>
+                  <th className="text-left font-medium px-4 py-2.5">Chỉ số chấm</th>
                   <th className="text-left font-medium px-4 py-2.5 w-32">Min. pass</th>
                   <th className="text-left font-medium px-4 py-2.5">Chặn publish</th>
                   <th className="text-left font-medium px-4 py-2.5">Trạng thái</th>
@@ -73,6 +77,18 @@ export function PublishGateSection({ agentId }: { agentId: string }) {
                             <ThresholdBar value={st.rate} threshold={g.enabled ? g.minPass : undefined} tone={!g.enabled ? "primary" : ok ? "pass" : "fail"} />
                           </button>
                         ) : <span className="text-xs">Chưa chạy</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        {(() => {
+                          const ms = evaluationStore.gateMetrics(s.id);
+                          return (
+                            <button type="button" disabled={!g.enabled} onClick={() => setEditing(s)} aria-label={`Chọn chỉ số chấm cho ${s.name}`}
+                              className="text-left text-xs cursor-pointer disabled:cursor-not-allowed group">
+                              <span className={g.enabled ? "text-foreground" : ""}>{ms.length} chỉ số ({ms.filter(m => m.required).length} bắt buộc)</span>
+                              {g.enabled && <span className="block text-primary font-semibold group-hover:underline">Chọn chỉ số</span>}
+                            </button>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 py-3">
                         <div className="relative w-24">
@@ -102,6 +118,7 @@ export function PublishGateSection({ agentId }: { agentId: string }) {
           <p className="text-xs text-muted-foreground">Min. pass khuyến nghị cho QnA: 90% (theo tiêu chí nghiệm thu FPT). Pass rate chỉ tính các chỉ số Bắt buộc. Admin duyệt publish cũng thấy kết quả này.</p>
         </>
       )}
+      <GateMetricsDialog agentId={agentId} set={editing} onClose={() => setEditing(null)} />
     </div>
   );
 }
@@ -115,7 +132,7 @@ export function PublishEvalCheck({ agentId, onStatus, onOpenEvaluate }: { agentI
   const sets = evaluationStore.sets(agentId).filter(s => evaluationStore.gate(s.id).enabled && evaluationStore.cases(s.id).length > 0);
   useEffect(() => {
     const ids: Record<string, string> = {};
-    sets.forEach(s => { ids[s.id] = evaluationStore.startRun(s.id, "Bản nháp - kiểm tra khi publish", CURRENT_USER, { name: `Kiểm tra khi publish - ${s.name}` }).id; });
+    sets.forEach(s => { ids[s.id] = evaluationStore.startRun(s.id, "Bản nháp - kiểm tra khi publish", CURRENT_USER, { name: `Kiểm tra khi publish - ${s.name}`, metrics: evaluationStore.gateMetrics(s.id), remember: false }).id; });
     setRunIds(ids);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentId]);
@@ -150,5 +167,34 @@ export function PublishEvalCheck({ agentId, onStatus, onOpenEvaluate }: { agentI
       </div>
       {status !== "running" && <button type="button" onClick={onOpenEvaluate} className="text-primary font-semibold hover:underline mt-1.5 text-xs">Xem kết quả Evaluate</button>}
     </div>
+  );
+}
+
+/** Chỉ số dùng khi tự chạy bộ test lúc bấm Publish - chọn riêng cho từng bộ test, không ảnh hưởng chỉ số chọn sẵn ở hộp Chạy bộ test. */
+function GateMetricsDialog({ agentId, set, onClose }: { agentId: string; set: TestSet | null; onClose: () => void }) {
+  const [metrics, setMetrics] = useState<SetMetric[]>([]);
+  const [touched, setTouched] = useState(false);
+  useEffect(() => { if (set) { setMetrics(evaluationStore.gateMetrics(set.id)); setTouched(false); } }, [set]);
+  const save = () => {
+    setTouched(true);
+    if (!set || !metrics.some(m => m.required)) return;
+    evaluationStore.saveGate({ ...evaluationStore.gate(set.id), metrics });
+    onClose();
+  };
+  return (
+    <Dialog open={!!set} onOpenChange={o => !o && onClose()}>
+      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Chỉ số chấm khi publish</DialogTitle>
+          <DialogDescription>Bộ test {set?.name} sẽ tự chạy trên bản nháp mỗi lần bấm Publish và chấm theo các chỉ số dưới đây.</DialogDescription>
+        </DialogHeader>
+        <MetricsPicker agentId={agentId} value={metrics} onChange={setMetrics} touched={touched}
+          hint="Bắt buộc: Tính vào Pass rate để so với Min. pass. Theo dõi: Chỉ hiện kết quả, không chặn publish." />
+        <DialogFooter>
+          <button className="btn-secondary" onClick={onClose}>Hủy</button>
+          <button className="btn-primary" onClick={save}>Lưu</button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

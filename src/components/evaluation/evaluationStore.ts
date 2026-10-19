@@ -147,7 +147,8 @@ export interface Run {
   results: Record<string, Record<string, CellResult>>;
 }
 
-export interface PublishGate { setId: string; enabled: boolean; minPass: number; blocks: boolean }
+/** `metrics` = what the automatic run on Publish grades with; chosen in Điều kiện publish, not on the test set. */
+export interface PublishGate { setId: string; enabled: boolean; minPass: number; blocks: boolean; metrics?: SetMetric[] }
 export type MonitorStatusFilter = "all" | "completed" | "failed" | "handoff";
 
 export interface MonitorConfig {
@@ -629,6 +630,7 @@ export const evaluationStore = {
   deleteMetric(id: string) {
     state.metrics = state.metrics.filter(m => m.id !== id);
     state.sets = state.sets.map(s => ({ ...s, metrics: s.metrics.filter(sm => sm.metricId !== id) }));
+    state.gates = state.gates.map(g => (g.metrics ? { ...g, metrics: g.metrics.filter(sm => sm.metricId !== id) } : g));
     state.monitors = state.monitors.map(mo => ({ ...mo, metricIds: mo.metricIds.filter(x => x !== id) }));
     commit();
   },
@@ -687,13 +689,13 @@ export const evaluationStore = {
   latestRun: (setId: string, version?: string) => state.runs.filter(r => r.setId === setId && r.status === "done" && (!version || r.version === version)).sort((a, b) => b.number - a.number)[0],
   previousRun: (run: Run) => state.runs.filter(r => r.setId === run.setId && r.status === "done" && r.number < run.number).sort((a, b) => b.number - a.number)[0],
   /** Relevance-style run: pick tests (default all), a version and the metrics to grade with. */
-  startRun(setId: string, versionLabel: string, by: string, opts: { name?: string; caseIds?: string[]; metrics?: SetMetric[] } = {}): Run {
+  startRun(setId: string, versionLabel: string, by: string, opts: { name?: string; caseIds?: string[]; metrics?: SetMetric[]; remember?: boolean } = {}): Run {
     const set = state.sets.find(s => s.id === setId)!;
     const cases = state.cases.filter(c => c.setId === setId && (!opts.caseIds || opts.caseIds.includes(c.id)));
     const number = Math.max(0, ...state.runs.filter(r => r.agentId === set.agentId).map(r => r.number)) + 1;
     // Metrics are picked in the run dialog; remember them on the set as next run's defaults.
     const allMetrics = opts.metrics ?? this.defaultRunMetrics(setId, Object.keys(set.toolModes).length > 0);
-    state.sets = state.sets.map(s => (s.id === setId ? { ...s, metrics: allMetrics } : s));
+    if (opts.remember !== false) state.sets = state.sets.map(s => (s.id === setId ? { ...s, metrics: allMetrics } : s));
     const run: Run = {
       id: uid("run"), number, agentId: set.agentId, setId, setName: set.name, version: versionLabel, status: "running", progress: 0,
       createdAt: nowIso(), by, durationSec: 0, tokens: 0, runsPerCase: set.runsPerCase, metrics: allMetrics,
@@ -742,6 +744,13 @@ export const evaluationStore = {
 
   /* Publish gate */
   gate(setId: string): PublishGate { return state.gates.find(g => g.setId === setId) ?? { setId, enabled: false, minPass: 90, blocks: false }; },
+  /** Metrics for the automatic run on Publish: the gate's own choice, else the run dialog's defaults. */
+  gateMetrics(setId: string): SetMetric[] {
+    const own = (this.gate(setId).metrics ?? []).filter(sm => state.metrics.some(m => m.id === sm.metricId));
+    if (own.length) return own;
+    const set = state.sets.find(x => x.id === setId);
+    return this.defaultRunMetrics(setId, Object.keys(set?.toolModes ?? {}).length > 0);
+  },
   saveGate(g: PublishGate) {
     state.gates = state.gates.some(x => x.setId === g.setId) ? state.gates.map(x => (x.setId === g.setId ? g : x)) : [...state.gates, g];
     commit();

@@ -49,11 +49,6 @@ export function RunDialog({ agentId, open, onOpenChange, presetSetId, presetCase
 
   const set = evaluationStore.set(setId);
   const cases = set ? evaluationStore.cases(set.id).filter(c => !presetCaseIds || presetCaseIds.includes(c.id)) : [];
-  const agentMetrics = evaluationStore.agentMetrics(agentId);
-  const addable = [
-    ...agentMetrics.filter(m => !metrics.some(sm => sm.metricId === m.id)),
-    ...TEMPLATE_METRICS.filter(t => !agentMetrics.some(m => m.templateId === t.id)),
-  ];
   const required = metrics.filter(m => m.required).length;
   const liveWrite = set ? Object.entries(set.toolModes).filter(([, mode]) => mode === "live") : [];
   const draftCount = set ? evaluationStore.unreviewed(set.id).length : 0;
@@ -98,56 +93,7 @@ export function RunDialog({ agentId, open, onOpenChange, presetSetId, presetCase
               ))}
             </div>
           </fieldset>
-          <section>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-medium">Chỉ số chấm <span className="text-destructive">*</span></h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Bắt buộc: Tính vào Pass rate. Theo dõi: Chỉ xem kết quả, không làm test fail.</p>
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild><button type="button" className="btn-secondary !h-8 text-xs shrink-0"><HugeiconsIcon icon={Add01Icon} size={12} /> Thêm chỉ số</button></DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-80 max-h-72 overflow-y-auto">
-                  {addable.length === 0 ? <div className="px-2 py-3 text-xs text-muted-foreground">Đã chọn mọi chỉ số có sẵn.</div> : addable.map(m => (
-                    <DropdownMenuItem key={m.id} className="items-start py-2" onClick={() => {
-                      const metric = m.agentId === "template" ? evaluationStore.addFromTemplate(agentId, m.id) : m;
-                      setMetrics(v => [...v.filter(x => x.metricId !== metric.id), { metricId: metric.id, required: true }]);
-                    }}>
-                      <div>
-                        <div className="font-medium">{m.name} <span className="text-xs text-muted-foreground font-normal">· {METRIC_GROUP_LABEL[m.group]}</span></div>
-                        <div className="text-xs text-muted-foreground">{m.vnName}{m.agentId === "template" ? " · Từ thư viện" : ""}</div>
-                      </div>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-            <div className="mt-2 rounded-lg border border-border divide-y divide-border">
-              {metrics.map(sm => {
-                const m = evaluationStore.metric(sm.metricId);
-                if (!m) return null;
-                return (
-                  <div key={sm.metricId} className="flex items-center gap-2 px-3 py-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm truncate">{m.name} <span className="text-xs text-muted-foreground">· {m.vnName}</span></div>
-                      <div className="text-[11px] text-muted-foreground truncate">{passRuleText(m)}</div>
-                    </div>
-                    <div className="flex items-center gap-1 rounded-lg bg-surface-muted p-0.5 shrink-0" role="radiogroup" aria-label={`Loại chỉ số ${m.name}`}>
-                      {[true, false].map(r => (
-                        <button key={String(r)} type="button" role="radio" aria-checked={sm.required === r} onClick={() => setMetrics(v => v.map(x => (x.metricId === sm.metricId ? { ...x, required: r } : x)))}
-                          className={`px-2 h-7 rounded-md text-xs font-medium transition-base cursor-pointer ${sm.required === r ? "bg-surface shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-                          {r ? "Bắt buộc" : "Theo dõi"}
-                        </button>
-                      ))}
-                    </div>
-                    <button type="button" className="btn-ghost !px-1.5 !h-7" aria-label={`Bỏ chỉ số ${m.name}`} onClick={() => setMetrics(v => v.filter(x => x.metricId !== sm.metricId))}><HugeiconsIcon icon={Delete02Icon} size={13} /></button>
-                  </div>
-                );
-              })}
-              {metrics.length === 0 && <div className="px-3 py-5 text-center text-sm text-muted-foreground">Chưa chọn chỉ số nào - Bấm Thêm chỉ số để chọn</div>}
-            </div>
-            {touched && required === 0 && <span className="text-xs text-destructive mt-1 block">Chọn ít nhất 1 chỉ số Bắt buộc để tính Pass rate</span>}
-            {required > MANY_REQUIRED && <p className="text-xs text-warning mt-1">{required} chỉ số Bắt buộc - Lượt chạy sẽ lâu và tốn hơn. Chuyển bớt sang Theo dõi nếu không cần chặn.</p>}
-          </section>
+          <MetricsPicker agentId={agentId} value={metrics} onChange={setMetrics} touched={touched} />
           {set && (
             <div className="rounded-lg bg-surface-muted px-3 py-2.5 text-sm text-muted-foreground">
               {cases.length} test × {set.runsPerCase} lần = <b className="text-foreground">{totalCalls} lượt trả lời</b> · {metrics.length} chỉ số ({required} bắt buộc)
@@ -180,5 +126,67 @@ export function RunDialog({ agentId, open, onOpenChange, presetSetId, presetCase
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Chọn chỉ số chấm cho một lượt chạy (dùng ở hộp Chạy bộ test và ở Điều kiện publish). */
+export function MetricsPicker({ agentId, value, onChange, touched, hint }: { agentId: string; value: SetMetric[]; onChange: (v: SetMetric[]) => void; touched?: boolean; hint?: string }) {
+  const agentMetrics = evaluationStore.agentMetrics(agentId);
+  const addable = [
+    ...agentMetrics.filter(m => !value.some(sm => sm.metricId === m.id)),
+    ...TEMPLATE_METRICS.filter(t => !agentMetrics.some(m => m.templateId === t.id)),
+  ];
+  const required = value.filter(m => m.required).length;
+  return (
+    <section>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-medium">Chỉ số chấm <span className="text-destructive">*</span></h3>
+          <p className="text-xs text-muted-foreground mt-0.5">{hint ?? "Bắt buộc: Tính vào Pass rate. Theo dõi: Chỉ xem kết quả, không làm test fail."}</p>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild><button type="button" className="btn-secondary !h-8 text-xs shrink-0"><HugeiconsIcon icon={Add01Icon} size={12} /> Thêm chỉ số</button></DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-80 max-h-72 overflow-y-auto">
+            {addable.length === 0 ? <div className="px-2 py-3 text-xs text-muted-foreground">Đã chọn mọi chỉ số có sẵn.</div> : addable.map(m => (
+              <DropdownMenuItem key={m.id} className="items-start py-2" onClick={() => {
+                const metric = m.agentId === "template" ? evaluationStore.addFromTemplate(agentId, m.id) : m;
+                onChange([...value.filter(x => x.metricId !== metric.id), { metricId: metric.id, required: true }]);
+              }}>
+                <div>
+                  <div className="font-medium">{m.name} <span className="text-xs text-muted-foreground font-normal">· {METRIC_GROUP_LABEL[m.group]}</span></div>
+                  <div className="text-xs text-muted-foreground">{m.vnName}{m.agentId === "template" ? " · Từ thư viện" : ""}</div>
+                </div>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      <div className="mt-2 rounded-lg border border-border divide-y divide-border">
+        {value.map(sm => {
+          const m = evaluationStore.metric(sm.metricId);
+          if (!m) return null;
+          return (
+            <div key={sm.metricId} className="flex items-center gap-2 px-3 py-2">
+              <div className="flex-1 min-w-0">
+                <div className="text-sm truncate">{m.name} <span className="text-xs text-muted-foreground">· {m.vnName}</span></div>
+                <div className="text-[11px] text-muted-foreground truncate">{passRuleText(m)}</div>
+              </div>
+              <div className="flex items-center gap-1 rounded-lg bg-surface-muted p-0.5 shrink-0" role="radiogroup" aria-label={`Loại chỉ số ${m.name}`}>
+                {[true, false].map(r => (
+                  <button key={String(r)} type="button" role="radio" aria-checked={sm.required === r} onClick={() => onChange(value.map(x => (x.metricId === sm.metricId ? { ...x, required: r } : x)))}
+                    className={`px-2 h-7 rounded-md text-xs font-medium transition-base cursor-pointer ${sm.required === r ? "bg-surface shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                    {r ? "Bắt buộc" : "Theo dõi"}
+                  </button>
+                ))}
+              </div>
+              <button type="button" className="btn-ghost !px-1.5 !h-7" aria-label={`Bỏ chỉ số ${m.name}`} onClick={() => onChange(value.filter(x => x.metricId !== sm.metricId))}><HugeiconsIcon icon={Delete02Icon} size={13} /></button>
+            </div>
+          );
+        })}
+        {value.length === 0 && <div className="px-3 py-5 text-center text-sm text-muted-foreground">Chưa chọn chỉ số nào - Bấm Thêm chỉ số để chọn</div>}
+      </div>
+      {touched && required === 0 && <span className="text-xs text-destructive mt-1 block">Chọn ít nhất 1 chỉ số Bắt buộc để tính Pass rate</span>}
+      {required > MANY_REQUIRED && <p className="text-xs text-warning mt-1">{required} chỉ số Bắt buộc - Lượt chạy sẽ lâu và tốn hơn. Chuyển bớt sang Theo dõi nếu không cần chặn.</p>}
+    </section>
   );
 }
