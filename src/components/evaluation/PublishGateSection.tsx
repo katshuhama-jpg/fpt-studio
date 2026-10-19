@@ -16,7 +16,7 @@ export function PublishGateSection({ agentId }: { agentId: string }) {
     <div className="p-8 w-full space-y-5 animate-fade-up">
       <div>
         <h2 className="font-display text-xl font-semibold">Điều kiện publish</h2>
-        <p className="text-sm text-muted-foreground mt-1">Chọn bộ test phải đạt trước khi gửi publish. Khi bấm Publish, các bộ test đang bật sẽ tự chạy trên bản nháp và so với Min. pass.</p>
+        <p className="text-sm text-muted-foreground mt-1">Chọn bộ test phải đạt trước khi gửi publish. Khi bấm Publish, các bộ test đang bật sẽ tự chạy trên bản nháp với chỉ số của lượt chạy gần nhất và so với Min. pass.</p>
       </div>
 
       {sets.length === 0 ? (

@@ -664,13 +664,17 @@ export const evaluationStore = {
     state.cases.push(...items.map(it => ({ ...it, id: uid("case"), setId })));
     state.sets = state.sets.map(s => (s.id === setId ? { ...s, updatedAt: nowIso() } : s)); commit();
   },
-  /** Adds Knowledge Retention (Bắt buộc) when a set gets its first multi-turn test. */
-  ensureTypeMetrics(setId: string, types: TestType[]) {
+  /** Metrics pre-ticked in the run dialog: what this set was last run with, else the FPT defaults
+   * (4 Bắt buộc + Tool Call Accuracy when the Agent has tools + Knowledge Retention when the set has multi-turn tests).
+   * Test sets and test cases carry no metrics of their own - metrics are chosen per run. */
+  defaultRunMetrics(setId: string, hasTools: boolean): SetMetric[] {
     const set = state.sets.find(x => x.id === setId);
-    if (!set) return;
-    const want = types.includes("multiturn") ? ["tpl-retention"] : [];
-    const add = want.map(tpl => this.addFromTemplate(set.agentId, tpl)).filter(m => !set.metrics.some(sm => sm.metricId === m.id));
-    if (add.length) { state.sets = state.sets.map(x => (x.id === setId ? { ...x, metrics: [...x.metrics, ...add.map(m => ({ metricId: m.id, required: true }))] } : x)); commit(); }
+    if (!set) return [];
+    const known = set.metrics.filter(sm => state.metrics.some(m => m.id === sm.metricId));
+    if (known.length) return known;
+    const hasMultiturn = state.cases.some(c => c.setId === setId && c.type === "multiturn");
+    const tpls = ["tpl-correctness", "tpl-faithfulness", "tpl-safety", "tpl-style", ...(hasTools ? ["tpl-tool"] : []), ...(hasMultiturn ? ["tpl-retention"] : [])];
+    return tpls.map(tpl => ({ metricId: this.addFromTemplate(set.agentId, tpl).id, required: true }));
   },
   updateCase(id: string, patch: Partial<TestCase>) { state.cases = state.cases.map(c => (c.id === id ? { ...c, ...patch } : c)); commit(); },
   approveAll(setId: string) { state.cases = state.cases.map(c => (c.setId === setId ? { ...c, reviewed: true } : c)); commit(); },
@@ -682,19 +686,17 @@ export const evaluationStore = {
   run: (id: string) => state.runs.find(r => r.id === id),
   latestRun: (setId: string, version?: string) => state.runs.filter(r => r.setId === setId && r.status === "done" && (!version || r.version === version)).sort((a, b) => b.number - a.number)[0],
   previousRun: (run: Run) => state.runs.filter(r => r.setId === run.setId && r.status === "done" && r.number < run.number).sort((a, b) => b.number - a.number)[0],
-  /** Relevance-style run: pick tests (default all), a version, optional extra checks for this run only. */
-  startRun(setId: string, versionLabel: string, by: string, opts: { name?: string; caseIds?: string[]; extraMetricIds?: string[] } = {}): Run {
+  /** Relevance-style run: pick tests (default all), a version and the metrics to grade with. */
+  startRun(setId: string, versionLabel: string, by: string, opts: { name?: string; caseIds?: string[]; metrics?: SetMetric[] } = {}): Run {
     const set = state.sets.find(s => s.id === setId)!;
     const cases = state.cases.filter(c => c.setId === setId && (!opts.caseIds || opts.caseIds.includes(c.id)));
     const number = Math.max(0, ...state.runs.filter(r => r.agentId === set.agentId).map(r => r.number)) + 1;
-    const extra: SetMetric[] = (opts.extraMetricIds ?? []).filter(id => !set.metrics.some(m => m.metricId === id)).map(metricId => ({ metricId, required: false }));
-    const caseMetrics: Record<string, SetMetric[]> = {};
-    cases.forEach(c => { if (c.metrics) caseMetrics[c.id] = [...c.metrics, ...extra.filter(e => !c.metrics!.some(m => m.metricId === e.metricId))]; });
-    const allMetrics = [...set.metrics, ...extra];
-    Object.values(caseMetrics).flat().forEach(sm => { if (!allMetrics.some(m => m.metricId === sm.metricId)) allMetrics.push(sm); });
+    // Metrics are picked in the run dialog; remember them on the set as next run's defaults.
+    const allMetrics = opts.metrics ?? this.defaultRunMetrics(setId, Object.keys(set.toolModes).length > 0);
+    state.sets = state.sets.map(s => (s.id === setId ? { ...s, metrics: allMetrics } : s));
     const run: Run = {
       id: uid("run"), number, agentId: set.agentId, setId, setName: set.name, version: versionLabel, status: "running", progress: 0,
-      createdAt: nowIso(), by, durationSec: 0, tokens: 0, runsPerCase: set.runsPerCase, metrics: allMetrics, caseMetrics, extraMetricIds: opts.extraMetricIds,
+      createdAt: nowIso(), by, durationSec: 0, tokens: 0, runsPerCase: set.runsPerCase, metrics: allMetrics,
       name: opts.name, caseIds: cases.map(c => c.id), results: {},
     };
     state.runs.push(run); commit();
@@ -713,7 +715,7 @@ export const evaluationStore = {
         results[c.id] = {};
         const n = c.runsPerCase ?? set.runsPerCase;
         calls += n;
-        (caseMetrics[c.id] ?? [...set.metrics, ...extra]).forEach(sm => {
+        allMetrics.forEach(sm => {
           const m = state.metrics.find(x => x.id === sm.metricId);
           if (!m) return;
           if (m.needs.includes("expectedTools") && !c.expectedTool) return;

@@ -171,8 +171,8 @@ export function MetricsSection({ agentId }: { agentId: string }) {
             <AlertDialogTitle>Xóa chỉ số "{toDelete?.name}"?</AlertDialogTitle>
             <AlertDialogDescription>
               {toDelete && evaluationStore.setsUsingMetric(toDelete.id).length > 0
-                ? `Chỉ số đang dùng trong ${evaluationStore.setsUsingMetric(toDelete.id).map(s => s.name).join(", ")}. Các bộ test này sẽ không chấm chỉ số này nữa.`
-                : "Chỉ số chưa được dùng ở bộ test nào."} Kết quả của các lượt chạy cũ vẫn được giữ.
+                ? `Chỉ số đang được chọn sẵn khi chạy ${evaluationStore.setsUsingMetric(toDelete.id).map(s => s.name).join(", ")}. Các lượt chạy sau sẽ không chấm chỉ số này nữa.`
+                : "Chỉ số chưa được dùng ở lượt chạy nào."} Kết quả của các lượt chạy cũ vẫn được giữ.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
