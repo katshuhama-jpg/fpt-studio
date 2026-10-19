@@ -149,7 +149,28 @@ export function AgentVersionsPanel({ agentId, agentName, onPublish, onChanged }:
   const shown = filter === "all" ? rows : rows.filter(r => r.status === filter);
   const refresh = () => { setTick(t => t + 1); onChanged(); };
 
+  // Taken down by an Admin ("Gỡ publish" by Admin, UC13): no version goes back live on the
+  // Builder's word alone - Khôi phục sends the chosen version for review instead (19/10).
+  const removedByAdmin = pub.placement === null ? pub.removedByAdmin : undefined;
+  const sendRestoreForReview = () => {
+    const rel = rollback?.release;
+    if (!rollback || !rel) return;
+    const name = agentName ?? getAgent(agentId).name;
+    const prevReq = governanceStore.listForResource("agent", agentId).find(r => requestKind(r) === "publish" && r.version === rel.version && r.status !== "pending");
+    governanceStore.submit({
+      resourceType: "agent", resourceId: agentId, resourceName: name, resourceIcon: isExternalAgentId(agentId) ? undefined : getAgent(agentId).emoji,
+      requesterId: CURRENT_USER.id, requesterName: CURRENT_USER.name,
+      audience: rel.audience === "community" ? "community" : rel.audience === "group" ? "group" : "org",
+      scopeSummary: rel.scopeSummary, channels: rel.channels, version: rel.version,
+      workspaceTargets: prevReq?.workspaceTargets, reviewUnits: prevReq?.reviewUnits,
+      note: `Khôi phục ${rel.version} sau khi ${removedByAdmin?.byName ?? "Admin"} gỡ publish.`,
+    });
+    toast.success(`Đã gửi yêu cầu khôi phục ${rel.version}. Người dùng dùng lại bản này khi Admin duyệt.`);
+    setRollback(null);
+    refresh();
+  };
   const doRollback = () => {
+    if (removedByAdmin) { sendRestoreForReview(); return; }
     const rel = rollback?.release;
     if (!rollback || !rel) return;
     // Same rule as a direct publish (R3): a pending version request would roll this back again
@@ -287,15 +308,22 @@ export function AgentVersionsPanel({ agentId, agentName, onPublish, onChanged }:
             <AlertDialogTitle>Khôi phục {rollback?.version}?</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2 text-sm text-muted-foreground">
-                <p>
-                  Người dùng sẽ dùng lại {rollback?.version} ngay, thay cho {pub.placement !== null ? pub.version : "trạng thái hiện tại"}.
-                  Bản này đã từng được duyệt nên không cần gửi duyệt lại.
-                </p>
+                {removedByAdmin ? (
+                  <p>
+                    Nhân sự số đã bị {removedByAdmin.byName} gỡ publish nên cần Admin duyệt lại trước khi người dùng dùng lại {rollback?.version}.
+                    Yêu cầu dùng phạm vi và kênh lúc {rollback?.version} đang live.
+                  </p>
+                ) : (
+                  <p>
+                    Người dùng sẽ dùng lại {rollback?.version} ngay, thay cho {pub.placement !== null ? pub.version : "trạng thái hiện tại"}.
+                    Bản này đã từng được duyệt nên không cần gửi duyệt lại.
+                  </p>
+                )}
                 <p>
                   Phạm vi và kênh cũng quay về như lúc {rollback?.version} đang live - Workspace: <b className="text-foreground">{rollback?.scope ?? "-"}</b>;
                   Kênh ngoài: <b className="text-foreground">{rollback?.channels?.length ? rollback.channels.map(channelLabel).join(", ") : "Không"}</b>.
                 </p>
-                {pendingForRollback && (
+                {pendingForRollback && !removedByAdmin && (
                   <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-foreground">
                     Yêu cầu <b>{pendingForRollback.version}</b> đang chờ duyệt sẽ được rút - Nếu không, khi được duyệt nó sẽ thay bản bạn vừa khôi phục.
                   </p>
@@ -305,7 +333,7 @@ export function AgentVersionsPanel({ agentId, agentName, onPublish, onChanged }:
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Hủy</AlertDialogCancel>
-            <AlertDialogAction onClick={doRollback}>Khôi phục {rollback?.version}</AlertDialogAction>
+            <AlertDialogAction onClick={doRollback}>{removedByAdmin ? "Gửi yêu cầu duyệt" : `Khôi phục ${rollback?.version}`}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
