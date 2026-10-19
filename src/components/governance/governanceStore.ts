@@ -180,10 +180,19 @@ export interface GovHistoryEntry {
  * own open request at the same time. */
 export type GovRequestKind = "publish" | "channels";
 export const requestKind = (r: GovRequest): GovRequestKind => r.kind ?? "publish";
+/** What a "channels" request asks for, lower-case to sit inside a sentence. Three shapes (19/10):
+ * review a version for external channels (no approved version yet), switch channels ON, or move
+ * the live external channels to a newer approved version. */
+export function channelRequestLabel(r: GovRequest): string {
+  if (r.channelsPurpose === "review") return `duyệt ${r.version ?? ""} cho kênh ngoài`.replace("  ", " ");
+  if ((r.channelsAdded ?? []).length) return `bật kênh ${(r.channelsAdded ?? []).map(channelLabel).join(", ")}`;
+  return `cập nhật kênh ngoài lên ${r.version ?? ""}`.trim();
+}
+const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 /** What a request is about, for the Audit Log line ("Bật kênh API" / "v1.2.0"). */
 export function auditDetail(r: GovRequest): string | undefined {
   if (r.resourceType !== "agent") return undefined;
-  if (requestKind(r) === "channels") return `Bật kênh ${(r.channelsAdded ?? []).map(channelLabel).join(", ")}`;
+  if (requestKind(r) === "channels") return cap(channelRequestLabel(r));
   return r.version;
 }
 
@@ -192,6 +201,9 @@ export interface GovRequest {
   kind?: GovRequestKind;
   /** kind "channels" only — the channels this request switches ON (ids from CHANNEL_CATALOG). */
   channelsAdded?: string[];
+  /** kind "channels" only — "review": the Agent has no approved version yet, so this asks a Space
+   * Admin to approve `version` for external channels (nothing switches on). */
+  channelsPurpose?: "review";
   /** Set for an External Agent request (resourceId "ext-…") — its connection, frozen at submit. */
   externalSnap?: ExternalAgentSnap;
   resourceType: GovResourceType;
@@ -923,6 +935,7 @@ function buildNotification(r: GovRequest, action: GovHistoryEntry["action"], act
   if (r.resourceType !== "agent") return null;
   const isCh = requestKind(r) === "channels";
   const chs = (r.channelsAdded ?? []).map(channelLabel).join(", ");
+  const chLabel = isCh ? channelRequestLabel(r) : "";
   const path = resourcePath("agent", r.resourceId);
   const A: [string, boolean] = [r.resourceName, true];
   let kind: NotificationKind; let seg: [string, boolean?][]; let href = path;
@@ -930,16 +943,16 @@ function buildNotification(r: GovRequest, action: GovHistoryEntry["action"], act
   switch (action) {
     case "submitted":
       kind = "request_submitted"; recipients = [REVIEWERS]; href = `/governance/requests/${r.id}`;
-      seg = isCh ? [[actorName, true], [` gửi yêu cầu duyệt bật kênh ${chs} cho `], A] : [[actorName, true], [" gửi yêu cầu duyệt publish "], A];
+      seg = isCh ? [[actorName, true], [` gửi yêu cầu ${chLabel} cho `], A] : [[actorName, true], [" gửi yêu cầu duyệt publish "], A];
       break;
     case "approved":
       kind = isCh ? "channel_approved" : "request_approved";
-      seg = isCh ? [[`Yêu cầu bật kênh ${chs} cho `], A, [" đã được duyệt"]] : [["Yêu cầu publish "], A, [" đã được duyệt"]];
+      seg = isCh ? [[`Yêu cầu ${chLabel} cho `], A, [" đã được duyệt"]] : [["Yêu cầu publish "], A, [" đã được duyệt"]];
       if (!isCh) href = `${path}?tab=build&section=versions`;
       break;
     case "rejected":
       kind = isCh ? "channel_rejected" : "request_rejected";
-      seg = isCh ? [[`Yêu cầu bật kênh ${chs} cho `], A, [" bị từ chối"]] : [["Yêu cầu publish "], A, [" bị từ chối"]];
+      seg = isCh ? [[`Yêu cầu ${chLabel} cho `], A, [" bị từ chối"]] : [["Yêu cầu publish "], A, [" bị từ chối"]];
       break;
     case "revoked":
       kind = isCh ? "channel_revoked" : "request_revoked";
@@ -1084,7 +1097,7 @@ export const governanceStore = {
     resourceRefs?: AgentResourceRef[]; scopeSummary?: string; channels?: string[]; workspaceTargets?: WorkspaceTarget[];
     connections?: AgentConnectionSnap[]; subAgents?: SubAgentSnap[]; starterPrompts?: string[];
     model?: string; privateKnowledge?: { name: string; kind: "doc" | "url" | "faq" }[];
-    kind?: GovRequestKind; channelsAdded?: string[]; externalSnap?: ExternalAgentSnap;
+    kind?: GovRequestKind; channelsAdded?: string[]; channelsPurpose?: "review"; externalSnap?: ExternalAgentSnap;
     groupId?: string; groupMemberIds?: string[]; reviewUnits?: { id: string; name: string }[]; reviewMode?: "single" | "any"; addedMemberNames?: string[];
   }): GovRequest {
     seed();
@@ -1108,7 +1121,7 @@ export const governanceStore = {
       submittedAt: t, updatedAt: t, resourceRefs: input.resourceRefs, channels: input.channels, workspaceTargets: input.workspaceTargets,
       connections: input.connections, subAgents: input.subAgents, starterPrompts: input.starterPrompts,
       model: input.model, privateKnowledge: input.privateKnowledge,
-      kind, channelsAdded, externalSnap: input.externalSnap,
+      kind, channelsAdded, channelsPurpose: input.channelsPurpose, externalSnap: input.externalSnap,
       groupId: input.groupId, groupMemberIds: input.groupMemberIds, reviewUnits: input.reviewUnits, reviewMode: input.reviewMode, addedMemberNames: input.addedMemberNames,
       mainSnapshotAtSubmit: input.externalSnap ? undefined : buildSnapshot(input.resourceType, input.resourceId),
       connectionsAtSubmit: input.resourceType === "agent" && !input.externalSnap && !input.connections
@@ -1186,12 +1199,14 @@ export const governanceStore = {
     r.history.push(historyEntry("approved", reviewerId, reviewerName, note));
 
     if (requestKind(r) === "channels") {
-      // Turning channels ON for the version already live — no new version, no snapshot change.
+      // External channels: approve a version for them, switch channels ON, or move them to a newer
+      // approved version - the Workspace version and scope are never touched.
       store.set(id, r);
       persist();
+      if (r.version) agentPublishStore.markApproved(r.resourceId, r.version);
       const current = agentPublishStore.get(r.resourceId);
       const nextChannels = [...new Set([...current.channels, ...(r.channelsAdded ?? [])])];
-      agentPublishStore.setChannels(r.resourceId, nextChannels);
+      if (r.channelsPurpose !== "review") agentPublishStore.setChannels(r.resourceId, nextChannels, r.version);
       if (isExternalAgentId(r.resourceId)) externalAgentStore.applyGovernance(r.resourceId, { channels: nextChannels }, `Đã duyệt bật kênh ${(r.channelsAdded ?? []).map(channelLabel).join(", ")}`);
       auditLogStore.log({ actorId: reviewerId, actorName: reviewerName, action: "approved", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note, at: t, detail: auditDetail(r) });
       notify(r, "approved", reviewerId, reviewerName, note);

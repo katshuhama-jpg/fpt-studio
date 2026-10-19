@@ -57,6 +57,10 @@ export interface AgentPublishState {
    * Admin, incl. direct publishes that never went through a request). Shown to the Builder as a
    * banner with the reason; cleared by the next publish. */
   removedByAdmin?: { byId: string; byName: string; reason: string; at: number };
+  /** The version external channels run (confirmed with Tyler 19/10). External channels are pinned:
+   * a newer version approved for Workspace never reaches them on its own - moving them needs a
+   * Space Admin-approved "Cập nhật kênh ngoài" request. A rollback moves every channel at once. */
+  channelVersion?: string;
 }
 
 /** One entry per version that actually went live (direct publish, approved request, or
@@ -76,6 +80,16 @@ export interface ReleaseEntry {
 }
 
 const STORE_KEY = "agent_publish_store_v6";
+/** Versions that have cleared a review (Workspace publish request or a "Duyệt bản cho kênh ngoài"
+ * request). External channels only ever run one of these. */
+const APPROVED_KEY = "agent_approved_versions_v1";
+const approvedLog = loadMap<string, string[]>(APPROVED_KEY);
+/** "v1.10.0" > "v1.9.2" - numeric compare per segment. */
+export function compareVersions(a: string, b: string): number {
+  const pa = a.replace(/^v/, "").split(".").map(Number), pb = b.replace(/^v/, "").split(".").map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) { const d = (pa[i] ?? 0) - (pb[i] ?? 0); if (d) return d; }
+  return 0;
+}
 const RELEASE_KEY = "agent_release_log_v3";
 const releaseLog = loadMap<string, ReleaseEntry[]>(RELEASE_KEY);
 const persistReleases = () => saveMap(RELEASE_KEY, releaseLog);
@@ -153,6 +167,7 @@ export const agentPublishStore = {
     return {
       placement: s.placement, audience: s.audience, channels: s.channels ?? [], version: s.version ?? BASELINE_VERSION,
       scopeSummary: s.scopeSummary, groupId: s.groupId, groupMemberIds: s.groupMemberIds, reach: s.reach, needsRegovernance: s.needsRegovernance, removedByAdmin: s.removedByAdmin,
+      channelVersion: (s.channels ?? []).length ? (s.channelVersion ?? s.version ?? BASELINE_VERSION) : undefined,
     };
   },
   publish(agentId: string, placement: Placement, channels: string[], version: string, audience?: PublishAudience, extra?: { scopeSummary?: string; groupId?: string; groupMemberIds?: string[]; reach?: number; via?: ReleaseEntry["via"]; byName?: string }) {
@@ -165,6 +180,11 @@ export const agentPublishStore = {
       groupMemberIds: extra && "groupMemberIds" in extra ? extra.groupMemberIds : (audience === "group" || (!audience && cur?.audience === "group") ? cur?.groupMemberIds : undefined),
       reach: extra && "reach" in extra ? extra.reach : undefined,
       needsRegovernance: undefined,
+      // External channels keep their pinned version through a Workspace publish; a rollback moves
+      // every channel (Workspace and external) to the restored version together.
+      channelVersion: !channels.length ? undefined
+        : extra?.via === "rollback" ? version
+        : (cur?.channelVersion ?? ((cur?.channels ?? []).length ? cur?.version : version)),
     };
     store.set(agentId, next);
     persist();
@@ -181,19 +201,36 @@ export const agentPublishStore = {
     seedAgent(agentId);
     return [...(releaseLog.get(agentId) ?? [])].sort((a, b) => a.at - b.at);
   },
-  /** Toggles a channel's live/not-connected state on the currently-serving version,
-   * without treating it as a new release. */
-  setChannels(agentId: string, channels: string[]) {
+  /** Toggles external channels on their pinned version (or `channelVersion` when given - a
+   * channel request approved for a specific version), without treating it as a new release. */
+  setChannels(agentId: string, channels: string[], channelVersion?: string) {
     seedAgent(agentId);
     const cur = this.get(agentId);
-    store.set(agentId, { ...cur, channels });
+    store.set(agentId, { ...cur, channels, channelVersion: channels.length ? (channelVersion ?? cur.channelVersion ?? cur.version) : undefined });
     persist();
   },
+  /** Takes the Agent off Workspace. External channels are their own scope and keep running their
+   * pinned version (confirmed with Tyler 19/10) - turning them off is done per channel. */
   unpublish(agentId: string, byAdmin?: { byId: string; byName: string; reason: string }) {
     seedAgent(agentId);
     const cur = this.get(agentId);
-    store.set(agentId, { ...cur, placement: null, channels: [], removedByAdmin: byAdmin ? { ...byAdmin, at: Date.now() } : undefined });
+    store.set(agentId, { ...cur, placement: null, removedByAdmin: byAdmin ? { ...byAdmin, at: Date.now() } : undefined });
     persist();
+  },
+  /** Every version that has cleared a review, oldest first. */
+  approvedVersions(agentId: string): string[] {
+    seedAgent(agentId);
+    const fromReleases = (releaseLog.get(agentId) ?? []).filter(e => e.via === "approved").map(e => e.version);
+    return [...new Set([...fromReleases, ...(approvedLog.get(agentId) ?? [])])].sort(compareVersions);
+  },
+  latestApproved(agentId: string): string | undefined {
+    return this.approvedVersions(agentId).pop();
+  },
+  markApproved(agentId: string, version: string) {
+    const cur = approvedLog.get(agentId) ?? [];
+    if (cur.includes(version)) return;
+    approvedLog.set(agentId, [...cur, version]);
+    saveMap(APPROVED_KEY, approvedLog);
   },
   /** The Agent's own state for users (independent of any publish request):
    *   - "draft": no version has ever reached users (incl. a first request pending / rejected);

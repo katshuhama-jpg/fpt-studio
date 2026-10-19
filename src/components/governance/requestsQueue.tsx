@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import {
   governanceStore, AUDIENCE_LABEL, requestKind, channelLabel,
   type GovRequestStatus, type GovResourceType, type GovRequest,
+  channelRequestLabel,
 } from "@/components/governance/governanceStore";
 import { StatusBadge, ResourceTypePill, RequestAvatar, initials, formatDateTime } from "@/components/governance/governanceUi";
 import { useAgentReviewScope } from "@/components/governance/agentReviewScope";
@@ -77,7 +78,7 @@ function RequestRow({ r, scope, onClick }: { r: GovRequest; scope: Scope; onClic
             </p>
             {requestKind(r) === "channels" && (
               <span className="inline-flex items-center gap-1 mt-1 text-xs font-medium rounded-sm px-1.5 py-0.5 whitespace-nowrap text-sky-800 bg-sky-50">
-                Bật kênh ngoài: {(r.channelsAdded ?? []).map(channelLabel).join(", ")}
+                {(() => { const l = channelRequestLabel(r); return l.charAt(0).toUpperCase() + l.slice(1); })()}
               </span>
             )}
           </div>

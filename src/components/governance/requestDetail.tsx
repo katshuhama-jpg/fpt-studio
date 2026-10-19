@@ -7,8 +7,9 @@ import {
 import {
   governanceStore, resourcePath, RESOURCE_TYPE_LABEL, AUDIENCE_LABEL,
   checkDrift, mainChangeState, requestDiff, type AgentResourceRef,
-  requestKind, channelLabel, isExternalAgentId,
+  requestKind, channelLabel, isExternalAgentId, channelRequestLabel,
 } from "@/components/governance/governanceStore";
+const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 import { ACTION_LABEL } from "@/components/governance/auditLogStore";
 import {
   StatusBadge, ResourceTypePill, ChangeStateBadge, RequestAvatar, formatDateTime,
@@ -143,7 +144,11 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
           <Info size={15} className="text-muted-foreground shrink-0 mt-0.5" />
           <p className="text-sm text-muted-foreground leading-relaxed">
             {isChannelReq
-              ? <>Bạn đang quyết định <span className="font-medium text-foreground">có bật thêm kênh ngoài {(req.channelsAdded ?? []).map(channelLabel).join(", ")} cho bản đang live hay không</span>. Phiên bản và phạm vi Workspace giữ nguyên.</>
+              ? req.channelsPurpose === "review"
+                ? <>Nhân sự số chưa có bản nào được duyệt. Bạn đang quyết định <span className="font-medium text-foreground">{req.version} có đủ tốt để chạy trên kênh ngoài hay không</span>. Duyệt xong Builder mới bật được kênh - Mỗi lần bật vẫn cần Space Admin duyệt.</>
+                : (req.channelsAdded ?? []).length
+                ? <>Bạn đang quyết định <span className="font-medium text-foreground">có bật kênh ngoài {(req.channelsAdded ?? []).map(channelLabel).join(", ")} với {req.version} hay không</span>. Phiên bản và phạm vi Workspace giữ nguyên.</>
+                : <>Bạn đang quyết định <span className="font-medium text-foreground">có chuyển mọi kênh ngoài đang live sang {req.version} hay không</span>. Workspace giữ nguyên.</>
               : isAgent
               ? <>Bạn đang quyết định <span className="font-medium text-foreground">Nhân sự số này có được publish tới người dùng hay không</span>.</>
               : <>Bạn đang quyết định <span className="font-medium text-foreground">thành phần này có được đưa vào Thư viện Space để Builder khác dùng chung hay không</span>.</>}
@@ -166,7 +171,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
                   (same as its list, which has no "Loại" column). */}
               {!isAgent && <ResourceTypePill type={req.resourceType} />}
               {req.externalSnap && <span className="text-xs font-medium text-sky-800 bg-sky-50 border border-sky-200 rounded-full px-2.5 py-1">External Agent</span>}
-              {isChannelReq && <span className="text-xs font-medium text-sky-800 bg-sky-50 border border-sky-200 rounded-full px-2.5 py-1">Bật kênh ngoài</span>}
+              {isChannelReq && <span className="text-xs font-medium text-sky-800 bg-sky-50 border border-sky-200 rounded-full px-2.5 py-1">{cap(channelRequestLabel(req))}</span>}
               {req.version && <span className="text-xs font-medium text-muted-foreground bg-surface-muted border border-border rounded-full px-2.5 py-1">{req.version}</span>}
               {changeState && !isChannelReq && <ChangeStateBadge state={changeState} />}
               <StatusBadge status={req.status} />
@@ -403,7 +408,11 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
               {dialog === "approve" && (isChannelReq
-                ? `Nhân sự số sẽ hoạt động thêm trên ${(req.channelsAdded ?? []).map(channelLabel).join(", ")}. Bản live và phạm vi Workspace giữ nguyên.`
+                ? req.channelsPurpose === "review"
+                  ? `${req.version} được ghi nhận là bản đã duyệt. Builder sẽ gửi yêu cầu bật từng kênh sau.`
+                  : (req.channelsAdded ?? []).length
+                  ? `Nhân sự số sẽ hoạt động thêm trên ${(req.channelsAdded ?? []).map(channelLabel).join(", ")} với ${req.version}. Phạm vi Workspace giữ nguyên.`
+                  : `Mọi kênh ngoài đang live sẽ chuyển sang ${req.version}. Workspace giữ nguyên.`
                 : isAgent
                 ? (() => {
                     const live = agentPublishStore.get(req.resourceId);
@@ -511,7 +520,7 @@ function OutcomeBanner({ req, isAgent, isChannelReq }: { req: import("@/componen
   const last = [...req.history].reverse().find(h => h.action !== "submitted");
   const meta = {
     approved: { box: "border-success/25 bg-success/5", icon: CheckCircle2, iconCls: "text-success",
-      title: isChannelReq ? `Đã duyệt - Đã bật ${(req.channelsAdded ?? []).map(channelLabel).join(", ")}` : isAgent ? `Đã duyệt - ${req.version ?? "bản này"} đã được publish` : "Đã duyệt - Đã có trong Thư viện Space" },
+      title: isChannelReq ? (req.channelsPurpose === "review" ? `Đã duyệt - ${req.version} chạy được trên kênh ngoài` : (req.channelsAdded ?? []).length ? `Đã duyệt - Đã bật ${(req.channelsAdded ?? []).map(channelLabel).join(", ")}` : `Đã duyệt - Kênh ngoài chạy ${req.version}`) : isAgent ? `Đã duyệt - ${req.version ?? "bản này"} đã được publish` : "Đã duyệt - Đã có trong Thư viện Space" },
     rejected: { box: "border-destructive/25 bg-destructive/5", icon: XCircle, iconCls: "text-destructive", title: "Đã từ chối" },
     revoked: { box: "border-destructive/25 bg-destructive/5", icon: Undo2, iconCls: "text-destructive",
       title: isChannelReq ? `Đã thu hồi - Đã tắt ${(req.channelsAdded ?? []).map(channelLabel).join(", ")}` : isAgent ? (req.revokedToVersion ? `Đã thu hồi - Người dùng quay về ${req.revokedToVersion}` : "Đã thu hồi - Nhân sự số đã ngừng publish") : "Đã thu hồi - Đã gỡ khỏi Thư viện Space" },

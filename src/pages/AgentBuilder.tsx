@@ -30,7 +30,7 @@ import { sharedConnectorAccountStore } from "@/components/configure/sharedConnec
 import { connectorActionStore } from "@/components/configure/connectorActionStore";
 import { hasTriggers, perUserConnector } from "@/components/configure/agentAutomationGuard";
 import {
-  agentPublishStore,
+  agentPublishStore, compareVersions,
   CONNECTOR_BLOCKED_BY_TRIGGER_REASON,
   type PublishAudience,
 } from "@/components/configure/agentPublishStore";
@@ -486,8 +486,9 @@ export default function AgentBuilder() {
             <AlertDialogTitle>Gỡ publish "{agent.name}"?</AlertDialogTitle>
             <AlertDialogDescription>
               {adminActor
-                ? <>Người dùng sẽ không dùng được Nhân sự số này nữa (đang live {publishState.version}) và Nhân sự số chuyển sang Đã gỡ. {ownerName} và những người đang build Nhân sự số sẽ nhận thông báo kèm lý do.</>
-                : <>Người dùng sẽ không dùng được Nhân sự số này nữa (đang live {publishState.version}) và Nhân sự số chuyển sang Đã gỡ. Muốn dùng lại, bạn publish lại hoặc khôi phục một bản đã được duyệt trong Phiên bản.</>}
+                ? <>Người dùng trong Workspace sẽ không dùng được Nhân sự số này nữa (đang live {publishState.version}) và Nhân sự số chuyển sang Đã gỡ. {ownerName} và những người đang build Nhân sự số sẽ nhận thông báo kèm lý do.</>
+                : <>Người dùng trong Workspace sẽ không dùng được Nhân sự số này nữa (đang live {publishState.version}) và Nhân sự số chuyển sang Đã gỡ. Muốn dùng lại, bạn publish lại hoặc khôi phục một bản đã được duyệt trong Phiên bản.</>}
+              {publishState.channels.length > 0 && <> Kênh ngoài vẫn chạy {publishState.channelVersion} - Tắt từng kênh ở tab Channels nếu cần.</>}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {adminActor && (
@@ -3002,28 +3003,51 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
   // header pill reads "Automation · v1.0.2" while this summary bar contradicts it with 0.
   const liveDestinationCount = publishState.channels.length + (published && isAutomation ? 1 : 0);
 
-  // External channels are their own publish scope (outside Agent Workspace): switching one ON
-  // always goes to Org/Unit Admin review — whatever the Workspace scope is, even "Chỉ mình tôi" —
-  // while switching one OFF only narrows who can reach the Agent, so it applies immediately.
+  // External channels (confirmed with Tyler 19/10): Workspace is just one channel. External
+  // channels only ever run a version that has cleared review, every one of them runs the same
+  // pinned version, and switching one ON / moving them to a newer version needs a Space Admin.
+  // Switching one OFF only narrows who can reach the Agent, so it applies immediately.
   const channelRequest = governanceStore.getOpenRequestForResource("agent", agentId, "channels");
-  const pendingChannels = new Set(channelRequest?.channelsAdded ?? []);
+  const reviewPending = channelRequest?.channelsPurpose === "review";
+  const updatePending = !!channelRequest && !reviewPending && !(channelRequest.channelsAdded ?? []).length;
+  const pendingChannels = new Set(reviewPending ? [] : channelRequest?.channelsAdded ?? []);
+  const latestApproved = agentPublishStore.latestApproved(agentId);
+  const channelVersion = publishState.channelVersion;
+  const channelsLive = publishState.channels.length > 0;
+  /** The version a newly switched-on channel runs: the pinned one, else the newest approved. */
+  const onVersion = channelVersion ?? latestApproved;
+  const canUpdateChannels = channelsLive && !!latestApproved && !!channelVersion && compareVersions(latestApproved, channelVersion) > 0;
   const [channelConfirm, setChannelConfirm] = useState<{ id: string; mode: "on" | "off" } | null>(null);
-  const requestChannelOn = (id: string) => {
+  const [channelAsk, setChannelAsk] = useState<"review" | "update" | null>(null);
+  const submitChannelRequest = (input: { channelsAdded?: string[]; version: string; purpose?: "review"; note: string }) => {
     const agent = getAgent(agentId);
     governanceStore.submit({
-      kind: "channels", channelsAdded: [id], channels: publishState.channels,
+      kind: "channels", channelsAdded: input.channelsAdded ?? [], channelsPurpose: input.purpose, channels: publishState.channels,
       resourceType: "agent", resourceId: agentId, resourceName: agent.name, resourceIcon: agent.emoji,
       requesterId: KB_CURRENT_USER.id, requesterName: KB_CURRENT_USER.name,
       audience: publishState.audience === "community" ? "community" : publishState.audience === "group" ? "group" : "org",
-      scopeSummary: publishState.scopeSummary, version: servingVersion,
+      scopeSummary: publishState.scopeSummary, version: input.version,
       // Same Workspace scope the live version was approved with — unchanged by this request.
       workspaceTargets: governanceStore.listForResource("agent", agentId)
         .find(r => (r.kind ?? "publish") === "publish" && r.status === "approved" && r.version === servingVersion)?.workspaceTargets,
-      note: `Bật kênh ${getChannelName(id)} cho bản đang live ${servingVersion}.`,
+      note: input.note,
       resourceRefs: listAgentResourceRefs(agentId),
     });
-    toast.success(`Đã gửi yêu cầu bật ${getChannelName(id)}. Kênh sẽ hoạt động khi Admin duyệt.`);
     refresh();
+  };
+  const requestChannelOn = (id: string) => {
+    if (!onVersion) return;
+    submitChannelRequest({ channelsAdded: [id], version: onVersion, note: `Bật kênh ${getChannelName(id)} với ${onVersion}.` });
+    toast.success(`Đã gửi yêu cầu bật ${getChannelName(id)}. Kênh hoạt động khi Space Admin duyệt.`);
+  };
+  const requestReview = () => {
+    submitChannelRequest({ version: servingVersion, purpose: "review", note: `Duyệt ${servingVersion} để chạy trên kênh ngoài.` });
+    toast.success(`Đã gửi ${servingVersion} cho Space Admin duyệt.`);
+  };
+  const requestUpdate = () => {
+    if (!latestApproved) return;
+    submitChannelRequest({ version: latestApproved, note: `Chuyển kênh ngoài từ ${channelVersion} lên ${latestApproved}.` });
+    toast.success(`Đã gửi yêu cầu cập nhật kênh ngoài lên ${latestApproved}.`);
   };
   const turnChannelOff = (id: string) => {
     agentPublishStore.setChannels(agentId, publishState.channels.filter(c => c !== id));
@@ -3074,8 +3098,12 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
       <div className="rounded-xl border border-border bg-surface flex items-center justify-between px-5 py-4 mb-8">
         <div className="flex items-center gap-10">
           <div>
-            <p className="text-sm text-muted-foreground mb-1">Phiên bản đang chạy</p>
-            <p className="text-base font-semibold font-mono">{servingVersion}</p>
+            <p className="text-sm text-muted-foreground mb-1">Workspace</p>
+            <p className="text-base font-semibold font-mono">{published ? servingVersion : <span className="font-sans text-muted-foreground font-normal text-sm">Chưa publish</span>}</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground mb-1">Kênh ngoài</p>
+            <p className="text-base font-semibold font-mono">{channelsLive ? channelVersion : <span className="font-sans text-muted-foreground font-normal text-sm">Chưa bật</span>}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground mb-1">Kênh đang live</p>
@@ -3199,12 +3227,41 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
       <div>
         <div className="flex items-baseline gap-2 mb-3">
           <h2 className="text-lg font-semibold">Kênh ngoài</h2>
+          {channelsLive && <span className="text-sm text-muted-foreground">Đang chạy <span className="font-mono text-foreground">{channelVersion}</span></span>}
+          {canUpdateChannels && (updatePending ? (
+            <Link to={`/governance/requests/${channelRequest!.id}`} target="_blank" rel="noopener noreferrer" className="ml-auto text-sm font-medium text-warning hover:underline">Chờ duyệt cập nhật lên {channelRequest!.version}</Link>
+          ) : canPublishAgent ? (
+            <button onClick={() => setChannelAsk("update")} className="ml-auto btn-secondary h-8 text-sm">Cập nhật kênh ngoài lên {latestApproved}</button>
+          ) : null)}
         </div>
+        {!latestApproved && (
+          <div className="mb-4 rounded-xl border border-warning/40 bg-warning/10 px-4 py-3.5 flex items-start gap-3">
+            <HugeiconsIcon icon={Alert01Icon} size={16} className="text-warning shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              {reviewPending ? (
+                <>
+                  <p className="text-sm font-semibold">Đang chờ Space Admin duyệt {channelRequest!.version}</p>
+                  <p className="text-sm text-muted-foreground mt-0.5">Duyệt xong bạn bật được kênh ngoài. Mỗi kênh bật vẫn cần Space Admin duyệt.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold">Kênh ngoài cần một bản đã được duyệt</p>
+                  <p className="text-sm text-muted-foreground mt-0.5">Nhân sự số chưa có bản nào được duyệt. Gửi {servingVersion} để Space Admin duyệt - Phạm vi Workspace giữ nguyên.</p>
+                </>
+              )}
+            </div>
+            {reviewPending ? (
+              <Link to={`/governance/requests/${channelRequest!.id}`} target="_blank" rel="noopener noreferrer" className="btn-secondary h-8 text-sm shrink-0">Xem yêu cầu</Link>
+            ) : canPublishAgent ? (
+              <button onClick={() => setChannelAsk("review")} className="btn-primary h-8 text-sm shrink-0">Gửi duyệt {servingVersion}</button>
+            ) : null}
+          </div>
+        )}
         <div className="grid grid-cols-3 gap-3">
           {CHANNEL_CATALOG.map(c => {
-            const live = published && publishState.channels.includes(c.id);
-            const pending = published && !live && pendingChannels.has(c.id);
-            const unavailable = !published || c.available === false;
+            const live = publishState.channels.includes(c.id);
+            const pending = !live && pendingChannels.has(c.id);
+            const unavailable = (!latestApproved && !live) || c.available === false;
             return (
               <div
                 key={c.id}
@@ -3218,7 +3275,7 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">{c.name}</p>
                   <p className={`text-xs truncate ${live ? "text-success" : pending ? "text-warning" : "text-muted-foreground"}`}>
-                    {c.available === false ? "Sắp có" : !published ? "Publish Nhân sự số trước để bật kênh" : live ? `Live · ${servingVersion}` : pending ? "Chờ duyệt bật kênh" : "Chưa bật"}
+                    {c.available === false ? "Sắp có" : live ? `Live · ${channelVersion}` : !latestApproved ? "Cần một bản đã được duyệt" : pending ? "Chờ Space Admin duyệt" : "Chưa bật"}
                   </p>
                 </div>
                 {!unavailable && (
@@ -3227,12 +3284,12 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
                       {c.id === "web" && (
                         <button onClick={() => setShowWebWidgetConfig(true)} className="h-7 px-2 rounded-md text-xs font-medium text-muted-foreground hover:bg-surface-muted">Cấu hình</button>
                       )}
-                      <button onClick={() => setChannelConfirm({ id: c.id, mode: "off" })} className="h-7 px-2.5 rounded-md border border-border text-xs font-medium hover:bg-surface-muted">Tắt</button>
+                      {canPublishAgent && <button onClick={() => setChannelConfirm({ id: c.id, mode: "off" })} className="h-7 px-2.5 rounded-md border border-border text-xs font-medium hover:bg-surface-muted">Tắt</button>}
                     </div>
                   ) : pending ? (
                     <Link to={`/governance/requests/${channelRequest!.id}`} target="_blank" rel="noopener noreferrer" className="h-7 px-2 rounded-md text-xs font-medium text-primary hover:bg-primary-soft flex items-center shrink-0">Xem yêu cầu</Link>
                   ) : (
-                    <button onClick={() => setChannelConfirm({ id: c.id, mode: "on" })} className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 shrink-0">Bật</button>
+                    canPublishAgent && <button onClick={() => setChannelConfirm({ id: c.id, mode: "on" })} className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 shrink-0">Bật</button>
                   )
                 )}
               </div>
@@ -3249,8 +3306,8 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {channelConfirm?.mode === "on"
-                ? `Kênh ngoài đưa Nhân sự số ra ngoài Workspace nên cần Admin duyệt trước khi hoạt động. Bản live ${servingVersion} và phạm vi Workspace giữ nguyên.`
-                : `Nhân sự số sẽ ngừng nhận tin nhắn từ kênh này ngay. Muốn bật lại sẽ cần gửi duyệt.`}
+                ? `Kênh ngoài đưa Nhân sự số ra ngoài tổ chức nên cần Space Admin duyệt trước khi hoạt động. Kênh sẽ chạy ${onVersion} - Bản đã được duyệt. Workspace giữ nguyên.`
+                : `Nhân sự số sẽ ngừng nhận tin nhắn từ kênh này ngay. Muốn bật lại sẽ cần Space Admin duyệt.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -3261,6 +3318,23 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
             >
               {channelConfirm?.mode === "on" ? "Gửi yêu cầu" : "Tắt kênh"}
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!channelAsk} onOpenChange={o => !o && setChannelAsk(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{channelAsk === "review" ? `Gửi ${servingVersion} cho Space Admin duyệt?` : `Cập nhật kênh ngoài lên ${latestApproved}?`}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {channelAsk === "review"
+                ? `Kênh ngoài chỉ chạy bản đã được duyệt. Sau khi ${servingVersion} được duyệt, bạn bật từng kênh - Mỗi lần bật vẫn cần Space Admin duyệt. Phạm vi Workspace giữ nguyên.`
+                : `Mọi kênh ngoài đang chạy ${channelVersion} sẽ chuyển sang ${latestApproved} khi Space Admin duyệt. Trong lúc chờ, kênh vẫn chạy ${channelVersion}.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { channelAsk === "review" ? requestReview() : requestUpdate(); setChannelAsk(null); }}>Gửi yêu cầu</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -7,6 +7,8 @@
 //     to a unit above. "Org Admin" is not a separate role — it's simply the Unit Admin of the
 //     root unit, which by inheritance covers every unit.
 //   - One decision from anyone eligible is enough (no multi-level approval).
+//   - External channel requests (turn a channel on, move channels to a newer version, approve a
+//     version for channels) - Space Admin only (confirmed with Tyler 19/10).
 // A request outside the viewer's scope is hidden from their Agent Requests queue entirely (not
 // shown with disabled buttons). Community requests have no unit, so only Space Admins see them.
 import { useCallback, useMemo } from "react";
@@ -14,7 +16,7 @@ import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { useOrg } from "@/pages/organization/orgStore";
 import { collectUnits, findPath, findMemberUnit, type OrgUnit } from "@/pages/organization/orgData";
 import { AGENTS } from "@/components/configure/agentStore";
-import { governanceStore, workspaceTargetsOf, type GovRequest } from "./governanceStore";
+import { governanceStore, requestKind, workspaceTargetsOf, type GovRequest } from "./governanceStore";
 
 /** Seeded requests name their target departments in Vietnamese; the synced org tree names its
  * units in English. Maps those seed names to the org unit they stand for. Requests created in the
@@ -61,6 +63,8 @@ export function useAgentReviewScope() {
   const inScope = useCallback((req: GovRequest): boolean => {
     if (req.resourceType !== "agent") return false;
     if (isSpaceAdmin) return true;
+    // External channels reach people outside every unit, so only a Space Admin decides them (19/10).
+    if (requestKind(req) === "channels") return false;
     if (!isUnitAdmin) return false;
     return reviewUnitIdsOf(req, tree).some(id => isUnitAdminOf(tree, id, userId));
   }, [isSpaceAdmin, isUnitAdmin, tree, userId]);
