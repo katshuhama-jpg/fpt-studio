@@ -42,7 +42,7 @@ describe("InstructionsEditor", () => {
     expect(chips[0].textContent).toBe("account-briefing");
     expect(chips[0].contentEditable).toBe("false");
     expect(chips[1].dataset.refError).toBe("true");
-    expect(JSON.parse(chips[1].dataset.refTip!)).toMatchObject({ status: "Đã bị gỡ", detail: "Tài nguyên này không còn gắn với Agent." });
+    expect(JSON.parse(chips[1].dataset.refTip!)).toMatchObject({ status: "Đã bị gỡ", detail: "Tài nguyên này không còn gắn với Nhân sự số." });
     expect(chips[0].tabIndex).toBe(0);
   });
 

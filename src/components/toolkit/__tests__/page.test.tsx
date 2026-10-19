@@ -73,7 +73,7 @@ describe("Tạo tool kit — steps", () => {
     completeImported();
     fireEvent.click(screen.getAllByRole("button", { name: /Tạo tool kit/ })[0]);
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByText(/4 tool sẵn sàng gắn vào agent/)).toBeTruthy();
+    expect(within(dialog).getByText(/4 tool sẵn sàng gắn vào Nhân sự số/)).toBeTruthy();
     expect(within(dialog).getByText("api-inventory-service__list_products")).toBeTruthy();
     log.mockRestore();
   });

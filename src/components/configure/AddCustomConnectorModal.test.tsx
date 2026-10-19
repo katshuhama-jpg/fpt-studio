@@ -17,7 +17,7 @@ describe("Thêm MCP tùy chỉnh", () => {
   it("has the spec'd header, fields, auth options (default none) and footer", () => {
     setup();
     expect(screen.getByRole("heading", { name: "Thêm MCP tùy chỉnh" })).toBeTruthy();
-    expect(screen.getByText("Kết nối một MCP server để cấp các tool của nó cho agent.")).toBeTruthy();
+    expect(screen.getByText("Kết nối một MCP server để cấp các tool của nó cho Nhân sự số.")).toBeTruthy();
     expect(screen.getByPlaceholderText("my-mcp-server")).toBe(document.activeElement);
     expect(screen.getByPlaceholderText("https://api.example.com/mcp")).toBeTruthy();
     const radios = screen.getAllByRole("radio");
