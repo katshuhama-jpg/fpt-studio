@@ -81,7 +81,7 @@ export interface TestCase {
   name?: string;
   /** Persona/situation for the simulated user (Relevance "Scenario"). */
   scenario?: string;
-  /** Per-test overrides of the set defaults (Relevance: every test carries its own config). */
+  /** Legacy per-test overrides - no longer set from the UI (metrics and run options are chosen per run). */
   metrics?: SetMetric[];
   runsPerCase?: number;
   toolModes?: Record<string, ToolMode>;
@@ -103,8 +103,10 @@ export interface TestSet {
   createdAt: string;
   updatedAt: string;
   metrics: SetMetric[];
+  /** Run options last used for this set - pre-filled in the run dialog, not part of the test set itself. */
   runsPerCase: number;
   toolModes: Record<string, ToolMode>;
+  approval?: ApprovalMode;
 }
 
 export interface CellResult {
@@ -136,6 +138,8 @@ export interface Run {
   durationSec: number;
   tokens: number;
   runsPerCase: number;
+  toolModes?: Record<string, ToolMode>;
+  approval?: ApprovalMode;
   metrics: SetMetric[];
   /** Cases with their own metric list (override of `metrics`). */
   caseMetrics?: Record<string, SetMetric[]>;
@@ -689,16 +693,20 @@ export const evaluationStore = {
   latestRun: (setId: string, version?: string) => state.runs.filter(r => r.setId === setId && r.status === "done" && (!version || r.version === version)).sort((a, b) => b.number - a.number)[0],
   previousRun: (run: Run) => state.runs.filter(r => r.setId === run.setId && r.status === "done" && r.number < run.number).sort((a, b) => b.number - a.number)[0],
   /** Relevance-style run: pick tests (default all), a version and the metrics to grade with. */
-  startRun(setId: string, versionLabel: string, by: string, opts: { name?: string; caseIds?: string[]; metrics?: SetMetric[]; remember?: boolean } = {}): Run {
+  startRun(setId: string, versionLabel: string, by: string, opts: { name?: string; caseIds?: string[]; metrics?: SetMetric[]; runsPerCase?: number; toolModes?: Record<string, ToolMode>; approval?: ApprovalMode; remember?: boolean } = {}): Run {
     const set = state.sets.find(s => s.id === setId)!;
     const cases = state.cases.filter(c => c.setId === setId && (!opts.caseIds || opts.caseIds.includes(c.id)));
     const number = Math.max(0, ...state.runs.filter(r => r.agentId === set.agentId).map(r => r.number)) + 1;
     // Metrics are picked in the run dialog; remember them on the set as next run's defaults.
     const allMetrics = opts.metrics ?? this.defaultRunMetrics(setId, Object.keys(set.toolModes).length > 0);
-    if (opts.remember !== false) state.sets = state.sets.map(s => (s.id === setId ? { ...s, metrics: allMetrics } : s));
+    const runsPerCase = opts.runsPerCase ?? set.runsPerCase;
+    const toolModes = opts.toolModes ?? set.toolModes;
+    const approval = opts.approval ?? set.approval ?? "auto";
+    // Options are picked in the run dialog; remember them on the set as next run's defaults.
+    if (opts.remember !== false) state.sets = state.sets.map(s => (s.id === setId ? { ...s, metrics: allMetrics, runsPerCase, toolModes, approval } : s));
     const run: Run = {
       id: uid("run"), number, agentId: set.agentId, setId, setName: set.name, version: versionLabel, status: "running", progress: 0,
-      createdAt: nowIso(), by, durationSec: 0, tokens: 0, runsPerCase: set.runsPerCase, metrics: allMetrics,
+      createdAt: nowIso(), by, durationSec: 0, tokens: 0, runsPerCase, toolModes, approval, metrics: allMetrics,
       name: opts.name, caseIds: cases.map(c => c.id), results: {},
     };
     state.runs.push(run); commit();
@@ -715,7 +723,7 @@ export const evaluationStore = {
       let calls = 0;
       cases.forEach(c => {
         results[c.id] = {};
-        const n = c.runsPerCase ?? set.runsPerCase;
+        const n = runsPerCase;
         calls += n;
         allMetrics.forEach(sm => {
           const m = state.metrics.find(x => x.id === sm.metricId);
@@ -732,7 +740,6 @@ export const evaluationStore = {
               : { passCount: n };
           }
           cell.passCount = Math.min(cell.passCount, n);
-          if (n !== set.runsPerCase) cell.total = n;
           results[c.id][sm.metricId] = cell;
         });
       });

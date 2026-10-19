@@ -9,7 +9,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Switch } from "@/components/ui/switch";
 import { knowledgeStore } from "@/components/knowledge/knowledgeStore";
 import { agentGuardrailStore } from "@/components/configure/agentGuardrailStore";
 import { agentSkillStore } from "@/components/configure/agentSkillStore";
@@ -17,10 +16,11 @@ import { agentConnectorStore } from "@/components/configure/agentConnectorStore"
 import {
   evaluationStore, useEvaluationStore, generateCases, generateMultiturnCases, caseType,
   TEST_TYPES, TEST_TYPE_LABEL, type TestType, type Turn, splitCounts, runStats, CASE_GROUPS, DEFAULT_DISTRIBUTION,
-  APPROVAL_LABEL, type ApprovalMode, type CaseGroup, type CaseSource, type TestCase, type TestSet, type ToolMode,
+  type CaseGroup, type CaseSource, type TestCase, type TestSet,
 } from "./evaluationStore";
 import { EmptyState, ThresholdBar, useEvalNav, fmtDateTime } from "./shared";
 import { RunDialog } from "./RunDialog";
+import { defaultToolModes } from "./agentTools";
 
 const SIZE_PRESETS = [
   { n: 20, hint: "Thử nhanh", recommended: false },
@@ -35,8 +35,6 @@ const GROUP_HINT: Record<CaseGroup, string> = {
   "Trích xuất đơn": "Hỏi một thông tin cụ thể", "So sánh": "So sánh 2 lựa chọn trở lên", "Tổng hợp": "Cần ghép nhiều đoạn tài liệu",
   "Ngoài phạm vi": "Nhân sự số phải từ chối đúng cách", "Edge case": "Câu hỏi mơ hồ, thiếu thông tin",
 };
-const WRITE_CONNECTORS = ["gmail", "outlook", "slack", "teams", "jira", "gcalendar", "salesforce", "hubspot", "zoom", "gdrive"];
-
 function agentSources(agentId: string) {
   const kb = knowledgeStore.list(agentId).length + knowledgeStore.listAttachedConsoleKbIds(agentId).length;
   const gr = agentGuardrailStore.list(agentId).length + agentGuardrailStore.listAttachedConsoleGuardrailIds(agentId).length;
@@ -49,13 +47,6 @@ function agentSources(agentId: string) {
     { id: "Skills" as CaseSource, count: sk, unit: "skill" },
     { id: "Nhân sự số con" as CaseSource, count: 0, unit: "Nhân sự số con" },
     { id: "Connectors" as CaseSource, count: cn, unit: "connector" },
-  ];
-}
-
-function agentTools(agentId: string): string[] {
-  return [
-    ...agentConnectorStore.list(agentId).map(c => c.connectorId),
-    ...agentSkillStore.list(agentId).map(s => s.name),
   ];
 }
 
@@ -215,12 +206,6 @@ function TestSetList({ agentId, agentName }: { agentId: string; agentName: strin
       </AlertDialog>
     </div>
   );
-}
-
-function defaultToolModes(agentId: string): Record<string, ToolMode> {
-  const out: Record<string, ToolMode> = {};
-  agentTools(agentId).forEach(t => { out[t] = WRITE_CONNECTORS.includes(t) ? "simulated" : "live"; });
-  return out;
 }
 
 const TYPE_CHIP: Record<TestType, string> = { qna: "chip-muted", multiturn: "chip-info" };
@@ -447,7 +432,6 @@ function ManualSetDialog({ agentId, open, onOpenChange, onCreated }: { agentId: 
 
 function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agentId: string; agentName: string; onBack: () => void }) {
   const { go } = useEvalNav();
-  const [tab, setTab] = useState<"cases" | "settings">("cases");
   const [runOpen, setRunOpen] = useState(false);
   const [editing, setEditing] = useState<TestCase | "new" | null>(null);
   const [toDelete, setToDelete] = useState<TestCase | null>(null);
@@ -472,7 +456,7 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="font-display text-xl font-semibold">{set.name}</h2>
-          <p className="text-sm text-muted-foreground mt-1">{set.description || "Chưa có mô tả"} · {cases.length} test case · Chạy {set.runsPerCase} lần mỗi test</p>
+          <p className="text-sm text-muted-foreground mt-1">{set.description || "Chưa có mô tả"} · {cases.length} test case</p>
         </div>
         <div className="flex gap-2 shrink-0">
           {run && <button data-viewonly-allow className="btn-secondary" onClick={() => go("runs", run.id)}>Xem lượt chạy #{run.number}</button>}
@@ -483,19 +467,12 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
       {unreviewed.length > 0 && (
         <div className="flex items-center gap-3 rounded-xl border border-[hsl(var(--warning)/0.3)] bg-[hsl(var(--warning-soft))] px-4 py-3 text-sm" role="status">
           <span className="flex-1"><b>{unreviewed.length} test case do AI sinh chưa được duyệt.</b> Đọc lại câu hỏi và đáp án mẫu - Đáp án mẫu sai thì kết quả chấm cũng sai.</span>
-          <button className="btn-secondary !h-8 shrink-0" onClick={() => { setTab("cases"); setOnlyDraft(true); }}>Xem test chưa duyệt</button>
+          <button className="btn-secondary !h-8 shrink-0" onClick={() => setOnlyDraft(true)}>Xem test chưa duyệt</button>
           <button className="btn-primary !h-8 shrink-0" onClick={() => { evaluationStore.approveAll(set.id); setOnlyDraft(false); toast.success(`Đã duyệt ${unreviewed.length} test case`); }}>Duyệt tất cả</button>
         </div>
       )}
 
-      <div className="flex gap-1 border-b border-border" role="tablist">
-        {([["cases", `Test case (${cases.length})`], ["settings", "Cài đặt"]] as const).map(([id, label]) => (
-          <button data-viewonly-allow key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
-            className={`px-3 h-9 text-sm font-medium border-b-2 -mb-px transition-base cursor-pointer ${tab === id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>{label}</button>
-        ))}
-      </div>
-
-      {tab === "cases" ? (
+      {(
         <div className="surface-card overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-border flex-wrap">
             <div className="relative">
@@ -564,7 +541,6 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
                   <th className="text-left font-medium px-4 py-2.5">Đáp án mẫu</th>
                   <th className="text-left font-medium px-4 py-2.5">Nhóm</th>
                   <th className="text-left font-medium px-4 py-2.5">Nguồn</th>
-                  <th className="text-left font-medium px-4 py-2.5 whitespace-nowrap">Số lần chạy</th>
                   <th className="px-4 py-2.5" />
                 </tr>
               </thead>
@@ -584,9 +560,6 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
                     <td className="px-4 py-3 align-top text-muted-foreground"><div className="line-clamp-2">{c.reference || <span className="italic">Chưa có</span>}</div></td>
                     <td className="px-4 py-3 align-top whitespace-nowrap">{c.group}</td>
                     <td className="px-4 py-3 align-top"><span className="chip chip-muted !py-0.5">{c.source}</span></td>
-                    <td className="px-4 py-3 align-top whitespace-nowrap text-muted-foreground">
-                      {c.runsPerCase ?? set.runsPerCase} lần{c.runsPerCase !== undefined && <span className="chip chip-primary !py-0 !text-[10px] ml-1.5">Riêng</span>}
-                    </td>
                     <td className="px-4 py-3 align-top" onClick={e => e.stopPropagation()}>
                       <div className="flex justify-end gap-1">
                         <button className="btn-ghost !px-2" aria-label="Sửa test case" onClick={() => setEditing(c)}><HugeiconsIcon icon={Edit02Icon} size={14} /></button>
@@ -595,13 +568,11 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
                     </td>
                   </tr>
                 ))}
-                {shown.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-muted-foreground">Không có test case phù hợp bộ lọc</td></tr>}
+                {shown.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">Không có test case phù hợp bộ lọc</td></tr>}
               </tbody>
             </table>
           )}
         </div>
-      ) : (
-        <SetSettings set={set} agentId={agentId} />
       )}
 
       <CaseSheet set={set} agentId={agentId} editing={editing} onClose={() => setEditing(null)} />
@@ -690,21 +661,16 @@ function CaseSheet({ set, agentId, editing, onClose }: { set: TestSet; agentId: 
   const [reference, setReference] = useState("");
   const [tool, setTool] = useState("");
   const [group, setGroup] = useState<CaseGroup>("Trích xuất đơn");
-  const [runs, setRuns] = useState(set.runsPerCase);
-  const [approval, setApproval] = useState<ApprovalMode>("auto");
-  const [toolModes, setToolModes] = useState<Record<string, ToolMode>>({});
   const [type, setType] = useState<TestType>("qna");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [touched, setTouched] = useState(false);
   useEffect(() => {
     setPreset(null); setName(init?.name ?? ""); setScenario(init?.scenario ?? ""); setQuestion(init?.question ?? ""); setReference(init?.reference ?? "");
     setTool(init?.expectedTool ?? ""); setGroup(init?.group ?? "Trích xuất đơn");
-    setRuns(init?.runsPerCase ?? set.runsPerCase); setApproval(init?.approval ?? "auto"); setToolModes(init?.toolModes ?? {}); setTouched(false);
+    setTouched(false);
     setType(init ? caseType(init) : "qna"); setTurns(init?.turns ?? []);
   }, [editing]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const tools = Array.from(new Set([...Object.keys(set.toolModes), ...agentTools(agentId)]));
-  const simulatedCount = tools.filter(t => (toolModes[t] ?? set.toolModes[t] ?? "live") === "simulated").length;
 
   const applyPreset = (p: typeof PRESETS[number]) => {
     setPreset(p.label); setName(p.name); setScenario(p.scenario); setGroup(p.group);
@@ -718,11 +684,10 @@ function CaseSheet({ set, agentId, editing, onClose }: { set: TestSet; agentId: 
   const save = () => {
     setTouched(true);
     if (!question.trim() || turnsMissing) return;
-    const overridesTools = Object.keys(toolModes).length ? toolModes : undefined;
     const data = {
       name: name.trim() || undefined, scenario: scenario.trim() || undefined, question: question.trim(), reference: reference.trim() || undefined,
       expectedTool: type === "qna" ? tool.trim() || undefined : undefined, group, reviewed: true, metrics: undefined,
-      runsPerCase: runs !== set.runsPerCase ? runs : undefined, approval: approval !== "auto" ? approval : undefined, toolModes: overridesTools,
+      runsPerCase: undefined, approval: undefined, toolModes: undefined,
       type: type === "qna" ? undefined : type,
       turns: type === "multiturn" && cleanTurns.length ? cleanTurns : undefined,
     };
@@ -774,13 +739,7 @@ function CaseSheet({ set, agentId, editing, onClose }: { set: TestSet; agentId: 
               <span className="text-sm font-medium">Kịch bản</span>
               <p className="text-xs text-muted-foreground mt-0.5 mb-1.5">Mô tả người dùng và tình huống - AI đóng vai người dùng này khi hỏi tiếp.</p>
               <div className="rounded-lg border border-border">
-                <textarea className="w-full bg-transparent px-3 py-2 text-sm outline-none resize-none rounded-t-lg" rows={3} value={scenario} onChange={e => setScenario(e.target.value)} placeholder="Ví dụ: Khách hàng mua máy 14 tháng trước, lõi lọc hỏng, muốn biết có được thay miễn phí không." aria-label="Kịch bản" />
-                <div className="flex items-center gap-3 px-3 py-2 border-t border-border text-sm">
-                  <span className="text-muted-foreground">Chạy</span>
-                  <Stepper value={runs} min={1} max={10} onChange={setRuns} label="Số lần chạy" />
-                  <span className="text-muted-foreground">lần</span>
-                  {runs !== set.runsPerCase && <span className="chip chip-primary !py-0 !text-[10px]">Riêng cho test này</span>}
-                </div>
+                <textarea className="w-full bg-transparent px-3 py-2 text-sm outline-none resize-none rounded-lg" rows={3} value={scenario} onChange={e => setScenario(e.target.value)} placeholder="Ví dụ: Khách hàng mua máy 14 tháng trước, lõi lọc hỏng, muốn biết có được thay miễn phí không." aria-label="Kịch bản" />
               </div>
             </div>
 
@@ -811,41 +770,6 @@ function CaseSheet({ set, agentId, editing, onClose }: { set: TestSet; agentId: 
               </label>
             </div>
 
-            <section>
-              <h3 className="text-sm font-medium">Khi test gặp bước duyệt</h3>
-              <p className="text-xs text-muted-foreground mt-0.5 mb-2">Cách xử lý khi Nhân sự số cần người duyệt (Human-in-the-loop) hoặc chuyển cho nhân viên trong lúc test.</p>
-              <select className="ds-input" value={approval} onChange={e => setApproval(e.target.value as ApprovalMode)} aria-label="Khi test gặp bước duyệt">
-                {(Object.keys(APPROVAL_LABEL) as ApprovalMode[]).map(a => <option key={a} value={a}>{APPROVAL_LABEL[a].label} - {APPROVAL_LABEL[a].desc}</option>)}
-              </select>
-            </section>
-
-            <section>
-              <h3 className="text-sm font-medium">Tool simulation <span className="text-xs text-muted-foreground font-normal">({simulatedCount} simulated)</span></h3>
-              <p className="text-xs text-muted-foreground mt-0.5 mb-2">Mặc định lấy theo cài đặt bộ test. Đổi ở đây nếu test này cần khác.</p>
-              {tools.length === 0 ? <p className="text-sm text-muted-foreground">Nhân sự số chưa dùng Skill hay Connector nào.</p> : (
-                <div className="rounded-lg border border-border divide-y divide-border">
-                  {tools.map(t => {
-                    const own = toolModes[t];
-                    const mode = own ?? set.toolModes[t] ?? "live";
-                    return (
-                      <div key={t} className="px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <code className="text-xs flex-1">{t}</code>
-                          {own && <button type="button" className="text-[11px] text-primary hover:underline cursor-pointer" onClick={() => { const n = { ...toolModes }; delete n[t]; setToolModes(n); }}>Về mặc định</button>}
-                          <div className="flex items-center gap-1 rounded-lg bg-surface-muted p-0.5" role="radiogroup" aria-label={`Chế độ ${t}`}>
-                            {(["live", "simulated"] as const).map(mo => (
-                              <button key={mo} type="button" role="radio" aria-checked={mode === mo} onClick={() => setToolModes({ ...toolModes, [t]: mo })}
-                                className={`px-2.5 h-7 rounded-md text-xs font-medium transition-base cursor-pointer ${mode === mo ? "bg-surface shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{mo === "live" ? "Live" : "Simulated"}</button>
-                            ))}
-                          </div>
-                        </div>
-                        {mode === "live" && WRITE_CONNECTORS.includes(t) && <p className="text-xs text-warning mt-1">Tool này sẽ chạy thật trong lúc test (gửi mail, cập nhật dữ liệu…). Chọn Simulated nếu không cần kết quả thật.</p>}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
           </div>
           <div className="px-6 py-3 border-t border-border flex justify-end gap-2">
             <button className="btn-secondary" onClick={onClose}>Hủy</button>
@@ -892,69 +816,4 @@ function Stepper({ value, min, max, onChange, label }: { value: number; min: num
   );
 }
 
-/* ------------------------------------------------------------------ settings */
-
-function SetSettings({ set, agentId }: { set: TestSet; agentId: string }) {
-  const tools = Array.from(new Set([...Object.keys(set.toolModes), ...agentTools(agentId)]));
-  const update = (patch: Partial<TestSet>) => evaluationStore.updateSet(set.id, patch);
-
-  return (
-    <div className="space-y-5">
-      <section className="surface-card p-5">
-        <h3 className="font-display text-sm font-semibold">Số lần chạy mỗi test</h3>
-        <p className="text-xs text-muted-foreground mt-0.5 mb-3">Chạy nhiều lần cùng một câu hỏi để biết Nhân sự số trả lời có ổn định không. Test chỉ Pass khi đạt ở mọi lần chạy.</p>
-        <div className="flex items-center gap-1 rounded-lg bg-surface-muted p-0.5 w-fit" role="radiogroup" aria-label="Số lần chạy">
-          {[1, 3, 5].map(n => (
-            <button key={n} role="radio" aria-checked={set.runsPerCase === n} onClick={() => update({ runsPerCase: n })}
-              className={`px-4 h-8 rounded-md text-sm font-medium transition-base cursor-pointer ${set.runsPerCase === n ? "bg-surface shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{n} lần</button>
-          ))}
-        </div>
-      </section>
-
-      <section className="surface-card p-5">
-        <h3 className="font-display text-sm font-semibold">Tool simulation</h3>
-        <p className="text-xs text-muted-foreground mt-0.5 mb-3">Simulated: Trả về kết quả giả, không gọi hệ thống thật - Dùng cho tool có thao tác ghi như gửi mail, tạo phiếu, hủy đơn. Live: Gọi thật.</p>
-        {tools.length === 0 ? <div className="text-sm text-muted-foreground">Nhân sự số chưa dùng Skill hay Connector nào.</div> : (
-          <div className="divide-y divide-border border border-border rounded-lg">
-            {tools.map(t => {
-              const mode = set.toolModes[t] ?? "live";
-              return (
-                <div key={t} className="flex items-center gap-3 px-3 py-2.5">
-                  <code className="text-xs flex-1">{t}</code>
-                  {mode === "live" && WRITE_CONNECTORS.includes(t) && <span className="text-xs text-warning">Có thao tác ghi</span>}
-                  <div className="flex items-center gap-1 rounded-lg bg-surface-muted p-0.5" role="radiogroup" aria-label={`Chế độ ${t}`}>
-                    {(["live", "simulated"] as const).map(mo => (
-                      <button key={mo} role="radio" aria-checked={mode === mo} onClick={() => update({ toolModes: { ...set.toolModes, [t]: mo } })}
-                        className={`px-2.5 h-7 rounded-md text-xs font-medium transition-base cursor-pointer ${mode === mo ? "bg-surface shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-                        {mo === "live" ? "Live" : "Simulated"}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      <section className="surface-card p-5 flex items-center justify-between gap-4">
-        <div>
-          <h3 className="font-display text-sm font-semibold">Dùng bộ test này để duyệt publish</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">Cấu hình Min. pass và chặn publish trong mục Publish.</p>
-        </div>
-        <PublishGateInline setId={set.id} />
-      </section>
-    </div>
-  );
-}
-
-function PublishGateInline({ setId }: { setId: string }) {
-  const g = evaluationStore.gate(setId);
-  return (
-    <div className="flex items-center gap-2 text-sm">
-      <span className="text-muted-foreground">{g.enabled ? `Min. pass ${g.minPass}%${g.blocks ? " · Chặn publish" : ""}` : "Đang tắt"}</span>
-      <Switch checked={g.enabled} onCheckedChange={v => evaluationStore.saveGate({ ...g, enabled: v })} aria-label="Dùng để duyệt publish" />
-    </div>
-  );
-}
 

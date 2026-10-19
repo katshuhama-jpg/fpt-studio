@@ -463,7 +463,7 @@ function CaseDrawer({ run, open, onChange, onEditCase, onRefineWithAI }: {
                     {c.expectedTool && <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2"><span className="text-muted-foreground w-20 shrink-0">Mong đợi</span><code className="flex-1">{c.expectedTool}</code></div>}
                     {(cell.toolCall || c.expectedTool) && (() => {
                       const name = (cell.toolCall ?? c.expectedTool ?? "").split("(")[0];
-                      const mode = set?.toolModes[name] ?? "live";
+                      const mode = (run.toolModes ?? set?.toolModes)?.[name] ?? "live";
                       return (
                         <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
                           <span className="text-muted-foreground w-20 shrink-0">Đã gọi</span><code className="flex-1">{cell.toolCall ?? c.expectedTool}</code>
@@ -625,7 +625,7 @@ function ConversationDrawer({ run, caseId, onClose, onEditCase, onRefineWithAI }
                 {toolCall && (
                   <div className="ml-9 flex items-center gap-2 text-xs">
                     <code className="rounded-md border border-border px-2 py-1">{toolCall}</code>
-                    <span className={`chip !py-0.5 !text-[11px] ${(set?.toolModes[toolCall.split("(")[0]] ?? "live") === "simulated" ? "chip-accent" : "chip-info"}`}>{(set?.toolModes[toolCall.split("(")[0]] ?? "live") === "simulated" ? "Simulated" : "Live"}</span>
+                    <span className={`chip !py-0.5 !text-[11px] ${((run.toolModes ?? set?.toolModes)?.[toolCall.split("(")[0]] ?? "live") === "simulated" ? "chip-accent" : "chip-info"}`}>{((run.toolModes ?? set?.toolModes)?.[toolCall.split("(")[0]] ?? "live") === "simulated" ? "Simulated" : "Live"}</span>
                   </div>
                 )}
                 <div className="flex gap-2.5">

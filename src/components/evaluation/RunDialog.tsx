@@ -3,7 +3,8 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { PlayIcon, Alert02Icon, Add01Icon, Delete02Icon } from "@hugeicons/core-free-icons";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { evaluationStore, TEMPLATE_METRICS, METRIC_GROUP_LABEL, passRuleText, type SetMetric } from "./evaluationStore";
+import { evaluationStore, TEMPLATE_METRICS, METRIC_GROUP_LABEL, passRuleText, APPROVAL_LABEL, type SetMetric, type ToolMode, type ApprovalMode } from "./evaluationStore";
+import { agentTools, WRITE_CONNECTORS } from "./agentTools";
 import { agentPublishStore } from "@/components/configure/agentPublishStore";
 import { CURRENT_USER } from "./shared";
 
@@ -22,9 +23,9 @@ const stamp = () => { const d = new Date(); const p = (n: number) => String(n).p
 /** Above this many Bắt buộc metrics a run gets slow and costly (each one is a separate grading call). */
 const MANY_REQUIRED = 5;
 
-/** Chạy bộ test (Relevance "Run" modal): tên lượt chạy, bộ test, version và CHỈ SỐ CHẤM.
- * Bộ test và test case không gắn chỉ số - chỉ số chọn ở đây, mỗi lượt chạy một bộ chỉ số;
- * lần sau mở lại sẽ chọn sẵn các chỉ số của lượt trước. */
+/** Chạy bộ test (Relevance "Run" modal): tên lượt chạy, bộ test, version, CHỈ SỐ CHẤM và CÁCH CHẠY
+ * (số lần chạy, tool Live/Simulated, khi gặp bước duyệt). Bộ test chỉ chứa câu hỏi và đáp án mẫu -
+ * mọi tuỳ chọn chạy chọn ở đây; lần sau mở lại sẽ chọn sẵn như lượt trước. */
 export function RunDialog({ agentId, open, onOpenChange, presetSetId, presetCaseIds, onStarted }: {
   agentId: string; open: boolean; onOpenChange: (o: boolean) => void; presetSetId?: string; presetCaseIds?: string[]; onStarted: (runId: string) => void;
 }) {
@@ -34,6 +35,9 @@ export function RunDialog({ agentId, open, onOpenChange, presetSetId, presetCase
   const [name, setName] = useState("");
   const [metrics, setMetrics] = useState<SetMetric[]>([]);
   const [touched, setTouched] = useState(false);
+  const [runs, setRuns] = useState(1);
+  const [toolModes, setToolModes] = useState<Record<string, ToolMode>>({});
+  const [approval, setApproval] = useState<ApprovalMode>("auto");
   const VERSION_OPTIONS = versionOptions(agentId);
   useEffect(() => {
     if (!open) return;
@@ -44,21 +48,28 @@ export function RunDialog({ agentId, open, onOpenChange, presetSetId, presetCase
 
   // Pre-tick last run's metrics for this set (FPT defaults the first time).
   useEffect(() => {
-    if (open && setId) setMetrics(evaluationStore.defaultRunMetrics(setId, Object.keys(evaluationStore.set(setId)?.toolModes ?? {}).length > 0));
-  }, [open, setId]);
+    if (!open || !setId) return;
+    const s = evaluationStore.set(setId);
+    setMetrics(evaluationStore.defaultRunMetrics(setId, Object.keys(s?.toolModes ?? {}).length > 0 || agentTools(agentId).length > 0));
+    setRuns(s?.runsPerCase ?? 1); setApproval(s?.approval ?? "auto");
+    const modes: Record<string, ToolMode> = {};
+    agentTools(agentId).forEach(t => { modes[t] = WRITE_CONNECTORS.includes(t) ? "simulated" : "live"; });
+    setToolModes({ ...modes, ...(s?.toolModes ?? {}) });
+  }, [open, setId, agentId]);
 
   const set = evaluationStore.set(setId);
   const cases = set ? evaluationStore.cases(set.id).filter(c => !presetCaseIds || presetCaseIds.includes(c.id)) : [];
   const required = metrics.filter(m => m.required).length;
-  const liveWrite = set ? Object.entries(set.toolModes).filter(([, mode]) => mode === "live") : [];
+  const tools = Object.keys(toolModes);
+  const liveWrite = tools.filter(t => toolModes[t] === "live" && WRITE_CONNECTORS.includes(t));
   const draftCount = set ? evaluationStore.unreviewed(set.id).length : 0;
   const missingRef = set ? metrics.some(sm => evaluationStore.metric(sm.metricId)?.needs.includes("reference")) && cases.some(c => !c.reference) : false;
-  const totalCalls = cases.reduce((a, c) => a + (c.runsPerCase ?? set?.runsPerCase ?? 1), 0);
+  const totalCalls = cases.length * runs;
 
   const start = () => {
     setTouched(true);
     if (!set || required === 0) return;
-    const run = evaluationStore.startRun(set.id, VERSION_OPTIONS.find(v => v.id === version)!.label, CURRENT_USER, { name: name.trim() || undefined, caseIds: presetCaseIds, metrics });
+    const run = evaluationStore.startRun(set.id, VERSION_OPTIONS.find(v => v.id === version)!.label, CURRENT_USER, { name: name.trim() || undefined, caseIds: presetCaseIds, metrics, runsPerCase: runs, toolModes, approval });
     onOpenChange(false);
     onStarted(run.id);
   };
@@ -94,15 +105,54 @@ export function RunDialog({ agentId, open, onOpenChange, presetSetId, presetCase
             </div>
           </fieldset>
           <MetricsPicker agentId={agentId} value={metrics} onChange={setMetrics} touched={touched} />
+          <section className="space-y-3">
+            <div>
+              <h3 className="text-sm font-medium">Số lần chạy mỗi test</h3>
+              <p className="text-xs text-muted-foreground mt-0.5 mb-1.5">Hỏi lại cùng câu nhiều lần để biết Nhân sự số trả lời có ổn định không. Test chỉ Pass khi đạt ở mọi lần.</p>
+              <div className="flex items-center gap-1 rounded-lg bg-surface-muted p-0.5 w-fit" role="radiogroup" aria-label="Số lần chạy mỗi test">
+                {[1, 3, 5].map(n => (
+                  <button key={n} type="button" role="radio" aria-checked={runs === n} onClick={() => setRuns(n)}
+                    className={`px-4 h-8 rounded-md text-sm font-medium transition-base cursor-pointer ${runs === n ? "bg-surface shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{n} lần</button>
+                ))}
+              </div>
+            </div>
+            {tools.length > 0 && (
+              <div>
+                <h3 className="text-sm font-medium">Tool khi chạy test</h3>
+                <p className="text-xs text-muted-foreground mt-0.5 mb-1.5">Simulated: Trả về kết quả giả, không gọi hệ thống thật. Live: Gọi thật.</p>
+                <div className="rounded-lg border border-border divide-y divide-border">
+                  {tools.map(t => (
+                    <div key={t} className="flex items-center gap-2 px-3 py-1.5">
+                      <code className="text-xs flex-1 truncate">{t}</code>
+                      {WRITE_CONNECTORS.includes(t) && <span className="text-[11px] text-muted-foreground">Có thao tác ghi</span>}
+                      <div className="flex items-center gap-1 rounded-lg bg-surface-muted p-0.5" role="radiogroup" aria-label={`Chế độ ${t}`}>
+                        {(["live", "simulated"] as const).map(mo => (
+                          <button key={mo} type="button" role="radio" aria-checked={toolModes[t] === mo} onClick={() => setToolModes({ ...toolModes, [t]: mo })}
+                            className={`px-2.5 h-7 rounded-md text-xs font-medium transition-base cursor-pointer ${toolModes[t] === mo ? "bg-surface shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{mo === "live" ? "Live" : "Simulated"}</button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <label className="block">
+              <span className="text-sm font-medium">Khi test gặp bước duyệt</span>
+              <p className="text-xs text-muted-foreground mt-0.5 mb-1.5">Cách xử lý khi Nhân sự số cần người duyệt hoặc chuyển cho nhân viên trong lúc chạy test.</p>
+              <select className="ds-input" value={approval} onChange={e => setApproval(e.target.value as ApprovalMode)}>
+                {(Object.keys(APPROVAL_LABEL) as ApprovalMode[]).map(a => <option key={a} value={a}>{APPROVAL_LABEL[a].label} - {APPROVAL_LABEL[a].desc}</option>)}
+              </select>
+            </label>
+          </section>
           {set && (
             <div className="rounded-lg bg-surface-muted px-3 py-2.5 text-sm text-muted-foreground">
-              {cases.length} test × {set.runsPerCase} lần = <b className="text-foreground">{totalCalls} lượt trả lời</b> · {metrics.length} chỉ số ({required} bắt buộc)
+              {cases.length} test × {runs} lần = <b className="text-foreground">{totalCalls} lượt trả lời</b> · {metrics.length} chỉ số ({required} bắt buộc)
             </div>
           )}
           {liveWrite.length > 0 && (
             <div className="flex gap-2 rounded-lg border border-[hsl(var(--warning)/0.3)] bg-[hsl(var(--warning-soft))] px-3 py-2.5 text-sm">
               <HugeiconsIcon icon={Alert02Icon} size={16} className="text-warning shrink-0 mt-0.5" />
-              <span>Tool sau sẽ được gọi thật: <b>{liveWrite.map(([k]) => k).join(", ")}</b>. Chuyển sang Simulated trong Cài đặt bộ test nếu không muốn tạo dữ liệu thật.</span>
+              <span>Tool sau sẽ được gọi thật: <b>{liveWrite.join(", ")}</b>. Chuyển sang Simulated ở trên nếu không muốn tạo dữ liệu thật.</span>
             </div>
           )}
           {draftCount > 0 && (
