@@ -4,7 +4,9 @@ import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Cancel01Icon, CircleArrowReload01Icon } from "@hugeicons/core-free-icons";
 import { Switch } from "@/components/ui/switch";
+import { useSearchParams } from "react-router-dom";
 import { agentCapabilityStore } from "./agentCapabilityStore";
+import { handoffStore, channelName } from "./handoffStore";
 
 /** Full editor for the agent's default capabilities. Lives in a dialog rather than inline in
  * the config rail because each of the nine needs a description (and some a condition note) to
@@ -57,6 +59,7 @@ export default function AgentCapabilitiesModal({ agentId, onClose, onChanged }: 
 
         <div className="flex-1 overflow-y-auto px-6 py-4">
           <div className="space-y-2.5">
+            <HandoffCapabilityRow agentId={agentId} onChange={() => { setDirty(true); refresh(); }} onOpenChannels={onClose} />
             {capabilities.map(cap => {
               const on = agentCapabilityStore.isOn(agentId, cap.id);
               return (
@@ -101,5 +104,41 @@ export default function AgentCapabilitiesModal({ agentId, onClose, onChanged }: 
       </div>
     </div>,
     document.body,
+  );
+}
+
+/** "Chuyển cho nhân viên" (Mới) — off by default, unlike the nine above. Shows where handoff is
+ * active and links to Kênh triển khai, where the Contact Center and per-channel switches live. */
+function HandoffCapabilityRow({ agentId, onChange, onOpenChannels }: { agentId: string; onChange: () => void; onOpenChannels: () => void }) {
+  const [, setParams] = useSearchParams();
+  const on = handoffStore.capabilityOn(agentId);
+  const conn = handoffStore.connection(agentId);
+  const active = handoffStore.activeChannels(agentId);
+  const status = active.length && conn
+    ? `Đang hoạt động trên: ${active.map(channelName).join(", ")} (EOS Contact Center)`
+    : conn ? "Đã kết nối EOS Contact Center, chưa bật kênh nào." : "Chưa kết nối Contact Center.";
+  return (
+    <div className="flex items-start gap-4 rounded-md border p-3.5">
+      <div className="min-w-0 flex-1">
+        <p className={`text-sm font-medium flex items-center gap-2 ${on ? "" : "text-muted-foreground"}`}>
+          Chuyển cho nhân viên
+          <span className="rounded-sm bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">Mới</span>
+        </p>
+        <p className="text-sm text-muted-foreground leading-relaxed mt-0.5">Cho phép Nhân sự số chuyển hội thoại cho nhân viên CSKH trên Contact Center khi không xử lý tiếp được hoặc khách muốn gặp người thật.</p>
+        <p className="text-xs text-muted-foreground mt-1.5">
+          {status}{" "}
+          <button type="button" className="font-medium text-primary hover:underline" onClick={() => { onOpenChannels(); setParams({ tab: "channels" }); }}>Mở Kênh triển khai</button>
+        </p>
+        {!on && active.length > 0 && (
+          <p className="text-xs text-warning mt-1">Còn {active.length} kênh đang bật chuyển cho nhân viên — sẽ có cảnh báo khi Publish.</p>
+        )}
+      </div>
+      <Switch
+        checked={on}
+        onCheckedChange={v => { handoffStore.setCapability(agentId, v); onChange(); }}
+        aria-label={`${on ? "Tắt" : "Bật"} Chuyển cho nhân viên`}
+        className="shrink-0 mt-0.5"
+      />
+    </div>
   );
 }
