@@ -18,14 +18,13 @@ import { DEFAULT_ROLE_ID } from "@/pages/organization/Members";
  * Mirrored onto the AgentRecord (sharedWith / sharedAll / sharedExcept) so Scope checks
  * (scopeAccess.isOwnedOrShared) keep working; kept in sessionStorage so a persona switch
  * (which reloads the app) still sees it. */
-export type AgentPerm = "view" | "history" | "build" | "publish" | "delete" | "share";
+export type AgentPerm = "view" | "history" | "build" | "publish" | "delete";
 export const AGENT_PERMS: { id: AgentPerm; name: string; desc: string; need?: AgentPerm[] }[] = [
   { id: "view", name: "Xem Nhân sự số", desc: "Mở, xem cấu hình, chạy Evaluate." },
-  { id: "history", name: "Xem lịch sử hội thoại", desc: "Insights › History và Trace.", need: ["view"] },
+  { id: "history", name: "Xem và export lịch sử hội thoại", desc: "Insights › History, Trace và tải ra Excel hoặc CSV.", need: ["view"] },
   { id: "build", name: "Build", desc: "Sửa Instructions, Skill, Knowledge, Channels.", need: ["view"] },
   { id: "publish", name: "Publish / Gỡ publish", desc: "Gửi yêu cầu duyệt, gỡ bản đang live.", need: ["build"] },
   { id: "delete", name: "Xóa", desc: "Xóa hẳn Nhân sự số.", need: ["build"] },
-  { id: "share", name: "Cấp quyền tiếp", desc: "Mở popup Cấp quyền, thêm người khác.", need: ["view"] },
 ];
 export const ALL_AGENT_PERMS = AGENT_PERMS.map(p => p.id);
 
@@ -49,6 +48,12 @@ for (const [id, old] of loadMap<string, { general: AgentGeneralAccess; generalLe
     general: old.general, generalMode: g.mode === "custom" ? "custom" : "role", generalPerms: g.perms,
     people: old.people.map(p => ({ userId: p.userId, ...fromV2(p.level) })),
   });
+}
+// "Cấp quyền tiếp" was retired (19/10) - drop it from anything saved before.
+const known = (ps?: string[]) => ps?.filter((p): p is AgentPerm => (["view", "history", "build", "publish", "delete"] as string[]).includes(p));
+for (const [id, s] of saved) {
+  s.generalPerms = known(s.generalPerms);
+  s.people = s.people.map(p => (p.perms ? { ...p, perms: known(p.perms) } : p));
 }
 for (const [id, s] of saved) {
   const a = AGENTS.find(x => x.id === id);
@@ -98,7 +103,7 @@ export function memberById(id: string): OrgMember | undefined {
 }
 
 /** What a Role grants on one Nhân sự số shared with its member, read live from Roles. Being
- * added always lets you open it; "Cấp quyền tiếp" never comes from a Role. */
+ * added always lets you open it. */
 export function rolePerms(permissionIds: Set<string> | undefined): AgentPerm[] {
   const has = (p: string) => !!permissionIds?.has(p);
   const out: AgentPerm[] = ["view"];

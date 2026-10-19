@@ -25,15 +25,13 @@ import {
 import { notificationStore } from "@/components/notifications/notificationStore";
 import { currentPersona } from "@/lib/demoPersona";
 
-/** The owner, a Space Admin, or someone given "Cấp quyền tiếp" on this Nhân sự số opens the popup. */
+/** Only the owner or a Space Admin opens the popup - people added to a Nhân sự số never grant others. */
 export function useCanShareAgent(agentId: string) {
   const access = useGroupAccess("agents");
-  const perms = useAgentPerms(agentId);
   const a = getAgent(agentId);
   if (agentId === "new") return false;
   if (a.ownerId === access.userId) return true;
-  if (access.hasPermission("publish") && access.scopeOf("publish") === "all") return true;
-  return !!perms && !perms.owner && perms.perms.has("share");
+  return access.hasPermission("publish") && access.scopeOf("publish") === "all";
 }
 
 /** Menu copy - the same wording in the popup and the doc (confirmed with Tyler 16/10). */
@@ -103,7 +101,7 @@ function ModeSelect({ mode, count, onPick, picks, ariaLabel, variant = "text", d
 /** The ticked permissions, always reachable by expanding the row. */
 function PermList({ id, perms, rolePerms, hint, onToggle, allowed, readOnly }: {
   id: string; perms: AgentPerm[]; rolePerms?: AgentPerm[]; hint: string; onToggle: (p: AgentPerm, on: boolean) => void;
-  /** Someone granting through "Cấp quyền tiếp" can only tick what they hold themselves. */
+  /** A capped granter (see `capped`) can only tick what they hold themselves. */
   allowed?: Set<AgentPerm>; readOnly?: boolean;
 }) {
   return (
@@ -150,7 +148,7 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
   const owner = byId.get(agent.ownerId ?? "");
   const iAmOwner = agent.ownerId === userId;
   const roleOf = (id: string) => rolePermsOf(byId.get(id));
-  // Not the owner and not a Space Admin = granting through "Cấp quyền tiếp": capped at own permissions,
+  // Not the owner and not a full Space Admin (e.g. Publish across the Space but not Build): capped at own permissions,
   // can't touch people who hold more, can't change who the Agent is open to (confirmed with Tyler 16/10).
   const mine = useAgentPerms(agentId);
   const capped = !iAmOwner && !isSpaceAdmin(byId.get(userId));

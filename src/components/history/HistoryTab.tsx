@@ -1,3 +1,4 @@
+import { useAgentPerms } from "@/components/configure/agentShareStore";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, ChevronLeft, ChevronRight, Waypoints, Clock, Zap, ThumbsUp, ThumbsDown, Download, X } from "lucide-react";
@@ -89,9 +90,10 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
   const [exportOpen, setExportOpen] = useState(false);
   const [page, setPage] = useState(1);
   const { can } = useMyPermissions();
-  // Only a Space Admin (a Role holding "Export conversation data", always Space-wide) exports.
-  // Sharing an Agent never grants it. Without it the Export button isn't shown at all.
-  const canExport = can("agents.export");
+  // Space Admin ("Export conversation data", Space-wide) or anyone holding "Xem và export lịch sử
+  // hội thoại" on this Nhân sự số. Without it the Export button isn't shown at all.
+  const agentPerms = useAgentPerms(agentId);
+  const canExport = can("agents.export") || !!agentPerms?.perms.has("history");
   const PAGE_SIZE = 8;
 
   const allConversations = useMemo(() => historyStore.list(agentId), [agentId]);
