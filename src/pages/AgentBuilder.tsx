@@ -88,6 +88,8 @@ import { knowledgeStore, OWN_KB_ID, type KnowledgeItem } from "@/components/know
 import { scopeLabel, isDocInScope, isDocFolderVisible, PARTIAL_LINK_ENABLED } from "@/components/knowledge/kbLinkScope";
 import InstructionsEditor from "@/components/configure/InstructionsEditor";
 import BrokenRefsDialog from "@/components/configure/BrokenRefsDialog";
+import HandoffSection from "@/components/configure/HandoffSection";
+import { handoffStore } from "@/components/configure/handoffStore";
 import { RefChip, RefChipTooltip } from "@/components/configure/refChip";
 import { instructionDraftStore } from "@/components/configure/instructionDraftStore";
 import { findBrokenRefs, splitByRefs, type BrokenRef, type Category } from "@/components/configure/instructionRefs";
@@ -256,7 +258,13 @@ export default function AgentBuilder() {
     if (agentCardStore.isMissingDescription(aid)) { setCardMissingDesc(true); return; }
     const text = instructionDraftStore.get(aid) ?? (params.get("agentPrompt") || getAgent(aid).instructions);
     const broken = findBrokenRefs(aid, text);
-    if (broken.length > 0) setBrokenRefs(broken); else setShowPublish(true);
+    if (broken.length > 0) setBrokenRefs(broken); else continuePublish();
+  };
+  // BR-01: the handoff capability is off while some channels still hand off -> warn, don't block.
+  const [handoffWarn, setHandoffWarn] = useState<string[] | null>(null);
+  const continuePublish = () => {
+    const warn = handoffStore.publishWarning(id ?? "new");
+    if (warn.length) setHandoffWarn(warn); else setShowPublish(true);
   };
   const [previewView, setPreviewView] = useState<"config" | "chat">("config");
   const [previewCollapsed, setPreviewCollapsed] = useState(false);
@@ -588,12 +596,36 @@ export default function AgentBuilder() {
         }}
       />
 
+      {/* ?panel=capabilities — deep link from Kênh triển khai / the Publish warning to the capabilities editor. */}
+      {params.get("panel") === "capabilities" && (
+        <AgentCapabilitiesModal
+          agentId={id ?? "new"}
+          onClose={() => { const next = new URLSearchParams(params); next.delete("panel"); setParams(next, { replace: true }); }}
+          onChanged={() => setPublishTick(t => t + 1)}
+        />
+      )}
+
+      <AlertDialog open={!!handoffWarn} onOpenChange={o => { if (!o) setHandoffWarn(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Năng lực "Chuyển cho nhân viên" đang tắt</AlertDialogTitle>
+            <AlertDialogDescription>
+              {handoffWarn?.join(", ")} vẫn đang bật chuyển cho nhân viên ở Kênh triển khai, nhưng năng lực đã tắt ở Dựng agent nên hội thoại sẽ không được chuyển.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setHandoffWarn(null); setParams({ tab: "build", section: "instructions", panel: "capabilities" }); }}>Mở Năng lực</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setHandoffWarn(null); setShowPublish(true); }}>Vẫn publish</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {brokenRefs && (
         <BrokenRefsDialog
           agentId={id ?? "new"}
           broken={brokenRefs}
           onCancel={() => setBrokenRefs(null)}
-          onPublishAnyway={() => { setBrokenRefs(null); setShowPublish(true); }}
+          onPublishAnyway={() => { setBrokenRefs(null); continuePublish(); }}
           onView={() => {
             setBrokenRefs(null);
             setParams({ tab: "build", section: "instructions" });
@@ -902,7 +934,7 @@ export default function AgentBuilder() {
                 <TriggersTab agentId={id ?? "new"} onChange={() => setTriggerTick(t => t + 1)} />
               )}
               {tab === "evaluate" && <EvaluationTab agentId={id ?? "new"} agentName={agent.name} section={section as EvalSection} onRefineWithAI={() => setParams({ tab: "build", section: "instructions", buildMode: "ai" })} />}
-              {tab === "channels" && <DeployTab agentId={id} onViewTriggers={() => setParams({ tab: "build", section: "triggers" })} onViewVersions={() => setParams({ tab: "build", section: "versions" })} onOpenPublish={() => canPublishAgent && requestPublish()} />}
+              {tab === "channels" && <DeployTab agentId={id} onViewTriggers={() => setParams({ tab: "build", section: "triggers" })} onViewVersions={() => setParams({ tab: "build", section: "versions" })} onOpenPublish={() => canPublishAgent && requestPublish()} onOpenCapabilities={() => setParams({ tab: "build", section: "instructions", panel: "capabilities" })} />}
               {tab === "insights" && section === "performance" && <PerformanceTab />}
               {tab === "insights" && section === "quality" && <MonitorSection agentId={id ?? "new"} />}
               {tab === "insights" && section === "history" && canSeeHistory && (
@@ -2982,7 +3014,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: { agentId: string; onViewTriggers?: () => void; onViewVersions?: () => void; onOpenPublish?: () => void }) {
+function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish, onOpenCapabilities }: { agentId: string; onViewTriggers?: () => void; onViewVersions?: () => void; onOpenPublish?: () => void; onOpenCapabilities?: () => void }) {
   const access = useGroupAccess("agents");
   const ownedAgent = AGENTS.find(a => a.id === agentId);
   const deployPerms = useAgentPerms(agentId ?? "new");
@@ -3297,6 +3329,8 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
           })}
         </div>
       </div>
+
+      <HandoffSection agentId={agentId} onOpenCapabilities={onOpenCapabilities} />
 
       <AlertDialog open={!!channelConfirm} onOpenChange={o => !o && setChannelConfirm(null)}>
         <AlertDialogContent>

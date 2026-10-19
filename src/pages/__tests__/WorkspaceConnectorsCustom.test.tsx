@@ -46,7 +46,7 @@ describe("Custom Connectors tab", () => {
   it("empty state, and adding an MCP server from it fills the list", async () => {
     await openCustomTab(true);
     expect(screen.getByText("Chưa có Custom Connector nào")).toBeTruthy();
-    expect(screen.getByText("Thêm một MCP server để cấp thêm tool cho agent của bạn.")).toBeTruthy();
+    expect(screen.getByText("Thêm một MCP server để cấp thêm tool cho Nhân sự số của bạn.")).toBeTruthy();
     const buttons = screen.getAllByRole("button", { name: /Thêm custom connector/ });
     expect(buttons).toHaveLength(2);
     fireEvent.click(buttons[1]);
