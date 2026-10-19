@@ -1133,7 +1133,11 @@ export const governanceStore = {
         return {
           channels: after,
           changeStateAtSubmit: "modified" as GovChangeState,
-          diffAtSubmit: [{ key: "channels", label: "Kênh ngoài", before: before.map(channelLabel).join(", ") || "Chưa có", after: after.map(channelLabel).join(", ") }],
+          diffAtSubmit: input.channelsPurpose === "review"
+            ? [{ key: "channels", label: "Bản cho kênh ngoài", before: "Chưa có bản được duyệt", after: input.version ?? "" }]
+            : (channelsAdded ?? []).length
+            ? [{ key: "channels", label: "Kênh ngoài", before: before.map(channelLabel).join(", ") || "Chưa có", after: after.map(channelLabel).join(", ") }]
+            : [{ key: "channels", label: "Bản chạy trên kênh ngoài", before: agentPublishStore.get(input.resourceId).channelVersion ?? "-", after: input.version ?? "" }],
         };
       })() : input.externalSnap ? (() => {
         // External Agent: diff its connection against the last approved External request.
