@@ -219,6 +219,21 @@ export const builtinCatalog: BuiltinToolSet[] = [
       { name: "translate", description: "Translate text into a target language.", inputSchema: { text: "string", target: "string" }, outputSchema: { translation: "string" } },
     ],
   },
+  {
+    setId: "erp-po",
+    name: "ERP - Đơn mua hàng (PO)",
+    description: "Tạo đơn mua hàng (PO), đọc phiếu nhập kho và hóa đơn để đối chiếu 3 chiều trên hệ ERP (Odoo).",
+    category: "Operations",
+    pluginAvatar: "🧾",
+    toolCount: 3,
+    requiresAuth: true,
+    authFields: { authName: true, apiKey: true, baseUrl: true },
+    tools: [
+      { name: "create_po", description: "Create a purchase order for an approved requisition.", inputSchema: { vendorId: "string", items: "array", totalAmount: "number" }, outputSchema: { poId: "string" } },
+      { name: "get_goods_receipt", description: "Return the goods-receipt note for a purchase order.", inputSchema: { poId: "string" }, outputSchema: { items: "array", receivedAt: "string" } },
+      { name: "match_invoice", description: "Compare a vendor invoice against its purchase order and goods receipt.", inputSchema: { poId: "string", invoiceId: "string" }, outputSchema: { matched: "boolean", discrepancies: "array" } },
+    ],
+  },
 ];
 
 export const getBuiltin = (setId: string) => builtinCatalog.find(s => s.setId === setId);

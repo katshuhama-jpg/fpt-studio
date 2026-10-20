@@ -254,6 +254,32 @@ function seedSalesQuoteTrigger() {
   persist();
 }
 
+/** Fixed id for "procurement-agent"'s seeded manual trigger - referenced by the Workforce demo
+ * data (workforceStore.ts's "wf-procurement-request" seed, built from the "10. Agentic BPM"
+ * wiki page's purchase-request example), same pattern as SALES_QUOTE_TRIGGER_ID above. */
+export const PROCUREMENT_TRIGGER_ID = "procurement-manual";
+
+function seedProcurementTrigger() {
+  if (seededAgents.has("procurement-agent")) return;
+  seededAgents.add("procurement-agent");
+  saveSet(SEEDED_KEY, seededAgents);
+  const now = Date.now();
+  const rec: TriggerRecord = {
+    id: PROCUREMENT_TRIGGER_ID,
+    agentId: "procurement-agent",
+    name: "Gửi đề nghị mua sắm",
+    type: "manual",
+    enabled: true,
+    description: "Nhân viên gõ đề nghị mua sắm trực tiếp trong Workspace - Bắt đầu Workforce này.",
+    config: { manual: { instructions: "Nhập số lượng, loại hàng, hạn giao và tổng tiền ước tính." } },
+    lastFiredAt: now - 45 * 60_000,
+    createdAt: now - 86_400_000 * 3,
+    updatedAt: now - 86_400_000 * 3,
+  };
+  store.set(k("procurement-agent", rec.id), rec);
+  persist();
+}
+
 function seedCskhWebhookTrigger() {
   if (seededAgents.has("cskh")) return;
   seededAgents.add("cskh");
@@ -284,6 +310,7 @@ function seedCskhWebhookTrigger() {
 function seedAgent(agentId: string) {
   if (agentId === "cskh") { seedCskhWebhookTrigger(); return; }
   if (agentId === "sales-quote") { seedSalesQuoteTrigger(); return; }
+  if (agentId === "procurement-agent") { seedProcurementTrigger(); return; }
   if (seededAgents.has(agentId)) return;
   seededAgents.add(agentId);
   saveSet(SEEDED_KEY, seededAgents);

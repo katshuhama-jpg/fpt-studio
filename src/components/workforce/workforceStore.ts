@@ -1,6 +1,6 @@
 import type { Workforce, WorkforceNode, WorkforceEdge } from "./types";
 import { ROUTE_ARROW } from "./graphOps";
-import { CSKH_WEBHOOK_TRIGGER_ID, SALES_QUOTE_TRIGGER_ID } from "../configure/triggerStore";
+import { CSKH_WEBHOOK_TRIGGER_ID, SALES_QUOTE_TRIGGER_ID, PROCUREMENT_TRIGGER_ID } from "../configure/triggerStore";
 
 const HOUR = 3_600_000;
 
@@ -152,6 +152,103 @@ function seedWorkforces(): Workforce[] {
     ],
   };
 
+  // Built from the FCI wiki "10. Agentic BPM" page (2026-10-20): UiPath's own Purchase-to-Pay
+  // example, re-told as the "Đề nghị mua sắm" case for Ban Mua Sắm FHO-FPD (PR-0142, 5 laptop,
+  // 125 triệu). Demonstrates the same 6 BPMN/DMN step types the page catalogs against a real
+  // EOS Workforce: Agent task, Human task, Business rule (DMN, via the numeric Condition
+  // variable S-demo-4 already added for the ACME demo), and a Connector/robot task - all using
+  // this canvas's existing node types, no new architecture.
+  //
+  // One deliberate simplification, called out on-canvas via a Note node: the wiki's cấp 2
+  // approval is "Kế toán + Giám đốc duyệt cùng lúc" (a parallel AND-join, both sign off
+  // independently) - this canvas's Condition.approval only models a single assignee/gate per
+  // Condition, with no parallel-join primitive, so it's modeled sequentially here (Kế toán
+  // reviews as a Person "do" task, Giám đốc holds the actual approval gate). The 50 triệu
+  // threshold and 24/48h SLA are the wiki's own stated assumptions, not confirmed numbers.
+  const procurementRequest: Workforce = {
+    id: "wf-procurement-request",
+    name: "Đề nghị mua sắm - Ban Mua Sắm FHO-FPD",
+    status: "published",
+    createdAt: Date.now() - 4 * HOUR,
+    updatedAt: Date.now() - 18 * 60_000,
+    updatedBy: "Tran Nam",
+    nodes: [
+      { id: "trigger-procurement", type: "trigger", position: { x: -260, y: 140 }, data: {
+        kind: "trigger", triggerId: PROCUREMENT_TRIGGER_ID,
+      } },
+      { id: "procurement-agent-1", type: "agent", position: { x: 60, y: 140 }, data: { kind: "agent", agentId: "procurement-agent", keepContext: true } },
+
+      // DMN "Tuyến duyệt" rule, rows 1-2 (the amount threshold) - on a custom numeric Condition
+      // variable (S-demo-4), same mechanism the ACME demo's discount_percent uses. Trưởng phòng's
+      // cấp-1 approval sits on these same two Conditions (not a separate step) since the real
+      // approval card shows the already-computed route alongside the summary either way.
+      { id: "cond-cap1", type: "condition", position: { x: 380, y: -20 }, data: {
+        kind: "condition", type: "rule", ruleMatch: "all",
+        rules: [{ id: "r-cap1", variable: "tong_tien", operator: "nhỏ hơn hoặc bằng", value: "50000000", numeric: true }],
+        llmText: "Trưởng phòng xem tóm tắt hồ sơ và bảng so sánh 3 báo giá - Duyệt cấp 1. Tổng tiền trong hạn mức tự duyệt (≤ 50 triệu) nên không cần thêm Kế toán/Giám đốc.",
+        approval: { mode: "required", assigneeId: "m-plat-1" },
+      } },
+      { id: "cond-cap2", type: "condition", position: { x: 380, y: 300 }, data: {
+        kind: "condition", type: "rule", ruleMatch: "all",
+        rules: [{ id: "r-cap2", variable: "tong_tien", operator: "lớn hơn", value: "50000000", numeric: true }],
+        llmText: "Trưởng phòng duyệt cấp 1. Tổng tiền vượt hạn mức (> 50 triệu) nên tuyến duyệt cần thêm Kế toán + Giám đốc trước khi tạo PO.",
+        approval: { mode: "required", assigneeId: "m-plat-1" },
+      } },
+
+      // Cấp 2 (modeled sequentially - see note above): Kế toán reviews as a "do" task, Giám đốc
+      // holds the actual approval gate before the two paths converge back on the same Agent.
+      { id: "ketoan-review", type: "person", position: { x: 660, y: 300 }, data: {
+        kind: "person", memberId: "corp-finance-3", taskKind: "do", slaMinutes: 240, escalation: { memberId: "m-fsoft-coo" },
+      } },
+      { id: "cond-giamdoc-approval", type: "condition", position: { x: 940, y: 300 }, data: {
+        kind: "condition", type: "llm", ruleMatch: "all", rules: [],
+        llmText: "Kế toán đã xem hồ sơ cấp 2 - Giám đốc duyệt cuối (đủ Kế toán + Giám đốc) trước khi tạo PO.",
+        approval: { mode: "required", assigneeId: "m-fsoft-coo" },
+      } },
+
+      // Both paths converge here - same Procurement Agent resuming, now to create the PO
+      // (Connector/robot task, step 5 of the wiki's example).
+      { id: "procurement-agent-2", type: "agent", position: { x: 1220, y: 140 }, data: { kind: "agent", agentId: "procurement-agent", keepContext: true } },
+
+      { id: "cond-to-3way", type: "condition", position: { x: 1500, y: 140 }, data: {
+        kind: "condition", type: "llm", ruleMatch: "all", rules: [], approval: null,
+        llmText: "PO đã tạo và gửi nhà cung cấp - Chờ nhận hàng và hóa đơn để đối chiếu.",
+      } },
+      { id: "three-way-match", type: "agent", position: { x: 1780, y: 140 }, data: { kind: "agent", agentId: "three-way-match-agent", keepContext: true } },
+
+      { id: "cond-to-payment", type: "condition", position: { x: 2060, y: 140 }, data: {
+        kind: "condition", type: "llm", ruleMatch: "all", rules: [], approval: null,
+        llmText: "Đối chiếu khớp PO - phiếu nhập - hóa đơn - Chuyển Kế toán thanh toán và đóng hồ sơ.",
+      } },
+      // Terminal - closes the case (step 7), so "notify" not "do" (S-gap-5: no further routing).
+      { id: "ketoan-payment", type: "person", position: { x: 2340, y: 140 }, data: {
+        kind: "person", memberId: "corp-finance-3", taskKind: "notify", slaMinutes: null, escalation: null,
+      } },
+
+      // Standalone - documents the ERP/Odoo connector both procurement-agent-2 (create PO) and
+      // three-way-match (read goods receipt/invoice) draw on (S-gap-4: Tool nodes never route).
+      { id: "tool-erp-po", type: "tool", position: { x: 1220, y: 380 }, data: { kind: "tool", ref: { source: "builtin", id: "erp-po" } } },
+
+      // Calls out the one real architecture gap this demo works around - see the comment above.
+      { id: "note-parallel-gap", type: "note", position: { x: 60, y: 480 }, data: {
+        kind: "note", text: "Mô phỏng: cấp duyệt 2 (Kế toán + Giám đốc \"song song\") hiện chạy tuần tự - Condition mới hỗ trợ 1 approver/gate, chưa có parallel AND-join thật trong engine. Ngưỡng 50 triệu và SLA là giả định theo wiki Agentic BPM, cần Ban Mua Sắm FHO-FPD xác nhận.",
+      }, style: { width: 260, height: 170 } },
+    ],
+    edges: [
+      { id: "e-trigger-procurement", source: "trigger-procurement", target: "procurement-agent-1", type: "deletable", markerEnd: ROUTE_ARROW },
+      edge("e-agent1-cond-cap1", "procurement-agent-1", "cond-cap1", "cond-cap1"),
+      edge("e-cond-cap1-agent2", "cond-cap1", "procurement-agent-2", "cond-cap1"),
+      edge("e-agent1-cond-cap2", "procurement-agent-1", "cond-cap2", "cond-cap2"),
+      edge("e-cond-cap2-ketoan", "cond-cap2", "ketoan-review", "cond-cap2"),
+      edge("e-ketoan-cond-giamdoc", "ketoan-review", "cond-giamdoc-approval", "cond-giamdoc-approval"),
+      edge("e-cond-giamdoc-agent2", "cond-giamdoc-approval", "procurement-agent-2", "cond-giamdoc-approval"),
+      edge("e-agent2-cond-3way", "procurement-agent-2", "cond-to-3way", "cond-to-3way"),
+      edge("e-cond-3way-match", "cond-to-3way", "three-way-match", "cond-to-3way"),
+      edge("e-match-cond-payment", "three-way-match", "cond-to-payment", "cond-to-payment"),
+      edge("e-cond-payment-ketoan", "cond-to-payment", "ketoan-payment", "cond-to-payment"),
+    ],
+  };
+
   const draft: Workforce = {
     id: "wf-faq-escalation",
     name: "FAQ escalation sang Omni",
@@ -184,7 +281,7 @@ function seedWorkforces(): Workforce[] {
     edges: [],
   };
 
-  return [published, salesQuoteAcme, draft, empty];
+  return [published, salesQuoteAcme, procurementRequest, draft, empty];
 }
 
 const store = new Map<string, Workforce>();
