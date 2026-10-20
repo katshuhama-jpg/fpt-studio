@@ -31,7 +31,8 @@ export function useCanShareAgent(agentId: string) {
   const a = getAgent(agentId);
   if (agentId === "new") return false;
   if (a.ownerId === access.userId) return true;
-  return access.hasPermission("publish") && access.scopeOf("publish") === "all";
+  // BR-01: only the owner and a Space Admin (Build agents, Scope All in Space - same test as useIsSpaceAdmin) open the popup.
+  return access.hasPermission("manage") && access.scopeOf("manage") === "all";
 }
 
 /** Menu copy - the same wording in the popup and the doc (confirmed with Tyler 16/10). */
