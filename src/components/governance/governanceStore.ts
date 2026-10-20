@@ -769,7 +769,14 @@ function seed() {
   const faqSnap = buildSnapshot("agent", "faq");
   if (faqSnap) liveSnapshots.set(snapshotKey("agent", "faq"), {
     capturedAt: t - 3 * DAY,
-    fields: { ...faqSnap.fields, model: "Qwen Turbo", desc: "Product manuals and troubleshooting." },
+    fields: {
+      ...faqSnap.fields, model: "Qwen Turbo", desc: "Product manuals and troubleshooting.",
+      // v1.1.0 instructions: no serial-number warranty lookup yet, and a stricter scope line.
+      instructions: (() => {
+        const ins = (faqSnap.fields.instructions ?? "").split("\n");
+        return ins.length > 3 ? [...ins.slice(0, -2), "Chỉ trả lời câu hỏi về sản phẩm, không tư vấn giá hay bảo hành."].join("\n") : "Chỉ trả lời câu hỏi về sản phẩm.";
+      })(),
+    },
   });
   // finance-check / legal-review are live with the same configuration their pending requests
   // carry (those requests only widen the audience) → "Không thay đổi", not "Bản mới".

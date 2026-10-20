@@ -218,10 +218,12 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
               <button
                 type="button"
                 onClick={() => setChangesOpen(o => !o)}
-                className="w-full flex items-center justify-between mb-1.5"
+                aria-expanded={changesOpen}
+                className="inline-flex items-center gap-1.5 mb-2 text-sm font-semibold text-foreground"
               >
-                <span className="text-sm font-semibold">{isChannelReq ? "Kênh ngoài thay đổi" : "Thay đổi so với lần duyệt trước"}</span>
-                {changesOpen ? <ChevronUp size={15} className="text-muted-foreground" /> : <ChevronDown size={15} className="text-muted-foreground" />}
+                {isChannelReq ? "Kênh ngoài thay đổi" : "Thay đổi so với lần duyệt trước"}
+                <span className="text-xs font-normal text-muted-foreground tabular-nums">{requestDiff(req).length}</span>
+                {changesOpen ? <ChevronUp size={14} className="text-muted-foreground" /> : <ChevronDown size={14} className="text-muted-foreground" />}
               </button>
               {changesOpen && <MainDiffRows req={req} />}
             </div>
@@ -541,22 +543,82 @@ function OutcomeBanner({ req, isAgent, isChannelReq }: { req: import("@/componen
   );
 }
 
-/** The main resource's own field-level diff vs. its last-approved live snapshot — replaces the
- * old per-bundled-item diff panel now that there's no bundle. */
+/** Line diff (LCS) between two texts - powers the "+N -M" counts and the expanded view. */
+function lineDiff(before: string, after: string): { t: "same" | "add" | "del"; line: string }[] {
+  const a = before.split("\n"), b = after.split("\n");
+  const n = a.length, m = b.length;
+  const dp: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
+    dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  const out: { t: "same" | "add" | "del"; line: string }[] = [];
+  let i = 0, j = 0;
+  while (i < n && j < m) {
+    if (a[i] === b[j]) { out.push({ t: "same", line: a[i] }); i++; j++; }
+    else if (dp[i + 1][j] >= dp[i][j + 1]) out.push({ t: "del", line: a[i++] });
+    else out.push({ t: "add", line: b[j++] });
+  }
+  while (i < n) out.push({ t: "del", line: a[i++] });
+  while (j < m) out.push({ t: "add", line: b[j++] });
+  return out;
+}
+
+const EMPTY_VALUES = new Set(["(chưa có)", "(để trống)", ""]);
+
+/** "What changed" vs. the last-approved live version - same list as the Builder's Publish popup on
+ * production: one row per part, a sign (+ added, ~ changed, - removed), a short summary
+ * ("38 → 38 dòng" for long text, "cũ → mới" for a single value) and +N -M line counts. A row opens
+ * to show the exact lines, so the Admin reads the change without hunting through the whole Agent. */
 function MainDiffRows({ req }: { req: import("@/components/governance/governanceStore").GovRequest }) {
   const diffs = requestDiff(req);
+  const [open, setOpen] = useState<string | null>(null);
   if (diffs.length === 0) {
     return <p className="text-xs text-muted-foreground">Không có thay đổi nào ở các trường được theo dõi.</p>;
   }
   return (
-    <div className="rounded-lg border border-border/70 bg-white/70 divide-y divide-border/60 overflow-hidden">
-      {diffs.map(d => (
-        <div key={d.key} className="px-3 py-2.5 text-xs">
-          <p className="font-medium text-foreground mb-1">{d.label}</p>
-          <p className="text-muted-foreground line-through opacity-70 break-words">{d.before}</p>
-          <p className="text-foreground break-words">{d.after}</p>
-        </div>
-      ))}
+    <div className="rounded-lg bg-surface-muted/60 divide-y divide-border/60 overflow-hidden">
+      {diffs.map(d => {
+        const wasEmpty = EMPTY_VALUES.has(d.before), nowEmpty = EMPTY_VALUES.has(d.after);
+        const before = wasEmpty ? "" : d.before, after = nowEmpty ? "" : d.after;
+        const sign = wasEmpty ? "+" : nowEmpty ? "-" : "~";
+        const multiline = before.includes("\n") || after.includes("\n") || before.length > 60 || after.length > 60;
+        const lines = lineDiff(before, after);
+        const added = lines.filter(l => l.t === "add").length, removed = lines.filter(l => l.t === "del").length;
+        const count = (t: string) => (t ? t.split("\n").length : 0);
+        const isOpen = open === d.key;
+        return (
+          <div key={d.key}>
+            <button
+              type="button"
+              onClick={() => setOpen(isOpen ? null : d.key)}
+              aria-expanded={isOpen}
+              className="w-full flex items-center gap-3 px-3 py-2 text-left text-sm hover:bg-surface-muted transition-colors"
+            >
+              <span className={`w-3 text-center font-mono font-semibold ${sign === "+" ? "text-success" : sign === "-" ? "text-destructive" : "text-primary"}`} aria-hidden>{sign}</span>
+              <span className="font-medium text-foreground shrink-0">{d.label}</span>
+              <span className="flex-1 min-w-0 truncate text-xs text-muted-foreground">
+                {multiline ? `${count(before)} → ${count(after)} dòng` : `${before || "Chưa có"} → ${after || "Bỏ trống"}`}
+              </span>
+              {multiline && (
+                <span className="text-xs font-mono tabular-nums shrink-0">
+                  <span className="text-success">+{added}</span> <span className="text-destructive">-{removed}</span>
+                </span>
+              )}
+              {isOpen ? <ChevronUp size={13} className="text-muted-foreground shrink-0" /> : <ChevronDown size={13} className="text-muted-foreground shrink-0" />}
+            </button>
+            {isOpen && (
+              <div className="px-3 pb-3">
+                <div className="rounded-md border border-border bg-white font-mono text-xs leading-relaxed max-h-80 overflow-auto">
+                  {(multiline ? lines.filter((l, i) => l.t !== "same" || lines.slice(Math.max(0, i - 2), i + 3).some(x => x.t !== "same")) : lines).map((l, i) => (
+                    <div key={i} className={`px-2.5 whitespace-pre-wrap break-words ${l.t === "add" ? "bg-success/10 text-foreground" : l.t === "del" ? "bg-destructive/10 text-foreground/70 line-through decoration-destructive/40" : "text-muted-foreground"}`}>
+                      <span className="select-none inline-block w-3 mr-1.5 text-muted-foreground">{l.t === "add" ? "+" : l.t === "del" ? "-" : " "}</span>{l.line || " "}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
