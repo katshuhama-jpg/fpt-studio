@@ -27,13 +27,25 @@ import { agentModelStore } from "@/components/configure/agentModelStore";
 const tabs = ["Tất cả Nhân sự số", "Published", "Draft", "Removed", "Chờ duyệt", "Bị từ chối", "Shared with me"] as const;
 /** Display labels — "Published/Draft" read as "Đang live/Bản nháp" to match the card lines. */
 const TAB_LABEL: Partial<Record<typeof tabs[number], string>> = { Published: "Đang live", Draft: "Bản nháp", Removed: "Đã gỡ", "Shared with me": "Được thêm vào" };
-const kindFilters = ["All", "Nhân sự số", "Nhân sự số tự động"] as const;
+const kindFilters = ["All", "Nhân sự số", "Nhân sự số tự động", "Quy trình"] as const;
 
 const SUGGESTIONS = [
   { label: "Customer support", prompt: "A customer-support agent that answers FAQs, guides users through documentation, and escalates tickets when needed." },
   { label: "Internal lookup", prompt: "An internal lookup assistant that answers employee questions using company policies and the internal knowledge base." },
   { label: "Sales assistant", prompt: "A sales assistant that qualifies inbound leads, answers product questions, and books demo calls." },
 ] as const;
+
+/** Gợi ý mô tả khi tạo Nhân sự số Quy trình (AI dựng sẵn các bước). */
+const PROCESS_SUGGESTIONS = [
+  { label: "Duyệt đề nghị mua sắm", prompt: "Nhận đề nghị mua sắm kèm chứng từ. Đọc chứng từ, nếu vượt 50 triệu thì giám đốc duyệt, không thì tự duyệt. Duyệt xong tạo PO trên SAP ERP, từ chối thì soạn thư báo lại người đề nghị." },
+  { label: "Đối chiếu hoá đơn với PO", prompt: "Khi hệ thống kế toán gửi hoá đơn VAT qua webhook, đọc số tiền, lấy PO tương ứng từ ERP để so khớp. Khớp thì ghi nhận công nợ, lệch thì chuyển kế toán xem lại." },
+  { label: "Tiếp nhận hồ sơ vay", prompt: "Nhận hồ sơ vay gồm CCCD và sao kê lương. Phân loại sản phẩm vay, tra chính sách tín dụng, chấm điều kiện cơ bản rồi chuyển chuyên viên thẩm định. Đạt thì tạo hồ sơ trên LOS, không đạt thì soạn thư từ chối." },
+] as const;
+
+/** Nhân sự số Quy trình demo (prototype - chưa có store riêng). */
+const PROCESS_AGENTS = [
+  { id: "invoice", name: "Đối chiếu hoá đơn với PO", desc: "Nhận hoá đơn qua webhook, so khớp với PO trên ERP, lệch thì chuyển kế toán xem lại.", meta: "9 bước · Webhook", updated: "Cập nhật 1 giờ trước" },
+];
 
 const TRIGGER_TYPE_LABEL: Record<TriggerType, string> = {
   scheduled: "Schedule",
@@ -406,6 +418,8 @@ export default function AgentsList() {
   const [search, setSearch] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
   const [prompt, setPrompt] = useState("");
+  const [createKind, setCreateKind] = useState<"productivity" | "process">("productivity");
+  const isProcessKind = createKind === "process";
 
   const tabCounts: Record<typeof tabs[number], number> = {
     "Tất cả Nhân sự số": visibleAgents.length,
@@ -438,8 +452,10 @@ export default function AgentsList() {
   const allConversationalCount = visibleAgents.filter(a => getAgentKind(a.id) === "conversational").length;
   const allAutomationCount = visibleAgents.filter(a => getAgentKind(a.id) === "automation").length;
 
-  const showConversational = kindFilter !== "Nhân sự số tự động";
-  const showAutomation = kindFilter !== "Nhân sự số";
+  const showConversational = kindFilter !== "Nhân sự số tự động" && kindFilter !== "Quy trình";
+  const showAutomation = kindFilter !== "Nhân sự số" && kindFilter !== "Quy trình";
+  const showProcess = kindFilter === "All" || kindFilter === "Quy trình";
+  const processAgents = PROCESS_AGENTS.filter(p => !q || p.name.toLowerCase().includes(q) || p.desc.toLowerCase().includes(q));
   const singleKindView = kindFilter !== "All";
 
   const clearFilters = () => {
@@ -450,6 +466,13 @@ export default function AgentsList() {
 
   const handleBuild = () => {
     if (!prompt.trim() || !canCreateAgent) return;
+    if (isProcessKind) {
+      const sug = PROCESS_SUGGESTIONS.find(x => x.prompt === prompt);
+      const params = new URLSearchParams({ prompt });
+      if (sug) params.set("name", sug.label);
+      navigate(`/process/new?${params.toString()}`);
+      return;
+    }
     const params = new URLSearchParams();
     params.set("tab", "build");
     params.set("section", "instructions");
@@ -480,9 +503,29 @@ export default function AgentsList() {
           Pick a starting point, then refine it in the builder.
         </p>
         <div className="w-full max-w-[672px] rounded-2xl border border-border bg-surface p-4 shadow-sm focus-within:border-ring transition-colors">
+        <div role="radiogroup" aria-label="Loại Nhân sự số" className="flex gap-1 p-1 mb-3 rounded-lg bg-surface-muted w-fit">
+          {([
+            { id: "productivity", label: "Năng suất", hint: "Dựng bằng prompt, hỗ trợ việc hằng ngày" },
+            { id: "process", label: "Quy trình", hint: "Làm đúng theo quy trình, từng bước cố định" },
+          ] as const).map(k => (
+            <button
+              key={k.id}
+              role="radio"
+              aria-checked={createKind === k.id}
+              title={k.hint}
+              onClick={() => { setCreateKind(k.id); setPrompt(""); }}
+              className={`h-8 px-3 rounded-md text-xs font-medium transition-base ${createKind === k.id ? "bg-surface text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              {k.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground mb-2">
+          {isProcessKind ? "Làm đúng theo quy trình, từng bước cố định. Mô tả các bước, AI dựng sẵn để bạn sửa." : "Dựng bằng prompt, hỗ trợ việc hằng ngày."}
+        </p>
         <textarea
           className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none leading-relaxed min-h-[56px]"
-          placeholder='e.g. "A bank customer-support assistant that answers credit-card questions in a formal tone."'
+          placeholder={isProcessKind ? "VD: Nhận hoá đơn, đọc số tiền, so với PO trên ERP, lệch thì chuyển kế toán xem lại." : 'e.g. "A bank customer-support assistant that answers credit-card questions in a formal tone."'}
           rows={2}
           value={prompt}
           onChange={e => setPrompt(e.target.value)}
@@ -492,19 +535,19 @@ export default function AgentsList() {
         />
         <div className="flex items-center justify-between mt-3">
           <p className="text-xs text-muted-foreground">
-            The more specific, the closer the draft - At least 20 characters.
+            {isProcessKind ? "Nêu các bước, ai duyệt, dùng hệ thống nào - Tối thiểu 20 ký tự." : "The more specific, the closer the draft - At least 20 characters."}
           </p>
 
           {/* Right actions */}
           <div className="flex items-center gap-3 shrink-0">
-            <button
+            {!isProcessKind && <button
               onClick={() => canCreateAgent && setShowTemplates(true)}
               disabled={!canCreateAgent}
               title={!canCreateAgent ? "Bạn không có quyền tạo Nhân sự số." : undefined}
               className="text-sm text-muted-foreground hover:text-foreground transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
             >
               Use a template
-            </button>
+            </button>}
             <button
               onClick={handleBuild}
               disabled={prompt.trim().length < 20 || !canCreateAgent}
@@ -512,7 +555,7 @@ export default function AgentsList() {
               className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <HugeiconsIcon icon={SparklesIcon} size={14} />
-              Tạo Nhân sự số
+              {isProcessKind ? "Dựng Quy trình" : "Tạo Nhân sự số"}
             </button>
           </div>
         </div>
@@ -520,7 +563,7 @@ export default function AgentsList() {
 
         <div className="flex items-center gap-2 mt-4">
           <span className="text-xs text-muted-foreground">Suggestions</span>
-          {SUGGESTIONS.map(s => (
+          {(isProcessKind ? PROCESS_SUGGESTIONS : SUGGESTIONS).map(s => (
             <button
               key={s.label}
               onClick={() => canCreateAgent && setPrompt(s.prompt)}
@@ -533,7 +576,7 @@ export default function AgentsList() {
         </div>
 
         <button
-          onClick={() => canCreateAgent && navigate("/agents/new?tab=build&section=instructions")}
+          onClick={() => canCreateAgent && navigate(isProcessKind ? "/process/new" : "/agents/new?tab=build&section=instructions")}
           disabled={!canCreateAgent}
           title={!canCreateAgent ? "Bạn không có quyền tạo Nhân sự số." : undefined}
           className="btn-secondary mt-4 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-surface"
@@ -643,6 +686,36 @@ export default function AgentsList() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {automationAgents.map(a => <AutomationCard key={a.id} a={a} />)}
+            </div>
+          )}
+        </div>
+      )}
+      {showProcess && (activeTab === "Tất cả Nhân sự số" || activeTab === "Draft") && (
+        <div className="mb-8">
+          {!singleKindView && (
+            <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+              Quy trình
+              <span className="text-xs font-normal text-muted-foreground">{processAgents.length}</span>
+            </h2>
+          )}
+          {processAgents.length === 0 ? (
+            <GroupEmptyState message="Không có Quy trình nào khớp với từ khóa" onShowAll={clearFilters} />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {processAgents.map(p => (
+                <Link key={p.id} to={`/process/${p.id}`} className="block rounded-xl border border-border bg-surface p-4 hover:border-ring/60 hover:shadow-sm transition-base">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-primary-soft text-primary">Quy trình</span>
+                    <span className="text-[11px] px-2 py-0.5 rounded-md border border-border text-muted-foreground">Bản nháp</span>
+                  </div>
+                  <div className="text-sm font-semibold text-foreground mb-1">{p.name}</div>
+                  <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{p.desc}</p>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{p.meta}</span>
+                    <span>{p.updated}</span>
+                  </div>
+                </Link>
+              ))}
             </div>
           )}
         </div>
