@@ -89,6 +89,7 @@ import { scopeLabel, isDocInScope, isDocFolderVisible, PARTIAL_LINK_ENABLED } fr
 import InstructionsEditor from "@/components/configure/InstructionsEditor";
 import BrokenRefsDialog from "@/components/configure/BrokenRefsDialog";
 import HandoffSection from "@/components/configure/HandoffSection";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { handoffStore } from "@/components/configure/handoffStore";
 import { RefChip, RefChipTooltip } from "@/components/configure/refChip";
 import { instructionDraftStore } from "@/components/configure/instructionDraftStore";
@@ -3050,6 +3051,13 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish, onO
   const onVersion = channelVersion ?? latestApproved;
   const canUpdateChannels = channelsLive && !!latestApproved && !!channelVersion && compareVersions(latestApproved, channelVersion) > 0;
   const [channelConfirm, setChannelConfirm] = useState<{ id: string; mode: "on" | "off" } | null>(null);
+  const [deployParams, setDeployParams] = useSearchParams();
+  const channelTab: "deploy" | "external" = deployParams.get("ctab") === "external" ? "external" : "deploy";
+  const setChannelTab = (t: "deploy" | "external") => {
+    const next = new URLSearchParams(deployParams);
+    if (t === "external") next.set("ctab", "external"); else next.delete("ctab");
+    setDeployParams(next, { replace: true });
+  };
   const [channelAsk, setChannelAsk] = useState<"review" | "update" | null>(null);
   const submitChannelRequest = (input: { channelsAdded?: string[]; version: string; purpose?: "review"; note: string }) => {
     const agent = getAgent(agentId);
@@ -3150,6 +3158,14 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish, onO
         </button>
       </div>
 
+      {/* Two tabs: where the Nhân sự số is deployed (Workspace / Automation) and the external
+          channels — with "Chuyển cho nhân viên", which only applies to external channels. */}
+      <Tabs value={channelTab} onValueChange={v => setChannelTab(v as "deploy" | "external")}>
+        <TabsList className="h-9 w-fit rounded-lg bg-muted p-[3px] text-muted-foreground mb-6">
+          <TabsTrigger value="deploy" className="h-full flex-none rounded-md border border-transparent px-3 py-1 text-sm font-medium text-muted-foreground hover:text-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-offset-0">Kênh triển khai</TabsTrigger>
+          <TabsTrigger value="external" className="h-full flex-none rounded-md border border-transparent px-3 py-1 text-sm font-medium text-muted-foreground hover:text-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-offset-0">Kênh ngoài</TabsTrigger>
+        </TabsList>
+        <TabsContent value="deploy" className="mt-0">
       {/* Agent Workspace (conversational) / Automation (has triggers) — mutually exclusive.
           Independent of the Publish modal's "Publish to" section, which only picks audience
           (Only me / Company-department / FPT AI Agent community) now, not Workspace vs
@@ -3255,6 +3271,8 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish, onO
         </div>
       )}
 
+        </TabsContent>
+        <TabsContent value="external" className="mt-0">
       {/* External channels — one shared list with the Publish modal, in CHANNEL_CATALOG's order. */}
       <div>
         <div className="flex items-baseline gap-2 mb-3">
@@ -3331,6 +3349,9 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish, onO
       </div>
 
       <HandoffSection agentId={agentId} onOpenCapabilities={onOpenCapabilities} />
+
+        </TabsContent>
+      </Tabs>
 
       <AlertDialog open={!!channelConfirm} onOpenChange={o => !o && setChannelConfirm(null)}>
         <AlertDialogContent>

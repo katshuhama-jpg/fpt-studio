@@ -4,6 +4,7 @@
 // conversation counts and the handoff report are simulated.
 import { loadMap, saveMap } from "@/lib/sessionPersist";
 import { getAgent } from "./agentStore";
+import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
 
 export type ContactCenterId = "eos" | "genesys" | "zendesk";
 export const CONTACT_CENTERS: { id: ContactCenterId; name: string; sub: string; available: boolean }[] = [
@@ -25,16 +26,24 @@ export const channelName = (id: string) => HANDOFF_CHANNELS.find(c => c.id === i
 export interface CcConnection {
   provider: ContactCenterId;
   org: string;
-  connectedBy: string;
-  connectedAt: number;
+  /** The signed-in user's EOS login the link comes from. */
+  account: string;
   /** "error" = token revoked (401) or disconnected from the Contact Center side (BR-08). */
   status: "connected" | "error";
   errorReason?: string;
 }
 
+/** EOS Contact Center accounts of the demo users. A user who has one is linked automatically on
+ * sign-in — there is no separate "Kết nối" step; a user without one can't turn handoff on. */
+const EOS_ACCOUNTS: Record<string, { org: string; login: string }> = {
+  "m-fsoft-ceo": { org: "cskh-fpt.eos.vn", login: "tran.nam@fpt.com" },
+};
+export const eosAccount = (userId: string = CURRENT_USER.id) => EOS_ACCOUNTS[userId] ?? null;
+
 interface AgentHandoff {
   capability: boolean;
-  connection: CcConnection | null;
+  /** Set while the EOS link is broken (demo of UC-05); cleared by "Thử lại". */
+  error?: string;
   /** channelId -> provider it hands off to (one Contact Center per channel, BR-03). */
   channels: Record<string, ContactCenterId>;
 }
@@ -42,7 +51,7 @@ interface AgentHandoff {
 const KEY = "agent_handoff_v1";
 const store = loadMap<string, AgentHandoff>(KEY);
 const persist = () => saveMap(KEY, store);
-const get = (agentId: string): AgentHandoff => store.get(agentId) ?? { capability: false, connection: null, channels: {} };
+const get = (agentId: string): AgentHandoff => store.get(agentId) ?? { capability: false, channels: {} };
 const put = (agentId: string, v: AgentHandoff) => { store.set(agentId, v); persist(); };
 
 /** Short agent name for inbox labels: "Mai – Trợ lý CSKH" -> "Mai". */
@@ -62,34 +71,29 @@ export const handoffStore = {
   capabilityOn: (agentId: string) => get(agentId).capability,
   setCapability(agentId: string, on: boolean) { put(agentId, { ...get(agentId), capability: on }); },
 
-  connection: (agentId: string) => get(agentId).connection,
-  /** Simulated authentication with the Contact Center. Fails on an obviously bad token. */
-  connect(agentId: string, provider: ContactCenterId, org: string, token: string, byName: string): { ok: true } | { ok: false; error: string } {
-    if (token.trim().length < 8) return { ok: false, error: "Xác thực với EOS thất bại. Kiểm tra lại mã truy cập." };
-    put(agentId, { ...get(agentId), connection: { provider, org: org.trim(), connectedBy: byName, connectedAt: Date.now(), status: "connected" } });
-    return { ok: true };
+  /** Derived from the signed-in user's EOS account — null when they don't have one. */
+  connection(agentId: string): CcConnection | null {
+    const acc = eosAccount();
+    if (!acc) return null;
+    const err = get(agentId).error;
+    return { provider: "eos", org: acc.org, account: acc.login, status: err ? "error" : "connected", errorReason: err };
   },
-  /** Disconnecting stops handoff on every channel (UC-01 A2). */
-  disconnect(agentId: string) { put(agentId, { ...get(agentId), connection: null, channels: {} }); },
   /** Demo of UC-05: token revoked or disconnected from the Contact Center side. */
-  simulateError(agentId: string, reason = "Token bị thu hồi (401)") {
-    const cur = get(agentId);
-    if (!cur.connection) return;
-    put(agentId, { ...cur, connection: { ...cur.connection, status: "error", errorReason: reason } });
-  },
+  simulateError(agentId: string, reason = "Token bị thu hồi (401)") { put(agentId, { ...get(agentId), error: reason }); },
+  retry(agentId: string) { const cur = get(agentId); delete cur.error; put(agentId, { ...cur }); },
 
   channelOn: (agentId: string, channelId: string) => !!get(agentId).channels[channelId],
   setChannel(agentId: string, channelId: string, on: boolean) {
     const cur = get(agentId);
     const channels = { ...cur.channels };
-    if (on && cur.connection) channels[channelId] = cur.connection.provider; else delete channels[channelId];
+    if (on && eosAccount()) channels[channelId] = "eos"; else delete channels[channelId];
     put(agentId, { ...cur, channels });
   },
   activeChannels: (agentId: string) => Object.keys(get(agentId).channels),
   /** Handoff only runs when the capability is on, the connection is healthy and the channel is on. */
   isWorking(agentId: string) {
     const h = get(agentId);
-    return h.capability && h.connection?.status === "connected" && Object.keys(h.channels).length > 0;
+    return h.capability && !!eosAccount() && !h.error && Object.keys(h.channels).length > 0;
   },
   /** BR-01: capability off while channels still have handoff on -> warn at Publish. */
   publishWarning(agentId: string): string[] {

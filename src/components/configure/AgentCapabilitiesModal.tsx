@@ -116,7 +116,7 @@ function HandoffCapabilityRow({ agentId, onChange, onOpenChannels }: { agentId: 
   const active = handoffStore.activeChannels(agentId);
   const status = active.length && conn
     ? `Đang hoạt động trên: ${active.map(channelName).join(", ")} (EOS Contact Center)`
-    : conn ? "Đã kết nối EOS Contact Center, chưa bật kênh nào." : "Chưa kết nối Contact Center.";
+    : conn ? "Đã liên kết EOS Contact Center theo tài khoản của bạn, chưa bật kênh nào." : "Tài khoản của bạn chưa có EOS Contact Center.";
   return (
     <div className="flex items-start gap-4 rounded-md border p-3.5">
       <div className="min-w-0 flex-1">
@@ -127,7 +127,7 @@ function HandoffCapabilityRow({ agentId, onChange, onOpenChannels }: { agentId: 
         <p className="text-sm text-muted-foreground leading-relaxed mt-0.5">Cho phép Nhân sự số chuyển hội thoại cho nhân viên CSKH trên Contact Center khi không xử lý tiếp được hoặc khách muốn gặp người thật.</p>
         <p className="text-xs text-muted-foreground mt-1.5">
           {status}{" "}
-          <button type="button" className="font-medium text-primary hover:underline" onClick={() => { onOpenChannels(); setParams({ tab: "channels" }); }}>Mở Kênh triển khai</button>
+          <button type="button" className="font-medium text-primary hover:underline" onClick={() => { onOpenChannels(); setParams({ tab: "channels", ctab: "external" }); }}>Mở Kênh triển khai</button>
         </p>
         {!on && active.length > 0 && (
           <p className="text-xs text-warning mt-1">Còn {active.length} kênh đang bật chuyển cho nhân viên — sẽ có cảnh báo khi Publish.</p>
