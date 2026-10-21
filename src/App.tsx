@@ -18,6 +18,7 @@ import AgentScaffold from "./pages/AgentScaffold";
 import Inventor from "./pages/Inventor";
 import TaskEditor from "./pages/TaskEditor";
 import ToolBuilder from "./pages/ToolBuilder";
+import ProcessBuilder from "./pages/ProcessBuilder";
 import CreateToolkit from "./pages/CreateToolkit";
 import ConversationTrace from "./pages/ConversationTrace";
 import OrgGeneral from "./pages/organization/General";
@@ -139,6 +140,7 @@ const App = () => (
               <Route path="/external-agents/guides/how-it-works" element={<Navigate to="/external-agents/guides/integration" replace />} />
               <Route path="/external-agents/:id" element={<ExternalAgentDetail />} />
             </Route>
+            <Route path="/process/:id" element={<RequireAuth><ProcessBuilder /></RequireAuth>} />
             <Route path="/inventor" element={<RequireAuth><Inventor /></RequireAuth>} />
             <Route path="/plans" element={<RequireAuth><PlansPage /></RequireAuth>} />
             <Route path="/connectors/custom/toolkits/new" element={<RequireAuth><CreateToolkit /></RequireAuth>} />
