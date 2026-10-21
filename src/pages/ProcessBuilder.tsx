@@ -373,7 +373,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     super(props);
     this.seq = 30;
     this.state = {
-      screen: 'list', createOpen: false, ckind: 'chat', prompt: '', draftName: '', drafting: false, aiBanner: false, kind: 'all',
+      screen: 'list', view: 'table', createOpen: false, ckind: 'chat', prompt: '', draftName: '', drafting: false, aiBanner: false, kind: 'all',
       name: '', nodes: [], edges: [], sel: null, tab: 'cfg', hist: [], top: 'build',
       add: null, palOpen: true, picking: null, drag: null, z: 1, px: 80, py: 80,
       checkOpen: false, pubOpen: false, status: 'draft', last: {},
@@ -614,16 +614,16 @@ class ProcessBuilderInner extends React.Component<any, any> {
     var KB = { chat: ['Năng suất', '#f1f5f9', '#334155'], process: ['Quy trình', '#eef1fd', '#203BDC'] };
     var STT = { live: ['Đang hoạt động', '#bbf7d0', '#f0fdf4', '#15803d'], draft: ['Bản nháp', '#e5e5e5', '#fafafa', '#475569'] };
     var allCards = [
-      { k: 'chat', st: 'live', name: 'Trợ lý nội bộ công chức', ver: 'v1.0.0', updated: 'Cập nhật 6 ngày trước', desc: 'Tra cứu số liệu phường, văn bản và trả lời kiến nghị cử tri.', meta: 'DeepSeek V4 Flash', icon: ICON.bot },
-      { k: 'chat', st: 'live', name: 'Hỗ trợ thủ tục hành chính', ver: 'v1.2.0', updated: 'Cập nhật 2 ngày trước', desc: 'Hướng dẫn hồ sơ, lệ phí và thời hạn giải quyết thủ tục.', meta: 'DeepSeek V4 Flash', icon: ICON.bot },
-      { k: 'process', st: 'draft', name: 'Đối chiếu hoá đơn với PO', ver: 'v0.1.0', updated: 'Cập nhật 1 giờ trước', desc: 'Nhận hoá đơn qua HTTP, so khớp với PO trên ERP, lệch thì chuyển kế toán xem lại.', meta: '10 bước · HTTP', icon: ICON.flow, tpl: 'invoice' },
-      { k: 'chat', st: 'live', name: 'Tư vấn khoản vay', ver: 'v0.3.0', updated: 'Cập nhật 3 ngày trước', desc: 'Tư vấn sản phẩm vay, hỏi nhu cầu và thu nhập của khách.', meta: 'DeepSeek V4 Flash', icon: ICON.bot }
+      { k: 'chat', st: 'live', name: 'Trợ lý nội bộ công chức', ver: 'v1.0.0', updated: 'Cập nhật 6 ngày trước', desc: 'Tra cứu số liệu phường, văn bản và trả lời kiến nghị cử tri.', meta: 'DeepSeek V4 Flash', icon: ICON.bot, act: '214 hội thoại' },
+      { k: 'chat', st: 'live', name: 'Hỗ trợ thủ tục hành chính', ver: 'v1.2.0', updated: 'Cập nhật 2 ngày trước', desc: 'Hướng dẫn hồ sơ, lệ phí và thời hạn giải quyết thủ tục.', meta: 'DeepSeek V4 Flash', icon: ICON.bot, act: '260 hội thoại' },
+      { k: 'process', st: 'draft', name: 'Đối chiếu hoá đơn với PO', ver: 'v0.1.0', updated: 'Cập nhật 1 giờ trước', desc: 'Nhận hoá đơn qua HTTP, so khớp với PO trên ERP, lệch thì chuyển kế toán xem lại.', meta: '10 bước · HTTP', icon: ICON.flow, tpl: 'invoice', act: 'Chưa publish' },
+      { k: 'chat', st: 'live', name: 'Tư vấn khoản vay', ver: 'v0.3.0', updated: 'Cập nhật 3 ngày trước', desc: 'Tư vấn sản phẩm vay, hỏi nhu cầu và thu nhập của khách.', meta: 'DeepSeek V4 Flash', icon: ICON.bot, act: '0 hội thoại' }
     ];
     var tabs = [{ id: 'all', label: 'Tất cả' }, { id: 'live', label: 'Đã xuất bản' }, { id: 'draft', label: 'Bản nháp' }, { id: 'shared', label: 'Được chia sẻ' }];
     var kindFilters = tabs.map(function (t) { var n = allCards.filter(function (c) { return t.id === 'all' || c.st === t.id; }).length; return { label: t.label, count: n, cls: 'pill' + (s.kind === t.id ? ' pill-on' : ''), pick: function () { self.setState({ kind: t.id }); } }; });
     var cards = allCards.filter(function (c) { return s.kind === 'all' || s.kind === c.st; }).map(function (c) {
       var isP = c.k === 'process';
-      return { name: c.name, ver: c.ver, updated: c.updated, desc: c.desc, meta: c.meta, icon: c.icon, avBg: isP ? '#eef1fd' : '#f1f5f9', avFg: isP ? '#203BDC' : '#334155', kind: KB[c.k][0], kindBg: KB[c.k][1], kindFg: KB[c.k][2],
+      return { verText: c.st === 'live' ? c.ver : 'Chưa có', verColor: c.st === 'live' ? '#0f172a' : '#64748b', model: isP ? 'Theo từng bước' : c.meta, activity: c.act, updatedShort: c.updated.replace('Cập nhật ', ''), name: c.name, ver: c.ver, updated: c.updated, desc: c.desc, meta: c.meta, icon: c.icon, avBg: isP ? '#eef1fd' : '#f1f5f9', avFg: isP ? '#203BDC' : '#334155', kind: KB[c.k][0], kindBg: KB[c.k][1], kindFg: KB[c.k][2],
         status: STT[c.st][0], stBorder: STT[c.st][1], stBg: STT[c.st][2], stFg: STT[c.st][3],
         open: function () { if (c.tpl) self.openBuilder(c.tpl, c.name, false); else self.showToast('Nhân sự số Năng suất mở như bản hiện tại. Prototype này chỉ dựng phần Quy trình.'); } };
     });
@@ -869,12 +869,14 @@ class ProcessBuilderInner extends React.Component<any, any> {
       var hint = waitNode.cfg.fields[0] ? waitNode.cfg.fields[0].desc : '', opts = hint.indexOf('/') > 0 ? hint.split('/').map(function (x) { return x.trim(); }) : ['Duyệt', 'Từ chối'];
       waitActions = opts.map(function (a, i) { return { label: a, cls: i === 0 ? 'btn btn-primary' : 'btn', pick: function () { self.step(a); } }; });
     }
-    var statusMap = { draft: ['Bản nháp', '#fafafa', '#475569'], pending: ['Chờ duyệt publish', '#fffbeb', '#b45309'] };
+    var statusMap = { draft: ['Bản nháp', '#f59e0b', ''], pending: ['Chờ duyệt publish', '#f59e0b', 'v1'] };
     var g0 = s.guard, guardList = function (arr) { return arr.map(function (x) { return { label: x[1], on: !!g0[x[0]], toggle: function () { var ng = Object.assign({}, self.state.guard); ng[x[0]] = !ng[x[0]]; self.setState({ guard: ng }); } }; }); };
     var asTool = startNode && startNode.cfg.trigger === 'agent';
 
     return {
       isList: s.screen === 'list', isBuilder: s.screen === 'builder',
+      isTable: s.view === 'table', isGrid: s.view === 'grid', tableBg: s.view === 'table' ? '#f1f5f9' : '#fff', gridBg: s.view === 'grid' ? '#f1f5f9' : '#fff',
+      viewTable: function () { self.setState({ view: 'table' }); }, viewGrid: function () { self.setState({ view: 'grid' }); },
       kindFilters: kindFilters, cards: cards, kindTabs: kindTabs, isChatKind: isChat, suggestions: suggestions, prompt: s.prompt, drafting: s.drafting,
       kindHint: isChat ? 'Dựng bằng prompt, hỗ trợ việc hằng ngày' : 'Làm đúng theo quy trình, từng bước cố định',
       promptPh: isChat ? 'Trợ lý hỗ trợ khách hàng ngân hàng, trả lời thắc mắc về thẻ tín dụng, giọng trang trọng, tiếng Việt.' : 'VD: Nhận hoá đơn, trích xuất số tiền, so với PO trên ERP, lệch thì chuyển kế toán xem lại.',
@@ -888,9 +890,20 @@ class ProcessBuilderInner extends React.Component<any, any> {
 
       aiBanner: s.aiBanner && s.screen === 'builder' && !showRun && building, draftSteps: s.nodes.filter(function (n) { return n.type !== 'note'; }).length, dismissBanner: function () { self.setState({ aiBanner: false }); },
       backToList: function () { clearTimeout(self.timer); self.setState({ screen: 'list', run: null, runOpen: false }); },
-      name: s.name, statusLabel: statusMap[s.status][0], statusBg: statusMap[s.status][1], statusFg: statusMap[s.status][2],
-      topTabs: [{ id: 'build', label: 'Dựng' }, { id: 'activity', label: 'Lịch sử chạy' }, { id: 'monitor', label: 'Giám sát' }].map(function (x) { var on = s.top === x.id; return { label: x.label, on: on, bg: on ? '#fff' : 'transparent', fg: on ? '#203BDC' : '#475569', shadow: on ? '0 1px 2px rgba(15,23,42,.1)' : 'none', pick: function () { self.setState({ top: x.id, add: null, runOpen: x.id === 'build' ? self.state.runOpen : false }); } }; }),
-      otherTitle: s.top === 'activity' ? 'Lịch sử chạy' : 'Giám sát', otherText: s.top === 'activity' ? 'Mỗi lần Quy trình chạy thật sau khi publish sẽ hiện ở đây, kèm từng bước, thời gian và dữ liệu. Prototype chưa dựng phần này.' : 'Số lần chạy, tỉ lệ lỗi, thời gian chờ người duyệt theo ngày. Prototype chưa dựng phần này.',
+      name: s.name, statusLabel: statusMap[s.status][0], statusDot: statusMap[s.status][1], statusSub: s.status === 'pending' ? 'v1' : 'chưa có phiên bản',
+      topTabs: [
+        { id: 'build', label: 'Dựng nhân sự số', icon: 'M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z' },
+        { id: 'test', label: 'Kiểm thử', icon: 'M9 3h6 M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3 M7 15h10' },
+        { id: 'deploy', label: 'Kênh triển khai', icon: 'M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M18 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M9 6h6 M9 18h6' },
+        { id: 'analytics', label: 'Phân tích', icon: 'M4 4v16h16 M8 16v-4 M12 16V8 M16 16v-6' }
+      ].map(function (x) { var on = s.top === x.id; return { label: x.label, icon: x.icon, on: on, bg: on ? '#eef1fd' : 'transparent', fg: on ? '#203BDC' : '#475569', pick: function () { self.setState({ top: x.id, add: null, checkOpen: false, pubOpen: false }); } }; }),
+      building: building, notBuilding: !building,
+      otherIcon: { test: 'M9 3h6 M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3', deploy: 'M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M18 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M9 6h6', analytics: 'M4 4v16h16 M8 16v-4 M12 16V8 M16 16v-6' }[s.top] || '',
+      otherTitle: { test: 'Kiểm thử', deploy: 'Kênh triển khai', analytics: 'Phân tích' }[s.top] || '',
+      otherText: { test: 'Bộ test case cho Quy trình: mỗi test case là một bộ dữ liệu đầu vào và kết quả mong đợi, chạy lại hàng loạt trước mỗi lần publish. Prototype chưa dựng phần này.', deploy: 'Quy trình chạy theo kiểu kích hoạt ở bước Bắt đầu. Publish xong có thể gắn làm tool cho Nhân sự số, gọi qua API hoặc webhook. Prototype chưa dựng phần này.', analytics: 'Lịch sử từng lần chạy, số lần chạy, tỉ lệ lỗi và thời gian chờ người duyệt theo ngày. Prototype chưa dựng phần này.' }[s.top] || '',
+      panelTabs: [{ id: 'cfg', label: 'Cấu hình' }, { id: 'run', label: 'Chạy thử' }].map(function (x) { var on = x.id === 'run' ? showRun : !showRun; return { label: x.label, on: on, bg: on ? '#f1f5f9' : 'transparent', fg: on ? '#0f172a' : '#64748b', pick: function () { if (x.id === 'run') self.openRun(); else self.setState({ runOpen: false }); } }; }),
+      panelCanClose: showRun || !!selNode,
+      panelClose: function () { if (self.state.runOpen) { clearTimeout(self.timer); var r = self.state.run; self.setState({ runOpen: false, run: r && (r.status === 'running' || r.status === 'paused') ? null : r }); } else self.setState({ sel: null, picking: null }); },
       undo: function () { self.undo(); }, canUndoNot: !s.hist.length,
       issueGroups: issues.map(function (g) { var cc = colOf(g.type); return { title: g.title, count: g.msgs.length, msgs: g.msgs, tile: cc[0], icon: TYPES[g.type].icon, go: function () { self.setState({ sel: g.id, tab: 'cfg', checkOpen: false, runOpen: false, top: 'build' }); } }; }),
       issueCount: issueCount, hasIssues: issueCount > 0, noIssues: !issueCount, issueColor: issueCount ? '#b91c1c' : '#020817',
@@ -999,7 +1012,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
       );
     }
     var v = this.renderVals();
-    var { actCount, actGuards, addCase, addCrumb, addEmpty, addFrom, addHasCrumb, addHasFrom, addOpen, addQ, addRoot, addSections, addShowTabs, addTabs, aiBanner, aiCount, autoLayout, backToList, canUndoNot, canvasCursor, canvasRef, cases, checkAria, checkOpen, closeAdd, closeRun, deleteSel, deselect, dismissBanner, draftSteps, edgePlus, edgesD, edgesH, editors, errD, errH, errMode, errRetry, fit, guards, hasIssues, issueColor, issueCount, issueGroups, last, lastHas, name, noIssues, noRunInputs, nodeTabs, onAddKey, onAddQ, onBgDown, onErrMode, onMove, onTitle, onUp, opOpts, openRun, otherText, otherTitle, outVars, palClosed, palHint, palItems, palOpen, pf, pmNode, pmOther, pmProcess, pmRun, pubOpen, pubState, publish, publishDisabled, publishLabel, ranD, ranH, rerun, runBar, runDone, runHasOutput, runInputTitle, runInputs, runLocked, runLog, runOutput, runPaused, runResBg, runResBorder, runResText, runRunning, runShowInput, runShowResult, runShowTrace, runStatusColor, runStatusText, runStep, runTabs, sel, startRun, statusBg, statusFg, statusLabel, stepCount, tabCfg, tabLast, toast, toastBg, toastText, toggleCheck, togglePal, togglePub, toggleRetry, toolHint, toolHintColor, topTabs, undo, varOpts, viewNodes, waitActions, waitBody, waitExpire, waitTitle, waitWho, worldTransform, zoomIn, zoomOut, zoomPct } = v;
+    var { actCount, actGuards, addCase, addCrumb, addEmpty, addFrom, addHasCrumb, addHasFrom, addOpen, addQ, addRoot, addSections, addShowTabs, addTabs, aiBanner, aiCount, autoLayout, backToList, building, canUndoNot, canvasCursor, canvasRef, cases, checkAria, checkOpen, closeAdd, deleteSel, dismissBanner, draftSteps, edgePlus, edgesD, edgesH, editors, errD, errH, errMode, errRetry, fit, guards, hasIssues, issueColor, issueCount, issueGroups, last, lastHas, name, noIssues, noRunInputs, nodeTabs, notBuilding, onAddKey, onAddQ, onBgDown, onErrMode, onMove, onTitle, onUp, opOpts, otherIcon, otherText, otherTitle, outVars, palClosed, palHint, palItems, palOpen, panelCanClose, panelClose, panelTabs, pf, pmNode, pmProcess, pmRun, pubOpen, pubState, publish, publishDisabled, publishLabel, ranD, ranH, rerun, runBar, runDone, runHasOutput, runInputTitle, runInputs, runLocked, runLog, runOutput, runPaused, runResBg, runResBorder, runResText, runRunning, runShowInput, runShowResult, runShowTrace, runStatusColor, runStatusText, runStep, runTabs, sel, startRun, statusDot, statusLabel, statusSub, stepCount, tabCfg, tabLast, toast, toastBg, toastText, toggleCheck, togglePal, togglePub, toggleRetry, toolHint, toolHintColor, topTabs, undo, varOpts, viewNodes, waitActions, waitBody, waitExpire, waitTitle, waitWho, worldTransform, zoomIn, zoomOut, zoomPct } = v;
     backToList = function () { clearTimeout(self.timer); self.props.onBack(); };
     return (
       <div className="qt-root" style={S('height: 100vh; min-height: 640px; display: flex; flex-direction: column; overflow: hidden; position: relative; background: #fff')}>
@@ -1009,18 +1022,15 @@ class ProcessBuilderInner extends React.Component<any, any> {
   <button type="button" className={Q('ghost')} aria-label="Quay lại danh sách nhân sự số" onClick={backToList} style={S('width: 32px; height: 32px; border-radius: 7px; display: flex; align-items: center; justify-content: center')}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
   <span style={S('width: 26px; height: 26px; border-radius: 7px; background: #eef1fd; color: #203BDC; display: flex; align-items: center; justify-content: center')}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 5h6v5H3z M15 14h6v5h-6z M9 7.5h3a2 2 0 0 1 2 2v5a2 2 0 0 0 2 2"></path></svg></span>
   <span style={S('font-size: 14px; font-weight: 600; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap')}>{name}</span>
-  <span style={S(`font-size: 11.5px; border: 1px solid #e5e5e5; border-radius: 7px; padding: 2px 8px; color: ${statusFg}; background: ${statusBg}`)}>● {statusLabel}</span>
+  <span style={S('display: inline-flex; align-items: center; gap: 6px; font-size: 12px; border-radius: 999px; padding: 3px 10px; background: #f1f5f9; color: #0f172a')}><span style={S(`width: 6px; height: 6px; border-radius: 999px; background: ${statusDot}`)}></span>{statusLabel}<span style={S('color: #64748b')}>{statusSub}</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></span>
   <span style={S('font-size: 11px; font-weight: 600; background: #eef1fd; color: #203BDC; border-radius: 6px; padding: 3px 8px')}>Quy trình</span>
-  <div style={S('flex: 1; display: flex; justify-content: center')}>
-    <div style={S('display: flex; gap: 2px; background: #f1f5f9; border-radius: 8px; padding: 3px')}>
-      {(topTabs || []).map((t, _it) => (<React.Fragment key={_it}>
-        <button type="button" onClick={t.pick} aria-pressed={t.on} style={S(`height: 28px; padding: 0 12px; border: 0; border-radius: 6px; font-size: 12.5px; font-weight: 500; background: ${t.bg}; color: ${t.fg}; box-shadow: ${t.shadow}`)}>{t.label}</button>
-      </React.Fragment>))}
-    </div>
+  <div style={S('flex: 1; display: flex; justify-content: center; gap: 4px')}>
+    {(topTabs || []).map((t, _it) => (<React.Fragment key={_it}>
+      <button type="button" onClick={t.pick} aria-pressed={t.on} style={S(`display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px; border: 0; border-radius: 8px; font-size: 13px; font-weight: 500; background: ${t.bg}; color: ${t.fg}`)}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={t.icon}></path></svg>{t.label}</button>
+    </React.Fragment>))}
   </div>
   <button type="button" className={Q('tbtn')} aria-label="Hoàn tác" title="Hoàn tác" onClick={undo} disabled={canUndoNot}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5 M4 9h10a6 6 0 0 1 0 12h-3"></path></svg></button>
   <span style={S('font-size: 11.5px; color: #64748b')}>Đã tự lưu</span>
-  <button type="button" className={Q('btn')} onClick={openRun}><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>Chạy thử</button>
   <div style={S('position: relative')}>
     <button type="button" className={Q('btn')} aria-expanded={checkOpen} onClick={toggleCheck} aria-label={checkAria}>
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 11l3 3 8-8 M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"></path></svg>Kiểm tra
@@ -1041,7 +1051,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     </>)}
   </div>
   <div style={S('position: relative')}>
-    <button type="button" className={Q('btn btn-primary')} aria-expanded={pubOpen} onClick={togglePub}>Publish</button>
+    <button type="button" className={Q('btn btn-primary')} aria-expanded={pubOpen} onClick={togglePub}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 15c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2.1-.1-2.9-.8-.8-2.1-.8-2.9-.1z M12 15l-3-3c1.4-3.6 4.3-7.6 11-8-.4 6.7-4.4 9.6-8 11z M9 12H5l2-4h4 M12 15v4l4-2v-4"></path></svg>Publish</button>
     {(pubOpen) && (<>
       <div role="dialog" aria-label="Publish" style={S('position: absolute; right: 0; top: 44px; width: 300px; background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; box-shadow: 0 12px 28px rgba(15,23,42,.14); padding: 14px')}>
         <div style={S('font-size: 12px; color: #64748b')}>● {pubState}</div>
@@ -1053,6 +1063,16 @@ class ProcessBuilderInner extends React.Component<any, any> {
   </div>
 </div>
 
+{(notBuilding) && (<>
+  <div style={S('flex: 1; display: flex; align-items: center; justify-content: center; background: #fafafa')}>
+    <div style={S('max-width: 460px; text-align: center; padding: 24px')}>
+      <span style={S('width: 44px; height: 44px; border-radius: 12px; background: #eef1fd; color: #203BDC; display: inline-flex; align-items: center; justify-content: center')}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={otherIcon}></path></svg></span>
+      <h2 style={S('margin: 12px 0 0; font-size: 16px; font-weight: 600')}>{otherTitle}</h2>
+      <p style={S('margin: 6px 0 0; font-size: 13px; color: #475569; line-height: 1.55')}>{otherText}</p>
+    </div>
+  </div>
+</>)}
+{(building) && (<>
 <div style={S('flex: 1; min-height: 0; display: flex')}>
   <div ref={canvasRef} onMouseDown={onBgDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp} style={S(`flex: 1; min-width: 0; position: relative; overflow: hidden; background-color: #fafafa; background-image: radial-gradient(#d4d4d8 1px, transparent 1px); background-size: 18px 18px; cursor: ${canvasCursor}`)}>
 
@@ -1197,11 +1217,17 @@ class ProcessBuilderInner extends React.Component<any, any> {
 
   {/* PANEL PHẢI */}
   <aside style={S('width: 380px; flex-shrink: 0; border-left: 1px solid #e5e5e5; overflow-y: auto; background: #fff')}>
+    <div style={S('position: sticky; top: 0; z-index: 2; background: #fff; display: flex; align-items: center; gap: 2px; padding: 6px 8px; border-bottom: 1px solid #f1f5f9')}>
+      {(panelTabs || []).map((t, _it) => (<React.Fragment key={_it}>
+        <button type="button" role="tab" aria-selected={t.on} onClick={t.pick} style={S(`height: 26px; padding: 0 9px; border: 0; border-radius: 6px; font-size: 12px; font-weight: 500; background: ${t.bg}; color: ${t.fg}`)}>{t.label}</button>
+      </React.Fragment>))}
+      <span style={S('flex: 1')}></span>
+      {(panelCanClose) && (<><button type="button" className={Q('ghost')} aria-label="Đóng" onClick={panelClose} style={S('width: 26px; height: 26px; border-radius: 6px')}>✕</button></>)}
+    </div>
 
     {(pmRun) && (<>
       <div style={S('padding: 14px 16px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 8px')}>
         <h2 style={S('margin: 0; font-size: 15px; font-weight: 600; flex: 1')}>Chạy thử <span style={S(`font-weight: 400; color: ${runStatusColor}`)}>· {runStatusText}</span></h2>
-        <button type="button" className={Q('ghost')} aria-label="Đóng chạy thử" onClick={closeRun} style={S('width: 30px; height: 30px; border-radius: 7px')}>✕</button>
       </div>
       <div role="tablist" style={S('display: flex; gap: 4px; padding: 8px 12px 0')}>
         {(runTabs || []).map((t, _it) => (<React.Fragment key={_it}>
@@ -1261,7 +1287,6 @@ class ProcessBuilderInner extends React.Component<any, any> {
           <span style={S(`width: 28px; height: 28px; border-radius: 7px; background: ${sel.tileBg}; color: ${sel.tile}; display: flex; align-items: center; justify-content: center; flex-shrink: 0`)}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={sel.icon}></path></svg></span>
           <label className={Q('sr')} htmlFor="ntitle">Tên bước</label>
           <input id="ntitle" value={sel.title} onChange={onTitle} style={S('flex: 1; min-width: 0; border: 1px solid transparent; border-radius: 6px; font: inherit; font-size: 15px; font-weight: 600; padding: 3px 6px; background: transparent')} />
-          <button type="button" className={Q('ghost')} aria-label="Đóng bảng cấu hình" onClick={deselect} style={S('width: 30px; height: 30px; border-radius: 7px')}>✕</button>
         </div>
         {(sel.hasTabs) && (<>
           <div role="tablist" style={S('display: flex; gap: 4px; margin-top: 10px')}>
@@ -1404,14 +1429,9 @@ class ProcessBuilderInner extends React.Component<any, any> {
       </div>
     </>)}
 
-    {(pmOther) && (<>
-      <div style={S('padding: 18px')}>
-        <h2 style={S('margin: 0; font-size: 15px; font-weight: 600')}>{otherTitle}</h2>
-        <p style={S('margin: 6px 0 0; font-size: 12.5px; color: #475569; line-height: 1.5')}>{otherText}</p>
-      </div>
-    </>)}
   </aside>
 </div>
+</>)}
 
 {(toast) && (<>
   <div role="status" style={S(`position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); background: ${toastBg}; color: #fff; font-size: 13px; border-radius: 10px; padding: 10px 16px; box-shadow: 0 8px 24px hsl(240 10% 8% / .25); z-index: 60; max-width: 520px; text-align: center; line-height: 1.45`)}>{toastText}</div>
