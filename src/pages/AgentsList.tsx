@@ -37,14 +37,14 @@ const SUGGESTIONS = [
 
 /** Gợi ý mô tả khi tạo Nhân sự số Quy trình (AI dựng sẵn các bước). */
 const PROCESS_SUGGESTIONS = [
-  { label: "Duyệt đề nghị mua sắm", prompt: "Nhận đề nghị mua sắm kèm chứng từ. Đọc chứng từ, nếu vượt 50 triệu thì giám đốc duyệt, không thì tự duyệt. Duyệt xong tạo PO trên SAP ERP, từ chối thì soạn thư báo lại người đề nghị." },
-  { label: "Đối chiếu hoá đơn với PO", prompt: "Khi hệ thống kế toán gửi hoá đơn VAT qua webhook, đọc số tiền, lấy PO tương ứng từ ERP để so khớp. Khớp thì ghi nhận công nợ, lệch thì chuyển kế toán xem lại." },
+  { label: "Duyệt đề nghị mua sắm", prompt: "Nhân sự số gửi đề nghị mua sắm kèm chứng từ. Trích xuất chứng từ, nếu vượt 50 triệu thì giám đốc duyệt, không thì tự duyệt. Duyệt xong tạo PO trên SAP ERP, từ chối thì soạn thư báo lại người đề nghị." },
+  { label: "Đối chiếu hoá đơn với PO", prompt: "Khi hệ thống kế toán gửi hoá đơn VAT qua HTTP, trích xuất số tiền, lấy PO tương ứng từ ERP để so khớp. Khớp thì ghi nhận công nợ, lệch thì chuyển kế toán xem lại." },
   { label: "Tiếp nhận hồ sơ vay", prompt: "Nhận hồ sơ vay gồm CCCD và sao kê lương. Phân loại sản phẩm vay, tra chính sách tín dụng, chấm điều kiện cơ bản rồi chuyển chuyên viên thẩm định. Đạt thì tạo hồ sơ trên LOS, không đạt thì soạn thư từ chối." },
 ] as const;
 
 /** Nhân sự số Quy trình demo (prototype - chưa có store riêng). */
 const PROCESS_AGENTS = [
-  { id: "invoice", name: "Đối chiếu hoá đơn với PO", desc: "Nhận hoá đơn qua webhook, so khớp với PO trên ERP, lệch thì chuyển kế toán xem lại.", meta: "9 bước · Webhook", updated: "Cập nhật 1 giờ trước" },
+  { id: "invoice", name: "Đối chiếu hoá đơn với PO", desc: "Nhận hoá đơn qua HTTP, so khớp với PO trên ERP, lệch thì chuyển kế toán xem lại.", meta: "10 bước · HTTP", updated: "Cập nhật 1 giờ trước" },
 ];
 
 const TRIGGER_TYPE_LABEL: Record<TriggerType, string> = {
