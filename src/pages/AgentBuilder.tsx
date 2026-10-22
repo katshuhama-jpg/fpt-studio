@@ -11,7 +11,7 @@ import TasksGrid from "@/components/tasks/TasksGrid";
 import BusinessProcessesGrid from "@/components/business-processes/BusinessProcessesGrid";
 import TriggersTab from "@/components/configure/TriggersTab";
 import TriggerFormDialog from "@/components/configure/TriggerFormDialog";
-import { AlertTriangle, Info } from "lucide-react";
+import { AlertTriangle, Info, Play, ListChecks } from "lucide-react";
 import { refineChatStore, useRefineChat, newMsgId, textHash, type RefineMsg, type RefineMsgBody, type RefineApprovalMode } from "@/components/configure/refineChatStore";
 import TriggerBlockedByConnectorNotice from "@/components/configure/TriggerBlockedByConnectorNotice";
 import { RevokedChip, RevokedDot, RevokedBanner, RevokedReason, RevokedRemoveButton, REVOKED_ROW_CLASS, useRevokedResources } from "@/components/governance/RevokedBadge";
@@ -334,7 +334,7 @@ export default function AgentBuilder() {
   // issue count (blocks publish) and a command channel back down (open issues / open Test run).
   const [processReady, setProcessReady] = useState<{ items: { label: string; done: boolean; failed?: boolean }[]; pick: (() => void)[]; issueCount: number; stepCount: number } | null>(null);
   const [processCmd, setProcessCmd] = useState<{ kind: "issues" | "run"; t: number } | null>(null);
-  const [processSideOpen, setProcessSideOpen] = useState(true);
+  const [processCheckOpen, setProcessCheckOpen] = useState(false);
   const processGraph = useMemo(() => (isProcess ? processStore.getGraph(id) : null), [isProcess, id]);
   const processUsages = (() => { void publishTick; return isProcess && id ? processStore.usages(id) : []; })();
   const currentSectionLabel =
@@ -787,8 +787,8 @@ export default function AgentBuilder() {
           className="border-r border-border overflow-hidden shrink-0 flex flex-col h-full"
           style={{
             background:"hsl(var(--card))",
-            width: (((isProcess ? processSideOpen : buildMode === "manual") && tab === "build") || tab === "insights" || tab === "evaluate") ? "240px" : "0px",
-            opacity: (((isProcess ? processSideOpen : buildMode === "manual") && tab === "build") || tab === "insights" || tab === "evaluate") ? 1 : 0,
+            width: (((isProcess ? false : buildMode === "manual") && tab === "build") || tab === "insights" || tab === "evaluate") ? "240px" : "0px",
+            opacity: (((isProcess ? false : buildMode === "manual") && tab === "build") || tab === "insights" || tab === "evaluate") ? 1 : 0,
             transition: "width 320ms cubic-bezier(0.4,0,0.2,1), opacity 280ms ease",
             minWidth: 0,
           }}
@@ -937,7 +937,7 @@ export default function AgentBuilder() {
               })()}
             </div>
             {!viewOnly && <button
-              onClick={() => (isProcess ? setProcessSideOpen(false) : setBuildMode("ai"))}
+              onClick={() => setBuildMode("ai")}
               className="w-full h-8 rounded-lg border border-border bg-surface text-muted-foreground hover:bg-surface-muted text-xs font-medium flex items-center justify-center gap-1.5 transition-base"
             >
               <HugeiconsIcon icon={ChevronLeftIcon} size={12} /> Collapse sidebar
@@ -989,14 +989,78 @@ export default function AgentBuilder() {
         >
           <div className="flex-1 flex flex-col overflow-hidden">
 
+            {/* Quy trình - one command bar instead of the left sidebar (Copilot Studio agent-flow
+                pattern): sections as tabs on the left, Kiểm tra / Thông tin / Chạy thử on the right. */}
+            {isProcess && tab === "build" && (() => {
+              const items = processReady?.items ?? [];
+              const doneCount = items.filter(i => i.done).length;
+              const issues = processReady?.issueCount ?? 0;
+              return (
+                <div className="h-12 shrink-0 border-b border-border bg-card flex items-center px-4 gap-1 relative z-30">
+                  <div role="tablist" aria-label="Phần của Quy trình" className="flex items-center h-full gap-1">
+                    {processNav.map(it => (
+                      <button key={it.id} role="tab" aria-selected={section === it.id} onClick={() => setSection(it.id)}
+                        className={`h-full px-3 flex items-center gap-2 text-[14px] border-b-2 -mb-px transition-base ${section === it.id ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+                        <HugeiconsIcon icon={it.icon} size={17} className="shrink-0" />{it.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex-1" />
+                  {section === "flow" && (
+                    <>
+                      <div className="relative">
+                        <button onClick={() => setProcessCheckOpen(o => !o)} aria-expanded={processCheckOpen}
+                          title="Sẵn sàng publish"
+                          className={`h-8 px-2 rounded-lg text-[13px] flex items-center gap-1.5 transition-base hover:bg-surface-muted ${issues > 0 ? "text-amber-700 font-medium" : "text-muted-foreground"}`}>
+                          {issues > 0 ? <AlertTriangle size={14} aria-hidden /> : <ListChecks size={14} aria-hidden />}
+                          {issues > 0 ? `${issues} lỗi cần sửa` : `Sẵn sàng ${doneCount}/${items.length || 5}`}
+                        </button>
+                        {processCheckOpen && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setProcessCheckOpen(false)} />
+                            <div role="dialog" aria-label="Sẵn sàng publish" className="absolute right-0 top-10 z-50 w-72 rounded-xl border border-border bg-card shadow-lg p-3">
+                              <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-sm font-semibold text-foreground">Sẵn sàng publish</span>
+                                <span className="text-xs text-muted-foreground">{doneCount}/{items.length || 5}</span>
+                              </div>
+                              <div className="h-1.5 rounded-full bg-border overflow-hidden mb-2.5">
+                                <div className="h-full rounded-full bg-primary" style={{ width: `${items.length ? (doneCount / items.length) * 100 : 0}%` }} />
+                              </div>
+                              <div className="space-y-1.5">
+                                {items.map((item, i) => (
+                                  <button key={item.label} onClick={() => { setProcessCheckOpen(false); setParams({ tab: "build", section: i === 3 ? "guardrails" : "flow" }); if (i === 1 || i === 2) setProcessCmd({ kind: "issues", t: Date.now() }); if (i === 4 && !viewOnly) setProcessCmd({ kind: "run", t: Date.now() }); }}
+                                    className={`w-full flex items-center gap-2 text-sm text-left hover:underline ${item.done ? "text-primary" : item.failed ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                                    {item.done
+                                      ? <HugeiconsIcon icon={CheckmarkCircle01Icon} size={14} className="text-primary shrink-0" />
+                                      : item.failed ? <AlertTriangle size={14} className="text-destructive shrink-0" aria-hidden />
+                                      : <span className="w-3.5 h-3.5 rounded-full border-2 border-muted-foreground shrink-0 inline-block" />}
+                                    {item.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      <button onClick={() => setProcessCmd({ kind: "details", t: Date.now() })} aria-label="Thông tin Quy trình" title="Thông tin Quy trình"
+                        className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-surface-muted hover:text-foreground flex items-center justify-center transition-base">
+                        <Info size={16} aria-hidden />
+                      </button>
+                      <span className="w-px h-5 bg-border mx-1" aria-hidden />
+                      {!viewOnly && (
+                        <button onClick={() => setProcessCmd({ kind: "run", t: Date.now() })}
+                          className="h-8 px-3 rounded-lg bg-primary-soft text-primary hover:opacity-90 text-[13px] font-medium flex items-center gap-1.5 transition-base">
+                          <Play size={13} fill="currentColor" aria-hidden /> Chạy thử
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+
             {isProcess && tab === "build" && section === "flow" && (
               <div className="flex-1 min-h-0 flex relative">
-                {!processSideOpen && (
-                  <button onClick={() => setProcessSideOpen(true)} aria-label="Mở sidebar" title="Mở sidebar"
-                    className="absolute left-0 top-3 z-20 h-8 w-6 rounded-r-lg border border-l-0 border-border bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground">
-                    <HugeiconsIcon icon={ChevronRightIcon} size={12} />
-                  </button>
-                )}
                 <ProcessCanvas
                   key={id}
                   draft={agent.processId || null}

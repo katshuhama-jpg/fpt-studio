@@ -75,7 +75,8 @@ var CSS = `
 .qt-edel:hover,.qt-edel-on{opacity:1}
 .qt-cmi{display:flex;width:100%;height:32px;align-items:center;padding:0 10px;border:0;background:transparent;border-radius:6px;font-size:13px;text-align:left}
 .qt-cmi:hover{background:#f4f4f5}.qt-cmi:disabled{opacity:.45;cursor:default;background:transparent}
-.qt-pal{height:34px;font-size:13px;gap:10px}
+.qt-pal{height:34px;font-size:14px;font-weight:500;gap:10px;padding:0 8px;color:#121216}
+.qt-palh{font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#686873;padding:8px 8px 2px}
 .qt-root{font-family:"Inter Variable",Inter,ui-sans-serif,system-ui,sans-serif;color:#020817;-webkit-font-smoothing:antialiased}
 .qt-root *{box-sizing:border-box}
 .qt-root select.qt-field{appearance:auto}
@@ -180,6 +181,7 @@ var DOCS = [
   { id: 'contract', label: 'Hợp đồng', out: ['ben_a', 'ben_b', 'gia_tri', 'ngay_hieu_luc'] }
 ];
 var INNER_OK = ['agent', 'extract', 'human', 'tool', 'func', 'variable', 'code'];
+var PAL_HEAD = { agent: 'AI', human: 'Con người', tool: 'Hành động', condition: 'Điều hướng', note: 'Khác' };
 var PAL = ['agent', 'classify', 'extract', 'human', 'wait', 'tool', 'func', 'code', 'variable', 'condition', 'decision', 'parallel', 'join', 'loop', 'note'];
 var EVENTS = ['Odoo · Phiếu nhập kho được xác nhận', 'Gmail · Email có hoá đơn đính kèm', 'SAP ERP · Hoá đơn được ghi nhận', 'Webhook · Hệ thống ngoài gọi lại'];
 var PEOPLE = ['', 'Trưởng phòng của người đề nghị', 'Giám đốc khối của người đề nghị', 'Nhóm IT bảo mật FHO', 'Kế toán trưởng FHO', 'Giám đốc FHO', 'Ban Mua sắm FHO-FPD', 'Kế toán công nợ FHO', 'Nhóm Kế toán công nợ', 'Nhóm Thẩm định bán lẻ'];
@@ -326,7 +328,7 @@ function reachable(id, edges) {
 }
 var W = 220, H = 56, HEADB = 57, PH = 32, PG = 8, DIR = 'h';
 function sizeOf(n) {
-  if (n.type === 'note') { var lines = String(n.cfg.text || '').split('\n').reduce(function (a, t) { return a + Math.max(1, Math.ceil(t.length / 27)); }, 0); return { w: 200, h: Math.max(100, 24 + lines * 19) }; }
+  if (n.type === 'note') { var lines = String(n.cfg.text || '').split('\n').reduce(function (a, t) { return a + Math.max(1, Math.ceil(t.length / 24)); }, 0); return { w: 200, h: Math.max(100, 30 + lines * 19) }; }
   if (n.type === 'loop') { var k = Math.max(1, n.cfg.inner.length); return DIR === 'h' ? { w: Math.max(320, 64 + k * W + (k - 1) * 48), h: 180 } : { w: W + 80, h: Math.max(180, 64 + k * H + (k - 1) * 40 + 32) }; }
   var o = outsOf(n);
   if (o.length < 2 || n.parent) return { w: W, h: H };
@@ -578,12 +580,12 @@ class ProcessBuilderInner extends React.Component<any, any> {
     clearTimeout(this.timer);
     DIR = 'h';
     var f = key ? draftFlow(key) : layoutFlow({ nodes: [N('n1', 'start', 'Bắt đầu', {})], edges: [] });
-    this.setState({ screen: 'builder', createOpen: false, drafting: false, aiBanner: !!fromAi, name: name || 'Quy trình chưa đặt tên', savedName: name || 'Quy trình chưa đặt tên', desc: '', nameErr: false, panelHidden: false, nodes: f.nodes, edges: f.edges, dir: 'h',
+    this.setState({ screen: 'builder', createOpen: false, drafting: false, aiBanner: !!fromAi, name: name || 'Quy trình chưa đặt tên', savedName: name || 'Quy trình chưa đặt tên', desc: '', nameErr: false, panelHidden: !!(this.props && this.props.embedded) && f.nodes.length > 2, nodes: f.nodes, edges: f.edges, dir: 'h',
       sel: null, tab: 'cfg', hist: [], fut: [], add: null, checkOpen: false, pubOpen: false, status: 'draft', last: {}, run: null, runOpen: false, top: 'build', picking: null, panel: null, ctx: null, link: null, expand: false, section: 'flow', sideOpen: true, moreOpen: false });
-    var self = this; setTimeout(function () { self.fit(0.8); }, 40);
+    var self = this; setTimeout(function () { self.fit(1); }, 40);
   }
   canvasSize() { var el = this.canvasEl; return { w: el ? el.clientWidth : 1440, h: el ? el.clientHeight : 850 }; }
-  insets() { var s = this.state, panel = (s.sel || s.runOpen || !s.panelHidden) ? (s.expand ? 640 : 476) : 0; return { l: s.palOpen ? 200 : 40, r: panel + 24 }; }
+  insets() { var s = this.state, panel = (s.sel || s.runOpen || !s.panelHidden) ? (s.expand ? 640 : 476) : 0; return { l: s.palOpen ? 248 : 40, r: panel + 24 }; }
   fit(minZ) {
     var nodes = this.state.nodes; if (!nodes.length) return;
     DIR = this.state.dir;
@@ -1240,10 +1242,10 @@ class ProcessBuilderInner extends React.Component<any, any> {
       ].map(function (x) { var on = s.top === x.id; return { label: x.label, icon: x.icon, on: on, bg: on ? '#eceefe' : 'transparent', fg: on ? '#203BDC' : '#686873', pick: function () { self.setState({ top: x.id, add: null, checkOpen: false, pubOpen: false, moreOpen: false }); } }; }),
       building: building, notBuilding: !building,
       isOtherTab: s.top !== 'build', isGuardPage: s.top === 'build' && s.section === 'guard', isVersionsPage: s.top === 'build' && s.section === 'versions',
-      sideShow: s.sideOpen && s.top !== 'channels' && !emb, sideRail: !s.sideOpen && s.top !== 'channels' && !emb, showHeader: !emb, checkLeft: emb ? 16 : 248,
+      sideShow: s.sideOpen && s.top !== 'channels' && !emb, sideRail: !s.sideOpen && s.top !== 'channels' && !emb, showHeader: !emb, checkLeft: emb ? 16 : 248, checkPos: emb ? 'right: 16px; top: 12px' : 'left: 248px; bottom: 16px',
       readOnly: ro, roBanner: ro && building, canTest: !ro,
-      panelReopen: building && s.panelHidden && !selNode && !showRun, reopenCfg: function () { self.setState({ panelHidden: false }); },
-      bannerLeft: (function () { var pw = building && (pmNode || showRun || (pmProcess && !s.panelHidden)) ? (s.expand ? 640 : 476) : 0, lw = s.palOpen && !ro ? 200 : 0; return 'calc(' + lw + 'px + (100% - ' + (lw + pw) + 'px) / 2)'; })(),
+      panelReopen: building && s.panelHidden && !selNode && !showRun && !emb, reopenCfg: function () { self.setState({ panelHidden: false }); },
+      bannerLeft: (function () { var pw = building && (pmNode || showRun || (pmProcess && !s.panelHidden)) ? (s.expand ? 640 : 476) : 0, lw = s.palOpen && !ro ? 232 : 0; return 'calc(' + lw + 'px + (100% - ' + (lw + pw) + 'px) / 2)'; })(),
       pendingBanner: building && !ro && (s.status === 'pending' || !!pendVer), pendingText: (pendVer || 'v1') + ' đang chờ duyệt. Bạn đang sửa bản nháp mới - Bản đã gửi duyệt giữ nguyên.',
       nameInput: s.name || '', desc: s.desc || '', descLen: (s.desc || '').length, nameLen: (s.name || '').length, nameInvalid: !!s.nameErr, nameBorder: s.nameErr ? '#dc2626' : '#e5e5e5',
       nameHint: s.nameErr ? 'Nhập tên Quy trình để lưu.' : 'Tên hiện ở danh sách Nhân sự số.', nameHintColor: s.nameErr ? '#dc2626' : '#686873',
@@ -1290,7 +1292,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
       onUp: function () { self.onUp(); },
       edgesD: d, errD: ed, ranD: rd, selD: '', tmpD: tmpD, edgeDel: edgeDel, viewNodes: viewNodes,
       palOpen: s.palOpen && building && !ro, palClosed: !s.palOpen && building && !ro, togglePal: function () { self.setState({ palOpen: !self.state.palOpen }); },
-      palItems: PAL.map(function (k) { var t = TYPES[k], cc = COL[t.c]; return { name: t.name, desc: t.desc, icon: t.icon, tile: cc[0], tileBg: cc[1], more: k === 'tool' || k === 'func', pick: function () { self.palPick(k); } }; }),
+      palItems: PAL.map(function (k, i) { var t = TYPES[k], cc = COL[t.c], hd = PAL_HEAD[k]; return { hasHead: !!hd, head: hd || '', name: t.name, desc: t.desc, icon: t.icon, tile: cc[0], tileBg: cc[1], more: k === 'tool' || k === 'func', pick: function () { self.palPick(k); } }; }),
       palHint: selNode && selNode.type === 'loop' ? 'Đang chọn vòng lặp: bước mới vào trong vòng lặp.' : (selNode ? 'Bước mới thêm ngay sau "' + selNode.title + '".' : 'Chọn một bước để thêm ngay sau nó.'),
       fit: function () { self.fit(0.15); },
       autoLayout: function () { self.commit(self.state.nodes, self.state.edges, {}); self.showToast('Đã sắp xếp gọn lại Quy trình.'); },
@@ -1419,8 +1421,8 @@ class ProcessBuilderInner extends React.Component<any, any> {
       this.openBuilder(null, g.name, false);
       DIR = g.dir || 'h';
       this.seq = 1000;
-      this.setState({ nodes: g.nodes, edges: g.edges, dir: g.dir || 'h', desc: g.desc || '', guard: g.guard || this.state.guard, savedName: g.name, name: g.name, sel: null });
-      setTimeout(function () { self.fit(0.8); }, 60);
+      this.setState({ panelHidden: (g.nodes || []).length > 2, nodes: g.nodes, edges: g.edges, dir: g.dir || 'h', desc: g.desc || '', guard: g.guard || this.state.guard, savedName: g.name, name: g.name, sel: null });
+      setTimeout(function () { self.fit(1); }, 60);
       return;
     }
     if (p.prompt) { this.setState({ drafting: true }); this.timer = setTimeout(function () { self.openBuilder(pickKey(p.prompt), p.name || SUGGEST.filter(function (g) { return g.key === pickKey(p.prompt); })[0].name, true); }, 1300); }
@@ -1432,9 +1434,12 @@ class ProcessBuilderInner extends React.Component<any, any> {
       clearTimeout(this.saveTimer);
       this.saveTimer = setTimeout(function () { var t = self.state; p.onSave({ nodes: t.nodes, edges: t.edges, name: t.savedName, desc: t.desc, guard: t.guard, dir: t.dir }); }, 300);
     }
+    if (s.sel && s.sel !== ps.sel && !s.drag) { var sid = s.sel; setTimeout(function () { if (!self.state.drag) self.ensureVisible(sid); }, 30); }
     if (p.command && p.command !== pp.command) {
       if (p.command.kind === 'issues') this.setState({ checkOpen: true, pubOpen: false });
       if (p.command.kind === 'run') this.openRun();
+      if (p.command.kind === 'details') this.setState({ panelHidden: false, sel: null, runOpen: false, checkOpen: false, panel: null });
+      if (p.command.kind === 'hide') this.setState({ panelHidden: true, sel: null, runOpen: false, panel: null });
     }
     if (p.onReady && this._v) {
       var v = this._v, key = JSON.stringify([v.readyItems.map(function (r) { return r.label + r.done; }), v.issueCount, v.stepCount]);
@@ -1456,7 +1461,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
       );
     }
     var v = this.renderVals(); this._v = v;
-    var { actCount, actGuards, addCase, addCrumb, addEmpty, addFrom, addHasCrumb, addHasFrom, addOpen, addQ, addRoot, addSections, addShowTabs, addTabs, aiBanner, aiCount, autoLayout, backToList, bannerLeft, building, canRedoNot, canTest, canUndoNot, canvasCursor, canvasRef, cases, checkLeft, checkOpen, closeAdd, collapseSide, ctxItems, ctxOpen, ctxX, ctxY, deleteProcess, deleteSel, desc, descLen, dirIcon, dirLabel, dismissBanner, draftSteps, edgeDel, edgesD, editors, errD, errMode, errRetry, expandLabel, expandSide, fit, guards, hasIssues, isGuardPage, isOtherTab, isVersionsPage, issueColor, issueCount, issueGroups, last, lastHas, moreOpen, name, nameBorder, nameHint, nameHintColor, nameInput, nameInvalid, nameLen, navItems, noIssues, noRunInputs, nodeTabs, onAddKey, onAddQ, onBgDown, onDesc, onErrMode, onMove, onName, onNameBlur, onTitle, onUp, opOpts, openRun, openVersions, otherIcon, otherText, otherTitle, outVars, palClosed, palItems, palOpen, panelClose, panelOpen, panelReopen, panelTabs, panelW, pendingBanner, pendingText, pf, pmNode, pmProcess, pmRun, pubOpen, pubState, publish, publishDisabled, publishLabel, ranD, readOnly, readyDone, readyItems, readyPct, readyTotal, redo, reopenCfg, rerun, roBanner, runBar, runDone, runHasOutput, runInputTitle, runInputs, runLocked, runLog, runOutput, runPaused, runResBg, runResBorder, runResText, runRunning, runShowInput, runShowResult, runShowTrace, runStatusColor, runStatusText, runStep, runTabs, sel, selD, share, showHeader, showReady, sideRail, sideShow, startRun, statusBg, statusDot, statusFg, statusLabel, stepCount, tabCfg, tabLast, tmpD, toast, toastBg, toastText, toggleCheck, toggleDir, toggleExpand, toggleMore, togglePal, togglePub, toggleRetry, toolHint, toolHintColor, topTabs, triggerName, undo, varOpts, versionSub, versionTitle, viewNodes, waitActions, waitBody, waitExpire, waitRole, waitTitle, worldTransform, zoomIn, zoomOut, zoomPct } = v;
+    var { actCount, actGuards, addCase, addCrumb, addEmpty, addFrom, addHasCrumb, addHasFrom, addOpen, addQ, addRoot, addSections, addShowTabs, addTabs, aiBanner, aiCount, autoLayout, backToList, bannerLeft, building, canRedoNot, canTest, canUndoNot, canvasCursor, canvasRef, cases, checkOpen, checkPos, closeAdd, collapseSide, ctxItems, ctxOpen, ctxX, ctxY, deleteProcess, deleteSel, desc, descLen, dirIcon, dirLabel, dismissBanner, draftSteps, edgeDel, edgesD, editors, errD, errMode, errRetry, expandLabel, expandSide, fit, guards, hasIssues, isGuardPage, isOtherTab, isVersionsPage, issueColor, issueCount, issueGroups, last, lastHas, moreOpen, name, nameBorder, nameHint, nameHintColor, nameInput, nameInvalid, nameLen, navItems, noIssues, noRunInputs, nodeTabs, onAddKey, onAddQ, onBgDown, onDesc, onErrMode, onMove, onName, onNameBlur, onTitle, onUp, opOpts, openRun, openVersions, otherIcon, otherText, otherTitle, outVars, palClosed, palItems, palOpen, panelClose, panelOpen, panelReopen, panelTabs, panelW, pendingBanner, pendingText, pf, pmNode, pmProcess, pmRun, pubOpen, pubState, publish, publishDisabled, publishLabel, ranD, readOnly, readyDone, readyItems, readyPct, readyTotal, redo, reopenCfg, rerun, roBanner, runBar, runDone, runHasOutput, runInputTitle, runInputs, runLocked, runLog, runOutput, runPaused, runResBg, runResBorder, runResText, runRunning, runShowInput, runShowResult, runShowTrace, runStatusColor, runStatusText, runStep, runTabs, sel, selD, share, showHeader, showReady, sideRail, sideShow, startRun, statusBg, statusDot, statusFg, statusLabel, stepCount, tabCfg, tabLast, tmpD, toast, toastBg, toastText, toggleCheck, toggleDir, toggleExpand, toggleMore, togglePal, togglePub, toggleRetry, toolHint, toolHintColor, topTabs, triggerName, undo, varOpts, versionSub, versionTitle, viewNodes, waitActions, waitBody, waitExpire, waitRole, waitTitle, worldTransform, zoomIn, zoomOut, zoomPct } = v;
     backToList = function () { clearTimeout(self.timer); self.props.onBack(); };
     return (
       <div className="qt-root" style={S(emb ? 'flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; background: #fff' : 'height: 100vh; min-height: 640px; display: flex; flex-direction: column; overflow: hidden; position: relative; background: #fff')}>
@@ -1538,7 +1543,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     </div>
   </>)}
   {(checkOpen) && (<>
-    <div role="dialog" aria-label="Lỗi cần sửa" style={S(`position: absolute; left: ${checkLeft}px; bottom: 16px; width: 360px; max-height: 460px; overflow-y: auto; background: #fff; border: 1px solid #e3e1dc; border-radius: 12px; box-shadow: 0 12px 28px rgba(15,23,42,.14); padding: 14px; z-index: 40`)}>
+    <div role="dialog" aria-label="Lỗi cần sửa" style={S(`position: absolute; ${checkPos}; width: 360px; max-height: 460px; overflow-y: auto; background: #fff; border: 1px solid #e3e1dc; border-radius: 12px; box-shadow: 0 12px 28px rgba(15,23,42,.14); padding: 14px; z-index: 40`)}>
       <div style={S('display: flex; align-items: center; gap: 8px')}><b style={S('font-size: 14px; font-weight: 600; flex: 1')}>Lỗi cần sửa</b><span style={S('font-size: 11px; color: #b91c1c; background: #fef2f2; border-radius: 999px; padding: 1px 8px')}>{issueCount} lỗi</span><button type="button" className={Q('ghost')} aria-label="Đóng" onClick={toggleCheck} style={S('width: 26px; height: 26px; border-radius: 6px')}>✕</button></div>
       <p style={S('font-size: 12px; color: #686873; margin: 2px 0 0')}>Sửa hết thì mới publish được.</p>
       {(noIssues) && (<><p style={S('font-size: 12.5px; color: #15803d; margin: 10px 0 0')}>Không còn lỗi nào.</p></>)}
@@ -1617,9 +1622,9 @@ class ProcessBuilderInner extends React.Component<any, any> {
             <div style={S(`height: 56px; display: flex; align-items: center; gap: 12px; padding: 0 16px; border-bottom: ${n.headLine}`)}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={n.tile} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={S('flex-shrink: 0')}><path d={n.icon}></path></svg>
               <span style={S('flex: 1; min-width: 0')}>
-                <span style={S('display: block; font-size: 13.5px; font-weight: 600; color: #242424; white-space: nowrap; overflow: hidden; text-overflow: ellipsis')}>{n.title}</span>
+                <span style={S('display: block; font-size: 14px; font-weight: 600; color: #121216; white-space: nowrap; overflow: hidden; text-overflow: ellipsis')}>{n.title}</span>
                 {(n.badge) && (<><span style={S(`display: inline-flex; align-items: center; gap: 3px; margin-top: 3px; font-size: 10.5px; font-weight: 500; color: ${n.badgeFg}; background: ${n.badgeBg}; border: 1px solid ${n.badgeLine}; border-radius: 999px; padding: 0 7px; line-height: 16px; white-space: nowrap`)}>{n.badgeText}</span></>)}
-                {(n.hasSub) && (<><span style={S('display: block; margin-top: 2px; font-size: 11px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis')}>{n.sub}</span></>)}
+                {(n.hasSub) && (<><span style={S('display: block; margin-top: 2px; font-size: 12px; color: #5b5b66; white-space: nowrap; overflow: hidden; text-overflow: ellipsis')}>{n.sub}</span></>)}
               </span>
             </div>
             <div style={S(`display: flex; flex-direction: ${n.pillDir}; gap: 8px; padding: ${n.pillPad}`)}>
@@ -1652,11 +1657,12 @@ class ProcessBuilderInner extends React.Component<any, any> {
 
     {/* Bảng Thêm bước */}
     {(palOpen) && (<>
-      <div data-ui="1" style={S('position: absolute; left: 16px; top: 16px; width: 168px; background: #fff; border: 1px solid #e6e6e9; border-radius: 12px; box-shadow: 0 4px 16px rgba(15,23,42,.08); padding: 8px; z-index: 6')}>
-        <div style={S('display: flex; align-items: center; padding: 4px 6px 8px')}><b style={S('flex: 1; font-size: 13px; font-weight: 600')}>Thêm bước</b><button type="button" className={Q('ghost')} aria-label="Thu gọn bảng thêm bước" title="Thu gọn" onClick={togglePal} style={S('width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center')}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h16v16H4z M9 4v16"></path></svg></button></div>
+      <div data-ui="1" style={S('position: absolute; left: 16px; top: 16px; width: 216px; max-height: calc(100% - 84px); overflow-y: auto; background: #fff; border: 1px solid #e3e1dc; border-radius: 12px; box-shadow: 0 4px 16px rgba(15,23,42,.08); padding: 6px 8px 8px; z-index: 6')}>
+        <div style={S('display: flex; align-items: center; padding: 4px 4px 6px 8px')}><b style={S('flex: 1; font-size: 15px; font-weight: 600; color: #121216')}>Thêm bước</b><button type="button" className={Q('ghost')} aria-label="Thu gọn bảng thêm bước" title="Thu gọn" onClick={togglePal} style={S('width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center')}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h16v16H4z M9 4v16"></path></svg></button></div>
         {(palItems || []).map((it, _iit) => (<React.Fragment key={_iit}>
+          {(it.hasHead) && (<><div className={Q('palh')}>{it.head}</div></>)}
           <button type="button" className={Q('pal')} onClick={it.pick} title={it.desc}>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={it.tile} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={S('flex-shrink: 0')}><path d={it.icon}></path></svg>
+            <span style={S(`width: 26px; height: 26px; border-radius: 7px; background: ${it.tileBg}; display: flex; align-items: center; justify-content: center; flex-shrink: 0`)}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={it.tile} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={it.icon}></path></svg></span>
             <span style={S('flex: 1')}>{it.name}</span>
           </button>
         </React.Fragment>))}
@@ -1680,7 +1686,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
 
     {(aiBanner) && (<>
       <div data-ui="1" role="status" style={S(`position: absolute; left: ${bannerLeft}; top: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; background: #f3f5fe; border: 1px solid #c7d2fe; border-radius: 10px; padding: 7px 8px 7px 12px; font-size: 12.5px; color: #1e3a8a; max-width: 520px; z-index: 5`)}>
-        <span>AI dựng {draftSteps} bước từ mô tả của bạn. Xem mục Sẵn sàng publish để biết chỗ còn thiếu.</span>
+        <span>AI dựng {draftSteps} bước từ mô tả của bạn. Bấm Kiểm tra để xem chỗ còn thiếu.</span>
         <button type="button" className={Q('ghost')} onClick={dismissBanner} style={S('height: 28px; padding: 0 8px; border-radius: 6px; font-size: 12px; color: #1e3a8a; font-weight: 500; white-space: nowrap; flex-shrink: 0')}>Đã hiểu</button>
       </div>
     </>)}
