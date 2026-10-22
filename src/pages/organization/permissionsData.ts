@@ -55,7 +55,7 @@ export const featureGroups: FeatureGroup[] = [
     // isn't meaningfully less sensitive than the list it's opened from.
     if (id === "agents") {
       permissions.push({ id: "agents.history", name: "Xem lịch sử Nhân sự số", desc: "Xem các cuộc hội thoại cũ của Nhân sự số trong Insights → History, gồm toàn bộ nội dung tin nhắn và Trace kỹ thuật (độ trễ, token, payload gọi tool, lỗi)." });
-      permissions.push({ id: "agents.export", name: "Export conversation data", desc: "Chỉ Space Admin - Tải lịch sử hội thoại và phản hồi của người dùng (like, dislike, bình luận) của mọi Nhân sự số hoặc External Agent trong Space dưới dạng Excel hoặc CSV, tối đa 90 ngày mỗi lần. Luôn áp dụng cho toàn Space. Mọi lần export đều ghi vào Audit log." });
+      permissions.push({ id: "agents.export", name: "Export conversation data", desc: "Chỉ Space Admin - Tải lịch sử hội thoại và phản hồi của người dùng (like, dislike, bình luận) của mọi Nhân sự số hoặc External Agent trong Space dưới dạng Excel hoặc CSV, tối đa 30 ngày mỗi lần. Luôn áp dụng cho toàn Space. Mọi lần export đều ghi vào Audit log." });
     }
     return { id, label, icon, section: "console" as Section, permissions };
   }),

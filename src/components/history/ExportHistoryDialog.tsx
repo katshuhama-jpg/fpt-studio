@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
-import { format, differenceInCalendarDays } from "date-fns";
+import { format } from "date-fns";
 import { Download, AlertTriangle } from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -21,7 +21,7 @@ import { currentPersona } from "@/lib/demoPersona";
  * Rules (confirmed with Tyler 15/10/2026):
  * - Space Admin only (Role holding "Export conversation data", always Space-wide). Callers hide
  *   the button for everyone else.
- * - At most 90 days per export: the time filter must be a range of 90 days or less ("Mọi thời
+ * - At most 30 days per export: the time filter must be a range of 30 days or less ("Mọi thời
  *   gian" is blocked). Nothing is cut silently - the Admin narrows the filter.
  * - "Ẩn tên và email" is on by default.
  * - Users can leave a comment on a like as well as a dislike.
@@ -41,7 +41,7 @@ export type RatedScope = "all" | "down";
 /** External Agents report no latency, tokens, errors or tool calls - those columns are left out. */
 export type ExportSource = "agent" | "external";
 
-export const MAX_EXPORT_DAYS = 90;
+export const MAX_EXPORT_DAYS = 30;
 
 const isRated = (m: ConversationRecord["messages"][number], scope: RatedScope) =>
   m.role === "agent" && !!m.feedback && (scope === "all" || m.feedback === "down");
@@ -81,13 +81,16 @@ function turnLookup(c: ConversationRecord) {
   return { trace, byMsg };
 }
 
+/** "Ẩn tên và email" on → the file simply has no Người dùng / Email columns (no aliasing). */
 function buildRows(convs: ConversationRecord[], level: ExportLevel, mask: boolean, ratedScope: RatedScope, source: ExportSource): (string | number)[][] {
-  const alias = new Map<string, string>();
-  const who = (c: ConversationRecord) => {
-    if (!mask) return { user: c.username, email: c.email ?? "" };
-    if (!alias.has(c.username)) alias.set(c.username, `Người dùng ${alias.size + 1}`);
-    return { user: alias.get(c.username)!, email: "" };
-  };
+  const rows = buildAllRows(convs, level, ratedScope, source);
+  if (!mask) return rows;
+  const drop = new Set(["Người dùng", "Email"].map(h => (rows[0] as string[]).indexOf(h)).filter(i => i >= 0));
+  return rows.map(r => r.filter((_, i) => !drop.has(i)));
+}
+
+function buildAllRows(convs: ConversationRecord[], level: ExportLevel, ratedScope: RatedScope, source: ExportSource): (string | number)[][] {
+  const who = (c: ConversationRecord) => ({ user: c.username, email: c.email ?? "" });
   const internal = source === "agent";
 
   if (level === "conversation") {
@@ -153,7 +156,7 @@ export function countRows(convs: ConversationRecord[], level: ExportLevel, rated
 
 /** Calendar days covered by the time filter, or null for "Mọi thời gian". */
 export function rangeDays(range: { from: number; to: number } | null) {
-  return range ? differenceInCalendarDays(range.to, range.from) + 1 : null;
+  return range ? Math.max(1, Math.ceil((range.to - range.from) / 86_400_000)) : null;
 }
 
 const slugify = (s: string) =>
@@ -170,7 +173,7 @@ export function ExportHistoryDialog({
   conversations: ConversationRecord[];
   /** Human-readable active filters, e.g. ["Kênh: Zalo", "7 ngày qua"]. Empty = no filters. */
   filterChips: string[];
-  /** The time filter's bounds - null for "Mọi thời gian", which is over the 90-day limit. */
+  /** The time filter's bounds - null for "Mọi thời gian", which is over the 30-day limit. */
   range: { from: number; to: number } | null;
   /** True when the list is filtered to "Có dislike" - "Chỉ tin nhắn được đánh giá" then starts on dislikes. */
   defaultDislikesOnly?: boolean;
@@ -261,8 +264,8 @@ export function ExportHistoryDialog({
             <AlertTriangle size={14} className="shrink-0 mt-px" aria-hidden />
             <span>
               {days === null
-                ? "Mỗi lần chỉ xuất được tối đa 90 ngày - Hãy chọn khoảng thời gian trong bộ lọc."
-                : `Khoảng đã chọn dài ${days} ngày - Mỗi lần chỉ xuất được tối đa 90 ngày, hãy rút ngắn khoảng thời gian.`}
+                ? "Mỗi lần chỉ xuất được tối đa 30 ngày - Hãy chọn khoảng thời gian trong bộ lọc."
+                : `Khoảng đã chọn dài ${days} ngày - Mỗi lần chỉ xuất được tối đa 30 ngày, hãy rút ngắn khoảng thời gian.`}
             </span>
           </div>
         )}
