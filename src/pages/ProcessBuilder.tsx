@@ -56,6 +56,24 @@ var CSS = `
 .qt-pal:hover{background:#f1f5f9}
 .qt-acard{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;padding:10px;border:1px solid #e5e5e5;border-radius:10px;background:#fff}
 .qt-acard:hover,.qt-acard-on{border-color:#a5b4fc;background:#f5f7ff}
+.qt-pal{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 6px;border:0;border-radius:7px;background:transparent;font-size:12.5px;color:#0f172a;text-align:left}
+.qt-pal:hover{background:#f1f5f9}
+.qt-acard{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;padding:10px;border:1px solid #e5e5e5;border-radius:10px;background:#fff}
+.qt-acard:hover,.qt-acard-on{border-color:#a5b4fc;background:#f5f7ff}
+.qt-qn .qt-qn-tools{opacity:0;pointer-events:none;transition:opacity .12s}
+.qt-qn:hover .qt-qn-tools,.qt-qn-sel .qt-qn-tools{opacity:1;pointer-events:auto}
+.qt-qn-del,.qt-qn-run{width:22px;height:22px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center;padding:0}
+.qt-qn-del{border:1px solid #fca5a5;color:#dc2626}.qt-qn-del:hover{background:#fef2f2}
+.qt-qn-run{border:1px solid #d4d4d8;color:#3f3f46}.qt-qn-run:hover{background:#f4f4f5}
+.qt-port{position:absolute;width:8px;height:8px;border-radius:999px;background:#242424;pointer-events:none}
+.qt-oplus{position:absolute;width:22px;height:22px;border-radius:999px;border:1px solid #c9ccd3;background:#fff;color:#52525b;display:flex;align-items:center;justify-content:center;padding:0;opacity:0;cursor:pointer;transition:opacity .12s}
+.qt-qn:hover .qt-oplus,.qt-qn-sel .qt-oplus{opacity:1}.qt-oplus:hover{border-color:#203BDC;color:#203BDC}
+.qt-oplus-err{border-color:#fcd34d;color:#b45309}
+.qt-edel{position:absolute;width:22px;height:22px;border-radius:999px;border:1px solid #fca5a5;background:#fff;color:#dc2626;display:flex;align-items:center;justify-content:center;padding:0;opacity:0;transition:opacity .12s;z-index:2}
+.qt-edel:hover,.qt-edel-on{opacity:1}
+.qt-cmi{display:flex;width:100%;height:32px;align-items:center;padding:0 10px;border:0;background:transparent;border-radius:6px;font-size:13px;text-align:left}
+.qt-cmi:hover{background:#f4f4f5}.qt-cmi:disabled{opacity:.45;cursor:default;background:transparent}
+.qt-pal{height:34px;font-size:13px;gap:10px}
 .qt-root{font-family:"Inter Variable",Inter,ui-sans-serif,system-ui,sans-serif;color:#020817;-webkit-font-smoothing:antialiased}
 .qt-root *{box-sizing:border-box}
 .qt-root select.qt-field{appearance:auto}
@@ -145,8 +163,8 @@ var DOCS = [
   { id: 'statement', label: 'Sao kê ngân hàng', out: ['thu_nhap_tb', 'so_thang'] },
   { id: 'contract', label: 'Hợp đồng', out: ['ben_a', 'ben_b', 'gia_tri', 'ngay_hieu_luc'] }
 ];
+var INNER_OK = ['agent', 'extract', 'human', 'tool', 'func', 'variable'];
 var PAL = ['agent', 'classify', 'extract', 'human', 'tool', 'func', 'variable', 'condition', 'loop', 'note'];
-var W = 240, LOOPW = 400, LOOPH = 180, HEAD = 56, PILL = 36;
 
 function roundPath(pts, r) {
   var d = 'M' + pts[0][0] + ' ' + pts[0][1];
@@ -190,6 +208,7 @@ function defaultCfg(type) {
 }
 function outsOf(n) {
   var c = n.cfg;
+  if (n.parent) return [''];
   switch (n.type) {
     case 'end': case 'respond': case 'note': return [];
     case 'condition': return c.cases.map(function (cs) { return cs.name || 'Nhánh'; }).concat(['Còn lại']);
@@ -200,20 +219,6 @@ function outsOf(n) {
   if (TYPES[n.type].err && c.err === 'branch') o.push('Lỗi');
   return o;
 }
-function isBranchy(n) { return outsOf(n).length > 1; }
-function sizeOf(n) {
-  if (n.type === 'note') return { w: 220, h: 100 };
-  if (n.type === 'loop') return { w: LOOPW, h: LOOPH };
-  var o = outsOf(n);
-  return { w: W, h: o.length > 1 ? HEAD + o.length * PILL + 4 : HEAD };
-}
-function outY(n, i) {
-  if (n.type === 'loop') return LOOPH / 2;
-  var o = outsOf(n);
-  if (o.length > 1) return HEAD + i * PILL + 15;
-  return HEAD / 2;
-}
-function inY(n) { return n.type === 'loop' ? LOOPH / 2 : HEAD / 2; }
 function outputsOf(n) {
   var c = n.cfg;
   switch (n.type) {
@@ -264,7 +269,7 @@ function issuesOf(n, s) {
     case 'subflow': if (!c.flow) m.push('Cần chọn Quy trình con'); break;
     case 'respond': if (c.outs.some(function (o) { return !o.name.trim(); })) m.push('Cần đặt tên cho mỗi dữ liệu trả về'); break;
   }
-  if (n.type !== 'start' && n.type !== 'note' && !s.edges.some(function (e) { return e.to === n.id; })) m.push('Bước này chưa được nối vào luồng');
+  if (n.type !== 'start' && n.type !== 'note' && !n.parent && !s.edges.some(function (e) { return e.to === n.id; })) m.push('Bước này chưa được nối vào luồng');
   return m;
 }
 function upstreamOf(id, s) {
@@ -278,30 +283,74 @@ function reachable(id, edges) {
   while (stack.length) { var cur = stack.pop(); edges.forEach(function (e) { if (e.from === cur && !seen[e.to]) { seen[e.to] = 1; stack.push(e.to); } }); }
   return seen;
 }
+var W = 220, H = 56, HEADB = 57, PH = 32, PG = 8, DIR = 'h';
+function sizeOf(n) {
+  if (n.type === 'note') return { w: 200, h: 100 };
+  if (n.type === 'loop') { var k = Math.max(1, n.cfg.inner.length); return DIR === 'h' ? { w: Math.max(320, 64 + k * W + (k - 1) * 48), h: 180 } : { w: W + 80, h: Math.max(180, 64 + k * H + (k - 1) * 40 + 32) }; }
+  var o = outsOf(n);
+  if (o.length < 2 || n.parent) return { w: W, h: H };
+  if (DIR === 'h') return { w: W, h: HEADB + PG + o.length * PH + (o.length - 1) * PG + 10 };
+  return { w: Math.max(W, 24 + o.length * 92 + (o.length - 1) * PG), h: HEADB + PG + PH + 10 };
+}
+function branchy(n) { return !n.parent && n.type !== 'loop' && outsOf(n).length > 1; }
+function inPt(n) { var z = sizeOf(n); if (DIR === 'v') return { x: z.w / 2, y: 0 }; if (n.type === 'loop') return { x: 0, y: z.h / 2 }; return { x: 0, y: branchy(n) ? HEADB + PG + PH / 2 : H / 2 }; }
+function outPt(n, i) {
+  var z = sizeOf(n), o = outsOf(n);
+  if (!branchy(n)) return DIR === 'h' ? { x: z.w, y: n.type === 'loop' ? z.h / 2 : H / 2 } : { x: z.w / 2, y: z.h };
+  if (DIR === 'h') return { x: z.w, y: HEADB + PG + i * (PH + PG) + PH / 2 };
+  var pw = (z.w - 24 - (o.length - 1) * PG) / o.length; return { x: 12 + i * (pw + PG) + pw / 2, y: z.h };
+}
+function innerPos(loop, k) {
+  var z = sizeOf(loop);
+  if (DIR === 'h') return { x: 32 + k * (W + 48), y: 60 + (z.h - 60 - H) / 2 };
+  return { x: 40, y: 64 + k * (H + 40) };
+}
+function placeInner(nodes) {
+  var byId = {}; nodes.forEach(function (n) { byId[n.id] = n; });
+  nodes.forEach(function (l) { if (l.type !== 'loop') return; l.cfg.inner.forEach(function (id, k) { var c = byId[id]; if (!c) return; var p = innerPos(l, k); c.x = l.x + p.x; c.y = l.y + p.y; }); });
+  return nodes;
+}
+function bez(a, b) {
+  if (DIR === 'h') { var dx = Math.max(36, Math.abs(b.x - a.x) / 2); return { d: 'M' + a.x + ' ' + a.y + ' C' + (a.x + dx) + ' ' + a.y + ' ' + (b.x - dx) + ' ' + b.y + ' ' + b.x + ' ' + b.y + ' ', m: { x: (a.x + 3 * (a.x + dx) + 3 * (b.x - dx) + b.x) / 8, y: (a.y + b.y) / 2 } }; }
+  var dy = Math.max(30, Math.abs(b.y - a.y) / 2); return { d: 'M' + a.x + ' ' + a.y + ' C' + a.x + ' ' + (a.y + dy) + ' ' + b.x + ' ' + (b.y - dy) + ' ' + b.x + ' ' + b.y + ' ', m: { x: (a.x + b.x) / 2, y: (a.y + 3 * (a.y + dy) + 3 * (b.y - dy) + b.y) / 8 } };
+}
+function absPt(n, p) { return { x: n.x + p.x, y: n.y + p.y }; }
+// Sắp xếp theo lớp, giống "Tidy up" của Copilot: mỗi bước cách bước trước một cột, bước hội tụ canh giữa các bước cha
 function layoutFlow(f) {
-  var byId = {}; f.nodes.forEach(function (n) { byId[n.id] = n; });
-  var colBottom = {}, colX = {}, placed = {}, GAPX = 80, GAPY = 40;
-  var colW = function (col) { return colX[col] === undefined ? 0 : colX[col]; };
-  // tính bề rộng cột lớn nhất trước
-  var depth = {}, q = [];
-  var st = f.nodes.filter(function (n) { return n.type === 'start'; })[0];
-  if (st) { depth[st.id] = 0; q.push(st.id); }
-  while (q.length) { var id = q.shift(); f.edges.filter(function (e) { return e.from === id; }).forEach(function (e) { if (depth[e.to] === undefined) { depth[e.to] = depth[id] + 1; q.push(e.to); } }); }
-  var maxW = {}; f.nodes.forEach(function (n) { if (depth[n.id] !== undefined) maxW[depth[n.id]] = Math.max(maxW[depth[n.id]] || 0, sizeOf(n).w); });
-  var x = 0, xs = {}; for (var d = 0; maxW[d] !== undefined; d++) { xs[d] = x; x += maxW[d] + GAPX; }
-  function place(n, col, wantY) {
-    if (placed[n.id]) return;
-    col = depth[n.id] !== undefined ? depth[n.id] : col;
-    var y = Math.max(wantY, colBottom[col] === undefined ? -1e9 : colBottom[col] + GAPY);
-    y = Math.round(y / 4) * 4;
-    n.x = xs[col] || 0; n.y = y; placed[n.id] = true;
-    colBottom[col] = y + sizeOf(n).h;
-    f.edges.filter(function (e) { return e.from === n.id; }).sort(function (a, b) { return a.out - b.out; })
-      .forEach(function (e) { var ch = byId[e.to]; if (ch) place(ch, col + 1, y + outY(n, e.out) - inY(ch)); });
+  var main = f.nodes.filter(function (n) { return !n.parent && n.type !== 'note'; }), byId = {};
+  main.forEach(function (n) { byId[n.id] = n; });
+  var ed = f.edges.filter(function (e) { return byId[e.from] && byId[e.to]; });
+  var rank = {}, st = main.filter(function (n) { return n.type === 'start'; })[0];
+  if (st) rank[st.id] = 0;
+  for (var it = 0; it <= main.length; it++) {
+    var ch = false;
+    ed.forEach(function (e) { if (rank[e.from] === undefined || (st && e.to === st.id)) return; var r = rank[e.from] + 1; if (r <= main.length && (rank[e.to] === undefined || r > rank[e.to])) { rank[e.to] = r; ch = true; } });
+    if (!ch) break;
   }
-  if (st) place(st, 0, 0);
-  var maxY = 0; f.nodes.forEach(function (n) { if (placed[n.id]) maxY = Math.max(maxY, n.y + sizeOf(n).h); });
-  f.nodes.forEach(function (n) { if (!placed[n.id]) { n.x = 0; n.y = maxY + 60; maxY += sizeOf(n).h + 30; } });
+  var maxR = -1; main.forEach(function (n) { if (rank[n.id] !== undefined) maxR = Math.max(maxR, rank[n.id]); });
+  var cols = []; for (var r = 0; r <= maxR; r++) cols.push([]);
+  main.forEach(function (n) { if (rank[n.id] !== undefined) cols[rank[n.id]].push(n); });
+  var MA = DIR === 'h' ? 'x' : 'y', CR = DIR === 'h' ? 'y' : 'x', SM = DIR === 'h' ? 'w' : 'h', SC = DIR === 'h' ? 'h' : 'w';
+  var GAPM = DIR === 'h' ? 64 : 56, GAPC = DIR === 'h' ? 28 : 40, pos = 0, order = {};
+  cols.forEach(function (col, ri) {
+    var span = 0; col.forEach(function (n) { span = Math.max(span, sizeOf(n)[SM]); });
+    col.forEach(function (n) {
+      var inc = ed.filter(function (e) { return e.to === n.id && rank[e.from] < ri; }), want = 0, key = 0;
+      if (inc.length) {
+        inc.forEach(function (e) { var p = byId[e.from]; want += p[CR] + outPt(p, e.out)[CR]; });
+        want = want / inc.length - inPt(n)[CR];
+        key = Math.min.apply(null, inc.map(function (e) { return (order[e.from] || 0) * 100 + e.out; }));
+      }
+      n._want = want; n._key = key; n[MA] = pos;
+    });
+    col.sort(function (a, b) { return a._key - b._key || a._want - b._want; });
+    var end = -1e9;
+    col.forEach(function (n, i) { var c = Math.max(n._want, end + GAPC); n[CR] = Math.round(c); end = c + sizeOf(n)[SC]; order[n.id] = ri * 1000 + i; delete n._want; delete n._key; });
+    pos += span + GAPM;
+  });
+  var maxC = 0, minC = 1e9; main.forEach(function (n) { if (rank[n.id] !== undefined) { maxC = Math.max(maxC, n[CR] + sizeOf(n)[SC]); minC = Math.min(minC, n[CR]); } });
+  main.forEach(function (n) { if (rank[n.id] === undefined) { n[MA] = 0; n[CR] = maxC + 60; maxC += sizeOf(n)[SC] + 24; } });
+  placeInner(f.nodes);
   return f;
 }
 
@@ -375,7 +424,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     this.state = {
       screen: 'list', view: 'table', createOpen: false, ckind: 'chat', prompt: '', draftName: '', drafting: false, aiBanner: false, kind: 'all',
       name: '', nodes: [], edges: [], sel: null, tab: 'cfg', hist: [], top: 'build',
-      add: null, palOpen: true, picking: null, drag: null, z: 1, px: 80, py: 80,
+      add: null, palOpen: true, picking: null, drag: null, z: 1, px: 80, py: 80, dir: 'h', fut: [], link: null, ctx: null, panel: null, expand: false,
       checkOpen: false, pubOpen: false, status: 'draft', last: {},
       run: null, runOpen: false,
       guard: { safety: true, pii: true, scope: false, noDelete: true, maskOut: true, rate: false },
@@ -386,57 +435,90 @@ class ProcessBuilderInner extends React.Component<any, any> {
   }
   componentWillUnmount() { clearTimeout(this.timer); clearTimeout(this.toastT); }
   showToast(text, tone) { clearTimeout(this.toastT); this.setState({ toast: { text: text, tone: tone || 'dark' } }); var self = this; this.toastT = setTimeout(function () { self.setState({ toast: null }); }, 4200); }
-  snap() { var s = this.state; return { hist: s.hist.concat([{ nodes: clone(s.nodes), edges: clone(s.edges) }]).slice(-40) }; }
-  undo() { var h = this.state.hist; if (!h.length) return; var p = h[h.length - 1]; this.setState({ nodes: p.nodes, edges: p.edges, hist: h.slice(0, -1), sel: null, add: null }); }
+  snap() { var s = this.state; return { hist: s.hist.concat([{ nodes: clone(s.nodes), edges: clone(s.edges) }]).slice(-40), fut: [] }; }
+  undo() { var s = this.state, h = s.hist; if (!h.length) return; var p = h[h.length - 1]; this.setState({ nodes: p.nodes, edges: p.edges, hist: h.slice(0, -1), fut: (s.fut || []).concat([{ nodes: clone(s.nodes), edges: clone(s.edges) }]), sel: null, add: null, ctx: null }); }
+  redo() { var s = this.state, f = s.fut || []; if (!f.length) return; var p = f[f.length - 1]; this.setState({ nodes: p.nodes, edges: p.edges, fut: f.slice(0, -1), hist: s.hist.concat([{ nodes: clone(s.nodes), edges: clone(s.edges) }]), sel: null, add: null, ctx: null }); }
+  // Mọi thay đổi cấu trúc đi qua đây: lưu lịch sử, tự sắp xếp lại như Copilot, cuộn tới bước mới
+  commit(nodes, edges, extra, focusId) {
+    DIR = this.state.dir;
+    var f = layoutFlow({ nodes: clone(nodes), edges: edges });
+    this.setState(Object.assign(this.snap(), { nodes: f.nodes, edges: edges, ctx: null }, extra || {}));
+    var self = this;
+    if (focusId) setTimeout(function () { self.ensureVisible(focusId); }, 0);
+  }
+  relayoutSoon() {
+    var self = this;
+    setTimeout(function () { DIR = self.state.dir; var f = layoutFlow({ nodes: clone(self.state.nodes), edges: self.state.edges }); self.setState({ nodes: f.nodes }); }, 0);
+  }
 
   openBuilder(key, name, fromAi) {
     clearTimeout(this.timer);
-    var f = key ? draftFlow(key) : { nodes: [N('n1', 'start', 'Bắt đầu', {})], edges: [] };
-    this.setState({ screen: 'builder', createOpen: false, drafting: false, aiBanner: !!fromAi, name: name || 'Quy trình chưa đặt tên', nodes: f.nodes, edges: f.edges,
-      sel: key ? null : 'n1', tab: 'cfg', hist: [], add: null, checkOpen: false, pubOpen: false, status: 'draft', last: {}, run: null, runOpen: false, top: 'build', picking: null });
-    var self = this; setTimeout(function () { self.fit(); }, 40);
+    DIR = 'h';
+    var f = key ? draftFlow(key) : layoutFlow({ nodes: [N('n1', 'start', 'Bắt đầu', {})], edges: [] });
+    this.setState({ screen: 'builder', createOpen: false, drafting: false, aiBanner: !!fromAi, name: name || 'Quy trình chưa đặt tên', nodes: f.nodes, edges: f.edges, dir: 'h',
+      sel: key ? null : 'n1', tab: 'cfg', hist: [], fut: [], add: null, checkOpen: false, pubOpen: false, status: 'draft', last: {}, run: null, runOpen: false, top: 'build', picking: null, panel: null, ctx: null, link: null, expand: false });
+    var self = this; setTimeout(function () { self.fit(0.8); }, 40);
   }
-  canvasSize() { var el = this.canvasEl; return { w: el ? el.clientWidth : 1060, h: el ? el.clientHeight : 850 }; }
-  fit() {
+  canvasSize() { var el = this.canvasEl; return { w: el ? el.clientWidth : 1440, h: el ? el.clientHeight : 850 }; }
+  insets() { var s = this.state, panel = (s.sel || s.runOpen || s.panel) ? (s.expand ? 560 : 380) + 32 : 0; return { l: s.palOpen ? 200 : 40, r: panel + 24 }; }
+  fit(minZ) {
     var nodes = this.state.nodes; if (!nodes.length) return;
-    var cs = this.canvasSize(), minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    DIR = this.state.dir;
+    var cs = this.canvasSize(), ins = this.insets(), minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     nodes.forEach(function (n) { var z = sizeOf(n); minX = Math.min(minX, n.x); minY = Math.min(minY, n.y); maxX = Math.max(maxX, n.x + z.w); maxY = Math.max(maxY, n.y + z.h); });
-    var w = maxX - minX, h = maxY - minY, left = this.state.palOpen ? 230 : 40;
-    var z = Math.min(1, (cs.w - left - 60) / w, (cs.h - 120) / h); z = Math.floor(z * 20) / 20;
-    var px = left + (cs.w - left - 40 - w * z) / 2 - minX * z;
-    if (z < 0.7) { z = 0.7; px = left + 24 - minX * z; }
-    var py = (cs.h - h * z) / 2 - minY * z;
-    if (nodes.length === 1) { z = 1; px = left + 80 - minX; py = cs.h * 0.38 - minY; }
+    var aw = Math.max(200, cs.w - ins.l - ins.r), w = maxX - minX, h = maxY - minY;
+    var z = Math.min(1, (aw - 40) / w, (cs.h - 120) / h); z = Math.floor(z * 20) / 20;
+    var lo = minZ || 0.3; if (z < lo) z = lo;
+    var px = ins.l + Math.max(20, (aw - w * z) / 2) - minX * z, py = Math.max(70, (cs.h - h * z) / 2) - minY * z;
+    if (nodes.length === 1) { z = 1; px = ins.l + 120 - minX; py = cs.h * 0.4 - minY; }
     this.setState({ z: z, px: px, py: py });
+  }
+  ensureVisible(id) {
+    var s = this.state, n = this.byId(id); if (!n) return;
+    DIR = s.dir;
+    var cs = this.canvasSize(), ins = this.insets(), z = s.z, sz = sizeOf(n);
+    var x0 = s.px + n.x * z, y0 = s.py + n.y * z, x1 = x0 + sz.w * z, y1 = y0 + sz.h * z;
+    var px = s.px, py = s.py;
+    if (x1 > cs.w - ins.r - 24) px -= x1 - (cs.w - ins.r - 80);
+    if (x0 < ins.l + 16) px += ins.l + 60 - x0;
+    if (y1 > cs.h - 60) py -= y1 - (cs.h - 100);
+    if (y0 < 60) py += 100 - y0;
+    if (px !== s.px || py !== s.py) this.setState({ px: px, py: py });
   }
   locked() { var r = this.state.run; return !!(r && (r.status === 'running' || r.status === 'paused')); }
   byId(id) { return this.state.nodes.filter(function (n) { return n.id === id; })[0]; }
 
-  // điểm chèn mặc định khi bấm bảng bên trái: cổng trống đầu tiên của bước đang chọn, rồi tới bước cuối có cổng trống
   autoFrom() {
-    var s = this.state, self = this, free = function (n) { var o = outsOf(n); for (var i = 0; i < o.length; i++) if (!s.edges.some(function (e) { return e.from === n.id && e.out === i; })) return i; return -1; };
+    var s = this.state, free = function (n) { var o = outsOf(n); for (var i = 0; i < o.length; i++) if (!s.edges.some(function (e) { return e.from === n.id && e.out === i; })) return i; return -1; };
     var sn = this.byId(s.sel);
-    if (sn) { var fi = free(sn); if (fi >= 0) return { id: sn.id, out: fi }; var e0 = s.edges.filter(function (e) { return e.from === sn.id; })[0]; if (e0) return { edge: e0 }; }
-    for (var i = s.nodes.length - 1; i >= 0; i--) { var n = s.nodes[i]; if (n.type === 'note') continue; var f = free(n); if (f >= 0) return { id: n.id, out: f }; }
+    if (sn && !sn.parent && sn.type !== 'note') { var fi = free(sn); if (fi >= 0) return { id: sn.id, out: fi }; var e0 = s.edges.filter(function (e) { return e.from === sn.id; })[0]; if (e0) return { edge: e0 }; }
+    for (var i = s.nodes.length - 1; i >= 0; i--) { var n = s.nodes[i]; if (n.type === 'note' || n.parent) continue; var f = free(n); if (f >= 0) return { id: n.id, out: f }; }
     return null;
   }
   openAdd(opts) {
     if (this.locked()) { this.showToast('Đang chạy thử. Dừng chạy thử để sửa Quy trình.'); return; }
-    this.setState({ add: Object.assign({ tab: 'featured', level: 'root', q: '', idx: 0 }, opts || {}), checkOpen: false, pubOpen: false });
+    this.setState({ add: Object.assign({ tab: 'featured', level: 'root', q: '', idx: 0 }, opts || {}), checkOpen: false, pubOpen: false, ctx: null });
   }
   palPick(type) {
     if (this.locked()) { this.showToast('Đang chạy thử. Dừng chạy thử để sửa Quy trình.'); return; }
     var s = this.state, sn = this.byId(s.sel);
+    var loopId = sn ? (sn.type === 'loop' ? sn.id : sn.parent) : null;
+    if (loopId && type !== 'note') {
+      var at = sn.parent ? this.byId(loopId).cfg.inner.indexOf(sn.id) + 1 : undefined;
+      if (type === 'tool' || type === 'func') { this.openAdd({ mode: 'inner', loopId: loopId, at: at, tab: type === 'tool' ? 'tool' : 'featured', level: type === 'func' ? 'func' : 'root' }); return; }
+      if (INNER_OK.indexOf(type) < 0) { this.showToast('Trong vòng lặp chỉ thêm được các bước chạy thẳng, không rẽ nhánh.'); return; }
+      this.addInner(loopId, type, null, null, at); return;
+    }
     if (type === 'tool') { var a = this.autoFrom(); this.openAdd(Object.assign({ tab: 'tool' }, a && a.edge ? { edge: a.edge } : { from: a })); return; }
     if (type === 'func') { var b = this.autoFrom(); this.openAdd(Object.assign({ level: 'func' }, b && b.edge ? { edge: b.edge } : { from: b })); return; }
-    if (sn && sn.type === 'loop' && type !== 'note') { this.addInner(sn.id, TYPES[type].name); return; }
     if (type === 'note') { this.addNode('note', null); return; }
-    var at = this.autoFrom();
-    if (at && at.edge) this.insertOnEdge(type, at.edge); else this.addNode(type, at);
+    var at2 = this.autoFrom();
+    if (at2 && at2.edge) this.insertOnEdge(type, at2.edge); else this.addNode(type, at2);
   }
-  addInner(loopId, name) {
-    var s = this.state;
-    this.setState(Object.assign(this.snap(), { nodes: s.nodes.map(function (n) { return n.id === loopId ? Object.assign({}, n, { cfg: Object.assign({}, n.cfg, { inner: n.cfg.inner.concat([name]) }) }) : n; }), add: null, sel: loopId }));
+  addInner(loopId, type, preset, title, at) {
+    var s = this.state, node = this.makeNode(type, preset, title); node.parent = loopId;
+    var nodes = s.nodes.map(function (n) { if (n.id !== loopId) return n; var inner = n.cfg.inner.slice(); if (at === undefined || at > inner.length) inner.push(node.id); else inner.splice(at, 0, node.id); return Object.assign({}, n, { cfg: Object.assign({}, n.cfg, { inner: inner }) }); }).concat([node]);
+    this.commit(nodes, s.edges, { add: null, sel: node.id, tab: 'cfg', runOpen: false, panel: null }, node.id);
   }
   addItems() {
     var a = this.state.add; if (!a) return [];
@@ -444,7 +526,9 @@ class ProcessBuilderInner extends React.Component<any, any> {
     var T = function (k, g, extra) { var t = TYPES[k], c = COL[t.c]; return Object.assign({ g: g, type: k, name: t.name, desc: '', icon: t.icon, tile: c[0], tileBg: c[1] }, extra || {}); };
     var start = st.nodes.filter(function (n) { return n.type === 'start'; })[0];
     if (a.mode === 'inner') {
-      ['agent', 'classify', 'extract', 'human', 'tool', 'func', 'variable', 'condition'].forEach(function (k) { if (match(TYPES[k].name + ' ' + TYPES[k].kw)) res.push(T(k, 'Bước trong vòng lặp')); });
+      if (a.level === 'func') { FUNCS.forEach(function (f) { if (match(f.name + ' ' + f.desc)) res.push({ g: f.g, type: 'func', preset: { fn: f.id }, title: f.name, name: f.name, desc: f.desc, icon: f.icon, tile: COL.fx[0], tileBg: COL.fx[1] }); }); return res; }
+      if (a.tab === 'tool') { TOOLS.forEach(function (t) { if (match(t.name)) res.push({ g: 'Tool đã kết nối', type: 'tool', preset: { tool: t.name, acc: 'space' }, title: t.name.split(' · ')[1], name: t.name, desc: t.desc, icon: ICON.tool, tile: COL.integ[0], tileBg: COL.integ[1], tag: 'Đã kết nối' }); }); return res; }
+      INNER_OK.forEach(function (k) { if (match(TYPES[k].name + ' ' + TYPES[k].kw)) res.push(Object.assign(T(k, 'Bước trong vòng lặp'), k === 'tool' ? { more: true, goTab: 'tool' } : (k === 'func' ? { more: true, goLevel: 'func' } : {}))); });
       return res;
     }
     if (a.level === 'func' || q) {
@@ -469,7 +553,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     if (a.from && a.tab === 'featured') {
       var anc = {}, stack = [a.from.id]; anc[a.from.id] = 1;
       while (stack.length) { var cur = stack.pop(); st.edges.forEach(function (e) { if (e.to === cur && !anc[e.from]) { anc[e.from] = 1; stack.push(e.from); } }); }
-      st.nodes.forEach(function (n) { if (anc[n.id] || n.type === 'start' || n.type === 'note') return; if (match(n.title + ' noi co san')) { var c = colOf(n.type); res.push({ g: 'Nối tới bước có sẵn', connect: n.id, name: n.title, desc: '', icon: TYPES[n.type].icon, tile: c[0], tileBg: c[1] }); } });
+      st.nodes.forEach(function (n) { if (anc[n.id] || n.type === 'start' || n.type === 'note' || n.parent) return; if (match(n.title + ' noi co san')) { var c = colOf(n.type); res.push({ g: 'Nối tới bước có sẵn', connect: n.id, name: n.title, desc: '', icon: TYPES[n.type].icon, tile: c[0], tileBg: c[1] }); } });
     }
     return res;
   }
@@ -477,51 +561,62 @@ class ProcessBuilderInner extends React.Component<any, any> {
     var a = this.state.add; if (!a) return;
     if (it.goTab) { this.setState({ add: Object.assign({}, a, { tab: it.goTab, idx: 0 }) }); return; }
     if (it.goLevel) { this.setState({ add: Object.assign({}, a, { level: it.goLevel, idx: 0 }) }); return; }
-    if (a.mode === 'inner') { this.addInner(a.loopId, it.title || it.name); return; }
-    if (it.connect) {
-      var edges = this.state.edges.filter(function (e) { return !(e.from === a.from.id && e.out === a.from.out); }).concat([{ from: a.from.id, out: a.from.out, to: it.connect }]);
-      this.setState(Object.assign(this.snap(), { edges: edges, add: null })); return;
-    }
+    if (a.mode === 'inner') { this.addInner(a.loopId, it.type, it.preset, it.title, a.at); return; }
+    if (it.connect) { this.connect(a.from, it.connect); return; }
     if (it.type === 'note') { this.addNode('note', null); return; }
     if (a.edge) this.insertOnEdge(it.type, a.edge, it.preset, it.title); else this.addNode(it.type, a.from || null, it.preset, it.title);
   }
+  connect(from, toId) {
+    var edges = this.state.edges.filter(function (e) { return !(e.from === from.id && e.out === from.out); }).concat([{ from: from.id, out: from.out, to: toId }]);
+    this.commit(this.state.nodes, edges, { add: null });
+  }
   makeNode(type, preset, title) { this.seq += 1; return { id: 'n' + this.seq, type: type, title: title || TYPES[type].name, x: 0, y: 0, cfg: Object.assign(defaultCfg(type), preset || {}) }; }
   addNode(type, from, preset, title) {
-    var s = this.state, node = this.makeNode(type, preset, title), src = from ? this.byId(from.id) : null, x, y;
-    if (src) { x = src.x + sizeOf(src).w + 80; y = src.y + outY(src, from.out) - inY(node); }
-    else { var cs = this.canvasSize(); x = Math.round(((cs.w / 2 - s.px) / s.z - 110) / 20) * 20; y = Math.round(((cs.h / 2 - s.py) / s.z - 40) / 20) * 20; }
-    var sz = sizeOf(node), g = 0;
-    while (s.nodes.some(function (o) { var oz = sizeOf(o); return x < o.x + oz.w + 20 && o.x < x + sz.w + 20 && y < o.y + oz.h + 20 && o.y < y + sz.h + 20; }) && g < 60) { y += 20; g++; }
-    node.x = x; node.y = y;
-    var edges = s.edges.slice(); if (src && type !== 'note') edges.push({ from: src.id, out: from.out, to: node.id });
-    this.setState(Object.assign(this.snap(), { nodes: s.nodes.concat([node]), edges: edges, sel: node.id, tab: 'cfg', add: null, runOpen: false, aiBanner: false, picking: null }));
+    var s = this.state, node = this.makeNode(type, preset, title), src = from ? this.byId(from.id) : null;
+    if (type === 'note') {
+      var cs = this.canvasSize(); node.x = Math.round((cs.w / 2 - s.px) / s.z - 100); node.y = Math.round((80 - s.py) / s.z);
+      this.setState(Object.assign(this.snap(), { nodes: s.nodes.concat([node]), sel: node.id, tab: 'cfg', add: null, runOpen: false, panel: null })); return;
+    }
+    var edges = s.edges.slice(); if (src) edges.push({ from: src.id, out: from.out, to: node.id });
+    this.commit(s.nodes.concat([node]), edges, { sel: node.id, tab: 'cfg', add: null, runOpen: false, aiBanner: false, picking: null, panel: null }, node.id);
   }
   insertOnEdge(type, e, preset, title) {
-    var s = this.state, a = this.byId(e.from), b = this.byId(e.to), node = this.makeNode(type, preset, title);
-    node.x = b.x; node.y = a.y + outY(a, e.out) - inY(node);
-    var shift = reachable(b.id, s.edges), dx = sizeOf(node).w + 80;
-    var nodes = s.nodes.map(function (n) { return shift[n.id] ? Object.assign({}, n, { x: n.x + dx }) : n; });
+    var s = this.state, node = this.makeNode(type, preset, title);
     var edges = s.edges.filter(function (x) { return !(x.from === e.from && x.out === e.out && x.to === e.to); });
     edges.push({ from: e.from, out: e.out, to: node.id }); edges.push({ from: node.id, out: 0, to: e.to });
-    this.setState(Object.assign(this.snap(), { nodes: nodes.concat([node]), edges: edges, sel: node.id, tab: 'cfg', add: null, runOpen: false, picking: null }));
+    this.commit(s.nodes.concat([node]), edges, { sel: node.id, tab: 'cfg', add: null, runOpen: false, picking: null, panel: null }, node.id);
+  }
+  removeNode(id) {
+    var s = this.state, n = this.byId(id); if (!n || n.type === 'start') return;
+    var gone = {}; gone[id] = 1; if (n.type === 'loop') n.cfg.inner.forEach(function (k) { gone[k] = 1; });
+    var nodes = s.nodes.filter(function (x) { return !gone[x.id]; }).map(function (x) { return x.type === 'loop' && x.cfg.inner.indexOf(id) >= 0 ? Object.assign({}, x, { cfg: Object.assign({}, x.cfg, { inner: x.cfg.inner.filter(function (k) { return k !== id; }) }) }) : x; });
+    this.commit(nodes, s.edges.filter(function (e) { return !gone[e.from] && !gone[e.to]; }), { sel: s.sel === id ? null : s.sel, ctx: null });
+    this.showToast('Đã xoá bước. Bấm Hoàn tác nếu xoá nhầm.');
+  }
+  duplicate(id, asPaste) {
+    var s = this.state, src = asPaste ? this.clip : this.byId(id); if (!src || src.type === 'start') return;
+    var node = this.makeNode(src.type, clone(src.cfg), src.title + (asPaste ? '' : ' (bản sao)'));
+    if (node.type === 'loop') node.cfg.inner = [];
+    var nodes = s.nodes.slice();
+    if (src.parent && !asPaste) { node.parent = src.parent; nodes = nodes.map(function (x) { if (x.id !== src.parent) return x; var inner = x.cfg.inner.slice(); inner.splice(inner.indexOf(src.id) + 1, 0, node.id); return Object.assign({}, x, { cfg: Object.assign({}, x.cfg, { inner: inner }) }); }); }
+    if (node.type === 'note') { node.x = src.x + 30; node.y = src.y + 30; }
+    this.commit(nodes.concat([node]), s.edges, { sel: node.id, tab: 'cfg', ctx: null }, node.id);
   }
   updateSel(patch) { var id = this.state.sel; this.setState({ nodes: this.state.nodes.map(function (n) { return n.id === id ? Object.assign({}, n, patch) : n; }) }); }
   updateCfg(patch) { var id = this.state.sel; this.setState({ nodes: this.state.nodes.map(function (n) { return n.id === id ? Object.assign({}, n, { cfg: Object.assign({}, n.cfg, patch) }) : n; }) }); }
-  dropPort(id, i) { return this.state.edges.filter(function (e) { return !(e.from === id && e.out === i); }).map(function (e) { return e.from === id && e.out > i ? Object.assign({}, e, { out: e.out - 1 }) : e; }); }
-  addPort(id, i) { return this.state.edges.map(function (e) { return e.from === id && e.out >= i ? Object.assign({}, e, { out: e.out + 1 }) : e; }); }
+  dropPort(id, i) { this.relayoutSoon(); return this.state.edges.filter(function (e) { return !(e.from === id && e.out === i); }).map(function (e) { return e.from === id && e.out > i ? Object.assign({}, e, { out: e.out - 1 }) : e; }); }
+  addPort(id, i) { this.relayoutSoon(); return this.state.edges.map(function (e) { return e.from === id && e.out >= i ? Object.assign({}, e, { out: e.out + 1 }) : e; }); }
   setTrigger(t) {
-    var s = this.state, id = this.state.sel, st = this.byId(id), nodes = s.nodes.map(function (n) { return n.id === id ? Object.assign({}, n, { cfg: Object.assign({}, n.cfg, { trigger: t }) }) : n; }), edges = s.edges;
+    var s = this.state, id = this.state.sel, nodes = s.nodes.map(function (n) { return n.id === id ? Object.assign({}, n, { cfg: Object.assign({}, n.cfg, { trigger: t }) }) : n; }), edges = s.edges;
     if (t === 'agent' && !s.nodes.some(function (n) { return n.type === 'respond'; })) {
-      // giống Copilot: chọn "Khi Nhân sự số gọi" thì tự thêm bước trả kết quả ở cuối
+      // giống Copilot: chọn "Khi Nhân sự số gọi" thì tự thêm bước trả kết quả
       this.seq += 1;
       var r = { id: 'n' + this.seq, type: 'respond', title: TYPES.respond.name, x: 0, y: 0, cfg: defaultCfg('respond') };
-      var maxX = 0; nodes.forEach(function (n) { maxX = Math.max(maxX, n.x + sizeOf(n).w); });
-      r.x = maxX + 80; r.y = st.y;
-      if (!edges.some(function (e) { return e.from === id; }) && nodes.length === 1) edges = edges.concat([{ from: id, out: 0, to: r.id }]);
+      if (!edges.some(function (e) { return e.from === id; }) && nodes.filter(function (n) { return !n.parent && n.type !== 'note'; }).length === 1) edges = edges.concat([{ from: id, out: 0, to: r.id }]);
       nodes = nodes.concat([r]);
       this.showToast('Đã thêm bước "Trả kết quả cho Nhân sự số" ở cuối Quy trình.');
     }
-    this.setState(Object.assign(this.snap(), { nodes: nodes, edges: edges }));
+    this.commit(nodes, edges, {});
   }
   allIssues() {
     var s = this.state, list = [];
@@ -534,7 +629,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
   openRun() {
     var s = this.state, st = s.nodes.filter(function (n) { return n.type === 'start'; })[0], inputs = {};
     st.cfg.inputs.forEach(function (f) { if (f.name) inputs[f.name] = sampleOf(f); });
-    this.setState({ runOpen: true, sel: null, add: null, checkOpen: false, pubOpen: false, run: s.run && s.run.status !== 'idle' ? s.run : { status: 'idle', tab: 'input', inputs: inputs, log: [], ran: [], redges: [] } });
+    this.setState({ runOpen: true, sel: null, add: null, checkOpen: false, pubOpen: false, panel: null, ctx: null, run: s.run && s.run.status !== 'idle' ? s.run : { status: 'idle', tab: 'input', inputs: inputs, log: [], ran: [], redges: [] } });
   }
   startRun() {
     var self = this, st = this.state.nodes.filter(function (n) { return n.type === 'start'; })[0], inputs = this.state.run.inputs;
@@ -555,7 +650,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     var self = this, s = this.state, r = s.run;
     if (!r || (r.status !== 'running' && r.status !== 'paused')) return;
     var n = this.byId(r.cur); if (!n) return;
-    var c = n.cfg, vars = Object.assign({}, r.vars), note = '', out = 0, st = 'Thành công', stop = null, seed = parseInt(n.id.slice(1), 10) || 1, ms = msOf(n.type, seed);
+    var c = n.cfg, vars = Object.assign({}, r.vars), note = '', out = 0, st = 'Thành công', stop = null, extraLog = [], extraRan = [], failInner = null, seed = parseInt(n.id.slice(1), 10) || 1, ms = msOf(n.type, seed);
     var issues = issuesOf(n, s).filter(function (m) { return m !== 'Bước này chưa được nối vào luồng' && m.indexOf('cần mô tả') < 0 && m.indexOf('Mỗi nhóm') < 0; });
     if (answer !== undefined) {
       vars[c.fields[0] ? c.fields[0].name : 'quyet_dinh'] = answer; vars.nguoi_duyet = 'Bạn (chạy thử)'; ms = 8010; note = 'Bạn trả lời "' + answer + '" thay ' + (c.assignee || 'người duyệt');
@@ -579,15 +674,24 @@ class ProcessBuilderInner extends React.Component<any, any> {
         case 'tool': outputsOf(n).forEach(function (v) { vars[v] = mockOf(v); }); note = c.tool + ' chạy xong'; break;
         case 'func': fnOf(c).out.forEach(function (v) { vars[v] = mockOf(v); }); note = fnOf(c).name + (c.fn === 'http' ? ': ' + c.method + ' ' + fill(c.url, vars) + ' → 200' : ''); break;
         case 'variable': c.vars.forEach(function (v) { vars[v.name] = fill(v.value, vars); }); note = c.vars.map(function (v) { return v.name + ' = ' + fill(v.value, vars); }).join(', '); break;
-        case 'loop': note = 'Lặp 3 phần tử, mỗi lần chạy ' + c.inner.length + ' bước'; break;
+        case 'loop':
+          note = 'Lặp 3 phần tử, mỗi lần chạy ' + c.inner.length + ' bước';
+          c.inner.forEach(function (id) {
+            if (stop) return; var cn = self.byId(id); if (!cn) return;
+            var iss = issuesOf(cn, s);
+            if (iss.length) { stop = 'Bước "' + cn.title + '" trong vòng lặp: ' + iss[0]; failInner = cn.id; return; }
+            outputsOf(cn).forEach(function (v) { vars[v] = mockOf(v); });
+            extraRan.push(cn.id); extraLog.push({ id: cn.id, title: '↳ ' + cn.title, type: cn.type, st: 'Thành công', note: 'Chạy 3 lần, mỗi phần tử một lần', ms: msOf(cn.type, parseInt(cn.id.slice(1), 10) || 1) * 3 });
+          });
+          break;
         case 'subflow': note = c.flow + ' trả kết quả'; break;
         default: note = 'Xong';
       }
     }
-    var log = r.log.concat([{ id: n.id, title: n.title, type: n.type, st: stop ? 'Lỗi' : st, note: stop || note, ms: ms }]);
+    var log = r.log.concat([{ id: n.id, title: n.title, type: n.type, st: stop ? 'Lỗi' : st, note: stop || note, ms: ms }]).concat(extraLog);
     var last = Object.assign({}, s.last); last[n.id] = { st: stop ? 'Lỗi' : st, ms: ms, note: stop || note, out: JSON.stringify(outputsOf(n).reduce(function (o, k) { o[k] = vars[k] !== undefined ? vars[k] : null; return o; }, {}), null, 2) };
-    var ran = r.ran.concat([n.id]);
-    if (stop) { this.setState({ last: last, run: Object.assign({}, r, { log: log, ran: ran, failId: n.id, vars: vars }) }); this.finish(false, 'Dừng ở bước "' + n.title + '": ' + stop + '.'); return; }
+    var ran = r.ran.concat([n.id]).concat(extraRan);
+    if (stop) { this.setState({ last: last, run: Object.assign({}, r, { log: log, ran: ran, failId: failInner || n.id, vars: vars }) }); this.finish(false, 'Dừng ở bước "' + n.title + '": ' + stop + '.'); return; }
     if (n.type === 'end' || n.type === 'respond') {
       var o = {}; if (n.type === 'respond') c.outs.forEach(function (x) { o[x.name] = x.desc ? fill(x.desc, vars) : mockOf(x.name); });
       this.setState({ last: last, run: Object.assign({}, r, { log: log, ran: ran, vars: vars }) });
@@ -639,52 +743,72 @@ class ProcessBuilderInner extends React.Component<any, any> {
     var selNode = byId[s.sel] || null, showRun = s.runOpen && !!run, building = s.top === 'build';
     var startNode = s.nodes.filter(function (n) { return n.type === 'start'; })[0];
 
+    DIR = s.dir || 'h';
+    var linkTo = s.link && s.link.moved ? this.hitNode(s.link.mx, s.link.my, s.link.from.id) : null;
     var viewNodes = s.nodes.map(function (n) {
-      var t = TYPES[n.type], z = sizeOf(n), col = colOf(n.type), isSel = s.sel === n.id && !showRun;
+      var t = TYPES[n.type], z = sizeOf(n), col = colOf(n.type), isSel = s.sel === n.id;
       var ran = run && run.ran.indexOf(n.id) >= 0, cur = run && run.cur === n.id && run.status === 'running', wait = run && run.status === 'paused' && run.waitId === n.id, fail = run && run.failId === n.id;
       var need = !!issueBy[n.id], ring = '';
-      if (isSel || cur) ring = '#203BDC'; if (ran && !fail) ring = '#16a34a'; if (wait) ring = '#ea580c'; if (fail) ring = '#dc2626';
+      if (isSel || cur || (linkTo && linkTo.id === n.id)) ring = '#203BDC'; if (ran && !fail) ring = '#16a34a'; if (wait) ring = '#ea580c'; if (fail) ring = '#dc2626';
       var badge = '', bfg = '', bbg = '', bl = '';
-      if (need) { badge = '⚠ Cần cấu hình'; bfg = '#b45309'; bbg = '#fffbeb'; bl = '#fde68a'; }
+      if (need) { badge = 'ⓘ Cần cấu hình'; bfg = '#616161'; bbg = '#fff'; bl = '#d4d4d8'; }
       if (ran) { badge = '✓ ' + (s.last[n.id] ? s.last[n.id].ms.toLocaleString('vi-VN') + ' ms' : 'Đã chạy'); bfg = '#15803d'; bbg = '#f0fdf4'; bl = '#bbf7d0'; }
       if (wait) { badge = 'Đang chờ trả lời'; bfg = '#c2410c'; bbg = '#fff7ed'; bl = '#fed7aa'; }
       if (fail) { badge = 'Lỗi'; bfg = '#b91c1c'; bbg = '#fef2f2'; bl = '#fecaca'; }
-      var o = outsOf(n), branchy = o.length > 1 && n.type !== 'loop', sub = subOf(n);
-      var outs = o.map(function (lbl, i) {
-        var linked = s.edges.some(function (e) { return e.from === n.id && e.out === i; }), oy = outY(n, i), isErr = lbl === 'Lỗi';
-        return { free: !linked, linked: linked, top: oy - 12, dotTop: oy - 4.5, dot: isErr ? '#ea580c' : '#0f172a', cls: 'plus' + (isErr ? ' plus-err' : ''), aria: 'Thêm bước sau ' + n.title + (lbl ? ' - nhánh ' + lbl : ''),
-          plus: function (e) { e.stopPropagation(); self.setState({ sel: n.id, tab: 'cfg', runOpen: false }); self.openAdd({ from: { id: n.id, out: i } }); } };
-      });
-      return { x: n.x, y: n.y, w: z.w, h: z.h, title: n.title, icon: t.icon, tile: col[0], tileBg: col[1],
-        isNote: n.type === 'note', isCard: n.type !== 'note', noteText: n.cfg.text || '', isLoop: n.type === 'loop', inner: n.type === 'loop' ? n.cfg.inner : [],
+      var o = outsOf(n), br = branchy(n), sub = subOf(n);
+      var outs = [];
+      if (n.parent) {
+        var lp = byId[n.parent], last = lp && lp.cfg.inner[lp.cfg.inner.length - 1] === n.id;
+        if (last) { var op0 = outPt(n, 0); outs = [{ dx: -100, dy: -100, dot: 'transparent', cls: 'oplus', aria: 'Thêm bước sau ' + n.title + ' trong vòng lặp', px: DIR === 'h' ? op0.x + 6 : op0.x - 11, py: DIR === 'h' ? op0.y - 11 : op0.y + 6, down: function (e) { e.stopPropagation(); }, plus: function (e) { e.stopPropagation(); self.setState({ sel: n.id }); self.openAdd({ mode: 'inner', loopId: n.parent }); } }]; }
+      } else {
+        outs = o.map(function (lbl, i) {
+          var op = outPt(n, i), isErr = lbl === 'Lỗi';
+          return { dx: op.x - 4, dy: op.y - 4, dot: isErr ? '#f59e0b' : '#242424', cls: 'oplus' + (isErr ? ' oplus-err' : ''), aria: 'Thêm bước sau ' + n.title + (lbl ? ' - nhánh ' + lbl : '') + '. Kéo để nối tới bước khác.',
+            px: DIR === 'h' ? op.x + 6 : op.x - 11, py: DIR === 'h' ? op.y - 11 : op.y + 6,
+            down: function (e) { self.startLink(e, n.id, i); },
+            plus: function (e) { e.stopPropagation(); if (self.justLinked) { self.justLinked = false; return; } self.setState({ sel: n.id, tab: 'cfg', runOpen: false, panel: null }); self.openAdd({ from: { id: n.id, out: i } }); } };
+        });
+      }
+      var ip = inPt(n);
+      return { id: n.id, x: n.x, y: n.y, w: z.w, h: z.h, title: n.title, icon: t.icon, tile: col[0],
+        isNote: n.type === 'note', isCard: n.type !== 'note', noteText: n.cfg.text || '', isLoop: n.type === 'loop', loopEmpty: n.type === 'loop' && !n.cfg.inner.length,
         addInner: function (e) { e.stopPropagation(); self.setState({ sel: n.id }); self.openAdd({ mode: 'inner', loopId: n.id }); },
-        pills: branchy ? o.map(function (l) { return { label: l, bg: l === 'Lỗi' ? '#fff7ed' : (l === 'Còn lại' || l === 'Khác' || l === 'Mặc định' ? '#f1f5f9' : '#eef2f7'), fg: l === 'Lỗi' ? '#c2410c' : '#334155' }; }) : [],
+        pills: br ? o.map(function (l) { var lab = l || 'Tiếp tục'; return { label: lab, flex: DIR === 'v' ? '1' : 'none', bg: l === 'Lỗi' ? '#fef3c7' : '#ebebee', fg: l === 'Lỗi' ? '#92400e' : '#242424' }; }) : [],
+        pillDir: DIR === 'v' ? 'row' : 'column', pillPad: br ? '8px 12px 10px' : '0', headLine: br ? '1px solid #ececef' : 'none',
         hasSub: !badge && !!sub, sub: sub,
-        bg: n.type === 'note' ? '#fefce8' : (n.type === 'loop' ? 'rgba(248,250,252,.7)' : '#fff'),
-        border: n.type === 'loop' ? '1.5px dashed ' + (ring || '#94a3b8') : '1px solid ' + (ring || (n.type === 'note' ? '#fde68a' : '#e2e8f0')),
-        radius: branchy || n.type === 'loop' || n.type === 'note' ? 14 : 28,
-        shadow: ring && n.type !== 'loop' ? '0 0 0 1px ' + ring + (isSel ? ', 0 0 0 5px rgba(32,59,220,.12)' : '') : (n.type === 'loop' ? 'none' : '0 1px 3px rgba(15,23,42,.06), 0 4px 12px rgba(15,23,42,.04)'),
-        cls: cur ? 'running' : (wait ? 'waiting' : ''), badge: !!badge, badgeText: badge, badgeFg: bfg, badgeBg: bbg, badgeLine: bl,
-        hasIn: n.type !== 'start' && n.type !== 'note', inTop: inY(n) - 4.5, outs: outs,
+        bg: n.type === 'note' ? '#fff8c5' : (n.type === 'loop' ? 'rgba(255,255,255,.45)' : '#fff'),
+        border: n.type === 'loop' ? '1.5px dashed ' + (ring || '#b9bcc4') : (ring ? '2px solid ' + ring : '1px solid ' + (n.type === 'note' ? '#f0d86e' : '#e2e3e8')),
+        radius: n.type === 'note' ? 6 : (br || n.type === 'loop' ? 18 : 28),
+        shadow: n.type === 'loop' ? 'none' : (isSel ? '0 0 0 4px rgba(32,59,220,.10), 0 2px 8px rgba(15,23,42,.08)' : '0 1px 2px rgba(15,23,42,.06), 0 2px 8px rgba(15,23,42,.04)'),
+        cls: 'qn' + (isSel ? ' qn-sel' : '') + (cur ? ' running' : (wait ? ' waiting' : '')),
+        badge: !!badge, badgeText: badge, badgeFg: bfg, badgeBg: bbg, badgeLine: bl,
+        hasIn: n.type !== 'start' && n.type !== 'note' && !n.parent, inX: ip.x - 4, inYp: ip.y - 4, outs: outs,
+        canDel: n.type !== 'start' && !locked, canRun: n.type !== 'note' && n.type !== 'start' && !locked, runAria: 'Chạy riêng bước ' + n.title, delAria: 'Xoá bước ' + n.title,
+        run: function (e) { e.stopPropagation(); self.setState({ sel: n.id, tab: 'last', runOpen: false, panel: null }); setTimeout(function () { self.runOne(); }, 0); },
+        del: function (e) { e.stopPropagation(); self.removeNode(n.id); },
+        ctx: function (e) { e.preventDefault(); e.stopPropagation(); var r = self.canvasEl && self.canvasEl.getBoundingClientRect ? self.canvasEl.getBoundingClientRect() : { left: 0, top: 0 }; self.setState({ ctx: { id: n.id, x: e.clientX - r.left, y: e.clientY - r.top }, sel: n.id, tab: 'cfg', runOpen: false, panel: null }); },
         down: function (e) { self.startDrag(e, n.id); },
-        select: function () { self.setState({ sel: n.id, tab: 'cfg', runOpen: false, add: null }); } };
+        select: function () { self.setState({ sel: n.id, tab: 'cfg', runOpen: false, add: null, panel: null }); } };
     });
 
-    var d = '', dh = '', ed = '', eh = '', rd = '', rh = '', edgePlus = [];
+    var d = '', ed = '', rd = '', tmpD = '', edgeDel = [];
+    var ranHas = function (a, b) { return run && run.ran.indexOf(a) >= 0 && run.ran.indexOf(b) >= 0; };
     s.edges.forEach(function (e) {
       var a = byId[e.from], b = byId[e.to]; if (!a || !b) return;
-      var za = sizeOf(a), x1 = a.x + za.w + 5, y1 = a.y + outY(a, e.out), x2 = b.x - 5, y2 = b.y + inY(b), pts;
-      if (Math.abs(y1 - y2) < 1 && x2 > x1) pts = [[x1, y1], [x2 - 7, y2]];
-      else if (x2 - x1 >= 40) { var mx = Math.min(x1 + Math.max(20, Math.min(40, (x2 - x1) / 2)) + e.out * 10, x2 - 16); pts = [[x1, y1], [mx, y1], [mx, y2], [x2 - 7, y2]]; }
-      else { var lane = Math.max(a.y + za.h, b.y + sizeOf(b).h) + 28 + e.out * 12; pts = [[x1, y1], [x1 + 20 + e.out * 12, y1], [x1 + 20 + e.out * 12, lane], [x2 - 36, lane], [x2 - 36, y2], [x2 - 7, y2]]; }
-      var seg = roundPath(pts, 8) + ' ', head = 'M' + (x2 - 8) + ' ' + (y2 - 4) + ' L' + x2 + ' ' + y2 + ' L' + (x2 - 8) + ' ' + (y2 + 4) + ' Z ';
-      var lbl = outsOf(a)[e.out];
-      if (run && run.redges.indexOf(e.from + ':' + e.out) >= 0) { rd += seg; rh += head; } else if (lbl === 'Lỗi') { ed += seg; eh += head; } else { d += seg; dh += head; }
-      if (!locked && building) {
-        var p = pts.length === 2 ? [(x1 + x2) / 2, y1] : (pts.length === 4 ? [(pts[2][0] + x2) / 2, y2] : [(pts[3][0] + pts[2][0]) / 2, pts[2][1]]);
-        edgePlus.push({ x: p[0] - 9, y: p[1] - 9, aria: 'Chèn bước giữa ' + a.title + ' và ' + b.title, pick: function (ev) { ev.stopPropagation(); self.openAdd({ edge: e }); } });
-      }
+      var bz = bez(absPt(a, outPt(a, e.out)), absPt(b, inPt(b))), lbl = outsOf(a)[e.out];
+      if (run && run.redges.indexOf(e.from + ':' + e.out) >= 0) rd += bz.d; else if (lbl === 'Lỗi') ed += bz.d; else d += bz.d;
+      if (!locked && building) edgeDel.push({ x: bz.m.x - 11, y: bz.m.y - 11, cls: 'edel', aria: 'Xoá kết nối từ ' + a.title + ' tới ' + b.title,
+        pick: function (ev) { ev.stopPropagation(); self.commit(self.state.nodes, self.state.edges.filter(function (x) { return !(x.from === e.from && x.out === e.out && x.to === e.to); }), {}); } });
     });
+    s.nodes.forEach(function (l) {
+      if (l.type !== 'loop' || !l.cfg.inner.length) return;
+      var chain = [absPt(l, DIR === 'h' ? { x: 0, y: sizeOf(l).h / 2 } : { x: sizeOf(l).w / 2, y: 0 })];
+      var segs = '', prev = chain[0];
+      l.cfg.inner.forEach(function (id) { var c = byId[id]; if (!c) return; segs += bez(prev, absPt(c, inPt(c))).d; prev = absPt(c, outPt(c, 0)); });
+      segs += bez(prev, absPt(l, DIR === 'h' ? { x: sizeOf(l).w, y: sizeOf(l).h / 2 } : { x: sizeOf(l).w / 2, y: sizeOf(l).h })).d;
+      if (run && run.ran.indexOf(l.id) >= 0 && ranHas(l.id, l.cfg.inner[l.cfg.inner.length - 1])) rd += segs; else d += segs;
+    });
+    if (s.link && s.link.moved) { var sn0 = byId[s.link.from.id]; if (sn0) tmpD = bez(absPt(sn0, outPt(sn0, s.link.from.out)), linkTo ? absPt(linkTo, inPt(linkTo)) : { x: s.link.mx, y: s.link.my }).d; }
 
     // hộp thoại Thêm bước
     var ad = s.add, addSections = [], flat = [];
@@ -704,11 +828,12 @@ class ProcessBuilderInner extends React.Component<any, any> {
     if (ad && ad.mode === 'inner') addFrom = 'Thêm vào trong vòng lặp';
 
     // panel
-    var pmNode = building && !showRun && !!selNode, pmProcess = building && !showRun && !selNode, pmOther = !building;
+    var pmNode = building && !showRun && !!selNode, pmProcess = building && !showRun && !selNode && s.panel === 'settings', pmOther = !building;
     var sel = { title: '', icon: '', tile: '#203BDC', tileBg: '#eef1fd' }, pf = [], editors = [], cases = [], outVars = [], varOpts = [{ v: '', l: 'Chọn biến' }];
     if (pmNode) {
       var n = selNode, c = n.cfg, t = TYPES[n.type], col = colOf(n.type);
-      var up = upstreamOf(n.id, s); varOpts = varOpts.concat(up);
+      var up = n.parent ? (function () { var lp = byId[n.parent], u = upstreamOf(lp.id, s).concat([{ v: 'phan_tu', l: 'phan_tu · ' + lp.title }]); lp.cfg.inner.slice(0, lp.cfg.inner.indexOf(n.id)).forEach(function (k) { if (byId[k]) outputsOf(byId[k]).forEach(function (v) { u.push({ v: v, l: v + ' · ' + byId[k].title }); }); }); return u; })() : upstreamOf(n.id, s);
+      varOpts = varOpts.concat(up);
       var ups = [{ v: '', l: 'Chọn biến' }].concat(up), firstVar = up.length ? up[0].v : 'bien';
       var opt = function (arr) { return arr.map(function (x) { return typeof x === 'string' ? { v: x, l: x || 'Chưa chọn' } : x; }); };
       var P = function (key, label, kind, extra) {
@@ -903,7 +1028,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
       otherText: { test: 'Bộ test case cho Quy trình: mỗi test case là một bộ dữ liệu đầu vào và kết quả mong đợi, chạy lại hàng loạt trước mỗi lần publish. Prototype chưa dựng phần này.', deploy: 'Quy trình chạy theo kiểu kích hoạt ở bước Bắt đầu. Publish xong có thể gắn làm tool cho Nhân sự số, gọi qua API hoặc webhook. Prototype chưa dựng phần này.', analytics: 'Lịch sử từng lần chạy, số lần chạy, tỉ lệ lỗi và thời gian chờ người duyệt theo ngày. Prototype chưa dựng phần này.' }[s.top] || '',
       panelTabs: [{ id: 'cfg', label: 'Cấu hình' }, { id: 'run', label: 'Chạy thử' }].map(function (x) { var on = x.id === 'run' ? showRun : !showRun; return { label: x.label, on: on, bg: on ? '#f1f5f9' : 'transparent', fg: on ? '#0f172a' : '#64748b', pick: function () { if (x.id === 'run') self.openRun(); else self.setState({ runOpen: false }); } }; }),
       panelCanClose: showRun || !!selNode,
-      panelClose: function () { if (self.state.runOpen) { clearTimeout(self.timer); var r = self.state.run; self.setState({ runOpen: false, run: r && (r.status === 'running' || r.status === 'paused') ? null : r }); } else self.setState({ sel: null, picking: null }); },
+      panelClose: function () { if (self.state.runOpen) { clearTimeout(self.timer); var r = self.state.run; self.setState({ runOpen: false, run: r && (r.status === 'running' || r.status === 'paused') ? null : r }); } else self.setState({ sel: null, picking: null, panel: null }); },
       undo: function () { self.undo(); }, canUndoNot: !s.hist.length,
       issueGroups: issues.map(function (g) { var cc = colOf(g.type); return { title: g.title, count: g.msgs.length, msgs: g.msgs, tile: cc[0], icon: TYPES[g.type].icon, go: function () { self.setState({ sel: g.id, tab: 'cfg', checkOpen: false, runOpen: false, top: 'build' }); } }; }),
       issueCount: issueCount, hasIssues: issueCount > 0, noIssues: !issueCount, issueColor: issueCount ? '#b91c1c' : '#020817',
@@ -916,17 +1041,32 @@ class ProcessBuilderInner extends React.Component<any, any> {
       toolHintColor: asTool ? '#15803d' : '#64748b',
       openRun: function () { self.setState({ top: 'build' }); self.openRun(); },
 
-      canvasRef: this.canvasRef, canvasCursor: s.drag ? 'grabbing' : 'default',
+      canvasRef: this.canvasRef, canvasCursor: s.drag ? 'grabbing' : (s.link ? 'crosshair' : 'default'),
       worldTransform: 'translate(' + s.px + 'px, ' + s.py + 'px) scale(' + s.z + ')',
-      onBgDown: function (e) { if (e.target.closest && e.target.closest('[data-node],[data-ui]')) return; self.setState({ drag: { pan: true, sx: e.clientX, sy: e.clientY, ox: s.px, oy: s.py }, sel: null, add: null, checkOpen: false, pubOpen: false, picking: null }); },
+      onBgDown: function (e) { if (e.target.closest && e.target.closest('[data-node],[data-ui]')) return; self.setState({ drag: { pan: true, sx: e.clientX, sy: e.clientY, ox: s.px, oy: s.py }, sel: null, add: null, checkOpen: false, pubOpen: false, picking: null, ctx: null, panel: null }); },
       onMove: function (e) { self.onMove(e); },
-      onUp: function () { var dr = self.state.drag; if (!dr) return; var moved = !dr.pan && self.state.nodes.some(function (n) { return n.id === dr.id && (n.x !== dr.ox || n.y !== dr.oy); }); self.setState(moved ? { drag: null, hist: self.state.dragPre } : { drag: null }); },
-      edgesD: d, edgesH: dh, errD: ed, errH: eh, ranD: rd, ranH: rh, edgePlus: edgePlus, viewNodes: viewNodes,
+      onUp: function () { self.onUp(); },
+      edgesD: d, errD: ed, ranD: rd, selD: '', tmpD: tmpD, edgeDel: edgeDel, viewNodes: viewNodes,
       palOpen: s.palOpen && building, palClosed: !s.palOpen && building, togglePal: function () { self.setState({ palOpen: !self.state.palOpen }); },
       palItems: PAL.map(function (k) { var t = TYPES[k], cc = COL[t.c]; return { name: t.name, desc: t.desc, icon: t.icon, tile: cc[0], tileBg: cc[1], more: k === 'tool' || k === 'func', pick: function () { self.palPick(k); } }; }),
       palHint: selNode && selNode.type === 'loop' ? 'Đang chọn vòng lặp: bước mới vào trong vòng lặp.' : (selNode ? 'Bước mới thêm ngay sau "' + selNode.title + '".' : 'Chọn một bước để thêm ngay sau nó.'),
-      fit: function () { self.fit(); },
-      autoLayout: function () { var f = layoutFlow({ nodes: clone(self.state.nodes), edges: self.state.edges }); self.setState(Object.assign(self.snap(), { nodes: f.nodes })); setTimeout(function () { self.fit(); }, 20); },
+      fit: function () { self.fit(0.3); },
+      autoLayout: function () { self.commit(self.state.nodes, self.state.edges, {}); self.showToast('Đã sắp xếp gọn lại Quy trình.'); },
+      toggleDir: function () { var nd = self.state.dir === 'h' ? 'v' : 'h'; DIR = nd; var f = layoutFlow({ nodes: clone(self.state.nodes), edges: self.state.edges }); self.setState({ dir: nd, nodes: f.nodes }); setTimeout(function () { self.fit(0.5); }, 0); },
+      dirLabel: s.dir === 'v' ? 'Chuyển sang bố cục ngang' : 'Chuyển sang bố cục dọc',
+      dirIcon: s.dir === 'v' ? 'M4 12h4 M16 12h4 M8 9h8v6H8z' : 'M12 4v4 M12 16v4 M9 8h6v8H9z',
+      redo: function () { self.redo(); }, canRedoNot: !(s.fut && s.fut.length),
+      openSettings: function () { self.setState({ panel: s.panel === 'settings' && !s.sel ? null : 'settings', sel: null, runOpen: false, add: null }); },
+      panelOpen: building && (pmNode || showRun || pmProcess), panelW: s.expand ? 560 : 380,
+      expandLabel: s.expand ? 'Thu nhỏ bảng' : 'Mở rộng bảng', toggleExpand: function () { self.setState({ expand: !self.state.expand }); },
+      ctxOpen: !!s.ctx && !!byId[s.ctx && s.ctx.id], ctxX: s.ctx ? s.ctx.x : 0, ctxY: s.ctx ? s.ctx.y : 0,
+      ctxItems: s.ctx && byId[s.ctx.id] ? (function () { var cn = byId[s.ctx.id], isSt = cn.type === 'start'; return [
+        { label: 'Nhân bản', off: isSt, fg: '#242424', pick: function () { self.duplicate(cn.id); } },
+        { label: 'Sao chép', off: isSt, fg: '#242424', pick: function () { self.clip = clone(cn); self.setState({ ctx: null }); self.showToast('Đã sao chép "' + cn.title + '". Chuột phải rồi chọn Dán để thêm bản sao.'); } },
+        { label: 'Dán', off: !self.clip, fg: '#242424', pick: function () { self.duplicate(null, true); } },
+        { label: 'Xoá', off: isSt, fg: isSt ? '#a1a1aa' : '#dc2626', pick: function () { self.removeNode(cn.id); } }
+      ]; })() : [],
+
       zoomPct: Math.round(s.z * 100), zoomIn: function () { self.setState({ z: Math.min(1.5, Math.round((s.z + 0.1) * 10) / 10) }); }, zoomOut: function () { self.setState({ z: Math.max(0.4, Math.round((s.z - 0.1) * 10) / 10) }); },
       runLocked: locked, runBar: run && run.status === 'paused' ? 'Đang chờ trả lời - xem bảng Chạy thử bên phải' : 'Đang chạy thử - canvas tạm khoá',
 
@@ -949,14 +1089,14 @@ class ProcessBuilderInner extends React.Component<any, any> {
       addCase: function () { var n = byId[s.sel]; self.setState({ edges: self.addPort(n.id, n.cfg.cases.length) }); self.updateCfg({ cases: n.cfg.cases.concat([{ name: 'Nhánh ' + (n.cfg.cases.length + 1), logic: 'VÀ', rows: [{ v: '', op: 'Bằng', val: '' }] }]) }); },
       errRetry: !!errNode.retry, errMode: errNode.err,
       toggleRetry: function () { self.updateCfg({ retry: !byId[s.sel].cfg.retry }); },
-      onErrMode: function (e) { var n = byId[s.sel], v = e.target.value, edges = self.state.edges; if (n.cfg.err === 'branch' && v !== 'branch') edges = edges.filter(function (x) { return !(x.from === n.id && x.out === 1); }); self.setState({ edges: edges }); self.updateCfg({ err: v }); },
+      onErrMode: function (e) { var n = byId[s.sel], v = e.target.value, edges = self.state.edges; if (n.cfg.err === 'branch' && v !== 'branch') edges = edges.filter(function (x) { return !(x.from === n.id && x.out === 1); }); self.setState({ edges: edges }); self.updateCfg({ err: v }); self.relayoutSoon(); },
       nodeTabs: [{ id: 'cfg', label: 'Cấu hình' }, { id: 'last', label: 'Chạy bước' }].map(function (x) { var on = s.tab === x.id; return { label: x.label, on: on, bg: on ? '#eef1fd' : '#fff', fg: on ? '#203BDC' : '#475569', line: on ? '#c7d2fe' : '#e5e5e5', pick: function () { self.setState({ tab: x.id }); } }; }),
       tabCfg: s.tab === 'cfg' || !(selNode && selNode.type !== 'note' && selNode.type !== 'start'), tabLast: s.tab === 'last' && !!selNode && selNode.type !== 'note' && selNode.type !== 'start', lastHas: !!last,
       last: last ? { st: last.st, ms: last.ms.toLocaleString('vi-VN') + ' ms', note: last.note, out: last.out, stColor: last.st === 'Thành công' ? '#15803d' : '#b91c1c' } : { st: '', ms: '', note: '', out: '', stColor: '#000' },
       runStep: function () { self.runOne(); },
       onTitle: function (e) { self.updateSel({ title: e.target.value }); },
       deselect: function () { self.setState({ sel: null, picking: null }); },
-      deleteSel: function () { var id = self.state.sel; self.setState(Object.assign(self.snap(), { nodes: self.state.nodes.filter(function (n) { return n.id !== id; }), edges: self.state.edges.filter(function (e) { return e.from !== id && e.to !== id; }), sel: null })); self.showToast('Đã xoá bước. Bấm Hoàn tác nếu xoá nhầm.'); },
+      deleteSel: function () { self.removeNode(self.state.sel); },
 
       aiCount: s.nodes.filter(function (n) { return TYPES[n.type].ai; }).length, actCount: s.nodes.filter(function (n) { return TYPES[n.type].act || (n.type === 'func' && n.cfg.fn === 'http'); }).length,
       guards: guardList([['safety', 'Chặn nội dung độc hại, xúc phạm'], ['pii', 'Che CCCD, số tài khoản, số điện thoại trong kết quả'], ['scope', 'Chặn yêu cầu ngoài phạm vi Quy trình']]),
@@ -980,17 +1120,52 @@ class ProcessBuilderInner extends React.Component<any, any> {
   }
 
   startDrag(e, id) {
+    if (e.button === 2) return;
     if (e.target.closest && e.target.closest('[data-plus],[data-ui]')) return;
     e.stopPropagation(); if (this.locked()) return;
     var n = this.byId(id);
-    this.setState({ dragPre: this.snap().hist, sel: id, add: null, runOpen: false, top: 'build', tab: id === this.state.sel ? this.state.tab : 'cfg', picking: null, drag: { id: id, sx: e.clientX, sy: e.clientY, ox: n.x, oy: n.y } });
+    var base = { sel: id, add: null, runOpen: false, panel: null, top: 'build', ctx: null, tab: id === this.state.sel ? this.state.tab : 'cfg', picking: null };
+    if (n.parent) { this.setState(base); return; }
+    this.setState(Object.assign(base, { dragPre: this.snap().hist, drag: { id: id, sx: e.clientX, sy: e.clientY, ox: n.x, oy: n.y } }));
+  }
+  toWorld(cx, cy) { var s = this.state, r = this.canvasEl && this.canvasEl.getBoundingClientRect ? this.canvasEl.getBoundingClientRect() : { left: 0, top: 0 }; return { x: (cx - r.left - s.px) / s.z, y: (cy - r.top - s.py) / s.z }; }
+  hitNode(x, y, fromId) {
+    DIR = this.state.dir;
+    var hit = null;
+    this.state.nodes.forEach(function (n) { if (n.parent || n.type === 'start' || n.type === 'note' || n.id === fromId) return; var z = sizeOf(n); if (x >= n.x - 12 && x <= n.x + z.w + 12 && y >= n.y - 12 && y <= n.y + z.h + 12) hit = n; });
+    return hit;
+  }
+  startLink(e, id, out) {
+    if (this.locked()) return;
+    e.stopPropagation();
+    var p = this.toWorld(e.clientX, e.clientY);
+    this.setState({ link: { from: { id: id, out: out }, sx: e.clientX, sy: e.clientY, mx: p.x, my: p.y, moved: false } });
   }
   onMove(e) {
+    var lk = this.state.link;
+    if (lk) { var p = this.toWorld(e.clientX, e.clientY); this.setState({ link: Object.assign({}, lk, { mx: p.x, my: p.y, moved: lk.moved || Math.abs(e.clientX - lk.sx) + Math.abs(e.clientY - lk.sy) > 5 }) }); return; }
     var dr = this.state.drag; if (!dr) return;
     var dx = e.clientX - dr.sx, dy = e.clientY - dr.sy;
     if (dr.pan) { this.setState({ px: dr.ox + dx, py: dr.oy + dy }); return; }
-    var z = this.state.z;
-    this.setState({ nodes: this.state.nodes.map(function (n) { return n.id === dr.id ? Object.assign({}, n, { x: Math.round((dr.ox + dx / z) / 20) * 20, y: Math.round((dr.oy + dy / z) / 20) * 20 }) : n; }) });
+    var z = this.state.z, self = this;
+    var nodes = this.state.nodes.map(function (n) { return n.id === dr.id ? Object.assign({}, n, { x: Math.round((dr.ox + dx / z) / 8) * 8, y: Math.round((dr.oy + dy / z) / 8) * 8 }) : n; });
+    DIR = this.state.dir; placeInner(nodes);
+    this.setState({ nodes: nodes });
+  }
+  onUp() {
+    var lk = this.state.link;
+    if (lk) {
+      this.setState({ link: null });
+      if (lk.moved) {
+        var t = this.hitNode(lk.mx, lk.my, lk.from.id);
+        this.justLinked = true; var self = this; setTimeout(function () { self.justLinked = false; }, 50);
+        if (t) this.connect(lk.from, t.id);
+      }
+      return;
+    }
+    var dr = this.state.drag; if (!dr) return;
+    var moved = !dr.pan && this.state.nodes.some(function (n) { return n.id === dr.id && (n.x !== dr.ox || n.y !== dr.oy); });
+    this.setState(moved ? { drag: null, hist: this.state.dragPre, fut: [] } : { drag: null });
   }
 
   componentDidMount() {
@@ -1012,7 +1187,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
       );
     }
     var v = this.renderVals();
-    var { actCount, actGuards, addCase, addCrumb, addEmpty, addFrom, addHasCrumb, addHasFrom, addOpen, addQ, addRoot, addSections, addShowTabs, addTabs, aiBanner, aiCount, autoLayout, backToList, building, canUndoNot, canvasCursor, canvasRef, cases, checkAria, checkOpen, closeAdd, deleteSel, dismissBanner, draftSteps, edgePlus, edgesD, edgesH, editors, errD, errH, errMode, errRetry, fit, guards, hasIssues, issueColor, issueCount, issueGroups, last, lastHas, name, noIssues, noRunInputs, nodeTabs, notBuilding, onAddKey, onAddQ, onBgDown, onErrMode, onMove, onTitle, onUp, opOpts, otherIcon, otherText, otherTitle, outVars, palClosed, palHint, palItems, palOpen, panelCanClose, panelClose, panelTabs, pf, pmNode, pmProcess, pmRun, pubOpen, pubState, publish, publishDisabled, publishLabel, ranD, ranH, rerun, runBar, runDone, runHasOutput, runInputTitle, runInputs, runLocked, runLog, runOutput, runPaused, runResBg, runResBorder, runResText, runRunning, runShowInput, runShowResult, runShowTrace, runStatusColor, runStatusText, runStep, runTabs, sel, startRun, statusDot, statusLabel, statusSub, stepCount, tabCfg, tabLast, toast, toastBg, toastText, toggleCheck, togglePal, togglePub, toggleRetry, toolHint, toolHintColor, topTabs, undo, varOpts, viewNodes, waitActions, waitBody, waitExpire, waitTitle, waitWho, worldTransform, zoomIn, zoomOut, zoomPct } = v;
+    var { actCount, actGuards, addCase, addCrumb, addEmpty, addFrom, addHasCrumb, addHasFrom, addOpen, addQ, addRoot, addSections, addShowTabs, addTabs, aiBanner, aiCount, autoLayout, backToList, building, canRedoNot, canUndoNot, canvasCursor, canvasRef, cases, checkAria, checkOpen, closeAdd, ctxItems, ctxOpen, ctxX, ctxY, deleteSel, dirIcon, dirLabel, dismissBanner, draftSteps, edgeDel, edgesD, editors, errD, errMode, errRetry, expandLabel, fit, guards, hasIssues, issueColor, issueCount, issueGroups, last, lastHas, name, noIssues, noRunInputs, nodeTabs, notBuilding, onAddKey, onAddQ, onBgDown, onErrMode, onMove, onTitle, onUp, opOpts, openRun, openSettings, otherIcon, otherText, otherTitle, outVars, palClosed, palItems, palOpen, panelClose, panelOpen, panelW, pf, pmNode, pmProcess, pmRun, pubOpen, pubState, publish, publishDisabled, publishLabel, ranD, redo, rerun, runBar, runDone, runHasOutput, runInputTitle, runInputs, runLocked, runLog, runOutput, runPaused, runResBg, runResBorder, runResText, runRunning, runShowInput, runShowResult, runShowTrace, runStatusColor, runStatusText, runStep, runTabs, sel, selD, startRun, statusDot, statusLabel, statusSub, stepCount, tabCfg, tabLast, tmpD, toast, toastBg, toastText, toggleCheck, toggleDir, toggleExpand, togglePal, togglePub, toggleRetry, toolHint, toolHintColor, topTabs, undo, varOpts, viewNodes, waitActions, waitBody, waitExpire, waitTitle, waitWho, worldTransform, zoomIn, zoomOut, zoomPct } = v;
     backToList = function () { clearTimeout(self.timer); self.props.onBack(); };
     return (
       <div className="qt-root" style={S('height: 100vh; min-height: 640px; display: flex; flex-direction: column; overflow: hidden; position: relative; background: #fff')}>
@@ -1021,16 +1196,19 @@ class ProcessBuilderInner extends React.Component<any, any> {
 <div style={S('height: 48px; flex-shrink: 0; border-bottom: 1px solid #e5e5e5; display: flex; align-items: center; padding: 0 12px; gap: 10px; position: relative; z-index: 30; background: #fff')}>
   <button type="button" className={Q('ghost')} aria-label="Quay lại danh sách nhân sự số" onClick={backToList} style={S('width: 32px; height: 32px; border-radius: 7px; display: flex; align-items: center; justify-content: center')}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
   <span style={S('width: 26px; height: 26px; border-radius: 7px; background: #eef1fd; color: #203BDC; display: flex; align-items: center; justify-content: center')}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 5h6v5H3z M15 14h6v5h-6z M9 7.5h3a2 2 0 0 1 2 2v5a2 2 0 0 0 2 2"></path></svg></span>
-  <span style={S('font-size: 14px; font-weight: 600; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap')}>{name}</span>
-  <span style={S('display: inline-flex; align-items: center; gap: 6px; font-size: 12px; border-radius: 999px; padding: 3px 10px; background: #f1f5f9; color: #0f172a')}><span style={S(`width: 6px; height: 6px; border-radius: 999px; background: ${statusDot}`)}></span>{statusLabel}<span style={S('color: #64748b')}>{statusSub}</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></span>
-  <span style={S('font-size: 11px; font-weight: 600; background: #eef1fd; color: #203BDC; border-radius: 6px; padding: 3px 8px')}>Quy trình</span>
+  <span style={S('font-size: 14px; font-weight: 600; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap')}>{name}</span>
+  <span style={S('display: inline-flex; align-items: center; gap: 6px; font-size: 12px; border-radius: 999px; padding: 3px 10px; background: #f1f5f9; color: #0f172a; white-space: nowrap')}><span style={S(`width: 6px; height: 6px; border-radius: 999px; background: ${statusDot}`)}></span>{statusLabel}<span style={S('color: #64748b')}>{statusSub}</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></span>
+  <span style={S('font-size: 11px; font-weight: 600; background: #eef1fd; color: #203BDC; border-radius: 6px; padding: 3px 8px; white-space: nowrap')}>Quy trình</span>
   <div style={S('flex: 1; display: flex; justify-content: center; gap: 4px')}>
     {(topTabs || []).map((t, _it) => (<React.Fragment key={_it}>
-      <button type="button" onClick={t.pick} aria-pressed={t.on} style={S(`display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px; border: 0; border-radius: 8px; font-size: 13px; font-weight: 500; background: ${t.bg}; color: ${t.fg}`)}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={t.icon}></path></svg>{t.label}</button>
+      <button type="button" onClick={t.pick} aria-pressed={t.on} style={S(`display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 0; border-radius: 8px; font-size: 13px; font-weight: 500; white-space: nowrap; flex-shrink: 0; background: ${t.bg}; color: ${t.fg}`)}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={t.icon}></path></svg>{t.label}</button>
     </React.Fragment>))}
   </div>
   <button type="button" className={Q('tbtn')} aria-label="Hoàn tác" title="Hoàn tác" onClick={undo} disabled={canUndoNot}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5 M4 9h10a6 6 0 0 1 0 12h-3"></path></svg></button>
-  <span style={S('font-size: 11.5px; color: #64748b')}>Đã tự lưu</span>
+  <button type="button" className={Q('tbtn')} aria-label="Làm lại" title="Làm lại" onClick={redo} disabled={canRedoNot}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 14l5-5-5-5 M20 9H10a6 6 0 0 0 0 12h3"></path></svg></button>
+  <button type="button" className={Q('tbtn')} aria-label="Cài đặt Quy trình" title="Cài đặt Quy trình (Guardrails)" onClick={openSettings}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></button>
+  <button type="button" className={Q('tbtn')} aria-label="Chạy thử" title="Chạy thử" onClick={openRun}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"></path></svg></button>
+  <span style={S('font-size: 11.5px; color: #64748b; white-space: nowrap')}>Đã tự lưu</span>
   <div style={S('position: relative')}>
     <button type="button" className={Q('btn')} aria-expanded={checkOpen} onClick={toggleCheck} aria-label={checkAria}>
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 11l3 3 8-8 M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"></path></svg>Kiểm tra
@@ -1074,105 +1252,111 @@ class ProcessBuilderInner extends React.Component<any, any> {
 </>)}
 {(building) && (<>
 <div style={S('flex: 1; min-height: 0; display: flex')}>
-  <div ref={canvasRef} onMouseDown={onBgDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp} style={S(`flex: 1; min-width: 0; position: relative; overflow: hidden; background-color: #fafafa; background-image: radial-gradient(#d4d4d8 1px, transparent 1px); background-size: 18px 18px; cursor: ${canvasCursor}`)}>
+  <div ref={canvasRef} onMouseDown={onBgDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp} style={S(`flex: 1; min-width: 0; position: relative; overflow: hidden; background-color: #f7f7f8; background-image: radial-gradient(#cfd2d8 1px, transparent 1px); background-size: 16px 16px; cursor: ${canvasCursor}`)}>
 
     <div style={S(`position: absolute; left: 0; top: 0; width: 0; height: 0; transform: ${worldTransform}; transform-origin: 0 0`)}>
-      <svg width="4000" height="2400" style={S('position: absolute; left: -800px; top: -800px; overflow: visible; pointer-events: none')} aria-hidden="true">
-        <g transform="translate(800 800)">
-          <path d={edgesD} fill="none" stroke="#0f172a" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"></path>
-          <path d={edgesH} fill="#0f172a" stroke="#0f172a" strokeWidth="1" strokeLinejoin="round"></path>
-          <path d={errD} fill="none" stroke="#ea580c" strokeWidth="1.5" strokeDasharray="5 4" strokeLinejoin="round" strokeLinecap="round"></path>
-          <path d={errH} fill="#ea580c" stroke="#ea580c" strokeWidth="1" strokeLinejoin="round"></path>
-          <path d={ranD} fill="none" stroke="#16a34a" strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round"></path>
-          <path d={ranH} fill="#16a34a" stroke="#16a34a" strokeWidth="1" strokeLinejoin="round"></path>
+      <svg width="6000" height="4000" style={S('position: absolute; left: -2000px; top: -2000px; overflow: visible; pointer-events: none')} aria-hidden="true">
+        <g transform="translate(2000 2000)">
+          <path d={edgesD} fill="none" stroke="#b9bcc4" strokeWidth="1.5" strokeLinecap="round"></path>
+          <path d={errD} fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="5 4" strokeLinecap="round"></path>
+          <path d={selD} fill="none" stroke="#203BDC" strokeWidth="1.8" strokeLinecap="round"></path>
+          <path d={ranD} fill="none" stroke="#16a34a" strokeWidth="2.2" strokeLinecap="round"></path>
+          <path d={tmpD} fill="none" stroke="#203BDC" strokeWidth="1.8" strokeDasharray="4 4" strokeLinecap="round"></path>
         </g>
       </svg>
 
-      {(edgePlus || []).map((p, _ip) => (<React.Fragment key={_ip}>
-        <button type="button" data-ui="1" className={Q('eplus')} aria-label={p.aria} onClick={p.pick} style={S(`left: ${p.x}px; top: ${p.y}px`)}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14 M5 12h14"></path></svg></button>
+      {(edgeDel || []).map((p, _ip) => (<React.Fragment key={_ip}>
+        <button type="button" data-ui="1" className={Q(p.cls)} aria-label={p.aria} title="Xoá kết nối" onClick={p.pick} style={S(`left: ${p.x}px; top: ${p.y}px`)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16 M9 7V4h6v3 M6 7l1 13h10l1-13"></path></svg></button>
       </React.Fragment>))}
 
       {(viewNodes || []).map((n, _in) => (<React.Fragment key={_in}>
-        <div data-node="1" onMouseDown={n.down} className={Q(n.cls)} style={S(`position: absolute; left: ${n.x}px; top: ${n.y}px; width: ${n.w}px; height: ${n.h}px; box-sizing: border-box; background: ${n.bg}; border: ${n.border}; border-radius: ${n.radius}px; box-shadow: ${n.shadow}; cursor: grab; user-select: none`)}>
+        <div data-node={n.id} onMouseDown={n.down} onContextMenu={n.ctx} className={Q(n.cls)} style={S(`position: absolute; left: ${n.x}px; top: ${n.y}px; width: ${n.w}px; height: ${n.h}px; box-sizing: border-box; background: ${n.bg}; border: ${n.border}; border-radius: ${n.radius}px; box-shadow: ${n.shadow}; cursor: grab; user-select: none`)}>
           <button type="button" className={Q('sr')} onClick={n.select}>Chọn bước {n.title}</button>
           {(n.isNote) && (<>
-            <div style={S('padding: 10px 12px; font-size: 12.5px; line-height: 1.5; color: #713f12')}>{n.noteText}</div>
+            <div style={S('padding: 10px 12px; font-size: 12.5px; line-height: 1.5; color: #3f3f46; white-space: pre-wrap')}>{n.noteText}</div>
           </>)}
           {(n.isCard) && (<>
-            <div style={S('height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 12px')}>
-              <span style={S(`width: 30px; height: 30px; border-radius: 8px; background: ${n.tileBg}; color: ${n.tile}; display: flex; align-items: center; justify-content: center; flex-shrink: 0`)}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={n.icon}></path></svg>
-              </span>
+            <div style={S(`height: 56px; display: flex; align-items: center; gap: 12px; padding: 0 16px; border-bottom: ${n.headLine}`)}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={n.tile} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={S('flex-shrink: 0')}><path d={n.icon}></path></svg>
               <span style={S('flex: 1; min-width: 0')}>
-                <span style={S('display: block; font-size: 13px; font-weight: 600; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis')}>{n.title}</span>
-                {(n.badge) && (<><span style={S(`display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; font-size: 10.5px; font-weight: 500; color: ${n.badgeFg}; background: ${n.badgeBg}; border: 1px solid ${n.badgeLine}; border-radius: 999px; padding: 0 7px; line-height: 16px; white-space: nowrap`)}>{n.badgeText}</span></>)}
-                {(n.hasSub) && (<><span style={S('display: block; margin-top: 2px; font-size: 11px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis')}>{n.sub}</span></>)}
+                <span style={S('display: block; font-size: 13.5px; font-weight: 600; color: #242424; white-space: nowrap; overflow: hidden; text-overflow: ellipsis')}>{n.title}</span>
+                {(n.badge) && (<><span style={S(`display: inline-flex; align-items: center; gap: 3px; margin-top: 3px; font-size: 10.5px; font-weight: 500; color: ${n.badgeFg}; background: ${n.badgeBg}; border: 1px solid ${n.badgeLine}; border-radius: 999px; padding: 0 7px; line-height: 16px; white-space: nowrap`)}>{n.badgeText}</span></>)}
+                {(n.hasSub) && (<><span style={S('display: block; margin-top: 2px; font-size: 11px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis')}>{n.sub}</span></>)}
               </span>
             </div>
-            {(n.pills || []).map((b, _ib) => (<React.Fragment key={_ib}>
-              <div style={S(`margin: 0 10px 6px; height: 30px; border-radius: 8px; background: ${b.bg}; color: ${b.fg}; font-size: 12px; font-weight: 500; display: flex; align-items: center; justify-content: center; padding: 0 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis`)}>{b.label}</div>
-            </React.Fragment>))}
+            <div style={S(`display: flex; flex-direction: ${n.pillDir}; gap: 8px; padding: ${n.pillPad}`)}>
+              {(n.pills || []).map((b, _ib) => (<React.Fragment key={_ib}>
+                <div style={S(`flex: ${b.flex}; height: 32px; border-radius: 16px; background: ${b.bg}; color: ${b.fg}; font-size: 12.5px; font-weight: 500; display: flex; align-items: center; justify-content: center; padding: 0 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0`)}>{b.label}</div>
+              </React.Fragment>))}
+            </div>
             {(n.isLoop) && (<>
-              <div style={S('position: absolute; left: 14px; right: 14px; top: 64px; bottom: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; align-content: center; justify-content: center')}>
-                {(n.inner || []).map((c, _ic) => (<React.Fragment key={_ic}>
-                  <span style={S('font-size: 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 10px; white-space: nowrap; box-shadow: 0 1px 2px rgba(0,0,0,.04)')}>{c}</span>
-                </React.Fragment>))}
-                <button type="button" data-ui="1" className={Q('plus')} aria-label="Thêm bước vào vòng lặp" onClick={n.addInner}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14 M5 12h14"></path></svg></button>
-              </div>
+              {(n.loopEmpty) && (<>
+                <button type="button" data-ui="1" className={Q('plus')} aria-label="Thêm bước vào vòng lặp" onClick={n.addInner} style={S('position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%)')}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14 M5 12h14"></path></svg></button>
+              </>)}
             </>)}
           </>)}
           {(n.hasIn) && (<>
-            <span style={S(`position: absolute; left: -5px; top: ${n.inTop}px; width: 9px; height: 9px; box-sizing: border-box; border-radius: 999px; background: #0f172a`)}></span>
+            <span className={Q('port')} style={S(`left: ${n.inX}px; top: ${n.inYp}px`)}></span>
           </>)}
           {(n.outs || []).map((o, _io) => (<React.Fragment key={_io}>
-            {(o.free) && (<>
-              <button type="button" data-plus="1" className={Q(o.cls)} aria-label={o.aria} onClick={o.plus} style={S(`position: absolute; right: -12px; top: ${o.top}px`)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14 M5 12h14"></path></svg></button>
-            </>)}
-            {(o.linked) && (<>
-              <span style={S(`position: absolute; right: -5px; top: ${o.dotTop}px; width: 9px; height: 9px; border-radius: 999px; background: ${o.dot}`)}></span>
-            </>)}
+            <span className={Q('port')} style={S(`left: ${o.dx}px; top: ${o.dy}px; background: ${o.dot}`)}></span>
+            <button type="button" data-ui="1" className={Q(o.cls)} aria-label={o.aria} onMouseDown={o.down} onClick={o.plus} style={S(`left: ${o.px}px; top: ${o.py}px`)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14 M5 12h14"></path></svg></button>
           </React.Fragment>))}
+          {(n.canDel) && (<>
+            <div className={Q('qn-tools')} data-ui="1" style={S('position: absolute; right: -10px; top: -12px; display: flex; gap: 4px')}>
+              {(n.canRun) && (<><button type="button" className={Q('qn-run')} aria-label={n.runAria} title="Chạy bước này" onClick={n.run}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"></path></svg></button></>)}
+              <button type="button" className={Q('qn-del')} aria-label={n.delAria} title="Xoá bước" onClick={n.del}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16 M9 7V4h6v3 M6 7l1 13h10l1-13"></path></svg></button>
+            </div>
+          </>)}
         </div>
       </React.Fragment>))}
     </div>
 
-    {/* Bảng Thêm bước bên trái */}
+    {/* Bảng Thêm bước */}
     {(palOpen) && (<>
-      <div data-ui="1" style={S('position: absolute; left: 12px; top: 12px; width: 196px; background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; box-shadow: 0 4px 14px rgba(15,23,42,.08); padding: 8px; z-index: 6')}>
-        <div style={S('display: flex; align-items: center; padding: 2px 4px 6px')}><b style={S('flex: 1; font-size: 12.5px; font-weight: 600')}>Thêm bước</b><button type="button" className={Q('ghost')} aria-label="Thu gọn bảng thêm bước" onClick={togglePal} style={S('width: 24px; height: 24px; border-radius: 6px')}>«</button></div>
+      <div data-ui="1" style={S('position: absolute; left: 16px; top: 16px; width: 168px; background: #fff; border: 1px solid #e6e6e9; border-radius: 12px; box-shadow: 0 4px 16px rgba(15,23,42,.08); padding: 8px; z-index: 6')}>
+        <div style={S('display: flex; align-items: center; padding: 4px 6px 8px')}><b style={S('flex: 1; font-size: 13px; font-weight: 600')}>Thêm bước</b><button type="button" className={Q('ghost')} aria-label="Thu gọn bảng thêm bước" title="Thu gọn" onClick={togglePal} style={S('width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center')}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h16v16H4z M9 4v16"></path></svg></button></div>
         {(palItems || []).map((it, _iit) => (<React.Fragment key={_iit}>
           <button type="button" className={Q('pal')} onClick={it.pick} title={it.desc}>
-            <span style={S(`width: 22px; height: 22px; border-radius: 6px; background: ${it.tileBg}; color: ${it.tile}; display: flex; align-items: center; justify-content: center; flex-shrink: 0`)}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={it.icon}></path></svg></span>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={it.tile} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={S('flex-shrink: 0')}><path d={it.icon}></path></svg>
             <span style={S('flex: 1')}>{it.name}</span>
-            {(it.more) && (<><span style={S('color: #94a3b8')}>›</span></>)}
           </button>
         </React.Fragment>))}
-        <p style={S('font-size: 11px; color: #64748b; margin: 6px 4px 2px; line-height: 1.45')}>{palHint}</p>
       </div>
     </>)}
     {(palClosed) && (<>
-      <button type="button" data-ui="1" className={Q('btn')} onClick={togglePal} style={S('position: absolute; left: 12px; top: 12px; z-index: 6; height: 32px; font-size: 12.5px')}>+ Thêm bước</button>
+      <button type="button" data-ui="1" className={Q('btn')} onClick={togglePal} style={S('position: absolute; left: 16px; top: 16px; z-index: 6; height: 34px; font-size: 13px')}>+ Thêm bước</button>
     </>)}
 
-    <div data-ui="1" style={S('position: absolute; left: 12px; bottom: 12px; display: flex; align-items: center; gap: 2px; background: #fff; border: 1px solid #e5e5e5; border-radius: 10px; padding: 3px; box-shadow: 0 1px 3px rgba(0,0,0,.08)')}>
-      <button type="button" className={Q('tbtn')} aria-label="Thu nhỏ" onClick={zoomOut} style={S('width: 30px; height: 30px')}>−</button>
-      <span style={S('font-size: 12px; width: 40px; text-align: center; color: #475569')}>{zoomPct}%</span>
-      <button type="button" className={Q('tbtn')} aria-label="Phóng to" onClick={zoomIn} style={S('width: 30px; height: 30px')}>+</button>
+    <div data-ui="1" style={S('position: absolute; left: 16px; bottom: 16px; display: flex; align-items: center; gap: 2px; background: #fff; border: 1px solid #e6e6e9; border-radius: 10px; padding: 3px; box-shadow: 0 2px 8px rgba(15,23,42,.06); z-index: 6')}>
+      <button type="button" className={Q('tbtn')} aria-label="Phóng to" title="Phóng to" onClick={zoomIn} style={S('width: 30px; height: 30px')}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M21 21l-4.3-4.3 M11 8v6 M8 11h6"></path></svg></button>
+      <button type="button" className={Q('tbtn')} aria-label="Thu nhỏ" title="Thu nhỏ" onClick={zoomOut} style={S('width: 30px; height: 30px')}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M21 21l-4.3-4.3 M8 11h6"></path></svg></button>
       <button type="button" className={Q('tbtn')} aria-label="Vừa khung" title="Vừa khung" onClick={fit} style={S('width: 30px; height: 30px')}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 9V4h5 M20 9V4h-5 M4 15v5h5 M20 15v5h-5"></path></svg></button>
-      <button type="button" className={Q('tbtn')} aria-label="Tự sắp xếp" title="Tự sắp xếp" onClick={autoLayout} style={S('width: 30px; height: 30px')}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 4h6v6H3z M15 4h6v6h-6z M15 14h6v6h-6z M9 7h6 M12 7v10h3"></path></svg></button>
+      <button type="button" className={Q('tbtn')} aria-label="Sắp xếp gọn" title="Sắp xếp gọn" onClick={autoLayout} style={S('width: 30px; height: 30px')}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 4l6 6 M17 7L8 16 M3 21l5-5 M6 13l5 5"></path></svg></button>
+      <button type="button" className={Q('tbtn')} aria-label={dirLabel} title={dirLabel} onClick={toggleDir} style={S('width: 30px; height: 30px')}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={dirIcon}></path></svg></button>
+      <span style={S('font-size: 11.5px; color: #6b7280; padding: 0 6px 0 2px')}>{zoomPct}%</span>
     </div>
 
     {(aiBanner) && (<>
-      <div data-ui="1" role="status" style={S('position: absolute; left: 50%; top: 14px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; background: #f3f5fe; border: 1px solid #c7d2fe; border-radius: 10px; padding: 7px 8px 7px 12px; font-size: 12.5px; color: #1e3a8a; max-width: 560px; z-index: 5')}>
+      <div data-ui="1" role="status" style={S('position: absolute; left: 50%; top: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; background: #f3f5fe; border: 1px solid #c7d2fe; border-radius: 10px; padding: 7px 8px 7px 12px; font-size: 12.5px; color: #1e3a8a; max-width: 520px; z-index: 5')}>
         <span>AI dựng {draftSteps} bước từ mô tả của bạn. Bấm Kiểm tra để xem chỗ còn thiếu.</span>
         <button type="button" className={Q('ghost')} onClick={dismissBanner} style={S('height: 28px; padding: 0 8px; border-radius: 6px; font-size: 12px; color: #1e3a8a; font-weight: 500')}>Đã hiểu</button>
       </div>
     </>)}
     {(runLocked) && (<>
-      <div data-ui="1" style={S('position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); background: #0f172a; color: #fff; font-size: 12px; border-radius: 999px; padding: 6px 12px; z-index: 5')}>{runBar}</div>
+      <div data-ui="1" style={S('position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); background: #0f172a; color: #fff; font-size: 12px; border-radius: 999px; padding: 6px 12px; z-index: 5')}>{runBar}</div>
     </>)}
 
-    {/* Hộp thoại Thêm bước */}
+    {/* Menu chuột phải */}
+    {(ctxOpen) && (<>
+      <div data-ui="1" role="menu" style={S(`position: absolute; left: ${ctxX}px; top: ${ctxY}px; width: 180px; background: #fff; border: 1px solid #e6e6e9; border-radius: 10px; box-shadow: 0 10px 24px rgba(15,23,42,.14); padding: 4px; z-index: 30`)}>
+        {(ctxItems || []).map((m, _im) => (<React.Fragment key={_im}>
+          <button type="button" role="menuitem" className={Q('cmi')} onClick={m.pick} disabled={m.off} style={S(`color: ${m.fg}`)}><span style={S('flex: 1')}>{m.label}</span></button>
+        </React.Fragment>))}
+      </div>
+    </>)}
+
+{/* Hộp thoại Thêm bước */}
     {(addOpen) && (<>
       <div data-ui="1" onMouseDown={closeAdd} style={S('position: absolute; inset: 0; z-index: 20; background: rgba(15,23,42,.18)')}></div>
       <div data-ui="1" role="dialog" aria-label="Thêm bước" style={S('position: absolute; left: 50%; top: 40px; transform: translateX(-50%); width: 620px; max-width: calc(100% - 32px); max-height: calc(100% - 80px); display: flex; flex-direction: column; background: #fff; border-radius: 14px; box-shadow: 0 24px 60px rgba(15,23,42,.25); z-index: 21; overflow: hidden')}>
@@ -1213,21 +1397,15 @@ class ProcessBuilderInner extends React.Component<any, any> {
         </div>
       </div>
     </>)}
-  </div>
+  
 
-  {/* PANEL PHẢI */}
-  <aside style={S('width: 380px; flex-shrink: 0; border-left: 1px solid #e5e5e5; overflow-y: auto; background: #fff')}>
-    <div style={S('position: sticky; top: 0; z-index: 2; background: #fff; display: flex; align-items: center; gap: 2px; padding: 6px 8px; border-bottom: 1px solid #f1f5f9')}>
-      {(panelTabs || []).map((t, _it) => (<React.Fragment key={_it}>
-        <button type="button" role="tab" aria-selected={t.on} onClick={t.pick} style={S(`height: 26px; padding: 0 9px; border: 0; border-radius: 6px; font-size: 12px; font-weight: 500; background: ${t.bg}; color: ${t.fg}`)}>{t.label}</button>
-      </React.Fragment>))}
-      <span style={S('flex: 1')}></span>
-      {(panelCanClose) && (<><button type="button" className={Q('ghost')} aria-label="Đóng" onClick={panelClose} style={S('width: 26px; height: 26px; border-radius: 6px')}>✕</button></>)}
-    </div>
-
+    {/* Panel nổi bên phải */}
+    {(panelOpen) && (<>
+      <aside data-ui="1" style={S(`position: absolute; right: 16px; top: 16px; bottom: 16px; width: ${panelW}px; max-width: calc(100% - 220px); background: #fff; border: 1px solid #e6e6e9; border-radius: 14px; box-shadow: 0 8px 28px rgba(15,23,42,.10); overflow-y: auto; z-index: 8`)}>
     {(pmRun) && (<>
       <div style={S('padding: 14px 16px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 8px')}>
         <h2 style={S('margin: 0; font-size: 15px; font-weight: 600; flex: 1')}>Chạy thử <span style={S(`font-weight: 400; color: ${runStatusColor}`)}>· {runStatusText}</span></h2>
+        <button type="button" className={Q('ghost')} aria-label="Đóng" title="Đóng" onClick={panelClose} style={S('width: 28px; height: 28px; border-radius: 6px')}>✕</button>
       </div>
       <div role="tablist" style={S('display: flex; gap: 4px; padding: 8px 12px 0')}>
         {(runTabs || []).map((t, _it) => (<React.Fragment key={_it}>
@@ -1287,6 +1465,8 @@ class ProcessBuilderInner extends React.Component<any, any> {
           <span style={S(`width: 28px; height: 28px; border-radius: 7px; background: ${sel.tileBg}; color: ${sel.tile}; display: flex; align-items: center; justify-content: center; flex-shrink: 0`)}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={sel.icon}></path></svg></span>
           <label className={Q('sr')} htmlFor="ntitle">Tên bước</label>
           <input id="ntitle" value={sel.title} onChange={onTitle} style={S('flex: 1; min-width: 0; border: 1px solid transparent; border-radius: 6px; font: inherit; font-size: 15px; font-weight: 600; padding: 3px 6px; background: transparent')} />
+          <button type="button" className={Q('ghost')} aria-label={expandLabel} title={expandLabel} onClick={toggleExpand} style={S('width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center')}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 3h6v6 M9 21H3v-6 M21 3l-7 7 M3 21l7-7"></path></svg></button>
+          <button type="button" className={Q('ghost')} aria-label="Đóng" title="Đóng" onClick={panelClose} style={S('width: 28px; height: 28px; border-radius: 6px')}>✕</button>
         </div>
         {(sel.hasTabs) && (<>
           <div role="tablist" style={S('display: flex; gap: 4px; margin-top: 10px')}>
@@ -1412,8 +1592,8 @@ class ProcessBuilderInner extends React.Component<any, any> {
 
     {(pmProcess) && (<>
       <div style={S('padding: 18px')}>
-        <h2 style={S('margin: 0; font-size: 15px; font-weight: 600')}>Cài đặt Quy trình</h2>
-        <p style={S('margin: 4px 0 0; font-size: 12.5px; color: #475569')}>Chọn một bước trên canvas để cấu hình bước đó.</p>
+        <div style={S('display: flex; align-items: center')}><h2 style={S('margin: 0; font-size: 15px; font-weight: 600; flex: 1')}>Cài đặt Quy trình</h2><button type="button" className={Q('ghost')} aria-label="Đóng" title="Đóng" onClick={panelClose} style={S('width: 28px; height: 28px; border-radius: 6px')}>✕</button></div>
+        <p style={S('margin: 4px 0 0; font-size: 12.5px; color: #475569')}>Áp dụng cho mọi bước trong Quy trình này.</p>
         <div style={S('margin-top: 14px; border: 1px solid #e5e5e5; border-radius: 10px; padding: 12px')}>
           <div style={S('display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600')}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>Guardrails cho mọi bước</div>
           <div style={S('font-size: 11px; font-weight: 600; letter-spacing: .04em; color: #475569; margin-top: 10px')}>NỘI DUNG <span style={S('font-weight: 400; letter-spacing: 0; color: #64748b')}>· {aiCount} bước AI</span></div>
@@ -1429,7 +1609,9 @@ class ProcessBuilderInner extends React.Component<any, any> {
       </div>
     </>)}
 
-  </aside>
+      </aside>
+    </>)}
+  </div>
 </div>
 </>)}
 
