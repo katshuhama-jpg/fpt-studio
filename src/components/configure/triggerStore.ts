@@ -280,6 +280,38 @@ function seedProcurementTrigger() {
   persist();
 }
 
+/** Fixed id for "claim-ocr-agent"'s seeded webhook trigger - referenced by the Workforce demo
+ * "wf-mbl-claim" (built from the wiki page "Logic xử lý bồi thường cho sản phẩm BHNT - Hỗ trợ
+ * viện phí/phẫu thuật"): hồ sơ bồi thường được đẩy sang từ hệ thống Adjust/intake, not typed in chat. */
+export const MBL_CLAIM_TRIGGER_ID = "mbl-claim-webhook";
+
+function seedMblClaimTrigger() {
+  if (seededAgents.has("claim-ocr-agent")) return;
+  seededAgents.add("claim-ocr-agent");
+  saveSet(SEEDED_KEY, seededAgents);
+  const now = Date.now();
+  const rec: TriggerRecord = {
+    id: MBL_CLAIM_TRIGGER_ID,
+    agentId: "claim-ocr-agent",
+    name: "Nhận hồ sơ bồi thường từ Adjust",
+    type: "developer",
+    enabled: true,
+    description: "Hệ thống tiếp nhận của MB Life gửi file hồ sơ (PDF/ảnh) và số hợp đồng - Bắt đầu Workforce này.",
+    config: {
+      developer: {
+        webhookUrl: "https://agents.fpt.ai/console/api/webhooks/triggers/01M0MBLCLAIMWEBHOOK000000",
+        authentication: "bearer",
+        credentialId: "cred-mbl-claim-seed",
+      },
+    },
+    lastFiredAt: now - 20 * 60_000,
+    createdAt: now - 86_400_000 * 2,
+    updatedAt: now - 86_400_000 * 2,
+  };
+  store.set(k("claim-ocr-agent", rec.id), rec);
+  persist();
+}
+
 function seedCskhWebhookTrigger() {
   if (seededAgents.has("cskh")) return;
   seededAgents.add("cskh");
@@ -311,6 +343,7 @@ function seedAgent(agentId: string) {
   if (agentId === "cskh") { seedCskhWebhookTrigger(); return; }
   if (agentId === "sales-quote") { seedSalesQuoteTrigger(); return; }
   if (agentId === "procurement-agent") { seedProcurementTrigger(); return; }
+  if (agentId === "claim-ocr-agent") { seedMblClaimTrigger(); return; }
   if (seededAgents.has(agentId)) return;
   seededAgents.add(agentId);
   saveSet(SEEDED_KEY, seededAgents);

@@ -44,6 +44,7 @@ const PROCESS_SUGGESTIONS = [
 
 /** Nhân sự số Quy trình demo (prototype - chưa có store riêng). */
 const PROCESS_AGENTS = [
+  { id: "procure", name: "Đề nghị mua sắm FHO-FPD", desc: "Dựng từ wiki Agentic BPM: duyệt nhiều cấp, tạo PO trên Odoo, nhận hàng, đối chiếu 3 chiều, thanh toán.", meta: "21 bước · Nhân sự số gọi", updated: "Cập nhật vừa xong" },
   { id: "invoice", name: "Đối chiếu hoá đơn với PO", desc: "Nhận hoá đơn qua HTTP, so khớp với PO trên ERP, lệch thì chuyển kế toán xem lại.", meta: "10 bước · HTTP", updated: "Cập nhật 1 giờ trước" },
 ];
 

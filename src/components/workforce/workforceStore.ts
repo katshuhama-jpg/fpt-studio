@@ -1,6 +1,6 @@
 import type { Workforce, WorkforceNode, WorkforceEdge } from "./types";
 import { ROUTE_ARROW } from "./graphOps";
-import { CSKH_WEBHOOK_TRIGGER_ID, SALES_QUOTE_TRIGGER_ID, PROCUREMENT_TRIGGER_ID } from "../configure/triggerStore";
+import { CSKH_WEBHOOK_TRIGGER_ID, SALES_QUOTE_TRIGGER_ID, PROCUREMENT_TRIGGER_ID, MBL_CLAIM_TRIGGER_ID } from "../configure/triggerStore";
 
 const HOUR = 3_600_000;
 
@@ -249,6 +249,113 @@ function seedWorkforces(): Workforce[] {
     ],
   };
 
+  // Built from the wiki "Logic xử lý bồi thường cho sản phẩm BHNT - Hỗ trợ viện phí/phẫu thuật"
+  // (MB Life, pageId 119517464) using ONLY the node kinds this canvas already has - no new node.
+  // S1 OCR -> S2 claim type -> S3 chứng từ -> S4 rule -> S5 dự toán -> S6 summary -> TĐV.
+  // Gaps found while building are written on-canvas as Note nodes (see the reply to Tyler).
+  const mblClaim: Workforce = {
+    id: "wf-mbl-claim",
+    name: "Thẩm định bồi thường viện phí/phẫu thuật - MB Life",
+    status: "draft",
+    createdAt: Date.now() - 2 * HOUR,
+    updatedAt: Date.now() - 5 * 60_000,
+    updatedBy: "Tran Nam",
+    nodes: [
+      { id: "trigger-mbl", type: "trigger", position: { x: -260, y: 160 }, data: { kind: "trigger", triggerId: MBL_CLAIM_TRIGGER_ID } },
+      { id: "s1-ocr", type: "agent", position: { x: 60, y: 160 }, data: { kind: "agent", agentId: "claim-ocr-agent", keepContext: true } },
+      { id: "c-ocr-ok", type: "condition", position: { x: 380, y: 60 }, data: {
+        kind: "condition", type: "llm", ruleMatch: "all", rules: [], approval: null,
+        llmText: "Đã phân loại đủ trang và các trường bắt buộc (ngày vào/ra, ICD, số ngày giường) có độ tin cậy đạt ngưỡng.",
+      } },
+      { id: "c-ocr-low", type: "condition", position: { x: 380, y: 300 }, data: {
+        kind: "condition", type: "llm", ruleMatch: "all", rules: [], approval: null,
+        llmText: "Có trang không phân loại được hoặc trường bắt buộc có độ tin cậy thấp.",
+      } },
+      { id: "p-verify", type: "person", position: { x: 660, y: 300 }, data: {
+        kind: "person", memberId: "m-plat-3", taskKind: "do", slaMinutes: 120, escalation: { memberId: "m-plat-2" },
+      } },
+      { id: "c-verified", type: "condition", position: { x: 800, y: 460 }, data: {
+        kind: "condition", type: "llm", ruleMatch: "all", rules: [], approval: null,
+        llmText: "Nhân viên nhập liệu đã sửa trường sai và gán lại loại trang.",
+      } },
+      { id: "s2-type", type: "agent", position: { x: 940, y: 160 }, data: { kind: "agent", agentId: "claim-type-agent", keepContext: true } },
+      { id: "c-type", type: "condition", position: { x: 1220, y: 160 }, data: {
+        kind: "condition", type: "llm", ruleMatch: "all", rules: [], approval: null,
+        llmText: "Đã ra 1 trong 8 mã claim type (IP, IP-Sur, IP-ICU, IP-ICU-Sur, IP-CI-Sur, IP-CI, IP-AD, IP-AD-Sur).",
+      } },
+      { id: "s3-docs", type: "agent", position: { x: 1500, y: 160 }, data: { kind: "agent", agentId: "claim-docs-agent", keepContext: true } },
+      { id: "c-docs-full", type: "condition", position: { x: 1780, y: 60 }, data: {
+        kind: "condition", type: "llm", ruleMatch: "all", rules: [], approval: null,
+        llmText: "Mọi chứng từ bắt buộc theo claim type đều Received.",
+      } },
+      { id: "c-docs-missing", type: "condition", position: { x: 1780, y: 300 }, data: {
+        kind: "condition", type: "llm", ruleMatch: "all", rules: [], approval: null,
+        llmText: "Có chứng từ bắt buộc Not received - báo bộ phận tiếp nhận yêu cầu bổ sung, vẫn chạy tiếp để TĐV thấy đủ bức tranh.",
+      } },
+      { id: "p-request-docs", type: "person", position: { x: 2060, y: 300 }, data: {
+        kind: "person", memberId: "m-plat-4", taskKind: "do", slaMinutes: 1440, escalation: null,
+      } },
+      { id: "c-requested", type: "condition", position: { x: 2200, y: 460 }, data: {
+        kind: "condition", type: "llm", ruleMatch: "all", rules: [], approval: null,
+        llmText: "Đã gửi yêu cầu bổ sung chứng từ cho khách.",
+      } },
+      { id: "s4-rules", type: "agent", position: { x: 2340, y: 160 }, data: { kind: "agent", agentId: "claim-rules-agent", keepContext: true } },
+      { id: "c-rules", type: "condition", position: { x: 2620, y: 160 }, data: {
+        kind: "condition", type: "llm", ruleMatch: "all", rules: [], approval: null,
+        llmText: "Đã có kết quả PASS / WARN / NOT_EVALUATED cho toàn bộ rule MVP.",
+      } },
+      { id: "s5-estimate", type: "agent", position: { x: 2900, y: 160 }, data: { kind: "agent", agentId: "claim-estimate-agent", keepContext: true } },
+      { id: "c-estimate", type: "condition", position: { x: 3180, y: 160 }, data: {
+        kind: "condition", type: "llm", ruleMatch: "all", rules: [], approval: null,
+        llmText: "Đã tính xong dự toán từng quyền lợi và tổng sau hạn mức.",
+      } },
+      { id: "s6-summary", type: "agent", position: { x: 3460, y: 160 }, data: { kind: "agent", agentId: "claim-summary-agent", keepContext: true } },
+      { id: "c-tdv", type: "condition", position: { x: 3740, y: 160 }, data: {
+        kind: "condition", type: "llm", ruleMatch: "all", rules: [],
+        llmText: "Thẩm định viên xem claim type, chứng từ, kết quả rule, dự toán và AI Summary rồi ra quyết định cuối. Agent không tự từ chối hồ sơ.",
+        approval: { mode: "required", assigneeId: "m-plat-2" },
+      } },
+      { id: "p-result", type: "person", position: { x: 4020, y: 160 }, data: {
+        kind: "person", memberId: "m-plat-4", taskKind: "notify", slaMinutes: null, escalation: null,
+      } },
+
+      { id: "t-policy", type: "tool", position: { x: 2340, y: 660 }, data: { kind: "tool", ref: { source: "builtin", id: "mbl-policy" } } },
+      { id: "t-history", type: "tool", position: { x: 2620, y: 660 }, data: { kind: "tool", ref: { source: "builtin", id: "mbl-claim-history" } } },
+      { id: "t-ref", type: "tool", position: { x: 2900, y: 660 }, data: { kind: "tool", ref: { source: "builtin", id: "ref-lookup" } } },
+      { id: "t-fraud", type: "tool", position: { x: 3180, y: 660 }, data: { kind: "tool", ref: { source: "builtin", id: "vision-fraud" } } },
+
+      { id: "note-mbl-rules", type: "note", position: { x: 1220, y: 460 }, data: {
+        kind: "note", text: "Thiếu node: 37 rule (D/E/A) và công thức dự toán đang giao cho Agent LLM vì canvas chưa có bước Code/Rule chạy tất định. Wiki yêu cầu ngược lại: không dùng LLM để tính ngày, tiền, đếm claim. Kết quả PASS/WARN/NOT_EVALUATED cũng chỉ nằm trong câu trả lời của agent, Condition không đọc được từng rule.",
+      }, style: { width: 300, height: 190 } },
+      { id: "note-mbl-flow", type: "note", position: { x: 3460, y: 460 }, data: {
+        kind: "note", text: "Mô phỏng: S6 Summary đáng lẽ chạy song song với S2-S5 nhưng canvas chỉ có rẽ nhánh loại trừ, nên xếp tuần tự. Các bước nối nhau qua Condition dạng \"đã xong\" chỉ để thoả invariant Nguồn -> Condition -> Đích. Bộ tham số theo khách/sản phẩm (X, hạn mức, danh mục) chưa có chỗ cấu hình riêng.",
+      }, style: { width: 300, height: 190 } },
+    ],
+    edges: [
+      { id: "e-trigger-mbl", source: "trigger-mbl", target: "s1-ocr", type: "deletable", markerEnd: ROUTE_ARROW },
+      edge("e-s1-cok", "s1-ocr", "c-ocr-ok", "c-ocr-ok"),
+      edge("e-cok-s2", "c-ocr-ok", "s2-type", "c-ocr-ok"),
+      edge("e-s1-clow", "s1-ocr", "c-ocr-low", "c-ocr-low"),
+      edge("e-clow-verify", "c-ocr-low", "p-verify", "c-ocr-low"),
+      edge("e-verify-cv", "p-verify", "c-verified", "c-verified"),
+      edge("e-cv-s2", "c-verified", "s2-type", "c-verified"),
+      edge("e-s2-ctype", "s2-type", "c-type", "c-type"),
+      edge("e-ctype-s3", "c-type", "s3-docs", "c-type"),
+      edge("e-s3-cfull", "s3-docs", "c-docs-full", "c-docs-full"),
+      edge("e-cfull-s4", "c-docs-full", "s4-rules", "c-docs-full"),
+      edge("e-s3-cmiss", "s3-docs", "c-docs-missing", "c-docs-missing"),
+      edge("e-cmiss-req", "c-docs-missing", "p-request-docs", "c-docs-missing"),
+      edge("e-req-cr", "p-request-docs", "c-requested", "c-requested"),
+      edge("e-cr-s4", "c-requested", "s4-rules", "c-requested"),
+      edge("e-s4-crules", "s4-rules", "c-rules", "c-rules"),
+      edge("e-crules-s5", "c-rules", "s5-estimate", "c-rules"),
+      edge("e-s5-cest", "s5-estimate", "c-estimate", "c-estimate"),
+      edge("e-cest-s6", "c-estimate", "s6-summary", "c-estimate"),
+      edge("e-s6-ctdv", "s6-summary", "c-tdv", "c-tdv"),
+      edge("e-ctdv-result", "c-tdv", "p-result", "c-tdv"),
+    ],
+  };
+
   const draft: Workforce = {
     id: "wf-faq-escalation",
     name: "FAQ escalation sang Omni",
@@ -281,7 +388,7 @@ function seedWorkforces(): Workforce[] {
     edges: [],
   };
 
-  return [published, salesQuoteAcme, procurementRequest, draft, empty];
+  return [published, salesQuoteAcme, procurementRequest, mblClaim, draft, empty];
 }
 
 const store = new Map<string, Workforce>();

@@ -149,6 +149,7 @@ function fnOf(c) { return FUNCS.filter(function (f) { return f.id === c.fn; })[0
 var TOOLS = [
   { name: 'SAP ERP · Tạo đơn mua hàng', desc: 'Tạo PO từ nhà cung cấp, số tiền', out: ['ma_po'] },
   { name: 'SAP ERP · Ghi nhận công nợ', desc: 'Ghi công nợ phải trả theo hoá đơn', out: ['ma_but_toan'] },
+  { name: 'Odoo · Tạo đơn mua hàng (PO)', desc: 'Tạo PO trên Odoo của FHO từ hồ sơ đã duyệt', out: ['ma_po'] },
   { name: 'Gmail · Gửi email', desc: 'Gửi email từ hộp thư đã kết nối', out: ['ma_thu'] },
   { name: 'SharePoint · Lấy tệp', desc: 'Đọc tệp trong thư viện tài liệu', out: ['tep'] },
   { name: 'DataSuite · Truy vấn bảng', desc: 'Lấy dữ liệu từ bảng đã kết nối', out: ['ket_qua'] }
@@ -356,6 +357,7 @@ function layoutFlow(f) {
 
 var SUGGEST = [
   { key: 'buy', label: 'Duyệt đề nghị mua sắm', name: 'Duyệt đề nghị mua sắm', text: 'Nhân sự số gửi đề nghị mua sắm kèm chứng từ. Trích xuất chứng từ, nếu vượt 50 triệu thì giám đốc duyệt, không thì tự duyệt. Duyệt xong tạo PO trên SAP ERP, từ chối thì soạn thư báo lại.' },
+  { key: 'procure', label: 'Mua sắm FHO-FPD', name: 'Đề nghị mua sắm FHO-FPD', text: 'Nhân sự số gửi đề nghị mua sắm của FHO. Chuẩn bị hồ sơ và 3 báo giá, Trưởng phòng duyệt, phần mềm/cloud qua IT bảo mật, trên 50 triệu thêm Kế toán và Giám đốc. Duyệt xong tạo PO trên Odoo, kho nhận hàng, đối chiếu 3 chiều rồi Kế toán thanh toán.' },
   { key: 'invoice', label: 'Đối chiếu hoá đơn với PO', name: 'Đối chiếu hoá đơn với PO', text: 'Khi hệ thống kế toán gửi hoá đơn VAT qua HTTP, trích xuất số tiền, lấy PO tương ứng từ ERP để so khớp. Khớp thì ghi nhận công nợ, lệch thì chuyển kế toán xem lại.' },
   { key: 'loan', label: 'Tiếp nhận hồ sơ vay', name: 'Tiếp nhận hồ sơ vay', text: 'Nhận hồ sơ vay gồm CCCD và sao kê lương. Trích xuất CCCD, phân loại sản phẩm vay, Nhân sự số chấm điều kiện theo chính sách tín dụng rồi chuyển chuyên viên thẩm định. Đạt thì tạo hồ sơ trên LOS.' }
 ];
@@ -395,6 +397,38 @@ function draftFlow(key) {
     ],
     edges: E([['n1', 0, 'n2'], ['n2', 0, 'n3'], ['n3', 0, 'n4'], ['n3', 1, 'n4'], ['n3', 2, 'n8'], ['n4', 0, 'n5'], ['n5', 0, 'n6'], ['n5', 1, 'n9'], ['n6', 0, 'n7'], ['n7', 0, 'n9'], ['n8', 0, 'n9']])
   };
+  else if (key === 'procure') f = {
+    nodes: [
+      N('n1', 'start', 'Bắt đầu', { trigger: 'agent', inputs: [I('yeu_cau', 'Văn bản', 'Hàng hoá, dịch vụ cần mua, số lượng'), I('nguoi_de_nghi', 'Email', 'Email công ty của người đề nghị'), I('phong_ban', 'Văn bản', 'Phòng ban đề nghị'), I('han_giao', 'Ngày', 'Ngày cần nhận hàng')] }),
+      N('n2', 'agent', 'Chuẩn bị hồ sơ mua sắm', { instructions: 'Từ {{yeu_cau}}: lấy 3 báo giá trong Danh mục nhà cung cấp, lập bảng so sánh, kiểm tra ngân sách còn lại của {{phong_ban}}. Trả về tong_tien (đồng), loai_hang (Phần mềm / Cloud / Phần cứng / Dịch vụ), bang_so_sanh, ngan_sach_con.', tools: 'DataSuite · Truy vấn bảng', kb: 'Danh mục nhà cung cấp', output: 'json', outVars: ['tong_tien', 'loai_hang', 'bang_so_sanh', 'ngan_sach_con'] }),
+      N('n3', 'human', 'Trưởng phòng duyệt', { assignee: 'Trưởng phòng của người đề nghị', title: 'Duyệt cấp 1 - đề nghị mua sắm', message: '{{nguoi_de_nghi}} đề nghị: {{yeu_cau}}. Tổng {{tong_tien}} đồng. So sánh báo giá: {{bang_so_sanh}}.', fields: [{ name: 'tp_duyet', desc: 'Duyệt / Từ chối' }, { name: 'tp_y_kien', desc: 'Ý kiến' }], timeout: '1' }),
+      N('n4', 'condition', 'Trưởng phòng đồng ý?', { cases: [C('Đồng ý', 'tp_duyet', 'Bằng', 'Duyệt')] }),
+      N('n5', 'condition', 'Tuyến duyệt', { cases: [{ name: 'Phần mềm hoặc cloud', logic: 'HOẶC', rows: [{ v: 'loai_hang', op: 'Bằng', val: 'Phần mềm' }, { v: 'loai_hang', op: 'Bằng', val: 'Cloud' }] }, C('Trên 50 triệu', 'tong_tien', 'Lớn hơn', '50000000')] }),
+      N('n6', 'human', 'IT bảo mật duyệt', { assignee: 'Nhóm IT bảo mật FHO', title: 'Duyệt bảo mật - phần mềm/cloud', message: 'Đề nghị {{yeu_cau}} thuộc loại {{loai_hang}}. Kiểm tra yêu cầu bảo mật trước khi mua.', fields: [{ name: 'it_duyet', desc: 'Duyệt / Từ chối' }, { name: 'it_y_kien', desc: 'Ý kiến' }], timeout: '1' }),
+      N('n7', 'condition', 'IT đồng ý?', { cases: [{ name: 'Đồng ý, trên 50 triệu', logic: 'VÀ', rows: [{ v: 'it_duyet', op: 'Bằng', val: 'Duyệt' }, { v: 'tong_tien', op: 'Lớn hơn', val: '50000000' }] }, C('Đồng ý', 'it_duyet', 'Bằng', 'Duyệt')] }),
+      N('n8', 'human', 'Kế toán duyệt', { assignee: 'Kế toán trưởng FHO', title: 'Duyệt cấp 2 - Kế toán', message: 'Đề nghị {{yeu_cau}}, {{tong_tien}} đồng. Ngân sách còn {{ngan_sach_con}}.', fields: [{ name: 'kt_duyet', desc: 'Duyệt / Từ chối' }, { name: 'kt_y_kien', desc: 'Ý kiến' }], timeout: '1' }),
+      N('n9', 'condition', 'Kế toán đồng ý?', { cases: [C('Đồng ý', 'kt_duyet', 'Bằng', 'Duyệt')] }),
+      N('n10', 'human', 'Giám đốc duyệt', { assignee: 'Giám đốc FHO', title: 'Duyệt cấp 2 - Giám đốc', message: 'Kế toán đã duyệt. Đề nghị {{yeu_cau}}, {{tong_tien}} đồng.', fields: [{ name: 'gd_duyet', desc: 'Duyệt / Từ chối' }, { name: 'gd_y_kien', desc: 'Ý kiến' }], timeout: '1' }),
+      N('n11', 'condition', 'Giám đốc đồng ý?', { cases: [C('Đồng ý', 'gd_duyet', 'Bằng', 'Duyệt')] }),
+      N('n12', 'tool', 'Tạo PO trên Odoo', { tool: 'Odoo · Tạo đơn mua hàng (PO)', acc: 'space', params: 'nha_cung_cap, yeu_cau, tong_tien, han_giao' }),
+      N('n13', 'human', 'Người mua sắm xác nhận PO', { assignee: 'Ban Mua sắm FHO-FPD', title: 'Xác nhận PO trước khi gửi', message: 'PO {{ma_po}} đã tạo. Kiểm tra lại trước khi gửi nhà cung cấp.', fields: [{ name: 'xac_nhan_po', desc: 'Gửi / Huỷ' }], timeout: '1' }),
+      N('n22', 'condition', 'Gửi PO?', { cases: [C('Gửi', 'xac_nhan_po', 'Bằng', 'Gửi')] }),
+      N('n14', 'tool', 'Gửi PO cho nhà cung cấp', { tool: 'Gmail · Gửi email', acc: 'space', params: 'PO {{ma_po}}' }),
+      N('n15', 'human', 'Kho xác nhận nhận hàng', { assignee: 'Thủ kho FHO', title: 'Xác nhận nhận hàng', message: 'Nhận hàng theo PO {{ma_po}}. Nhập số phiếu nhập kho và số hoá đơn.', fields: [{ name: 'da_nhan', desc: 'Đã nhận đủ / Thiếu hàng' }, { name: 'so_phieu_nhap', desc: 'Số phiếu nhập kho' }, { name: 'so_hoa_don', desc: 'Số hoá đơn' }], timeout: '7' }),
+      N('n16', 'agent', 'Đối chiếu 3 chiều', { instructions: 'So PO {{ma_po}}, phiếu nhập {{so_phieu_nhap}} và hoá đơn {{so_hoa_don}}: số lượng, đơn giá, tổng tiền. Trả về khop (true/false) và ly_do.', tools: 'DataSuite · Truy vấn bảng', output: 'json', outVars: ['khop', 'ly_do'] }),
+      N('n17', 'condition', 'Khớp 3 chiều?', { cases: [C('Khớp', 'khop', 'Bằng', 'true')] }),
+      N('n18', 'human', 'Kế toán thanh toán', { assignee: 'Kế toán công nợ FHO', title: 'Thanh toán và đóng hồ sơ', message: 'Đối chiếu 3 chiều khớp. Thực hiện thanh toán và đóng hồ sơ.', fields: [{ name: 'da_thanh_toan', desc: 'Đã thanh toán / Tạm hoãn' }], timeout: '3' }),
+      N('n19', 'human', 'Mua sắm xử lý chênh lệch', { assignee: 'Ban Mua sắm FHO-FPD', title: 'Lệch PO - phiếu nhập - hoá đơn', message: 'PO {{ma_po}} lệch: {{ly_do}}.', fields: [{ name: 'xu_ly', desc: 'Đã xử lý / Huỷ PO' }], timeout: '3' }),
+      N('n20', 'respond', 'Trả kết quả cho Nhân sự số', { outs: [{ name: 'ma_po', desc: '{{ma_po}}' }, { name: 'trang_thai', desc: 'Đã duyệt, bị từ chối hoặc đã thanh toán' }] }),
+      N('n21', 'note', 'Chỗ node hiện có chưa đáp ứng', { text: 'Bảng quyết định Tuyến duyệt (DMN) được thay bằng If/Else nên ngưỡng 50 triệu phải lặp lại ở bước IT. Kế toán và Giám đốc đang duyệt nối tiếp thay vì song song. Hết hạn duyệt chỉ chọn 1/3/7 ngày, không có SLA theo giờ, nhắc, leo thang hay ủy quyền. Chờ nhận hàng nhiều ngày phải dùng bước Người duyệt vì chưa có bước chờ sự kiện. Nhân sự số gọi Quy trình rồi chờ đến khi thanh toán xong.' })
+    ],
+    edges: E([['n1', 0, 'n2'], ['n2', 0, 'n3'], ['n3', 0, 'n4'], ['n4', 0, 'n5'], ['n4', 1, 'n20'],
+      ['n5', 0, 'n6'], ['n5', 1, 'n8'], ['n5', 2, 'n12'],
+      ['n6', 0, 'n7'], ['n7', 0, 'n8'], ['n7', 1, 'n12'], ['n7', 2, 'n20'],
+      ['n8', 0, 'n9'], ['n9', 0, 'n10'], ['n9', 1, 'n20'], ['n10', 0, 'n11'], ['n11', 0, 'n12'], ['n11', 1, 'n20'],
+      ['n12', 0, 'n13'], ['n13', 0, 'n22'], ['n22', 0, 'n14'], ['n22', 1, 'n20'], ['n14', 0, 'n15'], ['n15', 0, 'n16'], ['n16', 0, 'n17'],
+      ['n17', 0, 'n18'], ['n17', 1, 'n19'], ['n18', 0, 'n20'], ['n19', 0, 'n20']])
+  };
   else f = {
     nodes: [
       N('n1', 'start', 'Bắt đầu', { trigger: 'agent', inputs: [I('chung_tu', 'Tệp', 'Báo giá hoặc đề nghị đã ký'), I('nguoi_de_nghi', 'Email', 'Email công ty của người đề nghị'), I('so_tien', 'Số', 'Tổng tiền đề nghị, đơn vị đồng')] }),
@@ -410,8 +444,8 @@ function draftFlow(key) {
   };
   return layoutFlow(f);
 }
-function pickKey(text) { var t = norm(text); if (t.indexOf('hoa don') >= 0) return 'invoice'; if (t.indexOf('vay') >= 0 || t.indexOf('ho so') >= 0) return 'loan'; return 'buy'; }
-var MOCK = { nha_cung_cap: 'Công ty TNHH Phong Vũ', danh_muc: '20 laptop Dell Latitude', ma_so_thue: '0101234567', ngay_hd: '2026-10-18', so_cccd: '001090012345', ho_ten: 'Nguyễn Văn An', ngay_sinh: '1990-05-12', dat: 'true', ly_do: 'Thu nhập trung bình 32 triệu/tháng, đủ điều kiện', tra_loi: 'Đã xử lý xong', ma_po: 'PO-2026-0481', so_tien: '75000000', ma_but_toan: 'BT-77120', status: '200' };
+function pickKey(text) { var t = norm(text); if (t.indexOf('doi chieu 3 chieu') >= 0 || t.indexOf('fho') >= 0) return 'procure'; if (t.indexOf('hoa don') >= 0) return 'invoice'; if (t.indexOf('vay') >= 0 || t.indexOf('ho so') >= 0) return 'loan'; return 'buy'; }
+var MOCK = { yeu_cau: '20 license Microsoft 365 E3, 12 tháng', tong_tien: '120000000', loai_hang: 'Phần mềm', ngan_sach_con: '300000000', bang_so_sanh: 'FPT IS 120tr · CMC 128tr · Viettel 131tr', khop: 'true', so_phieu_nhap: 'PNK-1021', so_hoa_don: 'HD-55812', nha_cung_cap: 'Công ty TNHH Phong Vũ', danh_muc: '20 laptop Dell Latitude', ma_so_thue: '0101234567', ngay_hd: '2026-10-18', so_cccd: '001090012345', ho_ten: 'Nguyễn Văn An', ngay_sinh: '1990-05-12', dat: 'true', ly_do: 'Thu nhập trung bình 32 triệu/tháng, đủ điều kiện', tra_loi: 'Đã xử lý xong', ma_po: 'PO-2026-0481', so_tien: '75000000', ma_but_toan: 'BT-77120', status: '200' };
 function mockOf(k) { return MOCK[k] !== undefined ? MOCK[k] : 'Mẫu ' + k; }
 function sampleOf(f) { if (MOCK[f.name] !== undefined) return MOCK[f.name]; var m = { 'Số': '75000000', 'Ngày': '2026-10-20', 'Tệp': f.name + '.pdf', 'Có / Không': 'true', 'Email': 'lan.nt@fpt.com' }; return m[f.t] || 'Mẫu ' + f.name; }
 function msOf(type, seed) { var base = { agent: 2400, classify: 900, extract: 1300, tool: 540, func: 260, subflow: 1800 }; return (base[type] || 6) + (seed * 37) % (base[type] ? 400 : 9); }
@@ -720,6 +754,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     var allCards = [
       { k: 'chat', st: 'live', name: 'Trợ lý nội bộ công chức', ver: 'v1.0.0', updated: 'Cập nhật 6 ngày trước', desc: 'Tra cứu số liệu phường, văn bản và trả lời kiến nghị cử tri.', meta: 'DeepSeek V4 Flash', icon: ICON.bot, act: '214 hội thoại' },
       { k: 'chat', st: 'live', name: 'Hỗ trợ thủ tục hành chính', ver: 'v1.2.0', updated: 'Cập nhật 2 ngày trước', desc: 'Hướng dẫn hồ sơ, lệ phí và thời hạn giải quyết thủ tục.', meta: 'DeepSeek V4 Flash', icon: ICON.bot, act: '260 hội thoại' },
+      { k: 'process', st: 'draft', name: 'Đề nghị mua sắm FHO-FPD', ver: 'v0.1.0', updated: 'Cập nhật vừa xong', desc: 'Dựng từ wiki Agentic BPM: duyệt nhiều cấp, tạo PO trên Odoo, nhận hàng, đối chiếu 3 chiều, thanh toán.', meta: '21 bước · Nhân sự số gọi', icon: ICON.flow, tpl: 'procure', act: 'Chưa publish' },
       { k: 'process', st: 'draft', name: 'Đối chiếu hoá đơn với PO', ver: 'v0.1.0', updated: 'Cập nhật 1 giờ trước', desc: 'Nhận hoá đơn qua HTTP, so khớp với PO trên ERP, lệch thì chuyển kế toán xem lại.', meta: '10 bước · HTTP', icon: ICON.flow, tpl: 'invoice', act: 'Chưa publish' },
       { k: 'chat', st: 'live', name: 'Tư vấn khoản vay', ver: 'v0.3.0', updated: 'Cập nhật 3 ngày trước', desc: 'Tư vấn sản phẩm vay, hỏi nhu cầu và thu nhập của khách.', meta: 'DeepSeek V4 Flash', icon: ICON.bot, act: '0 hội thoại' }
     ];

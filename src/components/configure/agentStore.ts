@@ -250,6 +250,92 @@ You reconcile a purchase order against the goods receipt and the vendor invoice 
 - Do not accept a mismatched invoice silently - Always flag discrepancies for review`,
   },
   {
+    id: "claim-ocr-agent", name: "Doc Agent - Đọc hồ sơ bồi thường", emoji: "📄", bg: "bg-primary-soft", accent: "bg-gradient-brand",
+    status: "Published", desc: "Đọc file hồ sơ bồi thường MB Life (13 loại chứng từ): phân loại từng trang, lấy trường, dấu mộc, chữ ký, bảng kê và mã ICD kèm độ tin cậy.",
+    ownerId: "m-fsoft-ceo",
+    model: "FPT.AI LLM", convs: 0, success: 0, channels: ["Workspace"], updated: "Just now",
+    instructions: `# Doc Agent - Đọc hồ sơ bồi thường
+
+Tái sử dụng model Read của FPT.AI Vision, không build lại.
+
+## Đầu ra bắt buộc
+- Theo trang: doc_type (13 nhãn: giay_yeu_cau, hoadon, bangke, donthuoc, phieu_kham, phieu_chi_dinh, ket_qua_xet_nghiem, phieu_thu_bien_lai, tom_tat_benh_an, giayravien, chung_nhan_phau_thuat, bien_ban_tai_nan, giay_to_tuy_than), page_no, số trang in trên giấy
+- Theo trường: value, confidence, page, bbox
+- Cờ: dấu mộc (loại dấu), chữ ký, họ tên bác sĩ
+- Bảng: dòng chi tiết của bảng kê, dòng thuốc
+- Mã ICD đã chuẩn hoá`,
+  },
+  {
+    id: "claim-type-agent", name: "Agent Xác định loại claim", emoji: "🏷️", bg: "bg-primary-soft", accent: "bg-gradient-brand",
+    status: "Published", desc: "Bật 5 cờ (nằm viện, phẫu thuật, tai nạn, ICU, bệnh hiểm nghèo) từ giấy ra viện, bảng kê và mã ICD, rồi ra 1 trong 8 mã claim type (IP, IP-Sur, IP-ICU...).",
+    ownerId: "m-fsoft-ceo",
+    model: "DeepSeek V4 Flash", convs: 0, success: 0, channels: ["Workspace"], updated: "Just now",
+    instructions: `# Xác định loại claim (S2)
+
+## 5 dấu hiệu
+- inpatient: bảng kê có ngày giường nội trú, hoặc ngày ra khác ngày vào trên giấy ra viện
+- surgery: bảng kê có dòng phẫu thuật/thủ thuật, hoặc có giấy chứng nhận phẫu thuật
+- accident: mã ICD nhóm S
+- icu: bảng kê có giường hồi sức tích cực
+- critical_illness: ICD thuộc danh mục bệnh hiểm nghèo (MBL_Critical Illness group.xlsx)
+
+## 8 mã claim type
+IP, IP-Sur, IP-ICU, IP-ICU-Sur, IP-CI-Sur, IP-CI, IP-AD, IP-AD-Sur. Thứ tự ưu tiên khi nhiều cờ cùng bật: chưa chốt.`,
+  },
+  {
+    id: "claim-docs-agent", name: "Agent Kiểm tra đủ chứng từ", emoji: "🗂️", bg: "bg-primary-soft", accent: "bg-gradient-brand",
+    status: "Published", desc: "Đối chiếu danh sách doc_type đã đọc với ma trận chứng từ bắt buộc theo claim type, trả về chứng từ Received / Not received.",
+    ownerId: "m-fsoft-ceo",
+    model: "DeepSeek V4 Flash", convs: 0, success: 0, channels: ["Workspace"], updated: "Just now",
+    instructions: `# Kiểm tra đủ chứng từ (S3)
+
+Dùng ma trận claim type → chứng từ bắt buộc (GYC, BKCT, KQXN, BBTTTN, BCYTRV, GRV, GCNPT).
+Mỗi chứng từ bắt buộc trả trạng thái Received / Not received. Không tự từ chối hồ sơ.
+IP và IP-Sur không bắt buộc bảng kê: ghi chú để bước dự toán lấy số ngày từ giấy ra viện.`,
+  },
+  {
+    id: "claim-rules-agent", name: "Agent Rule thẩm định", emoji: "⚖️", bg: "bg-primary-soft", accent: "bg-gradient-brand",
+    status: "Published", desc: "Chạy bộ rule thẩm định (Docstream, Eligibility, Assessment) trên OCR, Policy, lịch sử bồi thường và bảng tham chiếu; mỗi rule trả PASS / WARN / NOT_EVALUATED kèm dẫn chứng.",
+    ownerId: "m-fsoft-ceo",
+    model: "DeepSeek V4 Flash", convs: 0, success: 0, channels: ["Workspace"], updated: "Just now",
+    instructions: `# Rule thẩm định (S4)
+
+MVP: D1-D9, E1, E2, E5-E9, A1-A3, A5, A14, A15.
+Hiển thị NOT_EVALUATED khi thiếu dữ liệu: E3, E4, E10-E13, A6-A12.
+
+## Đầu ra mỗi rule
+rule_id, rule_version, result (PASS | WARN | NOT_EVALUATED), reason, evidence [doc, trang, trường, giá trị], params_used.
+
+## Giới hạn
+Không tự từ chối hồ sơ. Không dùng LLM để tính ngày, tiền hay đếm claim.`,
+  },
+  {
+    id: "claim-estimate-agent", name: "Agent Dự toán chi phí", emoji: "🧮", bg: "bg-primary-soft", accent: "bg-gradient-brand",
+    status: "Published", desc: "Tính số tiền dự toán theo bảng quyền lợi HSCR 3.0: hỗ trợ viện phí theo ngày (1X/2X/3X), thay lời thăm hỏi, phẫu thuật cơ bản, giới hạn năm và trọn đời.",
+    ownerId: "m-fsoft-ceo",
+    model: "DeepSeek V4 Flash", convs: 0, success: 0, channels: ["Workspace"], updated: "Just now",
+    instructions: `# Dự toán chi phí (S5)
+
+days = số ngày giường trên bảng kê (thiếu thì lấy ngày ra - ngày vào trên giấy ra viện, gắn cờ)
+eligible = min(days, giới hạn theo nhóm bệnh, 150 - ngày đã dùng năm nay, 1000 - ngày đã dùng trọn đời)
+rate = 3X nếu bệnh hiểm nghèo, 2X nếu ICU, còn lại 1X
+5.1 = eligible * rate; 5.2 = min(X, 500.000) nếu days > 8; 6.1 = 10X nếu phẫu thuật và dưới 2 lần/năm
+total = min(tổng, 1000X - tổng đã trả trọn đời)
+
+Trả từng quyền lợi: số tiền, công thức, tham số, nguồn số ngày, hạn mức đã áp dụng.`,
+  },
+  {
+    id: "claim-summary-agent", name: "Agent Tổng hợp hồ sơ (AI Summary)", emoji: "🩺", bg: "bg-primary-soft", accent: "bg-gradient-brand",
+    status: "Published", desc: "Đọc toàn bộ giấy tờ y tế, trả lời 5 câu hỏi cho thẩm định viên (cùng bệnh nhân, chẩn đoán theo thời gian, bệnh nghiêm trọng, phẫu thuật, phẫu thuật có trong danh mục), mỗi ý trỏ tới loại giấy và trang.",
+    ownerId: "m-fsoft-ceo",
+    model: "DeepSeek V4 Flash", convs: 0, success: 0, channels: ["Workspace"], updated: "Just now",
+    instructions: `# AI Summary (S6)
+
+Trả lời Q1-Q5. Mỗi ý có doc_type, page và trích nguyên văn đoạn OCR; ý nào không có dẫn chứng thì không hiển thị.
+Cờ code ở S2 là nguồn quyết định. Nếu thấy bệnh hiểm nghèo / phẫu thuật mà cờ không bật (hoặc ngược lại), báo "lệch" cho thẩm định viên.
+Q5 dùng tra cứu trên Danh mục phẫu thuật, không tự nhớ danh mục.`,
+  },
+  {
     id: "ops", name: "IT Helpdesk", emoji: "🛠️", bg: "bg-accent-soft", accent: "bg-accent",
     status: "Published", desc: "Password reset, VPN setup and ticket triage for L1 support.",
     ownerId: "m-fsoft-vn-1",

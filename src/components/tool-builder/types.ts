@@ -234,6 +234,59 @@ export const builtinCatalog: BuiltinToolSet[] = [
       { name: "match_invoice", description: "Compare a vendor invoice against its purchase order and goods receipt.", inputSchema: { poId: "string", invoiceId: "string" }, outputSchema: { matched: "boolean", discrepancies: "array" } },
     ],
   },
+  {
+    setId: "mbl-policy",
+    name: "MB Life - Policy Info",
+    description: "Tra hợp đồng, người được bảo hiểm, ngày hiệu lực, NBU reason, phí đã đóng trên core MB Life.",
+    category: "Insurance",
+    pluginAvatar: "📑",
+    toolCount: 1,
+    requiresAuth: true,
+    authFields: { authName: true, apiKey: true, baseUrl: true },
+    tools: [
+      { name: "get_policy", description: "Get policy and insured info by policy number.", inputSchema: { policyNo: "string" }, outputSchema: { policy: "object" } },
+    ],
+  },
+  {
+    setId: "mbl-claim-history",
+    name: "MB Life - Lịch sử bồi thường",
+    description: "Lấy các claim trước của người được bảo hiểm: trạng thái, số tiền đã trả, cờ gian lận.",
+    category: "Insurance",
+    pluginAvatar: "🗃️",
+    toolCount: 1,
+    requiresAuth: true,
+    authFields: { authName: true, apiKey: true, baseUrl: true },
+    tools: [
+      { name: "list_claims", description: "List past claims of an insured person.", inputSchema: { insuredId: "string" }, outputSchema: { items: "array" } },
+    ],
+  },
+  {
+    setId: "ref-lookup",
+    name: "Bảng tham chiếu theo khách",
+    description: "Tra danh mục ICD nhóm bệnh, bệnh hiểm nghèo, loại trừ, blacklist bệnh viện / khách hàng / ICD; lưu theo tenant, có version.",
+    category: "Data",
+    pluginAvatar: "📚",
+    toolCount: 1,
+    requiresAuth: true,
+    authFields: { authName: true, apiKey: true, baseUrl: true },
+    tools: [
+      { name: "lookup", description: "Look up a value in a reference table.", inputSchema: { table: "string", key: "string" }, outputSchema: { match: "object" } },
+    ],
+  },
+  {
+    setId: "vision-fraud",
+    name: "FPT.AI Vision - Fraud models",
+    description: "Model so chân trang và mã vạch của giấy ra viện, đơn thuốc, bảng kê với DB tham chiếu để nghi trùng.",
+    category: "AI",
+    pluginAvatar: "🕵️",
+    toolCount: 2,
+    requiresAuth: true,
+    authFields: { authName: true, apiKey: true, baseUrl: true },
+    tools: [
+      { name: "check_footer", description: "Check document footer against reference DB.", inputSchema: { docId: "string" }, outputSchema: { suspicious: "boolean" } },
+      { name: "check_barcode", description: "Check document barcode against reference DB.", inputSchema: { docId: "string" }, outputSchema: { suspicious: "boolean" } },
+    ],
+  },
 ];
 
 export const getBuiltin = (setId: string) => builtinCatalog.find(s => s.setId === setId);
