@@ -11,7 +11,7 @@ import TasksGrid from "@/components/tasks/TasksGrid";
 import BusinessProcessesGrid from "@/components/business-processes/BusinessProcessesGrid";
 import TriggersTab from "@/components/configure/TriggersTab";
 import TriggerFormDialog from "@/components/configure/TriggerFormDialog";
-import { AlertTriangle, Info, Play, ListChecks } from "lucide-react";
+import { AlertTriangle, Info } from "lucide-react";
 import { refineChatStore, useRefineChat, newMsgId, textHash, type RefineMsg, type RefineMsgBody, type RefineApprovalMode } from "@/components/configure/refineChatStore";
 import TriggerBlockedByConnectorNotice from "@/components/configure/TriggerBlockedByConnectorNotice";
 import { RevokedChip, RevokedDot, RevokedBanner, RevokedReason, RevokedRemoveButton, REVOKED_ROW_CLASS, useRevokedResources } from "@/components/governance/RevokedBadge";
@@ -334,7 +334,6 @@ export default function AgentBuilder() {
   // issue count (blocks publish) and a command channel back down (open issues / open Test run).
   const [processReady, setProcessReady] = useState<{ items: { label: string; done: boolean; failed?: boolean }[]; pick: (() => void)[]; issueCount: number; stepCount: number } | null>(null);
   const [processCmd, setProcessCmd] = useState<{ kind: "issues" | "run"; t: number } | null>(null);
-  const [processCheckOpen, setProcessCheckOpen] = useState(false);
   const processGraph = useMemo(() => (isProcess ? processStore.getGraph(id) : null), [isProcess, id]);
   const processUsages = (() => { void publishTick; return isProcess && id ? processStore.usages(id) : []; })();
   const currentSectionLabel =
@@ -414,7 +413,10 @@ export default function AgentBuilder() {
         {/* Name keeps a minimum width so it never gets squeezed out by the tabs/status on narrow screens (G12). */}
         <div className="flex items-center gap-2 min-w-[140px] max-w-[260px] shrink">
           <div className="w-7 h-7 rounded-md bg-surface-muted border border-border flex items-center justify-center text-base shrink-0">{agent.emoji}</div>
-          <span className="font-semibold text-sm truncate">{agent.name}</span>
+          {isProcess ? (
+            <button onClick={() => { setParams({ tab: "build", section: "flow" }); setTimeout(() => setProcessCmd({ kind: "details", t: Date.now() }), 0); }}
+              title="Thông tin Quy trình" className="font-semibold text-sm truncate hover:underline underline-offset-2 text-left">{agent.name}</button>
+          ) : <span className="font-semibold text-sm truncate">{agent.name}</span>}
           {viewOnly && (
             <span title="Bạn có quyền Chỉ xem trên Nhân sự số này." className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded bg-surface-muted text-muted-foreground border border-border shrink-0">
               <HugeiconsIcon icon={EyeIcon} size={11} /> Chỉ xem
@@ -435,20 +437,29 @@ export default function AgentBuilder() {
         {/* Center tabs */}
         <div className="flex-1 flex items-center justify-center">
           <div className="flex items-center gap-1">
-            {([
+            {(isProcess ? [
+              { id: "flow",       label: "Quy trình",  Icon: FlowCircleIcon },
+              { id: "guardrails", label: "Guardrails", Icon: Shield01Icon },
+              { id: "evaluate",   label: "Evaluate",   Icon: FlaskConicalIcon },
+              { id: "channels",   label: "Channels",   Icon: GridViewIcon },
+              { id: "insights",   label: "Insights",   Icon: Analytics01Icon },
+            ] : [
               { id: "build",    label: "Build",    Icon: PencilEdit01Icon },
               { id: "evaluate", label: "Evaluate", Icon: FlaskConicalIcon },
               { id: "channels", label: "Channels", Icon: GridViewIcon },
               { id: "insights", label: "Insights", Icon: Analytics01Icon },
-            ] as const).map(({ id, label, Icon }) => (
-              <button key={id} onClick={() => setTab(id as Tab)} title={label} aria-label={label}
+            ]).map(({ id, label, Icon }) => {
+              const on = id === "flow" || id === "guardrails" ? tab === "build" && (section === id || (id === "flow" && section === "versions")) : tab === id;
+              return (
+              <button key={id} onClick={() => (id === "flow" || id === "guardrails" ? setParams({ tab: "build", section: id }) : setTab(id as Tab))} title={label} aria-label={label}
                 style={{ paddingLeft: "10px", paddingRight: "10px", height: "32px", gap: "10px" }}
                 className={`rounded-lg text-sm font-medium flex items-center transition-base ${
-                  tab === id ? "bg-primary-soft text-primary" : "text-muted-foreground hover:text-foreground hover:bg-surface-muted"
+                  on ? "bg-primary-soft text-primary" : "text-muted-foreground hover:text-foreground hover:bg-surface-muted"
                 }`}>
                 <HugeiconsIcon icon={Icon} size={18} className="shrink-0" /> <span className="hidden xl:inline">{label}</span>
               </button>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -482,7 +493,7 @@ export default function AgentBuilder() {
           >
             <HugeiconsIcon icon={Rocket01Icon} size={13} /> Publish
           </button>}
-          {(!viewOnly || adminActor) && <div className="relative">
+          {(!viewOnly || adminActor || isProcess) && <div className="relative">
             <button
               onClick={() => setShowAgentMenu(o => !o)}
               aria-label="Thao tác khác" aria-haspopup="menu" aria-expanded={showAgentMenu}
@@ -494,6 +505,11 @@ export default function AgentBuilder() {
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setShowAgentMenu(false)} />
                 <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded-lg border border-border bg-white shadow-elev py-1">
+                  {isProcess && <>
+                    <button onClick={() => { setShowAgentMenu(false); setParams({ tab: "build", section: "versions" }); }}
+                      className="w-full text-left px-3 py-1.5 text-xs text-foreground hover:bg-surface-muted">Phiên bản</button>
+                    <div className="my-1 h-px bg-border" />
+                  </>}
                   <button
                     disabled={!published || !(canPublishAgent || adminActor)}
                     title={!(canPublishAgent || adminActor) ? "Bạn không có quyền publish Nhân sự số này." : !published ? "Nhân sự số chưa publish." : undefined}
@@ -989,76 +1005,6 @@ export default function AgentBuilder() {
         >
           <div className="flex-1 flex flex-col overflow-hidden">
 
-            {/* Quy trình - one command bar instead of the left sidebar (Copilot Studio agent-flow
-                pattern): sections as tabs on the left, Kiểm tra / Thông tin / Chạy thử on the right. */}
-            {isProcess && tab === "build" && (() => {
-              const items = processReady?.items ?? [];
-              const doneCount = items.filter(i => i.done).length;
-              const issues = processReady?.issueCount ?? 0;
-              return (
-                <div className="h-12 shrink-0 border-b border-border bg-card flex items-center px-4 gap-1 relative z-30">
-                  <div role="tablist" aria-label="Phần của Quy trình" className="flex items-center h-full gap-1">
-                    {processNav.map(it => (
-                      <button key={it.id} role="tab" aria-selected={section === it.id} onClick={() => setSection(it.id)}
-                        className={`h-full px-3 flex items-center gap-2 text-[14px] border-b-2 -mb-px transition-base ${section === it.id ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-                        <HugeiconsIcon icon={it.icon} size={17} className="shrink-0" />{it.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex-1" />
-                  {section === "flow" && (
-                    <>
-                      <div className="relative">
-                        <button onClick={() => setProcessCheckOpen(o => !o)} aria-expanded={processCheckOpen}
-                          title="Sẵn sàng publish"
-                          className={`h-8 px-2 rounded-lg text-[13px] flex items-center gap-1.5 transition-base hover:bg-surface-muted ${issues > 0 ? "text-amber-700 font-medium" : "text-muted-foreground"}`}>
-                          {issues > 0 ? <AlertTriangle size={14} aria-hidden /> : <ListChecks size={14} aria-hidden />}
-                          {issues > 0 ? `${issues} lỗi cần sửa` : `Sẵn sàng ${doneCount}/${items.length || 5}`}
-                        </button>
-                        {processCheckOpen && (
-                          <>
-                            <div className="fixed inset-0 z-40" onClick={() => setProcessCheckOpen(false)} />
-                            <div role="dialog" aria-label="Sẵn sàng publish" className="absolute right-0 top-10 z-50 w-72 rounded-xl border border-border bg-card shadow-lg p-3">
-                              <div className="flex items-center justify-between mb-1.5">
-                                <span className="text-sm font-semibold text-foreground">Sẵn sàng publish</span>
-                                <span className="text-xs text-muted-foreground">{doneCount}/{items.length || 5}</span>
-                              </div>
-                              <div className="h-1.5 rounded-full bg-border overflow-hidden mb-2.5">
-                                <div className="h-full rounded-full bg-primary" style={{ width: `${items.length ? (doneCount / items.length) * 100 : 0}%` }} />
-                              </div>
-                              <div className="space-y-1.5">
-                                {items.map((item, i) => (
-                                  <button key={item.label} onClick={() => { setProcessCheckOpen(false); setParams({ tab: "build", section: i === 3 ? "guardrails" : "flow" }); if (i === 1 || i === 2) setProcessCmd({ kind: "issues", t: Date.now() }); if (i === 4 && !viewOnly) setProcessCmd({ kind: "run", t: Date.now() }); }}
-                                    className={`w-full flex items-center gap-2 text-sm text-left hover:underline ${item.done ? "text-primary" : item.failed ? "text-destructive font-medium" : "text-muted-foreground"}`}>
-                                    {item.done
-                                      ? <HugeiconsIcon icon={CheckmarkCircle01Icon} size={14} className="text-primary shrink-0" />
-                                      : item.failed ? <AlertTriangle size={14} className="text-destructive shrink-0" aria-hidden />
-                                      : <span className="w-3.5 h-3.5 rounded-full border-2 border-muted-foreground shrink-0 inline-block" />}
-                                    {item.label}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      <button onClick={() => setProcessCmd({ kind: "details", t: Date.now() })} aria-label="Thông tin Quy trình" title="Thông tin Quy trình"
-                        className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-surface-muted hover:text-foreground flex items-center justify-center transition-base">
-                        <Info size={16} aria-hidden />
-                      </button>
-                      <span className="w-px h-5 bg-border mx-1" aria-hidden />
-                      {!viewOnly && (
-                        <button onClick={() => setProcessCmd({ kind: "run", t: Date.now() })}
-                          className="h-8 px-3 rounded-lg bg-primary-soft text-primary hover:opacity-90 text-[13px] font-medium flex items-center gap-1.5 transition-base">
-                          <Play size={13} fill="currentColor" aria-hidden /> Chạy thử
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
-              );
-            })()}
-
             {isProcess && tab === "build" && section === "flow" && (
               <div className="flex-1 min-h-0 flex relative">
                 <ProcessCanvas
@@ -1073,6 +1019,7 @@ export default function AgentBuilder() {
                   onReady={setProcessReady}
                   onSave={(g: any) => { processStore.saveGraph(id, g); if (g.name !== agent.name || g.desc !== agent.desc) { processStore.rename(id, g.name, g.desc); setPublishTick(t => t + 1); } }}
                   onBack={() => navigate("/agents")}
+                  onNav={(sec: string) => setParams({ tab: "build", section: sec })}
                 />
               </div>
             )}
