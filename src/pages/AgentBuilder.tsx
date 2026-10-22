@@ -3661,7 +3661,6 @@ function EmptyStateBox({ icon, description, addLabel, onAdd, disabled, disabledR
 }
 
 const ADVANCED_TABS = [
-  { id: "sub-agents", label: "Nhân sự số con", icon: UserMultipleIcon },
   { id: "starter-prompts", label: "Starter Prompts", icon: Chat01Icon },
   { id: "agent-card", label: "Danh thiếp Nhân sự số", icon: UserCheck01Icon },
   { id: "capabilities", label: "Khả năng của Nhân sự số", icon: BoltIcon },
@@ -3669,12 +3668,13 @@ const ADVANCED_TABS = [
 type AdvancedTabId = typeof ADVANCED_TABS[number]["id"];
 
 /** Build › Cài đặt nâng cao — what used to be the "Advanced settings" group at the bottom of the
- * config rail, now its own left-nav section with one tab per item (?atab= keeps the tab). */
+ * config rail, now its own left-nav section with one tab per item (?atab= keeps the tab).
+ * Nhân sự số con stays in the config rail. */
 function AdvancedSettingsTab({ agentId }: { agentId: string }) {
   const [params, setParams] = useSearchParams();
   useAgentCard(agentId);
   const fromUrl = ADVANCED_TABS.find(t => t.id === params.get("atab"))?.id;
-  const current: AdvancedTabId = fromUrl ?? (agentCardStore.peekFocus(agentId) ? "agent-card" : "sub-agents");
+  const current: AdvancedTabId = fromUrl ?? (agentCardStore.peekFocus(agentId) ? "agent-card" : "starter-prompts");
   const select = (t: string) => { const next = new URLSearchParams(params); next.set("atab", t); setParams(next, { replace: true }); };
   const trigger = "h-full flex-none gap-1.5 rounded-md border border-transparent px-3 py-1 text-sm font-medium text-muted-foreground hover:text-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-offset-0";
   return (
@@ -3685,7 +3685,7 @@ function AdvancedSettingsTab({ agentId }: { agentId: string }) {
         </div>
         <div>
           <h1 className="text-xl font-semibold">Cài đặt nâng cao</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Nhân sự số con, gợi ý mở đầu, danh thiếp và các năng lực mặc định.</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Gợi ý mở đầu, danh thiếp và các năng lực mặc định.</p>
         </div>
       </div>
       <Tabs value={current} onValueChange={select}>
@@ -3698,7 +3698,6 @@ function AdvancedSettingsTab({ agentId }: { agentId: string }) {
             ))}
           </TabsList>
         </div>
-        <TabsContent value="sub-agents" className="mt-0"><SubAgentsInner /></TabsContent>
         <TabsContent value="starter-prompts" className="mt-0"><StarterPromptsInner /></TabsContent>
         <TabsContent value="agent-card" className="mt-0"><AgentCardBlock agentId={agentId} /></TabsContent>
         <TabsContent value="capabilities" className="mt-0"><CapabilitiesInner agentId={agentId} /></TabsContent>
@@ -3814,6 +3813,11 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
           </div>
         );
       })}
+
+      {/* Nhân sự số con — kept in the config rail (the rest of Advanced settings moved to Build › Cài đặt nâng cao). */}
+      <div className="px-4 py-3 border-b border-border">
+        <SubAgentsInner />
+      </div>
 
     </div>
   );

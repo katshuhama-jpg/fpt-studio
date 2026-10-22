@@ -22,10 +22,11 @@ describe("Build › Cài đặt nâng cao", () => {
   it("is a left-nav section with one tab per former Advanced settings item", () => {
     mount("/agents/cskh?tab=build&section=advanced");
     expect(screen.getAllByText("Cài đặt nâng cao").length).toBeGreaterThan(0);
-    for (const t of ["Nhân sự số con", "Starter Prompts", "Danh thiếp Nhân sự số", "Khả năng của Nhân sự số"]) {
+    expect(screen.queryByRole("tab", { name: /Nhân sự số con/ })).toBeNull();
+    for (const t of ["Starter Prompts", "Danh thiếp Nhân sự số", "Khả năng của Nhân sự số"]) {
       expect(screen.getByRole("tab", { name: new RegExp(t) })).toBeTruthy();
     }
-    expect(screen.getByRole("tab", { name: /Nhân sự số con/ }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("tab", { name: /Starter Prompts/ }).getAttribute("aria-selected")).toBe("true");
   });
   it("opens a tab from ?atab= and the rail no longer has Advanced settings", () => {
     mount("/agents/cskh?tab=build&section=advanced&atab=capabilities");
@@ -35,5 +36,6 @@ describe("Build › Cài đặt nâng cao", () => {
     mount("/agents/cskh?tab=build&section=instructions");
     expect(screen.getAllByText("Model").length).toBeGreaterThan(0);
     expect(screen.queryByText("Advanced settings")).toBeNull();
+    expect(screen.getAllByText("Subagents").length).toBeGreaterThan(0);
   });
 });
