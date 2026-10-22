@@ -6,13 +6,12 @@ import {
 } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import ReminderSheet from "./ReminderSheet";
-import { channelLabel, emptyReminder, fmtMinutes, needsUpdate, reminderStore, stepMinutes, type Reminder, type ReminderSettings } from "./reminderStore";
+import { channelLabel, emptyReminder, fmtMinutes, needsUpdate, reminderStore, stepMinutes, type Reminder } from "./reminderStore";
 
 type IconData = Parameters<typeof HugeiconsIcon>[0]["icon"];
 const Icon = ({ icon, size = 16, className = "" }: { icon: IconData; size?: number; className?: string }) =>
@@ -51,11 +50,9 @@ export default function InactiveReminderTab({ agentId, readOnly }: { agentId: st
   const [, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
   const list = reminderStore.list(agentId);
-  const settings = reminderStore.settings(agentId);
   const [sheet, setSheet] = useState<SheetState>(null);
   const [toDelete, setToDelete] = useState<Reminder | null>(null);
 
-  const setSettings = (s: ReminderSettings) => { reminderStore.setSettings(agentId, s); refresh(); };
   const openCreate = () => setSheet({ mode: "create", reminder: emptyReminder() });
 
   return (
@@ -70,41 +67,8 @@ export default function InactiveReminderTab({ agentId, readOnly }: { agentId: st
         )}
       </div>
 
-      {/* Settings */}
-      <div className="rounded-lg border bg-card divide-y mb-4">
-        <div className="flex items-start justify-between gap-4 px-4 py-3.5">
-          <div>
-            <p className="text-sm font-medium">Bật Inactive reminder</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Khi tắt, không lời nhắc nào được gửi. Bạn vẫn tạo và chỉnh sửa reminder được.</p>
-          </div>
-          <Switch checked={settings.enabled} disabled={readOnly} onCheckedChange={v => { setSettings({ ...settings, enabled: v }); toast.success(v ? "Đã bật Inactive reminder." : "Đã tắt Inactive reminder."); }} aria-label="Bật Inactive reminder" className="shrink-0" />
-        </div>
-        <div className="px-4 py-3.5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium">Quiet hours</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Không gửi lời nhắc trong khung giờ này.</p>
-            </div>
-            <Switch checked={settings.quiet.on} disabled={readOnly} onCheckedChange={v => setSettings({ ...settings, quiet: { ...settings.quiet, on: v } })} aria-label="Quiet hours" className="shrink-0" />
-          </div>
-          {settings.quiet.on && (
-            <div className="mt-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <label className="flex items-center gap-2 text-sm text-muted-foreground">Từ
-                  <Input type="time" value={settings.quiet.from} disabled={readOnly} onChange={e => setSettings({ ...settings, quiet: { ...settings.quiet, from: e.target.value } })} className="w-32 tabular-nums text-foreground" aria-label="Quiet hours từ" />
-                </label>
-                <label className="flex items-center gap-2 text-sm text-muted-foreground">Đến
-                  <Input type="time" value={settings.quiet.to} disabled={readOnly} onChange={e => setSettings({ ...settings, quiet: { ...settings.quiet, to: e.target.value } })} className="w-32 tabular-nums text-foreground" aria-label="Quiet hours đến" />
-                </label>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">Tính theo múi giờ người dùng, nếu không có thì dùng múi giờ của Agent (GMT+7).</p>
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* List */}
-      <div className={settings.enabled ? "" : "opacity-60 transition-opacity hover:opacity-100 focus-within:opacity-100"}>
+      <div>
         {list.length === 0 ? (
           <div className="flex flex-col items-center rounded-lg border border-dashed px-6 py-12 text-center">
             <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground mb-3"><Icon icon={Notification01Icon} size={20} /></div>

@@ -41,7 +41,9 @@ describe("reminderStore", () => {
 describe("InactiveReminderTab", () => {
   it("shows the list, the needs-update badge and the delete confirm", () => {
     wrap(<InactiveReminderTab agentId="cskh" />);
-    expect(screen.getByText("Bật Inactive reminder")).toBeTruthy();
+    expect(screen.queryByText("Bật Inactive reminder")).toBeNull();
+    expect(screen.queryByText("Quiet hours")).toBeNull();
+    expect(screen.getByRole("button", { name: /Thêm reminder/ })).toBeTruthy();
     expect(screen.getByText("Cần cập nhật")).toBeTruthy();
     expect(screen.getByText("Tất cả kênh")).toBeTruthy();
   });
