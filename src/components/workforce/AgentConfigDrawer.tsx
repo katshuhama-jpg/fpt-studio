@@ -44,7 +44,7 @@ export default function AgentConfigDrawer({
       <div className="flex-1 overflow-y-auto px-4 py-4">
         <p className="text-xs text-muted-foreground mb-3">{agent?.desc}</p>
         <a
-          href={agent?.kind === "process" ? `/process/${agent.processId}` : `/agents/${agentId}`}
+          href={`/agents/${agentId}`}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-medium transition-base mb-4"

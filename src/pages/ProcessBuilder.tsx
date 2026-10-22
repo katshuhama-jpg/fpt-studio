@@ -3,6 +3,7 @@
 /* Nhân sự số Quy trình - builder dạng node (prototype). Port từ prototype Claude Design. */
 import React from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { processStore } from "@/components/process/processStore";
 
 var CSS = `
 .qt-root button{font-family:inherit;cursor:pointer}
@@ -38,6 +39,7 @@ var CSS = `
 @keyframes qtpulse{0%{box-shadow:0 0 0 0 hsl(231 75% 49% / .45)}100%{box-shadow:0 0 0 10px hsl(231 75% 49% / 0)}}
 .qt-running{animation:qtpulse 1s ease-out infinite}
 @media (prefers-reduced-motion: reduce){.qt-running{animation:none}}
+.qt-ro-hide{display:none!important}
 .qt-tbtn{width:34px;height:34px;border-radius:7px;border:0;background:transparent;color:#334155;display:flex;align-items:center;justify-content:center;padding:0}
 .qt-tbtn:hover{background:#f1f5f9;color:#203BDC}
 .qt-tbtn:disabled{color:#cbd5e1;cursor:default;background:transparent}
@@ -324,7 +326,7 @@ function reachable(id, edges) {
 }
 var W = 220, H = 56, HEADB = 57, PH = 32, PG = 8, DIR = 'h';
 function sizeOf(n) {
-  if (n.type === 'note') return { w: 200, h: 100 };
+  if (n.type === 'note') { var lines = String(n.cfg.text || '').split('\n').reduce(function (a, t) { return a + Math.max(1, Math.ceil(t.length / 27)); }, 0); return { w: 200, h: Math.max(100, 24 + lines * 19) }; }
   if (n.type === 'loop') { var k = Math.max(1, n.cfg.inner.length); return DIR === 'h' ? { w: Math.max(320, 64 + k * W + (k - 1) * 48), h: 180 } : { w: W + 80, h: Math.max(180, 64 + k * H + (k - 1) * 40 + 32) }; }
   var o = outsOf(n);
   if (o.length < 2 || n.parent) return { w: W, h: H };
@@ -397,6 +399,7 @@ function layoutFlow(f) {
 var SUGGEST = [
   { key: 'buy', label: 'Duyệt đề nghị mua sắm', name: 'Duyệt đề nghị mua sắm', text: 'Nhân sự số gửi đề nghị mua sắm kèm chứng từ. Trích xuất chứng từ, nếu vượt 50 triệu thì giám đốc duyệt, không thì tự duyệt. Duyệt xong tạo PO trên SAP ERP, từ chối thì soạn thư báo lại.' },
   { key: 'procure', label: 'Mua sắm FHO-FPD', name: 'Đề nghị mua sắm FHO-FPD', text: 'Nhân sự số gửi đề nghị mua sắm của FHO. Chuẩn bị hồ sơ và 3 báo giá, Trưởng phòng duyệt, phần mềm/cloud qua IT bảo mật, trên 50 triệu thêm Kế toán và Giám đốc. Duyệt xong tạo PO trên Odoo, kho nhận hàng, đối chiếu 3 chiều rồi Kế toán thanh toán.' },
+  { key: 'mbl-rules', label: 'Rule bồi thường MB Life', name: 'Rule thẩm định MB Life', text: 'Nhân sự số gửi hồ sơ bồi thường đã đọc OCR và số hợp đồng MB Life. Lấy Policy, lịch sử bồi thường và bảng tham chiếu cùng lúc, chạy rule chứng từ, hiệu lực và thẩm định không dùng LLM, trả về PASS, WARN, NOT_EVALUATED cho từng rule.' },
   { key: 'invoice', label: 'Đối chiếu hoá đơn với PO', name: 'Đối chiếu hoá đơn với PO', text: 'Khi hệ thống kế toán gửi hoá đơn VAT qua HTTP, trích xuất số tiền, lấy PO tương ứng từ ERP để so khớp. Khớp thì ghi nhận công nợ, lệch thì chuyển kế toán xem lại.' },
   { key: 'loan', label: 'Tiếp nhận hồ sơ vay', name: 'Tiếp nhận hồ sơ vay', text: 'Nhận hồ sơ vay gồm CCCD và sao kê lương. Trích xuất CCCD, phân loại sản phẩm vay, Nhân sự số chấm điều kiện theo chính sách tín dụng rồi chuyển chuyên viên thẩm định. Đạt thì tạo hồ sơ trên LOS.' }
 ];
@@ -509,7 +512,7 @@ function draftFlow(key) {
   };
   return layoutFlow(f);
 }
-function pickKey(text) { var t = norm(text); if (t.indexOf('doi chieu 3 chieu') >= 0 || t.indexOf('fho') >= 0) return 'procure'; if (t.indexOf('hoa don') >= 0) return 'invoice'; if (t.indexOf('vay') >= 0 || t.indexOf('ho so') >= 0) return 'loan'; return 'buy'; }
+function pickKey(text) { var t = norm(text); if (t.indexOf('mb life') >= 0 || t.indexOf('boi thuong') >= 0) return 'mbl-rules'; if (t.indexOf('doi chieu 3 chieu') >= 0 || t.indexOf('fho') >= 0) return 'procure'; if (t.indexOf('hoa don') >= 0) return 'invoice'; if (t.indexOf('vay') >= 0 || t.indexOf('ho so') >= 0) return 'loan'; return 'buy'; }
 var MOCK = { ket_qua_rule: 'D1 PASS, D2 PASS, D5 PASS, E1 PASS, E2 PASS, E3 NOT_EVALUATED, A2 WARN', so_warn: '1', so_not_evaluated: '1', rule_version: 'MBL-HSCR3-2026.10', ket_qua_e_a: 'E1 PASS, E2 PASS, E3 NOT_EVALUATED, A2 WARN', so_luong_nhan: '20', so_luong_hd: '20', so_tien_hd: '120000000', chenh_lech: '0', tep_hoa_don: 'HD-55812.pdf', so_hd: 'HD-55812', yeu_cau: '20 license Microsoft 365 E3, 12 tháng', tong_tien: '120000000', loai_hang: 'Phần mềm', ngan_sach_con: '300000000', bang_so_sanh: 'FPT IS 120tr · CMC 128tr · Viettel 131tr', khop: 'true', so_phieu_nhap: 'PNK-1021', so_hoa_don: 'HD-55812', nha_cung_cap: 'Công ty TNHH Phong Vũ', danh_muc: '20 laptop Dell Latitude', ma_so_thue: '0101234567', ngay_hd: '2026-10-18', so_cccd: '001090012345', ho_ten: 'Nguyễn Văn An', ngay_sinh: '1990-05-12', dat: 'true', ly_do: 'Thu nhập trung bình 32 triệu/tháng, đủ điều kiện', tra_loi: 'Đã xử lý xong', ma_po: 'PO-2026-0481', so_tien: '75000000', ma_but_toan: 'BT-77120', status: '200' };
 function mockOf(k) { return MOCK[k] !== undefined ? MOCK[k] : 'Mẫu ' + k; }
 function sampleOf(f) { if (MOCK[f.name] !== undefined) return MOCK[f.name]; var m = { 'Số': '75000000', 'Ngày': '2026-10-20', 'Tệp': f.name + '.pdf', 'Có / Không': 'true', 'Email': 'lan.nt@fpt.com' }; return m[f.t] || 'Mẫu ' + f.name; }
@@ -553,10 +556,13 @@ class ProcessBuilderInner extends React.Component<any, any> {
   componentWillUnmount() { clearTimeout(this.timer); clearTimeout(this.toastT); }
   showToast(text, tone) { clearTimeout(this.toastT); this.setState({ toast: { text: text, tone: tone || 'dark' } }); var self = this; this.toastT = setTimeout(function () { self.setState({ toast: null }); }, 4200); }
   snap() { var s = this.state; return { hist: s.hist.concat([{ nodes: clone(s.nodes), edges: clone(s.edges) }]).slice(-40), fut: [] }; }
-  undo() { var s = this.state, h = s.hist; if (!h.length) return; var p = h[h.length - 1]; this.setState({ nodes: p.nodes, edges: p.edges, hist: h.slice(0, -1), fut: (s.fut || []).concat([{ nodes: clone(s.nodes), edges: clone(s.edges) }]), sel: null, add: null, ctx: null }); }
-  redo() { var s = this.state, f = s.fut || []; if (!f.length) return; var p = f[f.length - 1]; this.setState({ nodes: p.nodes, edges: p.edges, fut: f.slice(0, -1), hist: s.hist.concat([{ nodes: clone(s.nodes), edges: clone(s.edges) }]), sel: null, add: null, ctx: null }); }
+  undo() { if (this.ro()) return; var s = this.state, h = s.hist; if (!h.length) return; var p = h[h.length - 1]; this.setState({ nodes: p.nodes, edges: p.edges, hist: h.slice(0, -1), fut: (s.fut || []).concat([{ nodes: clone(s.nodes), edges: clone(s.edges) }]), sel: null, add: null, ctx: null }); }
+  redo() { if (this.ro()) return; var s = this.state, f = s.fut || []; if (!f.length) return; var p = f[f.length - 1]; this.setState({ nodes: p.nodes, edges: p.edges, fut: f.slice(0, -1), hist: s.hist.concat([{ nodes: clone(s.nodes), edges: clone(s.edges) }]), sel: null, add: null, ctx: null }); }
   // Mọi thay đổi cấu trúc đi qua đây: lưu lịch sử, tự sắp xếp lại như Copilot, cuộn tới bước mới
+  ro() { return !!(this.props && this.props.readOnly); }
+  roStop() { if (!this.ro()) return false; this.showToast('Bạn chỉ xem được Quy trình này.'); return true; }
   commit(nodes, edges, extra, focusId) {
+    if (this.ro()) return;
     DIR = this.state.dir;
     var f = layoutFlow({ nodes: clone(nodes), edges: edges });
     this.setState(Object.assign(this.snap(), { nodes: f.nodes, edges: edges, ctx: null }, extra || {}));
@@ -572,12 +578,12 @@ class ProcessBuilderInner extends React.Component<any, any> {
     clearTimeout(this.timer);
     DIR = 'h';
     var f = key ? draftFlow(key) : layoutFlow({ nodes: [N('n1', 'start', 'Bắt đầu', {})], edges: [] });
-    this.setState({ screen: 'builder', createOpen: false, drafting: false, aiBanner: !!fromAi, name: name || 'Quy trình chưa đặt tên', nodes: f.nodes, edges: f.edges, dir: 'h',
-      sel: key ? null : 'n1', tab: 'cfg', hist: [], fut: [], add: null, checkOpen: false, pubOpen: false, status: 'draft', last: {}, run: null, runOpen: false, top: 'build', picking: null, panel: null, ctx: null, link: null, expand: false, section: 'flow', sideOpen: true, moreOpen: false });
+    this.setState({ screen: 'builder', createOpen: false, drafting: false, aiBanner: !!fromAi, name: name || 'Quy trình chưa đặt tên', savedName: name || 'Quy trình chưa đặt tên', desc: '', nameErr: false, panelHidden: false, nodes: f.nodes, edges: f.edges, dir: 'h',
+      sel: null, tab: 'cfg', hist: [], fut: [], add: null, checkOpen: false, pubOpen: false, status: 'draft', last: {}, run: null, runOpen: false, top: 'build', picking: null, panel: null, ctx: null, link: null, expand: false, section: 'flow', sideOpen: true, moreOpen: false });
     var self = this; setTimeout(function () { self.fit(0.8); }, 40);
   }
   canvasSize() { var el = this.canvasEl; return { w: el ? el.clientWidth : 1440, h: el ? el.clientHeight : 850 }; }
-  insets() { var s = this.state, panel = (s.sel || s.runOpen || s.panel) ? (s.expand ? 640 : 476) : 0; return { l: s.palOpen ? 200 : 40, r: panel + 24 }; }
+  insets() { var s = this.state, panel = (s.sel || s.runOpen || !s.panelHidden) ? (s.expand ? 640 : 476) : 0; return { l: s.palOpen ? 200 : 40, r: panel + 24 }; }
   fit(minZ) {
     var nodes = this.state.nodes; if (!nodes.length) return;
     DIR = this.state.dir;
@@ -613,10 +619,12 @@ class ProcessBuilderInner extends React.Component<any, any> {
     return null;
   }
   openAdd(opts) {
+    if (this.roStop()) return;
     if (this.locked()) { this.showToast('Đang chạy thử. Dừng chạy thử để sửa Quy trình.'); return; }
     this.setState({ add: Object.assign({ tab: 'featured', level: 'root', q: '', idx: 0 }, opts || {}), checkOpen: false, pubOpen: false, ctx: null });
   }
   palPick(type) {
+    if (this.roStop()) return;
     if (this.locked()) { this.showToast('Đang chạy thử. Dừng chạy thử để sửa Quy trình.'); return; }
     var s = this.state, sn = this.byId(s.sel);
     var loopId = sn ? (sn.type === 'loop' ? sn.id : sn.parent) : null;
@@ -633,6 +641,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     if (at2 && at2.edge) this.insertOnEdge(type, at2.edge); else this.addNode(type, at2);
   }
   addInner(loopId, type, preset, title, at) {
+    if (this.roStop()) return;
     var s = this.state, node = this.makeNode(type, preset, title); node.parent = loopId;
     var nodes = s.nodes.map(function (n) { if (n.id !== loopId) return n; var inner = n.cfg.inner.slice(); if (at === undefined || at > inner.length) inner.push(node.id); else inner.splice(at, 0, node.id); return Object.assign({}, n, { cfg: Object.assign({}, n.cfg, { inner: inner }) }); }).concat([node]);
     this.commit(nodes, s.edges, { add: null, sel: node.id, tab: 'cfg', runOpen: false, panel: null }, node.id);
@@ -684,11 +693,13 @@ class ProcessBuilderInner extends React.Component<any, any> {
     if (a.edge) this.insertOnEdge(it.type, a.edge, it.preset, it.title); else this.addNode(it.type, a.from || null, it.preset, it.title);
   }
   connect(from, toId) {
+    if (this.roStop()) return;
     var edges = this.state.edges.filter(function (e) { return !(e.from === from.id && e.out === from.out); }).concat([{ from: from.id, out: from.out, to: toId }]);
     this.commit(this.state.nodes, edges, { add: null });
   }
   makeNode(type, preset, title) { this.seq += 1; return { id: 'n' + this.seq, type: type, title: title || TYPES[type].name, x: 0, y: 0, cfg: Object.assign(defaultCfg(type), preset || {}) }; }
   addNode(type, from, preset, title) {
+    if (this.roStop()) return;
     var s = this.state, node = this.makeNode(type, preset, title), src = from ? this.byId(from.id) : null;
     if (type === 'note') {
       var cs = this.canvasSize(); node.x = Math.round((cs.w / 2 - s.px) / s.z - 100); node.y = Math.round((80 - s.py) / s.z);
@@ -698,12 +709,14 @@ class ProcessBuilderInner extends React.Component<any, any> {
     this.commit(s.nodes.concat([node]), edges, { sel: node.id, tab: 'cfg', add: null, runOpen: false, aiBanner: false, picking: null, panel: null }, node.id);
   }
   insertOnEdge(type, e, preset, title) {
+    if (this.roStop()) return;
     var s = this.state, node = this.makeNode(type, preset, title);
     var edges = s.edges.filter(function (x) { return !(x.from === e.from && x.out === e.out && x.to === e.to); });
     edges.push({ from: e.from, out: e.out, to: node.id }); edges.push({ from: node.id, out: 0, to: e.to });
     this.commit(s.nodes.concat([node]), edges, { sel: node.id, tab: 'cfg', add: null, runOpen: false, picking: null, panel: null }, node.id);
   }
   removeNode(id) {
+    if (this.roStop()) return;
     var s = this.state, n = this.byId(id); if (!n || n.type === 'start') return;
     var gone = {}; gone[id] = 1; if (n.type === 'loop') n.cfg.inner.forEach(function (k) { gone[k] = 1; });
     var nodes = s.nodes.filter(function (x) { return !gone[x.id]; }).map(function (x) { return x.type === 'loop' && x.cfg.inner.indexOf(id) >= 0 ? Object.assign({}, x, { cfg: Object.assign({}, x.cfg, { inner: x.cfg.inner.filter(function (k) { return k !== id; }) }) }) : x; });
@@ -711,6 +724,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     this.showToast('Đã xoá bước. Bấm Hoàn tác nếu xoá nhầm.');
   }
   duplicate(id, asPaste) {
+    if (this.roStop()) return;
     var s = this.state, src = asPaste ? this.clip : this.byId(id); if (!src || src.type === 'start') return;
     var node = this.makeNode(src.type, clone(src.cfg), src.title + (asPaste ? '' : ' (bản sao)'));
     if (node.type === 'loop') node.cfg.inner = [];
@@ -719,11 +733,12 @@ class ProcessBuilderInner extends React.Component<any, any> {
     if (node.type === 'note') { node.x = src.x + 30; node.y = src.y + 30; }
     this.commit(nodes.concat([node]), s.edges, { sel: node.id, tab: 'cfg', ctx: null }, node.id);
   }
-  updateSel(patch) { var id = this.state.sel; this.setState({ nodes: this.state.nodes.map(function (n) { return n.id === id ? Object.assign({}, n, patch) : n; }) }); }
-  updateCfg(patch) { var id = this.state.sel; this.setState({ nodes: this.state.nodes.map(function (n) { return n.id === id ? Object.assign({}, n, { cfg: Object.assign({}, n.cfg, patch) }) : n; }) }); }
+  updateSel(patch) { if (this.ro()) return; var id = this.state.sel; this.setState({ nodes: this.state.nodes.map(function (n) { return n.id === id ? Object.assign({}, n, patch) : n; }) }); }
+  updateCfg(patch) { if (this.ro()) return; var id = this.state.sel; this.setState({ nodes: this.state.nodes.map(function (n) { return n.id === id ? Object.assign({}, n, { cfg: Object.assign({}, n.cfg, patch) }) : n; }) }); }
   dropPort(id, i) { this.relayoutSoon(); return this.state.edges.filter(function (e) { return !(e.from === id && e.out === i); }).map(function (e) { return e.from === id && e.out > i ? Object.assign({}, e, { out: e.out - 1 }) : e; }); }
   addPort(id, i) { this.relayoutSoon(); return this.state.edges.map(function (e) { return e.from === id && e.out >= i ? Object.assign({}, e, { out: e.out + 1 }) : e; }); }
   setTrigger(t) {
+    if (this.roStop()) return;
     var s = this.state, id = this.state.sel, nodes = s.nodes.map(function (n) { return n.id === id ? Object.assign({}, n, { cfg: Object.assign({}, n.cfg, { trigger: t }) }) : n; }), edges = s.edges;
     if (t === 'agent' && !s.nodes.some(function (n) { return n.type === 'respond'; })) {
       // giống Copilot: chọn "Khi Nhân sự số gọi" thì tự thêm bước trả kết quả
@@ -744,9 +759,10 @@ class ProcessBuilderInner extends React.Component<any, any> {
   }
 
   openRun() {
+    if (this.roStop()) return;
     var s = this.state, st = s.nodes.filter(function (n) { return n.type === 'start'; })[0], inputs = {};
     st.cfg.inputs.forEach(function (f) { if (f.name) inputs[f.name] = sampleOf(f); });
-    this.setState({ runOpen: true, sel: null, add: null, checkOpen: false, pubOpen: false, panel: null, ctx: null, run: s.run && s.run.status !== 'idle' ? s.run : { status: 'idle', tab: 'input', inputs: inputs, log: [], ran: [], redges: [] } });
+    this.setState({ panelHidden: false, runOpen: true, sel: null, add: null, checkOpen: false, pubOpen: false, panel: null, ctx: null, run: s.run && s.run.status !== 'idle' ? s.run : { status: 'idle', tab: 'input', inputs: inputs, log: [], ran: [], redges: [] } });
   }
   startRun() {
     var self = this, st = this.state.nodes.filter(function (n) { return n.type === 'start'; })[0], inputs = this.state.run.inputs;
@@ -854,6 +870,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     clearTimeout(this.timer); this.timer = setTimeout(function () { self.step(); }, 650);
   }
   runOne() {
+    if (this.roStop()) return;
     var s = this.state, n = this.byId(s.sel); if (!n) return;
     var issues = issuesOf(n, s).filter(function (m) { return m !== 'Bước này chưa được nối vào luồng'; });
     var last = Object.assign({}, s.last), seed = parseInt(n.id.slice(1), 10) || 1, out = outputsOf(n).reduce(function (o, k) { o[k] = mockOf(k); return o; }, {});
@@ -887,7 +904,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     var promptOk = s.prompt.trim().length >= 20;
 
     // ---------- builder ----------
-    var run = s.run, locked = this.locked(), byId = {}; s.nodes.forEach(function (n) { byId[n.id] = n; });
+    var run = s.run, ro = this.ro(), locked = this.locked() || ro, byId = {}; s.nodes.forEach(function (n) { byId[n.id] = n; });
     var issues = this.allIssues(), issueBy = {}, issueCount = 0;
     issues.forEach(function (g) { issueCount += g.msgs.length; if (g.type !== 'respond' || g.title !== 'Quy trình') issueBy[g.id] = g.msgs; });
     var selNode = byId[s.sel] || null, showRun = s.runOpen && !!run, building = s.top === 'build' && s.section === 'flow';
@@ -913,7 +930,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
       } else {
         outs = o.map(function (lbl, i) {
           var op = outPt(n, i), isErr = lbl === 'Lỗi';
-          return { dx: op.x - 4, dy: op.y - 4, dot: isErr ? '#f59e0b' : '#242424', cls: 'oplus' + (isErr ? ' oplus-err' : ''), aria: 'Thêm bước sau ' + n.title + (lbl ? ' - nhánh ' + lbl : '') + '. Kéo để nối tới bước khác.',
+          return { dx: op.x - 4, dy: op.y - 4, dot: isErr ? '#f59e0b' : '#242424', cls: 'oplus' + (isErr ? ' oplus-err' : '') + (ro ? ' ro-hide' : ''), aria: 'Thêm bước sau ' + n.title + (lbl ? ' - nhánh ' + lbl : '') + '. Kéo để nối tới bước khác.',
             px: DIR === 'h' ? op.x + 6 : op.x - 11, py: DIR === 'h' ? op.y - 11 : op.y + 6,
             down: function (e) { self.startLink(e, n.id, i); },
             plus: function (e) { e.stopPropagation(); if (self.justLinked) { self.justLinked = false; return; } self.setState({ sel: n.id, tab: 'cfg', runOpen: false, panel: null }); self.openAdd({ from: { id: n.id, out: i } }); } };
@@ -978,7 +995,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     if (ad && ad.mode === 'inner') addFrom = 'Thêm vào trong vòng lặp';
 
     // panel
-    var pmNode = building && !showRun && !!selNode, pmProcess = building && !showRun && !selNode && s.panel === 'cfg', pmOther = !building;
+    var pmNode = building && !showRun && !!selNode, pmProcess = building && !showRun && !selNode, pmOther = !building;
     var sel = { title: '', icon: '', tile: '#203BDC', tileBg: '#eef1fd' }, pf = [], editors = [], cases = [], outVars = [], varOpts = [{ v: '', l: 'Chọn biến' }];
     if (pmNode) {
       var n = selNode, c = n.cfg, t = TYPES[n.type], col = colOf(n.type);
@@ -1161,7 +1178,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
       var nIss = issueBy[n.id] || [];
       sel = { title: n.title, icon: t.icon, tile: col[0], tileBg: col[1], help: help, hasHelp: !!help, hasIssue: nIss.length > 0, issueText: nIss.join(' · '),
         isCond: n.type === 'condition', hasOutVars: outVars.length > 0 && ['start', 'variable'].indexOf(n.type) < 0, hasErr: !!t.err,
-        canDelete: n.type !== 'start', hasTabs: n.type !== 'note' && n.type !== 'start' };
+        canDelete: n.type !== 'start' && !this.ro(), hasTabs: n.type !== 'note' && n.type !== 'start' };
     }
     var errNode = selNode && TYPES[selNode.type].err ? selNode.cfg : { retry: false, err: 'stop' };
     var last = selNode ? s.last[selNode.id] : null;
@@ -1182,8 +1199,8 @@ class ProcessBuilderInner extends React.Component<any, any> {
       if (waitNode.cfg.onTimeout === 'branch') waitActions.push({ label: 'Để quá hạn', cls: 'btn', pick: function () { self.step('__timeout'); } });
     }
     var statusMap = { draft: ['Bản nháp', '#f59e0b', ''], pending: ['Chờ duyệt publish', '#f59e0b', 'v1'] };
-    var g0 = s.guard, guardList = function (arr) { return arr.map(function (x) { return { label: x[1], on: !!g0[x[0]], toggle: function () { var ng = Object.assign({}, self.state.guard); ng[x[0]] = !ng[x[0]]; self.setState({ guard: ng }); } }; }); };
-    var asTool = startNode && startNode.cfg.trigger === 'agent';
+    var g0 = s.guard, guardList = function (arr) { return arr.map(function (x) { return { label: x[1], on: !!g0[x[0]], toggle: function () { if (self.roStop()) return; var ng = Object.assign({}, self.state.guard); ng[x[0]] = !ng[x[0]]; self.setState({ guard: ng }); } }; }); };
+    var asTool = startNode && startNode.cfg.trigger === 'agent', emb = !!(this.props && this.props.embedded), pendVer = this.props && this.props.pendingVersion;
     var unwired = issues.filter(function (g) { return g.msgs.indexOf('Bước này chưa được nối vào luồng') >= 0; }).length, g1 = s.guard || {};
     var readyItems = [
       { label: 'Đã chọn kiểu kích hoạt', done: !!startNode, go: function () { self.setState({ section: 'flow', sel: startNode ? startNode.id : null, tab: 'cfg', runOpen: false }); } },
@@ -1210,7 +1227,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
 
       aiBanner: s.aiBanner && s.screen === 'builder' && !showRun && building, draftSteps: s.nodes.filter(function (n) { return n.type !== 'note'; }).length, dismissBanner: function () { self.setState({ aiBanner: false }); },
       backToList: function () { clearTimeout(self.timer); self.setState({ screen: 'list', run: null, runOpen: false }); },
-      name: s.name, statusLabel: s.status === 'pending' ? 'Chờ duyệt v1' : 'Bản nháp', statusDot: s.status === 'pending' ? '#f59e0b' : '#686873', statusBg: s.status === 'pending' ? '#fef3c7' : '#f5f3f0', statusFg: s.status === 'pending' ? '#92400e' : '#686873',
+      name: s.savedName || s.name, statusLabel: s.status === 'pending' ? 'Chờ duyệt v1' : 'Bản nháp', statusDot: s.status === 'pending' ? '#f59e0b' : '#686873', statusBg: s.status === 'pending' ? '#fef3c7' : '#f5f3f0', statusFg: s.status === 'pending' ? '#92400e' : '#686873',
       versionTitle: s.status === 'pending' ? 'v1 · Chờ Admin duyệt' : 'Bản nháp', versionSub: s.status === 'pending' ? 'Gửi duyệt vừa xong' : 'Chưa publish lần nào · Đã tự lưu',
       share: function () { self.showToast('Cấp quyền dùng chung màn hình với Nhân sự số thường. Prototype chưa dựng phần này.'); },
       moreOpen: s.moreOpen, toggleMore: function () { self.setState({ moreOpen: !self.state.moreOpen, pubOpen: false, checkOpen: false }); },
@@ -1223,7 +1240,17 @@ class ProcessBuilderInner extends React.Component<any, any> {
       ].map(function (x) { var on = s.top === x.id; return { label: x.label, icon: x.icon, on: on, bg: on ? '#eceefe' : 'transparent', fg: on ? '#203BDC' : '#686873', pick: function () { self.setState({ top: x.id, add: null, checkOpen: false, pubOpen: false, moreOpen: false }); } }; }),
       building: building, notBuilding: !building,
       isOtherTab: s.top !== 'build', isGuardPage: s.top === 'build' && s.section === 'guard', isVersionsPage: s.top === 'build' && s.section === 'versions',
-      sideShow: s.sideOpen && s.top !== 'channels', sideRail: !s.sideOpen && s.top !== 'channels',
+      sideShow: s.sideOpen && s.top !== 'channels' && !emb, sideRail: !s.sideOpen && s.top !== 'channels' && !emb, showHeader: !emb, checkLeft: emb ? 16 : 248,
+      readOnly: ro, roBanner: ro && building, canTest: !ro,
+      panelReopen: building && s.panelHidden && !selNode && !showRun, reopenCfg: function () { self.setState({ panelHidden: false }); },
+      bannerLeft: (function () { var pw = building && (pmNode || showRun || (pmProcess && !s.panelHidden)) ? (s.expand ? 640 : 476) : 0, lw = s.palOpen && !ro ? 200 : 0; return 'calc(' + lw + 'px + (100% - ' + (lw + pw) + 'px) / 2)'; })(),
+      pendingBanner: building && !ro && (s.status === 'pending' || !!pendVer), pendingText: (pendVer || 'v1') + ' đang chờ duyệt. Bạn đang sửa bản nháp mới - Bản đã gửi duyệt giữ nguyên.',
+      nameInput: s.name || '', desc: s.desc || '', descLen: (s.desc || '').length, nameLen: (s.name || '').length, nameInvalid: !!s.nameErr, nameBorder: s.nameErr ? '#dc2626' : '#e5e5e5',
+      nameHint: s.nameErr ? 'Nhập tên Quy trình để lưu.' : 'Tên hiện ở danh sách Nhân sự số.', nameHintColor: s.nameErr ? '#dc2626' : '#686873',
+      onName: function (e) { if (self.ro()) return; var v = e.target.value.slice(0, 100); self.setState({ name: v, nameErr: !v.trim(), savedName: v.trim() ? v.trim() : self.state.savedName }); },
+      onNameBlur: function () { if (!String(self.state.name || '').trim()) self.setState({ nameErr: true }); },
+      onDesc: function (e) { if (self.ro()) return; self.setState({ desc: e.target.value.slice(0, 500) }); },
+      triggerName: startNode ? trigOf(startNode.cfg).name : '-',
       collapseSide: function () { self.setState({ sideOpen: false }); }, expandSide: function () { self.setState({ sideOpen: true }); },
       showReady: s.top === 'build',
       navItems: (s.top === 'build' ? [
@@ -1240,14 +1267,15 @@ class ProcessBuilderInner extends React.Component<any, any> {
       otherIcon: { evaluate: 'M9 3h6 M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3', channels: 'M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z', insights: 'M4 4v16h16 M8 16v-4 M12 16V8 M16 16v-6' }[s.top] || '',
       otherTitle: { evaluate: 'Evaluate', channels: 'Channels', insights: 'Insights' }[s.top] || '',
       otherText: { evaluate: 'Dùng chung tab Evaluate với Nhân sự số thường: mỗi test case là một bộ dữ liệu đầu vào và kết quả mong đợi, chạy lại hàng loạt trước mỗi lần publish. Prototype chưa dựng phần này.', channels: 'Dùng chung tab Channels với Nhân sự số thường. Quy trình chạy theo kiểu kích hoạt ở bước Bắt đầu, publish xong gắn được làm tool cho Nhân sự số, gọi qua API hoặc webhook. Prototype chưa dựng phần này.', insights: 'Dùng chung tab Insights với Nhân sự số thường: lịch sử từng lần chạy, số lần chạy, tỉ lệ lỗi, thời gian chờ người duyệt. Prototype chưa dựng phần này.' }[s.top] || '',
-      panelTabs: [{ id: 'cfg', label: 'Configuration' }, { id: 'run', label: 'Test run' }].map(function (x) { var on = x.id === 'run' ? showRun : !showRun; return { label: x.label, on: on, bg: on ? '#eceefe' : 'transparent', fg: on ? '#203BDC' : '#686873', pick: function () { if (x.id === 'run') self.openRun(); else self.setState({ runOpen: false, panel: self.state.sel ? null : 'cfg' }); } }; }),
+      panelTabs: [{ id: 'cfg', label: 'Configuration' }, { id: 'run', label: 'Test run' }].filter(function (x) { return x.id !== 'run' || !ro; }).map(function (x) { var on = x.id === 'run' ? showRun : !showRun; return { label: x.label, on: on, bg: on ? '#eceefe' : 'transparent', fg: on ? '#203BDC' : '#686873', pick: function () { if (x.id === 'run') self.openRun(); else self.setState({ runOpen: false, panelHidden: false }); } }; }),
       panelCanClose: showRun || !!selNode,
-      panelClose: function () { clearTimeout(self.timer); var r = self.state.run; self.setState({ runOpen: false, run: r && (r.status === 'running' || r.status === 'paused') ? null : r, sel: null, picking: null, panel: null }); },
+      panelClose: function () { clearTimeout(self.timer); var r = self.state.run; self.setState({ runOpen: false, run: r && (r.status === 'running' || r.status === 'paused') ? null : r, sel: null, picking: null, panel: null, panelHidden: true }); },
       undo: function () { self.undo(); }, canUndoNot: !s.hist.length,
-      issueGroups: issues.map(function (g) { var cc = colOf(g.type); return { title: g.title, count: g.msgs.length, msgs: g.msgs, tile: cc[0], icon: TYPES[g.type].icon, go: function () { self.setState({ sel: g.id, tab: 'cfg', checkOpen: false, runOpen: false, top: 'build', section: 'flow' }); } }; }),
+      issueGroups: issues.map(function (g) { var cc = colOf(g.type); return { title: g.title, count: g.msgs.length, msgs: g.msgs, tile: cc[0], icon: TYPES[g.type].icon, go: function () { self.setState({ sel: g.id, tab: 'cfg', checkOpen: false, runOpen: false, top: 'build', section: 'flow' }); setTimeout(function () { self.ensureVisible(g.id); }, 30); } }; }),
       issueCount: issueCount, hasIssues: issueCount > 0, noIssues: !issueCount, issueColor: issueCount ? '#b91c1c' : '#020817',
       checkOpen: s.checkOpen, checkAria: 'Kiểm tra, ' + issueCount + ' lỗi', toggleCheck: function () { self.setState({ checkOpen: !s.checkOpen, pubOpen: false, add: null, moreOpen: false }); },
-      pubOpen: s.pubOpen, togglePub: function () { self.setState({ pubOpen: !s.pubOpen, checkOpen: false, add: null, moreOpen: false }); },
+      pubOpen: s.pubOpen, togglePub: function () { if (self.roStop()) return; self.setState({ pubOpen: !s.pubOpen, checkOpen: false, add: null, moreOpen: false }); },
+      openVersions: function () { self.setState({ section: 'versions', top: 'build', pubOpen: false }); },
       pubState: s.status === 'pending' ? 'v1 đang chờ Admin duyệt' : 'Chưa publish lần nào · Đã tự lưu',
       publishDisabled: issueCount > 0 || s.status === 'pending', publishLabel: s.status === 'pending' ? 'Đã gửi duyệt' : 'Publish v1',
       publish: function () { self.setState({ status: 'pending', pubOpen: false }); self.showToast('Đã gửi yêu cầu publish v1. Admin duyệt xong thì Quy trình mới chạy thật.', 'good'); },
@@ -1261,17 +1289,17 @@ class ProcessBuilderInner extends React.Component<any, any> {
       onMove: function (e) { self.onMove(e); },
       onUp: function () { self.onUp(); },
       edgesD: d, errD: ed, ranD: rd, selD: '', tmpD: tmpD, edgeDel: edgeDel, viewNodes: viewNodes,
-      palOpen: s.palOpen && building, palClosed: !s.palOpen && building, togglePal: function () { self.setState({ palOpen: !self.state.palOpen }); },
+      palOpen: s.palOpen && building && !ro, palClosed: !s.palOpen && building && !ro, togglePal: function () { self.setState({ palOpen: !self.state.palOpen }); },
       palItems: PAL.map(function (k) { var t = TYPES[k], cc = COL[t.c]; return { name: t.name, desc: t.desc, icon: t.icon, tile: cc[0], tileBg: cc[1], more: k === 'tool' || k === 'func', pick: function () { self.palPick(k); } }; }),
       palHint: selNode && selNode.type === 'loop' ? 'Đang chọn vòng lặp: bước mới vào trong vòng lặp.' : (selNode ? 'Bước mới thêm ngay sau "' + selNode.title + '".' : 'Chọn một bước để thêm ngay sau nó.'),
-      fit: function () { self.fit(0.3); },
+      fit: function () { self.fit(0.15); },
       autoLayout: function () { self.commit(self.state.nodes, self.state.edges, {}); self.showToast('Đã sắp xếp gọn lại Quy trình.'); },
       toggleDir: function () { var nd = self.state.dir === 'h' ? 'v' : 'h'; DIR = nd; var f = layoutFlow({ nodes: clone(self.state.nodes), edges: self.state.edges }); self.setState({ dir: nd, nodes: f.nodes }); setTimeout(function () { self.fit(0.5); }, 0); },
       dirLabel: s.dir === 'v' ? 'Chuyển sang bố cục ngang' : 'Chuyển sang bố cục dọc',
       dirIcon: s.dir === 'v' ? 'M4 12h4 M16 12h4 M8 9h8v6H8z' : 'M12 4v4 M12 16v4 M9 8h6v8H9z',
       redo: function () { self.redo(); }, canRedoNot: !(s.fut && s.fut.length),
       openSettings: function () { self.setState({ panel: s.panel === 'settings' && !s.sel ? null : 'settings', sel: null, runOpen: false, add: null }); },
-      panelOpen: building && (pmNode || showRun || pmProcess), panelW: s.expand ? 640 : 476,
+      panelOpen: building && (pmNode || showRun || (pmProcess && !s.panelHidden)), panelW: s.expand ? 640 : 476,
       expandLabel: s.expand ? 'Thu nhỏ bảng' : 'Mở rộng bảng', toggleExpand: function () { self.setState({ expand: !self.state.expand }); },
       ctxOpen: !!s.ctx && !!byId[s.ctx && s.ctx.id], ctxX: s.ctx ? s.ctx.x : 0, ctxY: s.ctx ? s.ctx.y : 0,
       ctxItems: s.ctx && byId[s.ctx.id] ? (function () { var cn = byId[s.ctx.id], isSt = cn.type === 'start'; return [
@@ -1281,8 +1309,8 @@ class ProcessBuilderInner extends React.Component<any, any> {
         { label: 'Xoá', off: isSt, fg: isSt ? '#a1a1aa' : '#dc2626', pick: function () { self.removeNode(cn.id); } }
       ]; })() : [],
 
-      zoomPct: Math.round(s.z * 100), zoomIn: function () { self.setState({ z: Math.min(1.5, Math.round((s.z + 0.1) * 10) / 10) }); }, zoomOut: function () { self.setState({ z: Math.max(0.4, Math.round((s.z - 0.1) * 10) / 10) }); },
-      runLocked: locked, runBar: run && run.status === 'paused' ? 'Đang chờ trả lời - xem bảng Chạy thử bên phải' : 'Đang chạy thử - canvas tạm khoá',
+      zoomPct: Math.round(s.z * 100), zoomIn: function () { self.setState({ z: Math.min(1.5, Math.round((s.z + 0.1) * 10) / 10) }); }, zoomOut: function () { self.setState({ z: Math.max(0.2, Math.round((s.z - 0.1) * 10) / 10) }); },
+      runLocked: this.locked(), runBar: run && run.status === 'paused' ? 'Đang chờ trả lời - xem bảng Chạy thử bên phải' : 'Đang chạy thử - canvas tạm khoá',
 
       addOpen: !!ad, addQ: ad ? ad.q : '', addSections: addSections, addEmpty: !!ad && !flat.length, addHasFrom: !!addFrom, addFrom: addFrom,
       addHasCrumb: !!ad && (ad.level === 'func' || ad.mode === 'inner'), addCrumb: ad && ad.mode === 'inner' ? 'Vòng lặp' : 'Hàm', addShowTabs: !!ad && ad.level !== 'func' && ad.mode !== 'inner' && !ad.q,
@@ -1341,7 +1369,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     e.stopPropagation(); if (this.locked()) return;
     var n = this.byId(id);
     var base = { sel: id, add: null, runOpen: false, panel: null, top: 'build', ctx: null, tab: id === this.state.sel ? this.state.tab : 'cfg', picking: null };
-    if (n.parent) { this.setState(base); return; }
+    if (n.parent || this.ro()) { this.setState(base); return; }
     this.setState(Object.assign(base, { dragPre: this.snap().hist, drag: { id: id, sx: e.clientX, sy: e.clientY, ox: n.x, oy: n.y } }));
   }
   toWorld(cx, cy) { var s = this.state, r = this.canvasEl && this.canvasEl.getBoundingClientRect ? this.canvasEl.getBoundingClientRect() : { left: 0, top: 0 }; return { x: (cx - r.left - s.px) / s.z, y: (cy - r.top - s.py) / s.z }; }
@@ -1352,7 +1380,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     return hit;
   }
   startLink(e, id, out) {
-    if (this.locked()) return;
+    if (this.locked() || this.ro()) return;
     e.stopPropagation();
     var p = this.toWorld(e.clientX, e.clientY);
     this.setState({ link: { from: { id: id, out: out }, sx: e.clientX, sy: e.clientY, mx: p.x, my: p.y, moved: false } });
@@ -1386,14 +1414,39 @@ class ProcessBuilderInner extends React.Component<any, any> {
 
   componentDidMount() {
     var self = this, p = this.props;
+    if (p.initial) {
+      var g = p.initial;
+      this.openBuilder(null, g.name, false);
+      DIR = g.dir || 'h';
+      this.seq = 1000;
+      this.setState({ nodes: g.nodes, edges: g.edges, dir: g.dir || 'h', desc: g.desc || '', guard: g.guard || this.state.guard, savedName: g.name, name: g.name, sel: null });
+      setTimeout(function () { self.fit(0.8); }, 60);
+      return;
+    }
     if (p.prompt) { this.setState({ drafting: true }); this.timer = setTimeout(function () { self.openBuilder(pickKey(p.prompt), p.name || SUGGEST.filter(function (g) { return g.key === pickKey(p.prompt); })[0].name, true); }, 1300); }
     else this.openBuilder(p.draft || null, p.name || (p.draft ? (SUGGEST.filter(function (g) { return g.key === p.draft; })[0] || {}).name : ''), false);
   }
+  componentDidUpdate(pp, ps) {
+    var p = this.props, s = this.state, self = this;
+    if (s.screen === 'builder' && p.onSave && (s.nodes !== ps.nodes || s.edges !== ps.edges || s.savedName !== ps.savedName || s.desc !== ps.desc || s.guard !== ps.guard || s.dir !== ps.dir)) {
+      clearTimeout(this.saveTimer);
+      this.saveTimer = setTimeout(function () { var t = self.state; p.onSave({ nodes: t.nodes, edges: t.edges, name: t.savedName, desc: t.desc, guard: t.guard, dir: t.dir }); }, 300);
+    }
+    if (p.command && p.command !== pp.command) {
+      if (p.command.kind === 'issues') this.setState({ checkOpen: true, pubOpen: false });
+      if (p.command.kind === 'run') this.openRun();
+    }
+    if (p.onReady && this._v) {
+      var v = this._v, key = JSON.stringify([v.readyItems.map(function (r) { return r.label + r.done; }), v.issueCount, v.stepCount]);
+      if (key !== this._readyKey) { this._readyKey = key; p.onReady({ items: v.readyItems.map(function (r) { return { label: r.label, done: r.done, failed: r.failed }; }), pick: v.readyItems.map(function (r) { return r.pick; }), issueCount: v.issueCount, stepCount: v.stepCount }); }
+    }
+  }
+  componentWillUnmount() { clearTimeout(this.timer); clearTimeout(this.saveTimer); }
   render() {
-    var self = this;
+    var self = this, emb = !!this.props.embedded;
     if (this.state.screen !== 'builder') {
       return (
-        <div className="qt-root" style={S('height: 100vh; display: flex; align-items: center; justify-content: center; background: #f8fafc')}>
+        <div className="qt-root" style={S(emb ? 'height: 100%; flex: 1; display: flex; align-items: center; justify-content: center; background: #f8fafc' : 'height: 100vh; display: flex; align-items: center; justify-content: center; background: #f8fafc')}>
           <style>{CSS}</style>
           <div role="status" style={S('display: flex; flex-direction: column; align-items: center; gap: 12px; color: #334155; font-size: 14px')}>
             <span className="qt-running" style={S('width: 40px; height: 40px; border-radius: 12px; background: #203BDC; color: #fff; display: flex; align-items: center; justify-content: center')}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={ICON.spark}></path></svg></span>
@@ -1402,20 +1455,21 @@ class ProcessBuilderInner extends React.Component<any, any> {
         </div>
       );
     }
-    var v = this.renderVals();
-    var { actCount, actGuards, addCase, addCrumb, addEmpty, addFrom, addHasCrumb, addHasFrom, addOpen, addQ, addRoot, addSections, addShowTabs, addTabs, aiBanner, aiCount, autoLayout, backToList, building, canRedoNot, canUndoNot, canvasCursor, canvasRef, cases, checkOpen, closeAdd, collapseSide, ctxItems, ctxOpen, ctxX, ctxY, deleteProcess, deleteSel, dirIcon, dirLabel, dismissBanner, draftSteps, edgeDel, edgesD, editors, errD, errMode, errRetry, expandLabel, expandSide, fit, guards, hasIssues, isGuardPage, isOtherTab, isVersionsPage, issueColor, issueCount, issueGroups, last, lastHas, moreOpen, name, navItems, noIssues, noRunInputs, nodeTabs, onAddKey, onAddQ, onBgDown, onErrMode, onMove, onTitle, onUp, opOpts, otherIcon, otherText, otherTitle, outVars, palClosed, palItems, palOpen, panelClose, panelOpen, panelTabs, panelW, pf, pmNode, pmProcess, pmRun, pubOpen, pubState, publish, publishDisabled, publishLabel, ranD, readyDone, readyItems, readyPct, readyTotal, redo, rerun, runBar, runDone, runHasOutput, runInputTitle, runInputs, runLocked, runLog, runOutput, runPaused, runResBg, runResBorder, runResText, runRunning, runShowInput, runShowResult, runShowTrace, runStatusColor, runStatusText, runStep, runTabs, sel, selD, share, showReady, sideRail, sideShow, startRun, statusBg, statusDot, statusFg, statusLabel, stepCount, tabCfg, tabLast, tmpD, toast, toastBg, toastText, toggleCheck, toggleDir, toggleExpand, toggleMore, togglePal, togglePub, toggleRetry, toolHint, toolHintColor, topTabs, undo, varOpts, versionSub, versionTitle, viewNodes, waitActions, waitBody, waitExpire, waitRole, waitTitle, worldTransform, zoomIn, zoomOut, zoomPct } = v;
+    var v = this.renderVals(); this._v = v;
+    var { actCount, actGuards, addCase, addCrumb, addEmpty, addFrom, addHasCrumb, addHasFrom, addOpen, addQ, addRoot, addSections, addShowTabs, addTabs, aiBanner, aiCount, autoLayout, backToList, bannerLeft, building, canRedoNot, canTest, canUndoNot, canvasCursor, canvasRef, cases, checkLeft, checkOpen, closeAdd, collapseSide, ctxItems, ctxOpen, ctxX, ctxY, deleteProcess, deleteSel, desc, descLen, dirIcon, dirLabel, dismissBanner, draftSteps, edgeDel, edgesD, editors, errD, errMode, errRetry, expandLabel, expandSide, fit, guards, hasIssues, isGuardPage, isOtherTab, isVersionsPage, issueColor, issueCount, issueGroups, last, lastHas, moreOpen, name, nameBorder, nameHint, nameHintColor, nameInput, nameInvalid, nameLen, navItems, noIssues, noRunInputs, nodeTabs, onAddKey, onAddQ, onBgDown, onDesc, onErrMode, onMove, onName, onNameBlur, onTitle, onUp, opOpts, openRun, openVersions, otherIcon, otherText, otherTitle, outVars, palClosed, palItems, palOpen, panelClose, panelOpen, panelReopen, panelTabs, panelW, pendingBanner, pendingText, pf, pmNode, pmProcess, pmRun, pubOpen, pubState, publish, publishDisabled, publishLabel, ranD, readOnly, readyDone, readyItems, readyPct, readyTotal, redo, reopenCfg, rerun, roBanner, runBar, runDone, runHasOutput, runInputTitle, runInputs, runLocked, runLog, runOutput, runPaused, runResBg, runResBorder, runResText, runRunning, runShowInput, runShowResult, runShowTrace, runStatusColor, runStatusText, runStep, runTabs, sel, selD, share, showHeader, showReady, sideRail, sideShow, startRun, statusBg, statusDot, statusFg, statusLabel, stepCount, tabCfg, tabLast, tmpD, toast, toastBg, toastText, toggleCheck, toggleDir, toggleExpand, toggleMore, togglePal, togglePub, toggleRetry, toolHint, toolHintColor, topTabs, triggerName, undo, varOpts, versionSub, versionTitle, viewNodes, waitActions, waitBody, waitExpire, waitRole, waitTitle, worldTransform, zoomIn, zoomOut, zoomPct } = v;
     backToList = function () { clearTimeout(self.timer); self.props.onBack(); };
     return (
-      <div className="qt-root" style={S('height: 100vh; min-height: 640px; display: flex; flex-direction: column; overflow: hidden; position: relative; background: #fff')}>
+      <div className="qt-root" style={S(emb ? 'flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; background: #fff' : 'height: 100vh; min-height: 640px; display: flex; flex-direction: column; overflow: hidden; position: relative; background: #fff')}>
         <style>{CSS}</style>
 
+{(showHeader) && (<>
 <div style={S('height: 56px; flex-shrink: 0; border-bottom: 1px solid #e3e1dc; display: flex; align-items: center; padding: 0 16px; gap: 12px; position: relative; z-index: 30; background: #fff')}>
   <button type="button" className={Q('ghost')} aria-label="Quay lại danh sách Nhân sự số" onClick={backToList} style={S('width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #686873; flex-shrink: 0')}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
   <button type="button" className={Q('ghost')} onClick={backToList} style={S('font-size: 12px; color: #686873; padding: 0; flex-shrink: 0')}>Nhân sự số</button>
   <span style={S('font-size: 12px; color: #b4b4ba; flex-shrink: 0')}>/</span>
   <div style={S('display: flex; align-items: center; gap: 8px; min-width: 140px; max-width: 300px')}>
     <span style={S('width: 28px; height: 28px; border-radius: 6px; background: #f5f3f0; border: 1px solid #e3e1dc; color: #203BDC; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-sizing: border-box')}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 5h6v5H3z M15 14h6v5h-6z M9 7.5h3a2 2 0 0 1 2 2v5a2 2 0 0 0 2 2"></path></svg></span>
-    <span style={S('font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0')}>{name}</span>
+    <span style={S('font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0')} title={name}>{name}</span>
     <span style={S('display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; padding: 2px 6px; border-radius: 4px; background: #eef2ff; color: #4338ca; white-space: nowrap; flex-shrink: 0')}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 5h6v5H3z M15 14h6v5h-6z M9 7.5h3a2 2 0 0 1 2 2v5a2 2 0 0 0 2 2"></path></svg>Quy trình</span>
   </div>
   <div style={S('flex: 1; display: flex; justify-content: center; gap: 4px')}>
@@ -1424,7 +1478,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     </React.Fragment>))}
   </div>
   <div style={S('display: flex; align-items: center; gap: 8px')}>
-    <button type="button" onClick={togglePub} style={S(`height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border-radius: 999px; border: 0; font-size: 12px; font-weight: 500; white-space: nowrap; background: ${statusBg}; color: ${statusFg}`)}><span style={S(`width: 6px; height: 6px; border-radius: 999px; background: ${statusDot}`)}></span>{statusLabel}</button>
+    <button type="button" onClick={openVersions} style={S(`height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border-radius: 999px; border: 0; font-size: 12px; font-weight: 500; white-space: nowrap; background: ${statusBg}; color: ${statusFg}`)}><span style={S(`width: 6px; height: 6px; border-radius: 999px; background: ${statusDot}`)}></span>{statusLabel}</button>
     <button type="button" onClick={share} style={S('height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid #e3e1dc; background: #fff; font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; color: #121216')}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M2 21a7 7 0 0 1 14 0 M16 11l2 2 4-4"></path></svg>Cấp quyền</button>
     <div style={S('position: relative')}>
       <button type="button" className={Q('btn btn-primary')} aria-expanded={pubOpen} onClick={togglePub} style={S('height: 36px; padding: 0 16px; border-radius: 8px; font-size: 14px; font-weight: 500; gap: 8px')}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 15c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2.1-.1-2.9-.8-.8-2.1-.8-2.9-.1z M12 15l-3-3c1.4-3.6 4.3-7.6 11-8-.4 6.7-4.4 9.6-8 11z M9 12H5l2-4h4 M12 15v4l4-2v-4"></path></svg>Publish</button>
@@ -1449,6 +1503,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     </div>
   </div>
 </div>
+</>)}
 
 <div style={S('flex: 1; min-height: 0; display: flex; position: relative')}>
   {(sideShow) && (<>
@@ -1483,7 +1538,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     </div>
   </>)}
   {(checkOpen) && (<>
-    <div role="dialog" aria-label="Lỗi cần sửa" style={S('position: absolute; left: 248px; bottom: 16px; width: 360px; max-height: 460px; overflow-y: auto; background: #fff; border: 1px solid #e3e1dc; border-radius: 12px; box-shadow: 0 12px 28px rgba(15,23,42,.14); padding: 14px; z-index: 40')}>
+    <div role="dialog" aria-label="Lỗi cần sửa" style={S(`position: absolute; left: ${checkLeft}px; bottom: 16px; width: 360px; max-height: 460px; overflow-y: auto; background: #fff; border: 1px solid #e3e1dc; border-radius: 12px; box-shadow: 0 12px 28px rgba(15,23,42,.14); padding: 14px; z-index: 40`)}>
       <div style={S('display: flex; align-items: center; gap: 8px')}><b style={S('font-size: 14px; font-weight: 600; flex: 1')}>Lỗi cần sửa</b><span style={S('font-size: 11px; color: #b91c1c; background: #fef2f2; border-radius: 999px; padding: 1px 8px')}>{issueCount} lỗi</span><button type="button" className={Q('ghost')} aria-label="Đóng" onClick={toggleCheck} style={S('width: 26px; height: 26px; border-radius: 6px')}>✕</button></div>
       <p style={S('font-size: 12px; color: #686873; margin: 2px 0 0')}>Sửa hết thì mới publish được.</p>
       {(noIssues) && (<><p style={S('font-size: 12.5px; color: #15803d; margin: 10px 0 0')}>Không còn lỗi nào.</p></>)}
@@ -1624,13 +1679,25 @@ class ProcessBuilderInner extends React.Component<any, any> {
     </div>
 
     {(aiBanner) && (<>
-      <div data-ui="1" role="status" style={S('position: absolute; left: 50%; top: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; background: #f3f5fe; border: 1px solid #c7d2fe; border-radius: 10px; padding: 7px 8px 7px 12px; font-size: 12.5px; color: #1e3a8a; max-width: 520px; z-index: 5')}>
-        <span>AI dựng {draftSteps} bước từ mô tả của bạn. Xem mục Sẵn sàng publish bên trái để biết chỗ còn thiếu.</span>
-        <button type="button" className={Q('ghost')} onClick={dismissBanner} style={S('height: 28px; padding: 0 8px; border-radius: 6px; font-size: 12px; color: #1e3a8a; font-weight: 500')}>Đã hiểu</button>
+      <div data-ui="1" role="status" style={S(`position: absolute; left: ${bannerLeft}; top: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; background: #f3f5fe; border: 1px solid #c7d2fe; border-radius: 10px; padding: 7px 8px 7px 12px; font-size: 12.5px; color: #1e3a8a; max-width: 520px; z-index: 5`)}>
+        <span>AI dựng {draftSteps} bước từ mô tả của bạn. Xem mục Sẵn sàng publish để biết chỗ còn thiếu.</span>
+        <button type="button" className={Q('ghost')} onClick={dismissBanner} style={S('height: 28px; padding: 0 8px; border-radius: 6px; font-size: 12px; color: #1e3a8a; font-weight: 500; white-space: nowrap; flex-shrink: 0')}>Đã hiểu</button>
+      </div>
+    </>)}
+    {(pendingBanner) && (<>
+      <div data-ui="1" role="status" style={S(`position: absolute; left: ${bannerLeft}; top: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 8px 12px; font-size: 12.5px; color: #92400e; max-width: 560px; z-index: 5`)}><span style={S('width: 6px; height: 6px; border-radius: 999px; background: #f59e0b; flex-shrink: 0')}></span><span>{pendingText}</span></div>
+    </>)}
+    {(roBanner) && (<>
+      <div data-ui="1" role="status" style={S(`position: absolute; left: ${bannerLeft}; top: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; background: #f5f3f0; border: 1px solid #e3e1dc; border-radius: 10px; padding: 8px 12px; font-size: 12.5px; color: #475569; z-index: 5`)}>Bạn chỉ xem được Quy trình này. Bấm vào bước để xem cấu hình.</div>
+    </>)}
+    {(panelReopen) && (<>
+      <div data-ui="1" style={S('position: absolute; right: 16px; top: 16px; display: flex; gap: 4px; background: #fff; border: 1px solid #e3e1dc; border-radius: 10px; padding: 3px; box-shadow: 0 2px 8px rgba(15,23,42,.06); z-index: 6')}>
+        <button type="button" onClick={reopenCfg} style={S('height: 30px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; font-size: 13px; font-weight: 500; color: #121216')}>Configuration</button>
+        {(canTest) && (<><button type="button" onClick={openRun} style={S('height: 30px; padding: 0 12px; border: 0; border-radius: 8px; background: #eceefe; font-size: 13px; font-weight: 500; color: #203BDC; display: inline-flex; align-items: center; gap: 6px')}><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"></path></svg>Test run</button></>)}
       </div>
     </>)}
     {(runLocked) && (<>
-      <div data-ui="1" style={S('position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); background: #0f172a; color: #fff; font-size: 12px; border-radius: 999px; padding: 6px 12px; z-index: 5')}>{runBar}</div>
+      <div data-ui="1" style={S(`position: absolute; left: ${bannerLeft}; bottom: 16px; transform: translateX(-50%); background: #0f172a; color: #fff; font-size: 12px; border-radius: 999px; padding: 6px 12px; z-index: 5`)}>{runBar}</div>
     </>)}
 
     {/* Menu chuột phải */}
@@ -1757,7 +1824,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
         <div style={S('display: flex; align-items: center; gap: 8px')}>
           <span style={S(`width: 28px; height: 28px; border-radius: 7px; background: ${sel.tileBg}; color: ${sel.tile}; display: flex; align-items: center; justify-content: center; flex-shrink: 0`)}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={sel.icon}></path></svg></span>
           <label className={Q('sr')} htmlFor="ntitle">Tên bước</label>
-          <input id="ntitle" value={sel.title} onChange={onTitle} style={S('flex: 1; min-width: 0; border: 1px solid transparent; border-radius: 6px; font: inherit; font-size: 15px; font-weight: 600; padding: 3px 6px; background: transparent')} />
+          <input id="ntitle" value={sel.title} onChange={onTitle} readOnly={readOnly} style={S('flex: 1; min-width: 0; border: 1px solid transparent; border-radius: 6px; font: inherit; font-size: 15px; font-weight: 600; padding: 3px 6px; background: transparent')} />
 
         </div>
         {(sel.hasTabs) && (<>
@@ -1783,6 +1850,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
       </>)}
 
       {(tabCfg) && (<>
+        <fieldset disabled={readOnly} style={S('border: 0; padding: 0; margin: 0; min-width: 0')}>
         <div style={S('padding: 4px 16px 24px')}>
           {(sel.hasIssue) && (<><div style={S('margin-top: 10px; border: 1px solid #fecaca; background: #fef2f2; color: #991b1b; border-radius: 8px; padding: 8px 10px; font-size: 12px; line-height: 1.5')}>{sel.issueText}</div></>)}
           {(sel.hasHelp) && (<><p style={S('font-size: 12px; color: #475569; margin: 10px 0 0; line-height: 1.5')}>{sel.help}</p></>)}
@@ -1879,14 +1947,29 @@ class ProcessBuilderInner extends React.Component<any, any> {
             <button type="button" className={Q('btn')} onClick={deleteSel} style={S('margin-top: 22px; color: #b91c1c; border-color: #fecaca')}>Xoá bước</button>
           </>)}
         </div>
+        </fieldset>
       </>)}
     </>)}
 
     {(pmProcess) && (<>
-      <div style={S('padding: 18px 16px')}>
-        <p style={S('margin: 0; font-size: 13px; color: #475569; line-height: 1.55')}>Chọn một bước trên canvas để cấu hình. Quy trình có {stepCount} bước, còn <b style={S(`color: ${issueColor}`)}>{issueCount} lỗi</b> cần sửa.</p>
-        <p style={S(`margin: 10px 0 0; font-size: 12.5px; color: ${toolHintColor}; line-height: 1.5`)}>{toolHint}</p>
+      <fieldset disabled={readOnly} style={S('border: 0; padding: 0; margin: 0; min-width: 0')}>
+      <div style={S('padding: 16px')}>
+        <h2 style={S('margin: 0; font-size: 15px; font-weight: 600')}>Thông tin Quy trình</h2>
+        <label className={Q('lbl')} htmlFor="qt-name">Tên Quy trình <span style={S('color: #dc2626')}>*</span></label>
+        <input id="qt-name" className={Q('field')} value={nameInput} maxlength="100" onChange={onName} onBlur={onNameBlur} aria-invalid={nameInvalid} style={S(`border-color: ${nameBorder}`)} />
+        <div style={S('display: flex; justify-content: space-between; gap: 8px; margin-top: 4px')}><span style={S(`font-size: 11.5px; color: ${nameHintColor}`)}>{nameHint}</span><span style={S('font-size: 11.5px; color: #686873')}>{nameLen}/100</span></div>
+        <label className={Q('lbl')} htmlFor="qt-desc">Mô tả</label>
+        <textarea id="qt-desc" className={Q('field')} rows="3" maxlength="500" value={desc} onChange={onDesc} placeholder="VD: Duyệt đề nghị mua sắm nhiều cấp, tạo PO và đối chiếu 3 chiều." style={S('height: auto; padding: 8px 10px; resize: vertical')}></textarea>
+        <div style={S('display: flex; justify-content: flex-end; margin-top: 4px')}><span style={S('font-size: 11.5px; color: #686873')}>{descLen}/500</span></div>
+        <div style={S('display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 16px')}>
+          <div style={S('background: #f8fafc; border-radius: 8px; padding: 10px')}><div style={S('font-size: 20px; font-weight: 600')}>{stepCount}</div><div style={S('font-size: 11.5px; color: #475569')}>bước</div></div>
+          <div style={S('background: #f8fafc; border-radius: 8px; padding: 10px')}><div style={S(`font-size: 20px; font-weight: 600; color: ${issueColor}`)}>{issueCount}</div><div style={S('font-size: 11.5px; color: #475569')}>lỗi cần sửa</div></div>
+          <div style={S('background: #f8fafc; border-radius: 8px; padding: 10px')}><div style={S('font-size: 13px; font-weight: 600; line-height: 1.3; min-height: 26px')}>{triggerName}</div><div style={S('font-size: 11.5px; color: #475569')}>kích hoạt</div></div>
+        </div>
+        <p style={S('margin: 14px 0 0; font-size: 12.5px; color: #475569; line-height: 1.5')}>Chọn một bước trên canvas để cấu hình bước đó.</p>
+        <p style={S(`margin: 8px 0 0; font-size: 12.5px; color: ${toolHintColor}; line-height: 1.5`)}>{toolHint}</p>
       </div>
+      </fieldset>
     </>)}
 
       </aside>
@@ -1907,10 +1990,27 @@ class ProcessBuilderInner extends React.Component<any, any> {
   }
 }
 
+export { ProcessBuilderInner, pickKey, SUGGEST };
+export function ProcessCanvas(props: any) { return <ProcessBuilderInner {...props} embedded />; }
+
+/** /process/:id now only resolves to the Nhân sự số page (/agents/:id), which hosts the canvas
+ * inside the same shell as every other Nhân sự số. /process/new[?prompt=] creates the record. */
 export default function ProcessBuilder() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [sp] = useSearchParams();
-  const draft = id && id !== "new" ? id : sp.get("draft") || null;
-  return <ProcessBuilderInner key={(id || "") + sp.toString()} draft={draft} prompt={sp.get("prompt") || ""} name={sp.get("name") || ""} onBack={() => navigate("/agents")} />;
+  React.useEffect(() => {
+    if (!id || id === "new") {
+      const prompt = sp.get("prompt") || "";
+      const key = prompt ? pickKey(prompt) : null;
+      const sug = key ? SUGGEST.filter(function (g) { return g.key === key; })[0] : null;
+      const rec = processStore.create({ name: sp.get("name") || (sug ? sug.name : "") || "Quy trình chưa đặt tên", draftKey: key, prompt });
+      navigate("/agents/" + rec.id + (prompt ? "?fromAi=1" : ""), { replace: true });
+    } else {
+      const rec = processStore.byDraftKey(id) || processStore.get(id);
+      navigate(rec ? "/agents/" + rec.id : "/agents", { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return null;
 }

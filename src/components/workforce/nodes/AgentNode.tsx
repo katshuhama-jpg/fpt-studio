@@ -19,7 +19,7 @@ export default function AgentNode({ id, data, selected }: NodeProps<AgentNodeDat
 
   const openAgent = (e: React.MouseEvent) => {
     e.stopPropagation();
-    window.open(agent?.kind === "process" ? `/process/${agent.processId}` : `/agents/${data.agentId}`, "_blank", "noopener,noreferrer");
+    window.open(`/agents/${data.agentId}`, "_blank", "noopener,noreferrer");
   };
 
   return (

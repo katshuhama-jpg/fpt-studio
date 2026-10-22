@@ -5,6 +5,8 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { SquareLock01Icon, Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, Attachment01Icon, BlockedIcon, BookOpen01Icon, Cancel01Icon, BoltIcon, PauseIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, InformationCircleIcon, MinusSignIcon, CircleArrowReload01Icon, Wrench01Icon, UserGroupIcon, ArrowLeftDoubleIcon } from "@hugeicons/core-free-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
+import { ProcessCanvas } from "@/pages/ProcessBuilder";
+import { processStore } from "@/components/process/processStore";
 import TasksGrid from "@/components/tasks/TasksGrid";
 import BusinessProcessesGrid from "@/components/business-processes/BusinessProcessesGrid";
 import TriggersTab from "@/components/configure/TriggersTab";
@@ -159,13 +161,23 @@ const developNav = [
   { id: "sub-agents",   label: "Nhân sự số con",     icon: UserMultipleIcon, comingSoon: true, hidden: true },
 ];
 
+/** Build nav of a Nhân sự số Quy trình - the canvas replaces Instructions/Skills/Knowledge/Triggers
+ * (the trigger lives on the canvas's Bắt đầu step); Guardrails and Phiên bản are the same screens
+ * every Nhân sự số uses. */
+const processNav = [
+  { id: "flow",       label: "Quy trình",  icon: FlowCircleIcon },
+  { id: "guardrails", label: "Guardrails", icon: Shield01Icon },
+  { id: "versions",   label: "Phiên bản",  icon: HistoryIcon },
+];
+const PROCESS_SECTIONS = processNav.map(n => n.id);
+
 const INSIGHTS_SUBTABS = [
   { id: "performance", label: "Performance", icon: Analytics01Icon },
   { id: "quality", label: "Quality", icon: Activity01Icon },
   { id: "history", label: "History", icon: HistoryIcon },
 ];
 
-const BUILD_SECTIONS = ["instructions", "knowledge", "guardrails", "skills", "triggers", "connectors", "versions"];
+const BUILD_SECTIONS = ["flow", "instructions", "knowledge", "guardrails", "skills", "triggers", "connectors", "versions"];
 const INSIGHTS_SECTIONS = INSIGHTS_SUBTABS.map(s => s.id);
 const EVAL_ICONS: Record<string, any> = { "test-sets": FlaskConicalIcon, runs: PlayCircleIcon, metrics: CheckListIcon, publish: Rocket01Icon };
 
@@ -196,6 +208,7 @@ const monitorNav = [
 export default function AgentBuilder() {
   const { id = "new" } = useParams();
   const agent = getAgent(id);
+  const isProcess = agent.kind === "process";
   const access = useGroupAccess("agents");
   const { tree: agentBuilderOrgTree } = useOrg();
 
@@ -217,13 +230,14 @@ export default function AgentBuilder() {
   const tab: Tab = isLegacyBuildSection
     ? "insights"
     : VALID_TABS.includes(rawTab as Tab) ? (rawTab as Tab) : "build";
-  const section = isLegacyBuildSection
+  const section0 = isLegacyBuildSection
     ? (rawSection === "monitor" ? "quality" : LEGACY_BUILD_TO_INSIGHTS[rawSection!])
     : tab === "insights"
       ? (INSIGHTS_SECTIONS.includes(rawSection ?? "") ? rawSection! : "performance")
       : tab === "evaluate"
       ? (EVAL_SUBTABS.some(s => s.id === rawSection) ? rawSection! : "test-sets")
       : (BUILD_SECTIONS.includes(rawSection ?? "") ? rawSection! : "instructions");
+  const section = isProcess && tab === "build" && !PROCESS_SECTIONS.includes(section0) ? "flow" : section0;
 
   // A bookmarked/shared ?tab=build&section=history (or any other slug moved to Insights in
   // v2) still renders the right content immediately via the fallback above — this just fixes
@@ -255,6 +269,12 @@ export default function AgentBuilder() {
     : sectionId === "instructions" ? r.type === "connector" || r.type === "apiTool" : false).length;
   const requestPublish = () => {
     const aid = id ?? "new";
+    if (isProcess && processReady && processReady.issueCount > 0) {
+      toast.error(`Quy trình còn ${processReady.issueCount} lỗi. Sửa hết rồi gửi publish lại.`);
+      setParams({ tab: "build", section: "flow" });
+      setProcessCmd({ kind: "issues", t: Date.now() });
+      return;
+    }
     const revokedNow = listRevokedResources(aid);
     if (revokedNow.length > 0) { toast.error(REVOKED_COPY.publishBlocked(revokedNow)); return; }
     if (agentCardStore.isMissingDescription(aid)) { setCardMissingDesc(true); return; }
@@ -309,7 +329,14 @@ export default function AgentBuilder() {
   const setTab = (t: Tab) => setParams({ tab: t, section: t === "insights" ? "performance" : t === "evaluate" ? "test-sets" : "instructions" });
   const setSection = (s: string) => setParams({ tab, section: s });
 
-  const nav = developNav.filter((it: any) => !it.hidden);
+  const nav = isProcess ? processNav : developNav.filter((it: any) => !it.hidden);
+  // Quy trình canvas state reported up by ProcessCanvas: the "Sẵn sàng publish" checklist, the
+  // issue count (blocks publish) and a command channel back down (open issues / open Test run).
+  const [processReady, setProcessReady] = useState<{ items: { label: string; done: boolean; failed?: boolean }[]; pick: (() => void)[]; issueCount: number; stepCount: number } | null>(null);
+  const [processCmd, setProcessCmd] = useState<{ kind: "issues" | "run"; t: number } | null>(null);
+  const [processSideOpen, setProcessSideOpen] = useState(true);
+  const processGraph = useMemo(() => (isProcess ? processStore.getGraph(id) : null), [isProcess, id]);
+  const processUsages = (() => { void publishTick; return isProcess && id ? processStore.usages(id) : []; })();
   const currentSectionLabel =
     developNav.find((i: any) => i.id === section)?.label ?? section;
 
@@ -334,7 +361,8 @@ export default function AgentBuilder() {
   const canPublishAgent = canAccessAgent && (sharedPerms ? sharedPerms.has("publish") : access.canAct("publish", existingAgent ? isOwnedOrShared(existingAgent, access.userId) : true));
   const viewOnly = !!existingAgent && canAccessAgent && (sharedPerms ? !sharedPerms.has("build")
     : accessLevel === null && !access.canAct("manage", isOwnedOrShared(existingAgent, access.userId)));
-  const lockContent = viewOnly && tab !== "insights";
+  // A Quy trình canvas handles view-only itself (pan, open a step to read it, nothing editable).
+  const lockContent = viewOnly && tab !== "insights" && !(isProcess && tab === "build" && section === "flow");
   /** In Evaluate, a view-only person may still run tests and read results - those controls carry
    * data-viewonly-allow. */
   const isAllowed = (t: EventTarget | null) => tab === "evaluate" && !!(t as HTMLElement | null)?.closest?.("[data-viewonly-allow]");
@@ -392,7 +420,12 @@ export default function AgentBuilder() {
               <HugeiconsIcon icon={EyeIcon} size={11} /> Chỉ xem
             </span>
           )}
-          {kind === "automation" && (
+          {isProcess && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 shrink-0">
+              <HugeiconsIcon icon={FlowCircleIcon} size={10} /> Quy trình
+            </span>
+          )}
+          {!isProcess && kind === "automation" && (
             <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 shrink-0">
               <HugeiconsIcon icon={BoltIcon} size={10} /> Automation
             </span>
@@ -558,16 +591,20 @@ export default function AgentBuilder() {
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Xóa "{agent.name}"?</AlertDialogTitle>
+            <AlertDialogTitle>{processUsages.length ? `Chưa xoá được "${agent.name}"` : `Xóa "${agent.name}"?`}</AlertDialogTitle>
             <AlertDialogDescription>
-              {published
+              {processUsages.length ? (
+                <>Quy trình này đang là một bước trong {processUsages.length} Workforce. Gỡ Quy trình khỏi các Workforce dưới đây rồi xoá lại:
+                  <span className="block mt-2 space-y-1">{processUsages.map(u => <a key={u.id} href={`/workforce/${u.id}`} className="block text-primary hover:underline">{u.name}</a>)}</span>
+                </>
+              ) : published
                 ? "Nhân sự số đang live sẽ dừng phục vụ người dùng ngay. Cấu hình, phiên bản và quyền đã cấp sẽ bị xóa hẳn, không khôi phục được."
                 : "Cấu hình, phiên bản và quyền đã cấp sẽ bị xóa hẳn, không khôi phục được."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Hủy bỏ</AlertDialogCancel>
-            <AlertDialogAction
+            <AlertDialogCancel>{processUsages.length ? "Đóng" : "Hủy bỏ"}</AlertDialogCancel>
+            {processUsages.length === 0 && <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => {
                 const name = agent.name;
@@ -579,7 +616,7 @@ export default function AgentBuilder() {
               }}
             >
               Xóa Nhân sự số
-            </AlertDialogAction>
+            </AlertDialogAction>}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -750,8 +787,8 @@ export default function AgentBuilder() {
           className="border-r border-border overflow-hidden shrink-0 flex flex-col h-full"
           style={{
             background:"hsl(var(--card))",
-            width: ((buildMode === "manual" && tab === "build") || tab === "insights" || tab === "evaluate") ? "240px" : "0px",
-            opacity: ((buildMode === "manual" && tab === "build") || tab === "insights" || tab === "evaluate") ? 1 : 0,
+            width: (((isProcess ? processSideOpen : buildMode === "manual") && tab === "build") || tab === "insights" || tab === "evaluate") ? "240px" : "0px",
+            opacity: (((isProcess ? processSideOpen : buildMode === "manual") && tab === "build") || tab === "insights" || tab === "evaluate") ? 1 : 0,
             transition: "width 320ms cubic-bezier(0.4,0,0.2,1), opacity 280ms ease",
             minWidth: 0,
           }}
@@ -818,7 +855,33 @@ export default function AgentBuilder() {
           {tab === "build" && (
           <div className="shrink-0 px-3 py-3 border-t border-border space-y-2">
             <div className="rounded-lg border border-border bg-surface-muted/50 p-2.5">
-              {(() => {
+              {isProcess ? (() => {
+                const items = processReady?.items ?? [];
+                const doneCount = items.filter(i => i.done).length;
+                return (
+                  <>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-semibold text-foreground">Sẵn sàng publish</span>
+                      <span className="text-xs text-muted-foreground">{doneCount}/{items.length || 5}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-border overflow-hidden mb-2">
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${items.length ? (doneCount / items.length) * 100 : 0}%` }} />
+                    </div>
+                    <div className="space-y-1">
+                      {items.map((item, i) => (
+                        <button key={item.label} onClick={() => { setParams({ tab: "build", section: i === 3 ? "guardrails" : "flow" }); if (i === 1 || i === 2) setProcessCmd({ kind: "issues", t: Date.now() }); if (i === 4 && !viewOnly) setProcessCmd({ kind: "run", t: Date.now() }); }}
+                          className={`flex items-center gap-1.5 text-sm text-left hover:underline ${item.done ? "text-primary" : item.failed ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                          {item.done
+                            ? <HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} className="text-primary shrink-0" />
+                            : item.failed ? <AlertTriangle size={11} className="text-destructive shrink-0" aria-hidden />
+                            : <span className="w-3 h-3 rounded-full border-2 border-muted-foreground shrink-0 inline-block" />}
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                );
+              })() : (() => {
                 const agentTriggers = triggerStore.list(id ?? "new");
                 const checklist = [
                   { label: "Đã viết Instructions",     done: true,  section: "instructions" },
@@ -874,7 +937,7 @@ export default function AgentBuilder() {
               })()}
             </div>
             {!viewOnly && <button
-              onClick={() => setBuildMode("ai")}
+              onClick={() => (isProcess ? setProcessSideOpen(false) : setBuildMode("ai"))}
               className="w-full h-8 rounded-lg border border-border bg-surface text-muted-foreground hover:bg-surface-muted text-xs font-medium flex items-center justify-center gap-1.5 transition-base"
             >
               <HugeiconsIcon icon={ChevronLeftIcon} size={12} /> Collapse sidebar
@@ -886,8 +949,8 @@ export default function AgentBuilder() {
         {/* AI chat sidebar — slides in from left */}
         <div
           style={{
-            width: buildMode === "ai" ? "476px" : "0px",
-            opacity: buildMode === "ai" ? 1 : 0,
+            width: buildMode === "ai" && !isProcess ? "476px" : "0px",
+            opacity: buildMode === "ai" && !isProcess ? 1 : 0,
             overflow: "hidden",
             flexShrink: 0,
             transition: "width 320ms cubic-bezier(0.4,0,0.2,1), opacity 280ms ease",
@@ -926,7 +989,30 @@ export default function AgentBuilder() {
         >
           <div className="flex-1 flex flex-col overflow-hidden">
 
-            <div className="flex-1 overflow-y-auto bg-background">
+            {isProcess && tab === "build" && section === "flow" && (
+              <div className="flex-1 min-h-0 flex relative">
+                {!processSideOpen && (
+                  <button onClick={() => setProcessSideOpen(true)} aria-label="Mở sidebar" title="Mở sidebar"
+                    className="absolute left-0 top-3 z-20 h-8 w-6 rounded-r-lg border border-l-0 border-border bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground">
+                    <HugeiconsIcon icon={ChevronRightIcon} size={12} />
+                  </button>
+                )}
+                <ProcessCanvas
+                  key={id}
+                  draft={agent.processId || null}
+                  name={agent.name}
+                  initial={processGraph}
+                  prompt={!processGraph && params.get("fromAi") === "1" ? agent.instructions : ""}
+                  readOnly={viewOnly}
+                  pendingVersion={openGovRequest ? (openGovRequest as any).version ?? "v1" : null}
+                  command={processCmd}
+                  onReady={setProcessReady}
+                  onSave={(g: any) => { processStore.saveGraph(id, g); if (g.name !== agent.name || g.desc !== agent.desc) { processStore.rename(id, g.name, g.desc); setPublishTick(t => t + 1); } }}
+                  onBack={() => navigate("/agents")}
+                />
+              </div>
+            )}
+            <div className={`flex-1 overflow-y-auto bg-background ${isProcess && tab === "build" && section === "flow" ? "hidden" : ""}`}>
               {tab === "build" && section === "instructions" && <GeneralTab key={id ?? "new"} agentId={id ?? "new"} onRefineWithAI={() => setBuildMode("ai")} onChatToTest={() => { setBuildMode("manual"); setPreviewView("chat"); }} previewCollapsed={previewCollapsed} onReopenPreview={() => setPreviewCollapsed(false)} />}
               {tab === "build" && section === "knowledge" && <KnowledgeTab agentId={id ?? "new"} />}
               {tab === "build" && section === "guardrails" && <GuardrailsAgentTab agentId={id ?? "new"} />}
