@@ -4231,7 +4231,7 @@ function AudienceRadioRow({ icon, title, description, selected, liveNow, liveLab
                 : review === "required" ? "bg-warning/10 border-warning/25 text-warning"
                 : "bg-surface-muted border-border text-muted-foreground"
               }`}>
-                {review === "instant" ? "Publish ngay" : review === "required" ? "Cần duyệt" : review === "threshold" ? `Từ ${ORG_SHARE_REVIEW_MIN} người cần duyệt` : "Có thể cần duyệt"}
+                {review === "instant" ? "Publish ngay" : review === "required" ? "Cần duyệt" : review === "threshold" ? "Cần duyệt" : "Có thể cần duyệt"}
               </span>
             )}
             {liveNow && <LiveDotChip label={liveLabel} />}
@@ -4515,10 +4515,14 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
   // reviewer (see listAgentResourceRefs) — never bundled into what gets approved/rejected here;
   // whether each resource is shared for reuse by other builders is that resource's own,
   // independent request (see governanceStore.ts's module doc comment).
-  const effectiveAudience: PublishAudience = publishToOpen ? audience : (current.audience ?? "me");
+  // Only "Chỉ mình tôi" skips review (Tyler 22/10). A legacy live "Chia sẻ nhanh" scope counts as
+  // Công ty / phòng ban, so republishing it now goes to an Admin too.
+  const rawAudience: PublishAudience = publishToOpen ? audience : (current.audience ?? "me");
+  const effectiveAudience: PublishAudience = rawAudience === "quick_share" ? "org" : rawAudience;
   const keepingLiveScope = !publishToOpen && current.placement !== null;
-  // Company / department: fewer than ORG_SHARE_REVIEW_MIN people → instant, like "Only me".
-  const orgNeedsReview = keepingLiveScope ? (current.reach ?? ORG_SHARE_REVIEW_MIN) >= ORG_SHARE_REVIEW_MIN : orgReachCount >= ORG_SHARE_REVIEW_MIN;
+  // Company / department: always reviewed (ORG_SHARE_REVIEW_MIN = 1).
+  // Kept as a flag so the old direct-publish branch below stays readable; it is now always true.
+  const orgNeedsReview = true;
   const requiresReview = (effectiveAudience === "org" && orgNeedsReview) || effectiveAudience === "community" || effectiveAudience === "group";
 
   const blockedResourceItems = () => {
@@ -4899,7 +4903,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
                         icon={Building02Icon}
                         title="Công ty / phòng ban"
                         description="Chia sẻ cho cả công ty, phòng ban hoặc từng người - Tìm theo tên, email."
-                        review={audience === "org" && orgReachCount > 0 ? (orgReachCount >= ORG_SHARE_REVIEW_MIN ? "required" : "instant") : "threshold"}
+                        review="required"
                         selected={audience === "org"}
                         liveNow={current.placement !== null && currentAudience === "org"}
                         liveLabel="Đang live"

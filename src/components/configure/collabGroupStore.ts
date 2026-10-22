@@ -18,8 +18,10 @@ import { getAgent } from "./agentStore";
 
 /** Chia sẻ nhanh cap — above this, share through a Nhóm cộng tác (always reviewed). */
 export const QUICK_SHARE_MAX = 5;
-/** Company/department picker: sharing with this many people or more needs Admin review. */
-export const ORG_SHARE_REVIEW_MIN = 5;
+/** Company/department picker: sharing with this many people or more needs Admin review.
+ * Confirmed with Tyler 22/10: only "Chỉ mình tôi" publishes without review - any other scope,
+ * even 1 person, goes to an Admin (the old "dưới 5 người publish ngay" rule is gone). */
+export const ORG_SHARE_REVIEW_MIN = 1;
 /** ≥ 80% of the group's members in one unit → that unit's Admin is the reviewer. */
 export const GROUP_REVIEWER_THRESHOLD = 0.8;
 /** @deprecated kept for older imports; same value as GROUP_REVIEWER_THRESHOLD. */
