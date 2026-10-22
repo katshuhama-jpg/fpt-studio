@@ -155,6 +155,7 @@ const developNav = [
   { id: "knowledge",    label: "Knowledge",      icon: NoteIcon },
   { id: "triggers",     label: "Triggers",       icon: TimeScheduleIcon },
   { id: "versions",     label: "Phiên bản",      icon: HistoryIcon },
+  { id: "advanced",     label: "Cài đặt nâng cao", icon: SlidersHorizontalIcon },
   { id: "sub-agents",   label: "Nhân sự số con",     icon: UserMultipleIcon, comingSoon: true, hidden: true },
 ];
 
@@ -164,7 +165,7 @@ const INSIGHTS_SUBTABS = [
   { id: "history", label: "History", icon: HistoryIcon },
 ];
 
-const BUILD_SECTIONS = ["instructions", "knowledge", "guardrails", "skills", "triggers", "connectors", "versions"];
+const BUILD_SECTIONS = ["instructions", "knowledge", "guardrails", "skills", "triggers", "connectors", "versions", "advanced"];
 const INSIGHTS_SECTIONS = INSIGHTS_SUBTABS.map(s => s.id);
 const EVAL_ICONS: Record<string, any> = { "test-sets": FlaskConicalIcon, runs: PlayCircleIcon, metrics: CheckListIcon, publish: Rocket01Icon };
 
@@ -590,9 +591,7 @@ export default function AgentBuilder() {
         onClose={() => setCardMissingDesc(false)}
         onWrite={() => {
           setCardMissingDesc(false);
-          setPreviewCollapsed(false);
-          setPreviewView("config");
-          setParams({ tab: "build", section: "instructions" });
+          setParams({ tab: "build", section: "advanced", atab: "agent-card" });
           agentCardStore.requestFocus(id ?? "new");
         }}
       />
@@ -615,7 +614,7 @@ export default function AgentBuilder() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => { setHandoffWarn(null); setParams({ tab: "build", section: "instructions", panel: "capabilities" }); }}>Mở Năng lực</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => { setHandoffWarn(null); setParams({ tab: "build", section: "advanced", atab: "capabilities" }); }}>Mở Năng lực</AlertDialogCancel>
             <AlertDialogAction onClick={() => { setHandoffWarn(null); setShowPublish(true); }}>Vẫn publish</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -870,6 +869,7 @@ export default function AgentBuilder() {
               {tab === "build" && section === "knowledge" && <KnowledgeTab agentId={id ?? "new"} />}
               {tab === "build" && section === "guardrails" && <GuardrailsAgentTab agentId={id ?? "new"} />}
               {tab === "build" && section === "skills" && <SkillsAgentTab agentId={id ?? "new"} />}
+              {tab === "build" && section === "advanced" && <AdvancedSettingsTab agentId={id ?? "new"} />}
               {tab === "build" && section === "versions" && (
                 <AgentVersionsPanel key={publishTick} agentId={id ?? "new"} onPublish={() => canPublishAgent && requestPublish()} onChanged={() => setPublishTick(t => t + 1)} />
               )}
@@ -877,7 +877,7 @@ export default function AgentBuilder() {
                 <TriggersTab agentId={id ?? "new"} onChange={() => setTriggerTick(t => t + 1)} />
               )}
               {tab === "evaluate" && <EvaluationTab agentId={id ?? "new"} agentName={agent.name} section={section as EvalSection} onRefineWithAI={() => setParams({ tab: "build", section: "instructions", buildMode: "ai" })} />}
-              {tab === "channels" && <DeployTab agentId={id} onViewTriggers={() => setParams({ tab: "build", section: "triggers" })} onViewVersions={() => setParams({ tab: "build", section: "versions" })} onOpenPublish={() => canPublishAgent && requestPublish()} onOpenCapabilities={() => setParams({ tab: "build", section: "instructions", panel: "capabilities" })} />}
+              {tab === "channels" && <DeployTab agentId={id} onViewTriggers={() => setParams({ tab: "build", section: "triggers" })} onViewVersions={() => setParams({ tab: "build", section: "versions" })} onOpenPublish={() => canPublishAgent && requestPublish()} onOpenCapabilities={() => setParams({ tab: "build", section: "advanced", atab: "capabilities" })} />}
               {tab === "insights" && section === "performance" && <PerformanceTab />}
               {tab === "insights" && section === "quality" && <MonitorSection agentId={id ?? "new"} />}
               {tab === "insights" && section === "history" && canSeeHistory && (
@@ -3660,18 +3660,60 @@ function EmptyStateBox({ icon, description, addLabel, onAdd, disabled, disabledR
   );
 }
 
+const ADVANCED_TABS = [
+  { id: "sub-agents", label: "Nhân sự số con", icon: UserMultipleIcon },
+  { id: "starter-prompts", label: "Starter Prompts", icon: Chat01Icon },
+  { id: "agent-card", label: "Danh thiếp Nhân sự số", icon: UserCheck01Icon },
+  { id: "capabilities", label: "Khả năng của Nhân sự số", icon: BoltIcon },
+] as const;
+type AdvancedTabId = typeof ADVANCED_TABS[number]["id"];
+
+/** Build › Cài đặt nâng cao — what used to be the "Advanced settings" group at the bottom of the
+ * config rail, now its own left-nav section with one tab per item (?atab= keeps the tab). */
+function AdvancedSettingsTab({ agentId }: { agentId: string }) {
+  const [params, setParams] = useSearchParams();
+  useAgentCard(agentId);
+  const fromUrl = ADVANCED_TABS.find(t => t.id === params.get("atab"))?.id;
+  const current: AdvancedTabId = fromUrl ?? (agentCardStore.peekFocus(agentId) ? "agent-card" : "sub-agents");
+  const select = (t: string) => { const next = new URLSearchParams(params); next.set("atab", t); setParams(next, { replace: true }); };
+  const trigger = "h-full flex-none gap-1.5 rounded-md border border-transparent px-3 py-1 text-sm font-medium text-muted-foreground hover:text-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-offset-0";
+  return (
+    <div className="max-w-[880px] mx-auto px-8 py-8">
+      <div className="flex items-start gap-3 mb-6">
+        <div className="w-11 h-11 rounded-xl bg-primary-soft flex items-center justify-center shrink-0">
+          <HugeiconsIcon icon={SlidersHorizontalIcon} size={20} className="text-primary" />
+        </div>
+        <div>
+          <h1 className="text-xl font-semibold">Cài đặt nâng cao</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Nhân sự số con, gợi ý mở đầu, danh thiếp và các năng lực mặc định.</p>
+        </div>
+      </div>
+      <Tabs value={current} onValueChange={select}>
+        <div className="overflow-x-auto mb-6">
+          <TabsList className="h-9 w-fit rounded-lg bg-muted p-[3px] text-muted-foreground">
+            {ADVANCED_TABS.map(t => (
+              <TabsTrigger key={t.id} value={t.id} className={trigger}>
+                <HugeiconsIcon icon={t.icon} size={16} strokeWidth={1.5} /> {t.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
+        <TabsContent value="sub-agents" className="mt-0"><SubAgentsInner /></TabsContent>
+        <TabsContent value="starter-prompts" className="mt-0"><StarterPromptsInner /></TabsContent>
+        <TabsContent value="agent-card" className="mt-0"><AgentCardBlock agentId={agentId} /></TabsContent>
+        <TabsContent value="capabilities" className="mt-0"><CapabilitiesInner agentId={agentId} /></TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
 function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: { agentId: string; model: string; onModelChange: (id: string) => void; onConnectionsChange?: () => void }) {
   const { can } = useMyPermissions();
   const canManageSubAgents = can("agents.manage");
   const [open, setOpen] = useState<Record<string, boolean>>({ connectors: true, skills: true, knowledge: true, guardrails: true, triggers: true, "sub-agents": true, "starter-prompts": true });
-  const [showAdvanced, setShowAdvanced] = useState(() => agentCardStore.peekFocus(agentId));
-  useAgentCard(agentId);
-  useEffect(() => { if (agentCardStore.peekFocus(agentId) && !showAdvanced) setShowAdvanced(true); });
   const guardrailsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const skillsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const knowledgeAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
-  const subAgentsAddRef = useRef<(() => void) | null>(null);
-  const starterPromptsAddRef = useRef<(() => void) | null>(null);
   const connectorsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const triggersAddRef = useRef<(() => void) | null>(null);
   const revokedAll = useRevokedResources(agentId);
@@ -3714,32 +3756,6 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
       content: (
         <GuardrailsInner agentId={agentId} onRegisterAdd={(fn) => { guardrailsAddRef.current = fn; }} />
       ),
-    },
-  ];
-
-  const advancedSections = [
-    {
-      id: "sub-agents", icon: UserMultipleIcon, label: "Nhân sự số con",
-      onAdd: () => subAgentsAddRef.current?.(),
-      disabled: !canManageSubAgents,
-      content: (
-        <SubAgentsInner onRegisterAdd={(fn) => { subAgentsAddRef.current = fn; }} />
-      ),
-    },
-    {
-      id: "starter-prompts", icon: Chat01Icon, label: "Starter Prompts",
-      onAdd: () => starterPromptsAddRef.current?.(),
-      content: (
-        <StarterPromptsInner onRegisterAdd={(fn) => { starterPromptsAddRef.current = fn; }} />
-      ),
-    },
-    {
-      id: "agent-card", icon: UserCheck01Icon, label: "Danh thiếp Nhân sự số",
-      content: <AgentCardBlock agentId={agentId} />,
-    },
-    {
-      id: "capabilities", icon: BoltIcon, label: "Khả năng của Nhân sự số",
-      content: <CapabilitiesInner agentId={agentId} />,
     },
   ];
 
@@ -3799,26 +3815,6 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
         );
       })}
 
-      {/* Advanced settings — collapsible group. Each item below is a self-contained card
-          (own header + row list + dashed add button) rather than sharing the accordion
-          header/toggle chrome the top sections use. */}
-      <div className="border-b border-border">
-        <button
-          onClick={() => setShowAdvanced(o => !o)}
-          className="w-full flex items-center gap-2.5 px-4 py-3 text-left hover:bg-surface-muted transition-base"
-        >
-          <HugeiconsIcon icon={SlidersHorizontalIcon} size={15} className="text-muted-foreground shrink-0" />
-          <span className="text-sm font-medium flex-1 text-muted-foreground">Advanced settings</span>
-          <HugeiconsIcon icon={ChevronDownIcon} size={14} className={`text-muted-foreground shrink-0 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
-        </button>
-        {showAdvanced && (
-          <div className="px-4 py-3 space-y-3">
-            {advancedSections.map((s: any) => (
-              <div key={s.id}>{s.content}</div>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
