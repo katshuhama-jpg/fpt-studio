@@ -4,7 +4,8 @@ import { MemoryRouter } from "react-router-dom";
 import { Toaster } from "sonner";
 import { handoffStore, eosAccount } from "./handoffStore";
 import HandoffSection from "./HandoffSection";
-import AgentCapabilitiesModal from "./AgentCapabilitiesModal";
+import CapabilitiesEditor from "./CapabilitiesEditor";
+import { agentCapabilityStore } from "./agentCapabilityStore";
 import { RolesProvider } from "@/pages/organization/rolesStore";
 import { OrgProvider } from "@/pages/organization/orgStore";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -90,16 +91,30 @@ describe("Kênh ngoài › Chuyển cho nhân viên (user without an EOS account
   });
 });
 
-describe("Năng lực › Chuyển cho nhân viên", () => {
-  it("is a new, off-by-default row that lists active channels", () => {
+describe("Cài đặt nâng cao › Khả năng của Nhân sự số", () => {
+  it("lists every capability; Save appears only after a change; restore defaults is a draft too", () => {
     handoffStore.setChannel(A, "web", true);
     handoffStore.setChannel(A, "zalo", true);
-    wrap(<AgentCapabilitiesModal agentId={A} onClose={() => {}} onChanged={() => {}} />);
+    agentCapabilityStore.restoreDefaults(A);
+    wrap(<CapabilitiesEditor agentId={A} />);
+    expect(screen.getAllByRole("switch")).toHaveLength(agentCapabilityStore.list().length + 1);
     expect(screen.getByText("Mới")).toBeTruthy();
-    const sw = screen.getByRole("switch", { name: /Chuyển cho nhân viên/ });
-    expect(sw.getAttribute("aria-checked")).toBe("false");
+    expect(screen.queryByRole("button", { name: /Lưu thay đổi/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /Khôi phục mặc định/ }).hasAttribute("disabled")).toBe(true);
     expect(screen.getByText(/Còn 2 kênh đang bật chuyển cho nhân viên/)).toBeTruthy();
-    fireEvent.click(sw);
-    expect(screen.getByText(/Đang hoạt động trên: Web widget, Zalo \(EOS Contact Center\)/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("switch", { name: "Chuyển cho nhân viên" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Tìm kiếm web" }));
+    expect(handoffStore.capabilityOn(A)).toBe(false); // not saved yet
+    fireEvent.click(screen.getByRole("button", { name: /Lưu thay đổi/ }));
+    expect(handoffStore.capabilityOn(A)).toBe(true);
+    expect(agentCapabilityStore.isOn(A, "web-search")).toBe(false);
+    expect(screen.queryByRole("button", { name: /Lưu thay đổi/ })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /Khôi phục mặc định/ }));
+    expect(screen.getByRole("button", { name: /Lưu thay đổi/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Lưu thay đổi/ }));
+    expect(agentCapabilityStore.isOn(A, "web-search")).toBe(true);
+    expect(handoffStore.capabilityOn(A)).toBe(false);
   });
 });
