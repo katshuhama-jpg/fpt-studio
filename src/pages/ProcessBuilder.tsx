@@ -1291,7 +1291,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
       onMove: function (e) { self.onMove(e); },
       onUp: function () { self.onUp(); },
       edgesD: d, errD: ed, ranD: rd, selD: '', tmpD: tmpD, edgeDel: edgeDel, viewNodes: viewNodes,
-      showReadyChip: emb && building, readyOpen: !!s.readyOpen && emb && building, toggleReady: function () { self.setState({ readyOpen: !self.state.readyOpen, checkOpen: false }); },
+      showReadyChip: false, readyOpen: false, toggleReady: function () { self.setState({ readyOpen: !self.state.readyOpen, checkOpen: false }); },
       readyChipText: issueCount ? issueCount + ' lỗi cần sửa' : 'Sẵn sàng ' + readyItems.filter(function (r) { return r.done; }).length + '/' + readyItems.length,
       readyChipFg: issueCount ? '#b45309' : '#3f3f46', readyChipIcon: issueCount ? 'M12 3l10 18H2z M12 10v4 M12 17h.01' : 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M8 12l3 3 5-6',
       palOpen: s.palOpen && building && !ro, palClosed: !s.palOpen && building && !ro, togglePal: function () { self.setState({ palOpen: !self.state.palOpen }); },
