@@ -1242,7 +1242,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
       ].map(function (x) { var on = s.top === x.id; return { label: x.label, icon: x.icon, on: on, bg: on ? '#eceefe' : 'transparent', fg: on ? '#203BDC' : '#686873', pick: function () { self.setState({ top: x.id, add: null, checkOpen: false, pubOpen: false, moreOpen: false }); } }; }),
       building: building, notBuilding: !building,
       isOtherTab: s.top !== 'build', isGuardPage: s.top === 'build' && s.section === 'guard', isVersionsPage: s.top === 'build' && s.section === 'versions',
-      sideShow: s.sideOpen && s.top !== 'channels' && !emb, sideRail: !s.sideOpen && s.top !== 'channels' && !emb, showHeader: !emb, checkLeft: emb ? 16 : 248, checkPos: emb ? 'right: 16px; top: 12px' : 'left: 248px; bottom: 16px',
+      sideShow: s.sideOpen && s.top !== 'channels' && !emb, sideRail: !s.sideOpen && s.top !== 'channels' && !emb, showHeader: !emb, checkLeft: emb ? 16 : 248, checkPos: emb ? 'left: 16px; bottom: 60px' : 'left: 248px; bottom: 16px',
       readOnly: ro, roBanner: ro && building, canTest: !ro,
       panelReopen: building && s.panelHidden && !selNode && !showRun && (!emb || !ro), notEmb: !emb, runBtnLabel: emb ? 'Chạy thử' : 'Test run', reopenCfg: function () { self.setState({ panelHidden: false }); },
       bannerLeft: (function () { var pw = building && (pmNode || showRun || (pmProcess && !s.panelHidden)) ? (s.expand ? 640 : 476) : 0, lw = s.palOpen && !ro ? 232 : 0; return 'calc(' + lw + 'px + (100% - ' + (lw + pw) + 'px) / 2)'; })(),
@@ -1269,7 +1269,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
       otherIcon: { evaluate: 'M9 3h6 M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3', channels: 'M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z', insights: 'M4 4v16h16 M8 16v-4 M12 16V8 M16 16v-6' }[s.top] || '',
       otherTitle: { evaluate: 'Evaluate', channels: 'Channels', insights: 'Insights' }[s.top] || '',
       otherText: { evaluate: 'Dùng chung tab Evaluate với Nhân sự số thường: mỗi test case là một bộ dữ liệu đầu vào và kết quả mong đợi, chạy lại hàng loạt trước mỗi lần publish. Prototype chưa dựng phần này.', channels: 'Dùng chung tab Channels với Nhân sự số thường. Quy trình chạy theo kiểu kích hoạt ở bước Bắt đầu, publish xong gắn được làm tool cho Nhân sự số, gọi qua API hoặc webhook. Prototype chưa dựng phần này.', insights: 'Dùng chung tab Insights với Nhân sự số thường: lịch sử từng lần chạy, số lần chạy, tỉ lệ lỗi, thời gian chờ người duyệt. Prototype chưa dựng phần này.' }[s.top] || '',
-      panelTabs: [{ id: 'cfg', label: 'Configuration' }, { id: 'run', label: 'Test run' }].filter(function (x) { return x.id !== 'run' || !ro; }).map(function (x) { var on = x.id === 'run' ? showRun : !showRun; return { label: x.label, on: on, bg: on ? '#eceefe' : 'transparent', fg: on ? '#203BDC' : '#686873', pick: function () { if (x.id === 'run') self.openRun(); else self.setState({ runOpen: false, panelHidden: false }); } }; }),
+      panelTabs: [{ id: 'cfg', label: emb ? 'Cấu hình' : 'Configuration' }, { id: 'run', label: emb ? 'Chạy thử' : 'Test run' }].filter(function (x) { return x.id !== 'run' || !ro; }).map(function (x) { var on = x.id === 'run' ? showRun : !showRun; return { label: x.label, on: on, bg: on ? '#eceefe' : 'transparent', fg: on ? '#203BDC' : '#686873', pick: function () { if (x.id === 'run') self.openRun(); else self.setState({ runOpen: false, panelHidden: false }); } }; }),
       panelCanClose: showRun || !!selNode,
       panelClose: function () { clearTimeout(self.timer); var r = self.state.run; self.setState({ runOpen: false, run: r && (r.status === 'running' || r.status === 'paused') ? null : r, sel: null, picking: null, panel: null, panelHidden: true }); },
       undo: function () { self.undo(); }, canUndoNot: !s.hist.length,
@@ -1291,8 +1291,8 @@ class ProcessBuilderInner extends React.Component<any, any> {
       onMove: function (e) { self.onMove(e); },
       onUp: function () { self.onUp(); },
       edgesD: d, errD: ed, ranD: rd, selD: '', tmpD: tmpD, edgeDel: edgeDel, viewNodes: viewNodes,
-      showReadyChip: false, readyOpen: false, toggleReady: function () { self.setState({ readyOpen: !self.state.readyOpen, checkOpen: false }); },
-      readyChipText: issueCount ? issueCount + ' lỗi cần sửa' : 'Sẵn sàng ' + readyItems.filter(function (r) { return r.done; }).length + '/' + readyItems.length,
+      showReadyChip: emb && building && issueCount > 0, readyOpen: false, toggleReady: function () { self.setState({ checkOpen: !self.state.checkOpen, readyOpen: false, add: null }); }, 
+      readyChipText: issueCount ? issueCount + ' lỗi' : 'Sẵn sàng ' + readyItems.filter(function (r) { return r.done; }).length + '/' + readyItems.length,
       readyChipFg: issueCount ? '#b45309' : '#3f3f46', readyChipIcon: issueCount ? 'M12 3l10 18H2z M12 10v4 M12 17h.01' : 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M8 12l3 3 5-6',
       palOpen: s.palOpen && building && !ro, palClosed: !s.palOpen && building && !ro, togglePal: function () { self.setState({ palOpen: !self.state.palOpen }); },
       palItems: PAL.map(function (k, i) { var t = TYPES[k], cc = COL[t.c], hd = PAL_HEAD[k]; return { hasHead: !!hd, head: hd || '', name: t.name, desc: t.desc, icon: t.icon, tile: cc[0], tileBg: cc[1], more: k === 'tool' || k === 'func', pick: function () { self.palPick(k); } }; }),
@@ -1337,7 +1337,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
       errRetry: !!errNode.retry, errMode: errNode.err,
       toggleRetry: function () { self.updateCfg({ retry: !byId[s.sel].cfg.retry }); },
       onErrMode: function (e) { var n = byId[s.sel], v = e.target.value, edges = self.state.edges; if (n.cfg.err === 'branch' && v !== 'branch') edges = edges.filter(function (x) { return !(x.from === n.id && x.out === 1); }); self.setState({ edges: edges }); self.updateCfg({ err: v }); self.relayoutSoon(); },
-      nodeTabs: [{ id: 'cfg', label: 'Cấu hình' }, { id: 'last', label: 'Chạy bước' }].map(function (x) { var on = s.tab === x.id; return { label: x.label, on: on, bg: on ? '#eef1fd' : '#fff', fg: on ? '#203BDC' : '#475569', line: on ? '#c7d2fe' : '#e5e5e5', pick: function () { self.setState({ tab: x.id }); } }; }),
+      nodeTabs: [{ id: 'cfg', label: emb ? 'Thiết lập' : 'Cấu hình' }, { id: 'last', label: emb ? 'Chạy riêng' : 'Chạy bước' }].map(function (x) { var on = s.tab === x.id; return { label: x.label, on: on, bg: on ? '#eef1fd' : '#fff', fg: on ? '#203BDC' : '#475569', line: on ? '#c7d2fe' : '#e5e5e5', pick: function () { self.setState({ tab: x.id }); } }; }),
       tabCfg: s.tab === 'cfg' || !(selNode && selNode.type !== 'note' && selNode.type !== 'start'), tabLast: s.tab === 'last' && !!selNode && selNode.type !== 'note' && selNode.type !== 'start', lastHas: !!last,
       last: last ? { st: last.st, ms: last.ms.toLocaleString('vi-VN') + ' ms', note: last.note, out: last.out, stColor: last.st === 'Thành công' ? '#15803d' : '#b91c1c' } : { st: '', ms: '', note: '', out: '', stColor: '#000' },
       runStep: function () { self.runOne(); },
@@ -1687,7 +1687,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
       <span style={S('font-size: 11.5px; color: #6b7280; padding: 0 6px 0 2px')}>{zoomPct}%</span>
       {(showReadyChip) && (<>
         <span style={S('width: 1px; height: 18px; background: #e3e1dc; margin: 0 2px')}></span>
-        <button type="button" className={Q('tbtn')} onClick={toggleReady} aria-expanded={readyOpen} title="Sẵn sàng publish" style={S(`height: 30px; width: auto; padding: 0 10px; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: ${readyChipFg}`)}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={readyChipIcon}></path></svg>{readyChipText}</button>
+        <button type="button" className={Q('tbtn')} onClick={toggleReady} aria-expanded={checkOpen} title="Xem lỗi cần sửa" style={S(`height: 30px; width: auto; padding: 0 10px; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: ${readyChipFg}`)}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={readyChipIcon}></path></svg>{readyChipText}</button>
       </>)}
     </div>
 
