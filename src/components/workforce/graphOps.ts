@@ -64,6 +64,10 @@ export function createSubProcessNode(position: XYPosition): WorkforceNode {
   return { id: uid("subprocess"), type: "subprocess", position, data: { kind: "subprocess", workforceId: null } };
 }
 
+export function createCodeNode(position: XYPosition): WorkforceNode {
+  return { id: uid("code"), type: "code", position, data: { kind: "code", name: "Bước Code", lang: "Python", code: "def main(inputs, params):\n    return {}", outputs: [], toolIds: [] } };
+}
+
 /** A Trigger's connection to its first Agent is a plain edge, not a route — there's no decision
  * to make (nothing to branch on), so no Condition node gets inserted the way it would for an
  * Agent→Agent/Omni/Person connection. Still gets the same arrow-entering-destination marker as

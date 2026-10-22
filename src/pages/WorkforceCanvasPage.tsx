@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Undo2, Redo2, LayoutGrid, Plus, Minus, Maximize, Lock, LockOpen, Play, ChevronDown, MessageSquare, Workflow, History } from "lucide-react";
+import { ChevronLeft, Undo2, Redo2, LayoutGrid, Plus, Minus, Maximize, Lock, LockOpen, Play, ChevronDown, MessageSquare, Workflow, History, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { ReactFlowProvider, useNodesState, useEdgesState, type ReactFlowInstance } from "reactflow";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -16,6 +16,8 @@ import TriggerConfigDrawer from "@/components/workforce/TriggerConfigDrawer";
 import ToolConfigDrawer from "@/components/workforce/ToolConfigDrawer";
 import SubProcessConfigDrawer from "@/components/workforce/SubProcessConfigDrawer";
 import AgentConfigDrawer from "@/components/workforce/AgentConfigDrawer";
+import CodeConfigDrawer from "@/components/workforce/CodeConfigDrawer";
+import ParamsTab from "@/components/workforce/ParamsTab";
 import ConditionDrawer from "@/components/workforce/ConditionDrawer";
 import GettingStartedChecklist from "@/components/workforce/GettingStartedChecklist";
 import RunTracePanel from "@/components/workforce/RunTracePanel";
@@ -86,7 +88,8 @@ export default function WorkforceCanvasPage() {
 
   // "Canvas" | "Lịch sử chạy" (S-gap-8, Observability) — single-row header tabs, same slot the
   // Agent page's own Build/Test/Channels/Insights tabs occupy.
-  const [activeTab, setActiveTab] = useState<"canvas" | "history">("canvas");
+  const [activeTab, setActiveTab] = useState<"canvas" | "history" | "params">("canvas");
+  const [paramPack, setParamPack] = useState(wfRecord?.paramPack);
   const [runs, setRuns] = useState(() => runHistoryStore.list(id));
 
   // Undo/redo history — snapshots are pushed right before a mutating action (add/delete a
@@ -183,6 +186,11 @@ export default function WorkforceCanvasPage() {
       toast.error("Một số node Sub-process chưa chọn Workforce để gọi - Vui lòng chọn trước khi publish");
       return;
     }
+    const hasUnconfiguredCode = nodes.some(n => n.data.kind === "code" && (!n.data.code.trim() || n.data.outputs.length === 0));
+    if (hasUnconfiguredCode) {
+      toast.error("Một số bước Code chưa có code hoặc chưa khai báo đầu ra - Vui lòng hoàn tất trước khi publish");
+      return;
+    }
     workforceStore.publish(id);
     setStatus("published");
     toast.success("Publish Workforce thành công");
@@ -221,6 +229,7 @@ export default function WorkforceCanvasPage() {
       case "omni": return "Omni Supports";
       case "person": return members.find(m => m.id === n.data.memberId)?.name ?? "Người trong tổ chức";
       case "subprocess": return (n.data.workforceId ? workforceStore.get(n.data.workforceId)?.name : undefined) ?? "Sub-process";
+      case "code": return n.data.name || "Bước Code";
       case "trigger": {
         const agentId = triggerAgentIds.get(n.id) ?? null;
         const record = agentId && n.data.triggerId ? triggerStore.get(agentId, n.data.triggerId) : undefined;
@@ -400,6 +409,7 @@ export default function WorkforceCanvasPage() {
             {([
               { id: "canvas" as const, label: "Canvas", Icon: Workflow },
               { id: "history" as const, label: "Lịch sử chạy", Icon: History },
+              { id: "params" as const, label: "Tham số", Icon: SlidersHorizontal },
             ]).map(({ id: tabId, label, Icon }) => (
               <button
                 key={tabId}
@@ -489,6 +499,8 @@ export default function WorkforceCanvasPage() {
       <div className="flex-1 relative flex overflow-hidden">
         {activeTab === "history" ? (
           <RunHistoryTab workforceId={id} runs={runs} />
+        ) : activeTab === "params" ? (
+          <ParamsTab pack={paramPack} onChange={p => { setParamPack(p); workforceStore.saveParams(id, p); }} />
         ) : (
         <>
         <ReactFlowProvider>
@@ -691,6 +703,23 @@ export default function WorkforceCanvasPage() {
           onChangeKeepContext={value => setNodes(ns => ns.map(n => (n.id === configuringNode.id ? { ...n, data: { ...n.data, keepContext: value } } : n)))}
           onClose={() => setConfiguringId(null)}
           onDelete={() => setDeleteNodeId(configuringNode.id)}
+          flow={configuringNode.data}
+          outCount={edges.filter(e => e.source === configuringNode.id).length}
+          inCount={edges.filter(e => e.target === configuringNode.id).length}
+          onChangeFlow={patch => setNodes(ns => ns.map(n => (n.id === configuringNode.id ? { ...n, data: { ...n.data, ...patch } as any } : n)))}
+        />
+      )}
+
+      {configuringNode?.data.kind === "code" && (
+        <CodeConfigDrawer
+          key={configuringNode.id}
+          data={configuringNode.data}
+          onChange={patch => setNodes(ns => ns.map(n => (n.id === configuringNode.id ? { ...n, data: { ...n.data, ...patch } as any } : n)))}
+          onClose={() => setConfiguringId(null)}
+          onDelete={() => setDeleteNodeId(configuringNode.id)}
+          outCount={edges.filter(e => e.source === configuringNode.id).length}
+          inCount={edges.filter(e => e.target === configuringNode.id).length}
+          paramPack={paramPack}
         />
       )}
 
@@ -700,7 +729,11 @@ export default function WorkforceCanvasPage() {
           source?.data.kind === "agent" ? AGENTS.find(a => a.id === source.data.agentId)?.name ?? "Nhân sự số" :
           source?.data.kind === "person" ? members.find(m => m.id === source.data.memberId)?.name ?? "Người trong tổ chức" :
           source?.data.kind === "subprocess" ? (source.data.workforceId ? workforceStore.get(source.data.workforceId)?.name : undefined) ?? "Sub-process" :
+          source?.data.kind === "code" ? source.data.name || "Bước Code" :
           "-";
+        const sourceOutputs =
+          source?.data.kind === "agent" ? AGENTS.find(a => a.id === (source.data as any).agentId)?.outputs ?? [] :
+          source?.data.kind === "code" ? source.data.outputs : [];
         const destinationKind: "agent" | "omni" | "person" = destination?.data.kind === "agent" || destination?.data.kind === "person"
           ? destination.data.kind
           : "omni";
@@ -708,7 +741,8 @@ export default function WorkforceCanvasPage() {
           destination.data.kind === "agent" ? AGENTS.find(a => a.id === destination.data.agentId)?.name ?? "Nhân sự số" :
           destination.data.kind === "omni" ? "Omni Supports" :
           destination.data.kind === "person" ? members.find(m => m.id === destination.data.memberId)?.name ?? "Người trong tổ chức" :
-          destination.data.kind === "subprocess" ? (destination.data.workforceId ? workforceStore.get(destination.data.workforceId)?.name : undefined) ?? "Sub-process" : "-";
+          destination.data.kind === "subprocess" ? (destination.data.workforceId ? workforceStore.get(destination.data.workforceId)?.name : undefined) ?? "Sub-process" :
+          destination.data.kind === "code" ? destination.data.name || "Bước Code" : "-";
         const destAgentKeepContext = destination?.data.kind === "agent" ? destination.data.keepContext : undefined;
         const approvalAssignee = configuringNode.data.kind === "condition" && configuringNode.data.approval?.assigneeId
           ? members.find(m => m.id === configuringNode.data.approval!.assigneeId)
@@ -735,6 +769,7 @@ export default function WorkforceCanvasPage() {
             assigneeName={approvalAssignee?.name ?? null}
             assigneeInitials={approvalAssignee?.initials}
             onPickAssignee={() => setApprovalPickerConditionId(configuringNode.id)}
+            sourceOutputs={sourceOutputs}
           />
         );
       })()}
