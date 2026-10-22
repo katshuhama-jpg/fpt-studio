@@ -2,7 +2,7 @@ import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { createPortal } from "react-dom";
 
 import { HugeiconsIcon } from "@hugeicons/react"
-import { SquareLock01Icon, Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, Attachment01Icon, BlockedIcon, BookOpen01Icon, Cancel01Icon, BoltIcon, PauseIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, InformationCircleIcon, MinusSignIcon, CircleArrowReload01Icon, Wrench01Icon, UserGroupIcon, ArrowLeftDoubleIcon } from "@hugeicons/core-free-icons";
+import { SquareLock01Icon, Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, Attachment01Icon, BlockedIcon, BookOpen01Icon, Cancel01Icon, BoltIcon, PauseIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, InformationCircleIcon, MinusSignIcon, CircleArrowReload01Icon, Wrench01Icon, UserGroupIcon, ArrowLeftDoubleIcon, Notification01Icon } from "@hugeicons/core-free-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import TasksGrid from "@/components/tasks/TasksGrid";
@@ -62,6 +62,7 @@ import { skillStore, type Skill } from "@/components/configure/skillStore";
 import { agentSkillStore } from "@/components/configure/agentSkillStore";
 import { builtinSkillStore, type BuiltinSkill } from "@/components/configure/builtinSkillStore";
 import { agentCapabilityStore } from "@/components/configure/agentCapabilityStore";
+import InactiveReminderTab from "@/components/reminders/InactiveReminderTab";
 import CapabilitiesEditor from "@/components/configure/CapabilitiesEditor";
 import CreateSkillModal, { type SkillFormData } from "@/components/configure/CreateSkillModal";
 import CreateSkillChoiceModal from "@/components/configure/CreateSkillChoiceModal";
@@ -861,7 +862,7 @@ export default function AgentBuilder() {
               {tab === "build" && section === "knowledge" && <KnowledgeTab agentId={id ?? "new"} />}
               {tab === "build" && section === "guardrails" && <GuardrailsAgentTab agentId={id ?? "new"} />}
               {tab === "build" && section === "skills" && <SkillsAgentTab agentId={id ?? "new"} />}
-              {tab === "build" && section === "advanced" && <AdvancedSettingsTab agentId={id ?? "new"} />}
+              {tab === "build" && section === "advanced" && <AdvancedSettingsTab agentId={id ?? "new"} readOnly={viewOnly} />}
               {tab === "build" && section === "versions" && (
                 <AgentVersionsPanel key={publishTick} agentId={id ?? "new"} onPublish={() => canPublishAgent && requestPublish()} onChanged={() => setPublishTick(t => t + 1)} />
               )}
@@ -3656,13 +3657,14 @@ const ADVANCED_TABS = [
   { id: "starter-prompts", label: "Starter Prompts", icon: Chat01Icon },
   { id: "agent-card", label: "Danh thiếp Nhân sự số", icon: UserCheck01Icon },
   { id: "capabilities", label: "Khả năng của Nhân sự số", icon: BoltIcon },
+  { id: "inactive-reminder", label: "Inactive reminder", icon: Notification01Icon },
 ] as const;
 type AdvancedTabId = typeof ADVANCED_TABS[number]["id"];
 
 /** Build › Cài đặt nâng cao — what used to be the "Advanced settings" group at the bottom of the
  * config rail, now its own left-nav section with one tab per item (?atab= keeps the tab).
  * Nhân sự số con stays in the config rail. */
-function AdvancedSettingsTab({ agentId }: { agentId: string }) {
+function AdvancedSettingsTab({ agentId, readOnly }: { agentId: string; readOnly?: boolean }) {
   const [params, setParams] = useSearchParams();
   useAgentCard(agentId);
   const fromUrl = ADVANCED_TABS.find(t => t.id === params.get("atab"))?.id;
@@ -3677,7 +3679,7 @@ function AdvancedSettingsTab({ agentId }: { agentId: string }) {
         </div>
         <div>
           <h1 className="text-xl font-semibold">Cài đặt nâng cao</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Gợi ý mở đầu, danh thiếp và các năng lực mặc định.</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Gợi ý mở đầu, danh thiếp, năng lực mặc định và lời nhắc khi người dùng im lặng.</p>
         </div>
       </div>
       <Tabs value={current} onValueChange={select}>
@@ -3693,6 +3695,7 @@ function AdvancedSettingsTab({ agentId }: { agentId: string }) {
         <TabsContent value="starter-prompts" className="mt-0"><StarterPromptsInner /></TabsContent>
         <TabsContent value="agent-card" className="mt-0"><AgentCardBlock agentId={agentId} /></TabsContent>
         <TabsContent value="capabilities" className="mt-0"><CapabilitiesEditor agentId={agentId} /></TabsContent>
+        <TabsContent value="inactive-reminder" className="mt-0"><InactiveReminderTab agentId={agentId} readOnly={readOnly} /></TabsContent>
       </Tabs>
     </div>
   );
