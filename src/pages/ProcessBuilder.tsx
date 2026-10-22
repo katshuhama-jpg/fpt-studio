@@ -541,7 +541,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     this.state = {
       screen: 'list', view: 'table', createOpen: false, ckind: 'chat', prompt: '', draftName: '', drafting: false, aiBanner: false, kind: 'all',
       name: '', nodes: [], edges: [], sel: null, tab: 'cfg', hist: [], top: 'build',
-      add: null, palOpen: true, picking: null, drag: null, z: 1, px: 80, py: 80, dir: 'h', fut: [], link: null, ctx: null, panel: null, expand: false,
+      add: null, palOpen: true, picking: null, drag: null, z: 1, px: 80, py: 80, dir: 'h', fut: [], link: null, ctx: null, panel: null, expand: false, section: 'flow', sideOpen: true, moreOpen: false,
       checkOpen: false, pubOpen: false, status: 'draft', last: {},
       run: null, runOpen: false,
       guard: { safety: true, pii: true, scope: false, noDelete: true, maskOut: true, rate: false },
@@ -573,11 +573,11 @@ class ProcessBuilderInner extends React.Component<any, any> {
     DIR = 'h';
     var f = key ? draftFlow(key) : layoutFlow({ nodes: [N('n1', 'start', 'Bắt đầu', {})], edges: [] });
     this.setState({ screen: 'builder', createOpen: false, drafting: false, aiBanner: !!fromAi, name: name || 'Quy trình chưa đặt tên', nodes: f.nodes, edges: f.edges, dir: 'h',
-      sel: key ? null : 'n1', tab: 'cfg', hist: [], fut: [], add: null, checkOpen: false, pubOpen: false, status: 'draft', last: {}, run: null, runOpen: false, top: 'build', picking: null, panel: null, ctx: null, link: null, expand: false });
+      sel: key ? null : 'n1', tab: 'cfg', hist: [], fut: [], add: null, checkOpen: false, pubOpen: false, status: 'draft', last: {}, run: null, runOpen: false, top: 'build', picking: null, panel: null, ctx: null, link: null, expand: false, section: 'flow', sideOpen: true, moreOpen: false });
     var self = this; setTimeout(function () { self.fit(0.8); }, 40);
   }
   canvasSize() { var el = this.canvasEl; return { w: el ? el.clientWidth : 1440, h: el ? el.clientHeight : 850 }; }
-  insets() { var s = this.state, panel = (s.sel || s.runOpen || s.panel) ? (s.expand ? 560 : 380) + 32 : 0; return { l: s.palOpen ? 200 : 40, r: panel + 24 }; }
+  insets() { var s = this.state, panel = (s.sel || s.runOpen || s.panel) ? (s.expand ? 640 : 476) : 0; return { l: s.palOpen ? 200 : 40, r: panel + 24 }; }
   fit(minZ) {
     var nodes = this.state.nodes; if (!nodes.length) return;
     DIR = this.state.dir;
@@ -890,7 +890,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     var run = s.run, locked = this.locked(), byId = {}; s.nodes.forEach(function (n) { byId[n.id] = n; });
     var issues = this.allIssues(), issueBy = {}, issueCount = 0;
     issues.forEach(function (g) { issueCount += g.msgs.length; if (g.type !== 'respond' || g.title !== 'Quy trình') issueBy[g.id] = g.msgs; });
-    var selNode = byId[s.sel] || null, showRun = s.runOpen && !!run, building = s.top === 'build';
+    var selNode = byId[s.sel] || null, showRun = s.runOpen && !!run, building = s.top === 'build' && s.section === 'flow';
     var startNode = s.nodes.filter(function (n) { return n.type === 'start'; })[0];
 
     DIR = s.dir || 'h';
@@ -978,7 +978,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     if (ad && ad.mode === 'inner') addFrom = 'Thêm vào trong vòng lặp';
 
     // panel
-    var pmNode = building && !showRun && !!selNode, pmProcess = building && !showRun && !selNode && s.panel === 'settings', pmOther = !building;
+    var pmNode = building && !showRun && !!selNode, pmProcess = building && !showRun && !selNode && s.panel === 'cfg', pmOther = !building;
     var sel = { title: '', icon: '', tile: '#203BDC', tileBg: '#eef1fd' }, pf = [], editors = [], cases = [], outVars = [], varOpts = [{ v: '', l: 'Chọn biến' }];
     if (pmNode) {
       var n = selNode, c = n.cfg, t = TYPES[n.type], col = colOf(n.type);
@@ -1184,6 +1184,14 @@ class ProcessBuilderInner extends React.Component<any, any> {
     var statusMap = { draft: ['Bản nháp', '#f59e0b', ''], pending: ['Chờ duyệt publish', '#f59e0b', 'v1'] };
     var g0 = s.guard, guardList = function (arr) { return arr.map(function (x) { return { label: x[1], on: !!g0[x[0]], toggle: function () { var ng = Object.assign({}, self.state.guard); ng[x[0]] = !ng[x[0]]; self.setState({ guard: ng }); } }; }); };
     var asTool = startNode && startNode.cfg.trigger === 'agent';
+    var unwired = issues.filter(function (g) { return g.msgs.indexOf('Bước này chưa được nối vào luồng') >= 0; }).length, g1 = s.guard || {};
+    var readyItems = [
+      { label: 'Đã chọn kiểu kích hoạt', done: !!startNode, go: function () { self.setState({ section: 'flow', sel: startNode ? startNode.id : null, tab: 'cfg', runOpen: false }); } },
+      { label: unwired ? 'Còn ' + unwired + ' bước chưa nối' : 'Đã nối mọi bước', done: !unwired, failed: unwired > 0, go: function () { self.setState({ checkOpen: true, pubOpen: false }); } },
+      { label: issueCount ? 'Còn ' + issueCount + ' lỗi cần sửa' : 'Đã cấu hình mọi bước', done: !issueCount, failed: issueCount > 0, go: function () { self.setState({ checkOpen: true, pubOpen: false }); } },
+      { label: 'Đã cấu hình Guardrails', done: Object.keys(g1).some(function (k) { return g1[k]; }), go: function () { self.setState({ section: 'guard', checkOpen: false }); } },
+      { label: 'Đã chạy thử', done: !!(run && run.status === 'done' && run.ok), go: function () { self.setState({ section: 'flow' }); self.openRun(); } }
+    ].map(function (r) { return { label: r.label, done: r.done, failed: !r.done && !!r.failed, todo: !r.done && !r.failed, fg: r.done ? '#203BDC' : r.failed ? '#dc2626' : '#686873', pick: r.go }; });
 
     return {
       isList: s.screen === 'list', isBuilder: s.screen === 'builder',
@@ -1202,31 +1210,50 @@ class ProcessBuilderInner extends React.Component<any, any> {
 
       aiBanner: s.aiBanner && s.screen === 'builder' && !showRun && building, draftSteps: s.nodes.filter(function (n) { return n.type !== 'note'; }).length, dismissBanner: function () { self.setState({ aiBanner: false }); },
       backToList: function () { clearTimeout(self.timer); self.setState({ screen: 'list', run: null, runOpen: false }); },
-      name: s.name, statusLabel: statusMap[s.status][0], statusDot: statusMap[s.status][1], statusSub: s.status === 'pending' ? 'v1' : 'chưa có phiên bản',
+      name: s.name, statusLabel: s.status === 'pending' ? 'Chờ duyệt v1' : 'Bản nháp', statusDot: s.status === 'pending' ? '#f59e0b' : '#686873', statusBg: s.status === 'pending' ? '#fef3c7' : '#f5f3f0', statusFg: s.status === 'pending' ? '#92400e' : '#686873',
+      versionTitle: s.status === 'pending' ? 'v1 · Chờ Admin duyệt' : 'Bản nháp', versionSub: s.status === 'pending' ? 'Gửi duyệt vừa xong' : 'Chưa publish lần nào · Đã tự lưu',
+      share: function () { self.showToast('Cấp quyền dùng chung màn hình với Nhân sự số thường. Prototype chưa dựng phần này.'); },
+      moreOpen: s.moreOpen, toggleMore: function () { self.setState({ moreOpen: !self.state.moreOpen, pubOpen: false, checkOpen: false }); },
+      deleteProcess: function () { self.setState({ moreOpen: false }); self.showToast('Xoá Nhân sự số Quy trình dùng chung hộp thoại xác nhận với Nhân sự số thường.'); },
       topTabs: [
-        { id: 'build', label: 'Dựng nhân sự số', icon: 'M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z' },
-        { id: 'test', label: 'Kiểm thử', icon: 'M9 3h6 M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3 M7 15h10' },
-        { id: 'deploy', label: 'Kênh triển khai', icon: 'M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M18 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M9 6h6 M9 18h6' },
-        { id: 'analytics', label: 'Phân tích', icon: 'M4 4v16h16 M8 16v-4 M12 16V8 M16 16v-6' }
-      ].map(function (x) { var on = s.top === x.id; return { label: x.label, icon: x.icon, on: on, bg: on ? '#eef1fd' : 'transparent', fg: on ? '#203BDC' : '#475569', pick: function () { self.setState({ top: x.id, add: null, checkOpen: false, pubOpen: false }); } }; }),
+        { id: 'build', label: 'Build', icon: 'M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z' },
+        { id: 'evaluate', label: 'Evaluate', icon: 'M9 3h6 M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3 M7 15h10' },
+        { id: 'channels', label: 'Channels', icon: 'M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z' },
+        { id: 'insights', label: 'Insights', icon: 'M4 4v16h16 M8 16v-4 M12 16V8 M16 16v-6' }
+      ].map(function (x) { var on = s.top === x.id; return { label: x.label, icon: x.icon, on: on, bg: on ? '#eceefe' : 'transparent', fg: on ? '#203BDC' : '#686873', pick: function () { self.setState({ top: x.id, add: null, checkOpen: false, pubOpen: false, moreOpen: false }); } }; }),
       building: building, notBuilding: !building,
-      otherIcon: { test: 'M9 3h6 M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3', deploy: 'M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M18 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M9 6h6', analytics: 'M4 4v16h16 M8 16v-4 M12 16V8 M16 16v-6' }[s.top] || '',
-      otherTitle: { test: 'Kiểm thử', deploy: 'Kênh triển khai', analytics: 'Phân tích' }[s.top] || '',
-      otherText: { test: 'Bộ test case cho Quy trình: mỗi test case là một bộ dữ liệu đầu vào và kết quả mong đợi, chạy lại hàng loạt trước mỗi lần publish. Prototype chưa dựng phần này.', deploy: 'Quy trình chạy theo kiểu kích hoạt ở bước Bắt đầu. Publish xong có thể gắn làm tool cho Nhân sự số, gọi qua API hoặc webhook. Prototype chưa dựng phần này.', analytics: 'Lịch sử từng lần chạy, số lần chạy, tỉ lệ lỗi và thời gian chờ người duyệt theo ngày. Prototype chưa dựng phần này.' }[s.top] || '',
-      panelTabs: [{ id: 'cfg', label: 'Cấu hình' }, { id: 'run', label: 'Chạy thử' }].map(function (x) { var on = x.id === 'run' ? showRun : !showRun; return { label: x.label, on: on, bg: on ? '#f1f5f9' : 'transparent', fg: on ? '#0f172a' : '#64748b', pick: function () { if (x.id === 'run') self.openRun(); else self.setState({ runOpen: false }); } }; }),
+      isOtherTab: s.top !== 'build', isGuardPage: s.top === 'build' && s.section === 'guard', isVersionsPage: s.top === 'build' && s.section === 'versions',
+      sideShow: s.sideOpen && s.top !== 'channels', sideRail: !s.sideOpen && s.top !== 'channels',
+      collapseSide: function () { self.setState({ sideOpen: false }); }, expandSide: function () { self.setState({ sideOpen: true }); },
+      showReady: s.top === 'build',
+      navItems: (s.top === 'build' ? [
+        { id: 'flow', label: 'Quy trình', icon: ICON.flow, count: issueCount },
+        { id: 'guard', label: 'Guardrails', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
+        { id: 'versions', label: 'Phiên bản', icon: 'M3 12a9 9 0 1 0 3-6.7 M3 4v5h5 M12 7v5l3 2' }
+      ] : s.top === 'evaluate' ? [
+        { id: 'cases', label: 'Test case', icon: 'M9 11l3 3 8-8 M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9' },
+        { id: 'runs', label: 'Lượt đánh giá', icon: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 7v5l3 2' }
+      ] : s.top === 'insights' ? [
+        { id: 'overview', label: 'Tổng quan', icon: 'M4 4v16h16 M8 16v-4 M12 16V8 M16 16v-6' },
+        { id: 'history', label: 'Lịch sử chạy', icon: 'M3 12a9 9 0 1 0 3-6.7 M3 4v5h5 M12 7v5l3 2' }
+      ] : []).map(function (it, i) { var on = s.top === 'build' ? s.section === it.id : i === 0; return { label: it.label, icon: it.icon, on: on, bg: on ? '#eceefe' : 'transparent', fg: on ? '#203BDC' : '#121216', fw: on ? 500 : 400, hasCount: !!it.count, count: it.count || 0, pick: function () { if (s.top === 'build') self.setState({ section: it.id, add: null, checkOpen: false, sel: it.id === 'flow' ? self.state.sel : null }); } }; }),
+      otherIcon: { evaluate: 'M9 3h6 M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3', channels: 'M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z', insights: 'M4 4v16h16 M8 16v-4 M12 16V8 M16 16v-6' }[s.top] || '',
+      otherTitle: { evaluate: 'Evaluate', channels: 'Channels', insights: 'Insights' }[s.top] || '',
+      otherText: { evaluate: 'Dùng chung tab Evaluate với Nhân sự số thường: mỗi test case là một bộ dữ liệu đầu vào và kết quả mong đợi, chạy lại hàng loạt trước mỗi lần publish. Prototype chưa dựng phần này.', channels: 'Dùng chung tab Channels với Nhân sự số thường. Quy trình chạy theo kiểu kích hoạt ở bước Bắt đầu, publish xong gắn được làm tool cho Nhân sự số, gọi qua API hoặc webhook. Prototype chưa dựng phần này.', insights: 'Dùng chung tab Insights với Nhân sự số thường: lịch sử từng lần chạy, số lần chạy, tỉ lệ lỗi, thời gian chờ người duyệt. Prototype chưa dựng phần này.' }[s.top] || '',
+      panelTabs: [{ id: 'cfg', label: 'Configuration' }, { id: 'run', label: 'Test run' }].map(function (x) { var on = x.id === 'run' ? showRun : !showRun; return { label: x.label, on: on, bg: on ? '#eceefe' : 'transparent', fg: on ? '#203BDC' : '#686873', pick: function () { if (x.id === 'run') self.openRun(); else self.setState({ runOpen: false, panel: self.state.sel ? null : 'cfg' }); } }; }),
       panelCanClose: showRun || !!selNode,
-      panelClose: function () { if (self.state.runOpen) { clearTimeout(self.timer); var r = self.state.run; self.setState({ runOpen: false, run: r && (r.status === 'running' || r.status === 'paused') ? null : r }); } else self.setState({ sel: null, picking: null, panel: null }); },
+      panelClose: function () { clearTimeout(self.timer); var r = self.state.run; self.setState({ runOpen: false, run: r && (r.status === 'running' || r.status === 'paused') ? null : r, sel: null, picking: null, panel: null }); },
       undo: function () { self.undo(); }, canUndoNot: !s.hist.length,
-      issueGroups: issues.map(function (g) { var cc = colOf(g.type); return { title: g.title, count: g.msgs.length, msgs: g.msgs, tile: cc[0], icon: TYPES[g.type].icon, go: function () { self.setState({ sel: g.id, tab: 'cfg', checkOpen: false, runOpen: false, top: 'build' }); } }; }),
+      issueGroups: issues.map(function (g) { var cc = colOf(g.type); return { title: g.title, count: g.msgs.length, msgs: g.msgs, tile: cc[0], icon: TYPES[g.type].icon, go: function () { self.setState({ sel: g.id, tab: 'cfg', checkOpen: false, runOpen: false, top: 'build', section: 'flow' }); } }; }),
       issueCount: issueCount, hasIssues: issueCount > 0, noIssues: !issueCount, issueColor: issueCount ? '#b91c1c' : '#020817',
-      checkOpen: s.checkOpen, checkAria: 'Kiểm tra, ' + issueCount + ' lỗi', toggleCheck: function () { self.setState({ checkOpen: !s.checkOpen, pubOpen: false, add: null }); },
-      pubOpen: s.pubOpen, togglePub: function () { self.setState({ pubOpen: !s.pubOpen, checkOpen: false, add: null }); },
+      checkOpen: s.checkOpen, checkAria: 'Kiểm tra, ' + issueCount + ' lỗi', toggleCheck: function () { self.setState({ checkOpen: !s.checkOpen, pubOpen: false, add: null, moreOpen: false }); },
+      pubOpen: s.pubOpen, togglePub: function () { self.setState({ pubOpen: !s.pubOpen, checkOpen: false, add: null, moreOpen: false }); },
       pubState: s.status === 'pending' ? 'v1 đang chờ Admin duyệt' : 'Chưa publish lần nào · Đã tự lưu',
       publishDisabled: issueCount > 0 || s.status === 'pending', publishLabel: s.status === 'pending' ? 'Đã gửi duyệt' : 'Publish v1',
       publish: function () { self.setState({ status: 'pending', pubOpen: false }); self.showToast('Đã gửi yêu cầu publish v1. Admin duyệt xong thì Quy trình mới chạy thật.', 'good'); },
       toolHint: asTool ? 'Kích hoạt "Khi Nhân sự số gọi": publish xong, Nhân sự số thêm được Quy trình này vào mục Tool.' : 'Muốn Nhân sự số gọi Quy trình này như một tool, đổi kiểu kích hoạt ở bước Bắt đầu thành "Khi Nhân sự số gọi".',
       toolHintColor: asTool ? '#15803d' : '#64748b',
-      openRun: function () { self.setState({ top: 'build' }); self.openRun(); },
+      openRun: function () { self.setState({ top: 'build', section: 'flow' }); self.openRun(); },
 
       canvasRef: this.canvasRef, canvasCursor: s.drag ? 'grabbing' : (s.link ? 'crosshair' : 'default'),
       worldTransform: 'translate(' + s.px + 'px, ' + s.py + 'px) scale(' + s.z + ')',
@@ -1244,7 +1271,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
       dirIcon: s.dir === 'v' ? 'M4 12h4 M16 12h4 M8 9h8v6H8z' : 'M12 4v4 M12 16v4 M9 8h6v8H9z',
       redo: function () { self.redo(); }, canRedoNot: !(s.fut && s.fut.length),
       openSettings: function () { self.setState({ panel: s.panel === 'settings' && !s.sel ? null : 'settings', sel: null, runOpen: false, add: null }); },
-      panelOpen: building && (pmNode || showRun || pmProcess), panelW: s.expand ? 560 : 380,
+      panelOpen: building && (pmNode || showRun || pmProcess), panelW: s.expand ? 640 : 476,
       expandLabel: s.expand ? 'Thu nhỏ bảng' : 'Mở rộng bảng', toggleExpand: function () { self.setState({ expand: !self.state.expand }); },
       ctxOpen: !!s.ctx && !!byId[s.ctx && s.ctx.id], ctxX: s.ctx ? s.ctx.x : 0, ctxY: s.ctx ? s.ctx.y : 0,
       ctxItems: s.ctx && byId[s.ctx.id] ? (function () { var cn = byId[s.ctx.id], isSt = cn.type === 'start'; return [
@@ -1289,6 +1316,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
       guards: guardList([['safety', 'Chặn nội dung độc hại, xúc phạm'], ['pii', 'Che CCCD, số tài khoản, số điện thoại trong kết quả'], ['scope', 'Chặn yêu cầu ngoài phạm vi Quy trình']]),
       actGuards: guardList([['noDelete', 'Chặn thao tác xoá dữ liệu trên hệ thống khác'], ['maskOut', 'Che thông tin cá nhân trước khi gửi ra ngoài'], ['rate', 'Giới hạn 100 lần gọi mỗi giờ']]),
       stepCount: s.nodes.filter(function (n) { return n.type !== 'note'; }).length,
+      readyItems: readyItems, readyDone: readyItems.filter(function (r) { return r.done; }).length, readyTotal: readyItems.length, readyPct: Math.round(readyItems.filter(function (r) { return r.done; }).length / readyItems.length * 100),
 
       runTabs: (run && run.status !== 'idle' ? [{ id: 'input', label: 'Dữ liệu vào' }, { id: 'result', label: 'Kết quả' }, { id: 'trace', label: 'Từng bước' }] : [{ id: 'input', label: 'Dữ liệu vào' }]).map(function (x) { var on = run && run.tab === x.id; return { label: x.label, on: !!on, bg: on ? '#eef1fd' : 'transparent', fg: on ? '#203BDC' : '#475569', pick: function () { self.setState({ run: Object.assign({}, self.state.run, { tab: x.id }) }); } }; }),
       runShowInput: !!run && run.tab === 'input', runShowResult: !!run && run.tab === 'result', runShowTrace: !!run && run.tab === 'trace',
@@ -1375,66 +1403,133 @@ class ProcessBuilderInner extends React.Component<any, any> {
       );
     }
     var v = this.renderVals();
-    var { actCount, actGuards, addCase, addCrumb, addEmpty, addFrom, addHasCrumb, addHasFrom, addOpen, addQ, addRoot, addSections, addShowTabs, addTabs, aiBanner, aiCount, autoLayout, backToList, building, canRedoNot, canUndoNot, canvasCursor, canvasRef, cases, checkAria, checkOpen, closeAdd, ctxItems, ctxOpen, ctxX, ctxY, deleteSel, dirIcon, dirLabel, dismissBanner, draftSteps, edgeDel, edgesD, editors, errD, errMode, errRetry, expandLabel, fit, guards, hasIssues, issueColor, issueCount, issueGroups, last, lastHas, name, noIssues, noRunInputs, nodeTabs, notBuilding, onAddKey, onAddQ, onBgDown, onErrMode, onMove, onTitle, onUp, opOpts, openRun, openSettings, otherIcon, otherText, otherTitle, outVars, palClosed, palItems, palOpen, panelClose, panelOpen, panelW, pf, pmNode, pmProcess, pmRun, pubOpen, pubState, publish, publishDisabled, publishLabel, ranD, redo, rerun, runBar, runDone, runHasOutput, runInputTitle, runInputs, runLocked, runLog, runOutput, runPaused, runResBg, runResBorder, runResText, runRunning, runShowInput, runShowResult, runShowTrace, runStatusColor, runStatusText, runStep, runTabs, sel, selD, startRun, statusDot, statusLabel, statusSub, stepCount, tabCfg, tabLast, tmpD, toast, toastBg, toastText, toggleCheck, toggleDir, toggleExpand, togglePal, togglePub, toggleRetry, toolHint, toolHintColor, topTabs, undo, varOpts, viewNodes, waitActions, waitBody, waitExpire, waitRole, waitTitle, worldTransform, zoomIn, zoomOut, zoomPct } = v;
+    var { actCount, actGuards, addCase, addCrumb, addEmpty, addFrom, addHasCrumb, addHasFrom, addOpen, addQ, addRoot, addSections, addShowTabs, addTabs, aiBanner, aiCount, autoLayout, backToList, building, canRedoNot, canUndoNot, canvasCursor, canvasRef, cases, checkOpen, closeAdd, collapseSide, ctxItems, ctxOpen, ctxX, ctxY, deleteProcess, deleteSel, dirIcon, dirLabel, dismissBanner, draftSteps, edgeDel, edgesD, editors, errD, errMode, errRetry, expandLabel, expandSide, fit, guards, hasIssues, isGuardPage, isOtherTab, isVersionsPage, issueColor, issueCount, issueGroups, last, lastHas, moreOpen, name, navItems, noIssues, noRunInputs, nodeTabs, onAddKey, onAddQ, onBgDown, onErrMode, onMove, onTitle, onUp, opOpts, otherIcon, otherText, otherTitle, outVars, palClosed, palItems, palOpen, panelClose, panelOpen, panelTabs, panelW, pf, pmNode, pmProcess, pmRun, pubOpen, pubState, publish, publishDisabled, publishLabel, ranD, readyDone, readyItems, readyPct, readyTotal, redo, rerun, runBar, runDone, runHasOutput, runInputTitle, runInputs, runLocked, runLog, runOutput, runPaused, runResBg, runResBorder, runResText, runRunning, runShowInput, runShowResult, runShowTrace, runStatusColor, runStatusText, runStep, runTabs, sel, selD, share, showReady, sideRail, sideShow, startRun, statusBg, statusDot, statusFg, statusLabel, stepCount, tabCfg, tabLast, tmpD, toast, toastBg, toastText, toggleCheck, toggleDir, toggleExpand, toggleMore, togglePal, togglePub, toggleRetry, toolHint, toolHintColor, topTabs, undo, varOpts, versionSub, versionTitle, viewNodes, waitActions, waitBody, waitExpire, waitRole, waitTitle, worldTransform, zoomIn, zoomOut, zoomPct } = v;
     backToList = function () { clearTimeout(self.timer); self.props.onBack(); };
     return (
       <div className="qt-root" style={S('height: 100vh; min-height: 640px; display: flex; flex-direction: column; overflow: hidden; position: relative; background: #fff')}>
         <style>{CSS}</style>
 
-<div style={S('height: 48px; flex-shrink: 0; border-bottom: 1px solid #e5e5e5; display: flex; align-items: center; padding: 0 12px; gap: 10px; position: relative; z-index: 30; background: #fff')}>
-  <button type="button" className={Q('ghost')} aria-label="Quay lại danh sách nhân sự số" onClick={backToList} style={S('width: 32px; height: 32px; border-radius: 7px; display: flex; align-items: center; justify-content: center')}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
-  <span style={S('width: 26px; height: 26px; border-radius: 7px; background: #eef1fd; color: #203BDC; display: flex; align-items: center; justify-content: center')}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 5h6v5H3z M15 14h6v5h-6z M9 7.5h3a2 2 0 0 1 2 2v5a2 2 0 0 0 2 2"></path></svg></span>
-  <span style={S('font-size: 14px; font-weight: 600; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap')}>{name}</span>
-  <span style={S('display: inline-flex; align-items: center; gap: 6px; font-size: 12px; border-radius: 999px; padding: 3px 10px; background: #f1f5f9; color: #0f172a; white-space: nowrap')}><span style={S(`width: 6px; height: 6px; border-radius: 999px; background: ${statusDot}`)}></span>{statusLabel}<span style={S('color: #64748b')}>{statusSub}</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></span>
-  <span style={S('font-size: 11px; font-weight: 600; background: #eef1fd; color: #203BDC; border-radius: 6px; padding: 3px 8px; white-space: nowrap')}>Quy trình</span>
+<div style={S('height: 56px; flex-shrink: 0; border-bottom: 1px solid #e3e1dc; display: flex; align-items: center; padding: 0 16px; gap: 12px; position: relative; z-index: 30; background: #fff')}>
+  <button type="button" className={Q('ghost')} aria-label="Quay lại danh sách Nhân sự số" onClick={backToList} style={S('width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #686873; flex-shrink: 0')}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+  <button type="button" className={Q('ghost')} onClick={backToList} style={S('font-size: 12px; color: #686873; padding: 0; flex-shrink: 0')}>Nhân sự số</button>
+  <span style={S('font-size: 12px; color: #b4b4ba; flex-shrink: 0')}>/</span>
+  <div style={S('display: flex; align-items: center; gap: 8px; min-width: 140px; max-width: 300px')}>
+    <span style={S('width: 28px; height: 28px; border-radius: 6px; background: #f5f3f0; border: 1px solid #e3e1dc; color: #203BDC; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-sizing: border-box')}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 5h6v5H3z M15 14h6v5h-6z M9 7.5h3a2 2 0 0 1 2 2v5a2 2 0 0 0 2 2"></path></svg></span>
+    <span style={S('font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0')}>{name}</span>
+    <span style={S('display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; padding: 2px 6px; border-radius: 4px; background: #eef2ff; color: #4338ca; white-space: nowrap; flex-shrink: 0')}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 5h6v5H3z M15 14h6v5h-6z M9 7.5h3a2 2 0 0 1 2 2v5a2 2 0 0 0 2 2"></path></svg>Quy trình</span>
+  </div>
   <div style={S('flex: 1; display: flex; justify-content: center; gap: 4px')}>
     {(topTabs || []).map((t, _it) => (<React.Fragment key={_it}>
-      <button type="button" onClick={t.pick} aria-pressed={t.on} style={S(`display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 0; border-radius: 8px; font-size: 13px; font-weight: 500; white-space: nowrap; flex-shrink: 0; background: ${t.bg}; color: ${t.fg}`)}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={t.icon}></path></svg>{t.label}</button>
+      <button type="button" onClick={t.pick} aria-pressed={t.on} title={t.label} style={S(`display: inline-flex; align-items: center; gap: 10px; height: 32px; padding: 0 10px; border: 0; border-radius: 8px; font-size: 14px; font-weight: 500; white-space: nowrap; flex-shrink: 0; background: ${t.bg}; color: ${t.fg}`)}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={t.icon}></path></svg>{t.label}</button>
     </React.Fragment>))}
   </div>
-  <button type="button" className={Q('tbtn')} aria-label="Hoàn tác" title="Hoàn tác" onClick={undo} disabled={canUndoNot}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5 M4 9h10a6 6 0 0 1 0 12h-3"></path></svg></button>
-  <button type="button" className={Q('tbtn')} aria-label="Làm lại" title="Làm lại" onClick={redo} disabled={canRedoNot}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 14l5-5-5-5 M20 9H10a6 6 0 0 0 0 12h3"></path></svg></button>
-  <button type="button" className={Q('tbtn')} aria-label="Cài đặt Quy trình" title="Cài đặt Quy trình (Guardrails)" onClick={openSettings}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></button>
-  <button type="button" className={Q('tbtn')} aria-label="Chạy thử" title="Chạy thử" onClick={openRun}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"></path></svg></button>
-  <span style={S('font-size: 11.5px; color: #64748b; white-space: nowrap')}>Đã tự lưu</span>
-  <div style={S('position: relative')}>
-    <button type="button" className={Q('btn')} aria-expanded={checkOpen} onClick={toggleCheck} aria-label={checkAria}>
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 11l3 3 8-8 M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"></path></svg>Kiểm tra
-      {(hasIssues) && (<><span style={S('min-width: 18px; height: 18px; border-radius: 999px; background: #dc2626; color: #fff; font-size: 10.5px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px')}>{issueCount}</span></>)}
-    </button>
-    {(checkOpen) && (<>
-      <div role="dialog" aria-label="Lỗi cần sửa" style={S('position: absolute; right: 0; top: 44px; width: 360px; max-height: 460px; overflow-y: auto; background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; box-shadow: 0 12px 28px rgba(15,23,42,.14); padding: 14px')}>
-        <div style={S('display: flex; align-items: center; gap: 8px')}><b style={S('font-size: 14px; font-weight: 600')}>Lỗi cần sửa</b><span style={S('font-size: 11px; color: #b91c1c; background: #fef2f2; border-radius: 999px; padding: 1px 8px')}>{issueCount} lỗi</span></div>
-        <p style={S('font-size: 12px; color: #64748b; margin: 2px 0 0')}>Sửa hết thì mới publish được.</p>
-        {(noIssues) && (<><p style={S('font-size: 12.5px; color: #15803d; margin: 10px 0 0')}>Không còn lỗi nào.</p></>)}
-        {(issueGroups || []).map((g, _ig) => (<React.Fragment key={_ig}>
-          <button type="button" onClick={g.go} style={S('display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 10px 6px 6px; border-radius: 8px; font: inherit; cursor: pointer')}>
-            <span style={S('display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600')}><span style={S(`width: 20px; height: 20px; border-radius: 5px; background: ${g.tile}; color: #fff; display: inline-flex; align-items: center; justify-content: center`)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={g.icon}></path></svg></span>{g.title} ({g.count})</span>
-            {(g.msgs || []).map((m, _im) => (<React.Fragment key={_im}><span style={S('display: block; font-size: 12px; color: #475569; padding: 2px 0 0 28px')}>{m}</span></React.Fragment>))}
-          </button>
-        </React.Fragment>))}
-      </div>
-    </>)}
-  </div>
-  <div style={S('position: relative')}>
-    <button type="button" className={Q('btn btn-primary')} aria-expanded={pubOpen} onClick={togglePub}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 15c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2.1-.1-2.9-.8-.8-2.1-.8-2.9-.1z M12 15l-3-3c1.4-3.6 4.3-7.6 11-8-.4 6.7-4.4 9.6-8 11z M9 12H5l2-4h4 M12 15v4l4-2v-4"></path></svg>Publish</button>
-    {(pubOpen) && (<>
-      <div role="dialog" aria-label="Publish" style={S('position: absolute; right: 0; top: 44px; width: 300px; background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; box-shadow: 0 12px 28px rgba(15,23,42,.14); padding: 14px')}>
-        <div style={S('font-size: 12px; color: #64748b')}>● {pubState}</div>
-        <button type="button" className={Q('btn btn-primary')} onClick={publish} disabled={publishDisabled} style={S('width: 100%; justify-content: center; margin-top: 10px')}>{publishLabel}</button>
-        {(hasIssues) && (<><p style={S('font-size: 11.5px; color: #b91c1c; margin: 6px 0 0')}>Còn {issueCount} lỗi. Bấm Kiểm tra để xem.</p></>)}
-        <p style={S(`font-size: 12px; color: ${toolHintColor}; margin: 12px 0 0; line-height: 1.5; border-top: 1px solid #f1f5f9; padding-top: 10px`)}>{toolHint}</p>
-      </div>
-    </>)}
+  <div style={S('display: flex; align-items: center; gap: 8px')}>
+    <button type="button" onClick={togglePub} style={S(`height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border-radius: 999px; border: 0; font-size: 12px; font-weight: 500; white-space: nowrap; background: ${statusBg}; color: ${statusFg}`)}><span style={S(`width: 6px; height: 6px; border-radius: 999px; background: ${statusDot}`)}></span>{statusLabel}</button>
+    <button type="button" onClick={share} style={S('height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid #e3e1dc; background: #fff; font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; color: #121216')}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M2 21a7 7 0 0 1 14 0 M16 11l2 2 4-4"></path></svg>Cấp quyền</button>
+    <div style={S('position: relative')}>
+      <button type="button" className={Q('btn btn-primary')} aria-expanded={pubOpen} onClick={togglePub} style={S('height: 36px; padding: 0 16px; border-radius: 8px; font-size: 14px; font-weight: 500; gap: 8px')}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 15c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2.1-.1-2.9-.8-.8-2.1-.8-2.9-.1z M12 15l-3-3c1.4-3.6 4.3-7.6 11-8-.4 6.7-4.4 9.6-8 11z M9 12H5l2-4h4 M12 15v4l4-2v-4"></path></svg>Publish</button>
+      {(pubOpen) && (<>
+        <div role="dialog" aria-label="Publish" style={S('position: absolute; right: 0; top: 44px; width: 300px; background: #fff; border: 1px solid #e3e1dc; border-radius: 12px; box-shadow: 0 12px 28px rgba(15,23,42,.14); padding: 14px')}>
+          <div style={S('font-size: 12px; color: #686873')}>● {pubState}</div>
+          <button type="button" className={Q('btn btn-primary')} onClick={publish} disabled={publishDisabled} style={S('width: 100%; justify-content: center; margin-top: 10px')}>{publishLabel}</button>
+          {(hasIssues) && (<><p style={S('font-size: 11.5px; color: #b91c1c; margin: 6px 0 0')}>Còn {issueCount} lỗi. Xem mục Sẵn sàng publish bên trái.</p></>)}
+          <p style={S(`font-size: 12px; color: ${toolHintColor}; margin: 12px 0 0; line-height: 1.5; border-top: 1px solid #f1f5f9; padding-top: 10px`)}>{toolHint}</p>
+        </div>
+      </>)}
+    </div>
+    <div style={S('position: relative')}>
+      <button type="button" className={Q('ghost')} aria-label="Thao tác khác" aria-expanded={moreOpen} onClick={toggleMore} style={S('width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #686873')}><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="19" cy="12" r="1.6"></circle></svg></button>
+      {(moreOpen) && (<>
+        <div role="menu" style={S('position: absolute; right: 0; top: 40px; width: 176px; background: #fff; border: 1px solid #e3e1dc; border-radius: 8px; box-shadow: 0 12px 28px rgba(15,23,42,.14); padding: 4px 0; z-index: 40')}>
+          <button type="button" role="menuitem" disabled={true} style={S('display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 6px 12px; font-size: 12px; color: #b4b4ba; cursor: not-allowed')}>Gỡ publish</button>
+          <div style={S('height: 1px; background: #e3e1dc; margin: 4px 0')}></div>
+          <button type="button" role="menuitem" onClick={deleteProcess} style={S('display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 6px 12px; font-size: 12px; color: #dc2626')}>Xóa Nhân sự số</button>
+        </div>
+      </>)}
+    </div>
   </div>
 </div>
 
-{(notBuilding) && (<>
-  <div style={S('flex: 1; display: flex; align-items: center; justify-content: center; background: #fafafa')}>
+<div style={S('flex: 1; min-height: 0; display: flex; position: relative')}>
+  {(sideShow) && (<>
+    <aside style={S('width: 240px; flex-shrink: 0; border-right: 1px solid #e3e1dc; background: #fff; display: flex; flex-direction: column; height: 100%; box-sizing: border-box')}>
+      <nav style={S('flex: 1; min-height: 0; overflow-y: auto; padding: 8px 8px 4px; display: flex; flex-direction: column; gap: 4px')}>
+        {(navItems || []).map((it, _iit) => (<React.Fragment key={_iit}>
+          <button type="button" onClick={it.pick} aria-current={it.on} style={S(`height: 36px; font-size: 14px; width: 100%; display: flex; align-items: center; gap: 10px; border: 0; border-radius: 8px; padding: 0 10px; flex-shrink: 0; text-align: left; background: ${it.bg}; color: ${it.fg}; font-weight: ${it.fw}`)}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={S('flex-shrink: 0')}><path d={it.icon}></path></svg><span style={S('flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap')}>{it.label}</span>{(it.hasCount) && (<><span style={S('min-width: 18px; height: 18px; border-radius: 999px; background: #dc2626; color: #fff; font-size: 10.5px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px')}>{it.count}</span></>)}</button>
+        </React.Fragment>))}
+      </nav>
+      {(showReady) && (<>
+        <div style={S('flex-shrink: 0; padding: 12px; border-top: 1px solid #e3e1dc; display: flex; flex-direction: column; gap: 8px')}>
+          <div style={S('border: 1px solid #e3e1dc; background: rgba(245,243,240,.5); border-radius: 8px; padding: 10px')}>
+            <div style={S('display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px')}><span style={S('font-size: 12px; font-weight: 600; color: #121216')}>Sẵn sàng publish</span><span style={S('font-size: 12px; color: #686873')}>{readyDone}/{readyTotal}</span></div>
+            <div style={S('height: 6px; border-radius: 999px; background: #e3e1dc; overflow: hidden; margin-bottom: 8px')}><div style={S(`height: 100%; border-radius: 999px; background: #203BDC; width: ${readyPct}%`)}></div></div>
+            {(readyItems || []).map((r, _ir) => (<React.Fragment key={_ir}>
+              <button type="button" onClick={r.pick} style={S(`display: flex; align-items: center; gap: 6px; width: 100%; border: 0; background: transparent; padding: 2px 0; font-size: 14px; text-align: left; color: ${r.fg}; cursor: pointer`)}>
+                {(r.done) && (<><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#203BDC" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={S('flex-shrink: 0')}><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M8 12l3 3 5-6"></path></svg></>)}
+                {(r.failed) && (<><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={S('flex-shrink: 0')}><path d="M12 3l10 18H2z M12 10v4 M12 17h.01"></path></svg></>)}
+                {(r.todo) && (<><span style={S('width: 12px; height: 12px; border-radius: 999px; border: 2px solid #686873; flex-shrink: 0; box-sizing: border-box')}></span></>)}
+                <span>{r.label}</span>
+              </button>
+            </React.Fragment>))}
+          </div>
+          <button type="button" onClick={collapseSide} style={S('width: 100%; height: 32px; border-radius: 8px; border: 1px solid #e3e1dc; background: #fff; color: #686873; font-size: 12px; font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 6px')}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>Collapse sidebar</button>
+        </div>
+      </>)}
+    </aside>
+  </>)}
+  {(sideRail) && (<>
+    <div style={S('width: 44px; flex-shrink: 0; border-right: 1px solid #e3e1dc; background: #fff; display: flex; justify-content: center; padding-top: 8px')}>
+      <button type="button" className={Q('ghost')} aria-label="Mở sidebar" title="Mở sidebar" onClick={expandSide} style={S('width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #686873')}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M9 18l6-6-6-6"></path></svg></button>
+    </div>
+  </>)}
+  {(checkOpen) && (<>
+    <div role="dialog" aria-label="Lỗi cần sửa" style={S('position: absolute; left: 248px; bottom: 16px; width: 360px; max-height: 460px; overflow-y: auto; background: #fff; border: 1px solid #e3e1dc; border-radius: 12px; box-shadow: 0 12px 28px rgba(15,23,42,.14); padding: 14px; z-index: 40')}>
+      <div style={S('display: flex; align-items: center; gap: 8px')}><b style={S('font-size: 14px; font-weight: 600; flex: 1')}>Lỗi cần sửa</b><span style={S('font-size: 11px; color: #b91c1c; background: #fef2f2; border-radius: 999px; padding: 1px 8px')}>{issueCount} lỗi</span><button type="button" className={Q('ghost')} aria-label="Đóng" onClick={toggleCheck} style={S('width: 26px; height: 26px; border-radius: 6px')}>✕</button></div>
+      <p style={S('font-size: 12px; color: #686873; margin: 2px 0 0')}>Sửa hết thì mới publish được.</p>
+      {(noIssues) && (<><p style={S('font-size: 12.5px; color: #15803d; margin: 10px 0 0')}>Không còn lỗi nào.</p></>)}
+      {(issueGroups || []).map((g, _ig) => (<React.Fragment key={_ig}>
+        <button type="button" onClick={g.go} style={S('display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 10px 6px 6px; border-radius: 8px; font: inherit; cursor: pointer')}>
+          <span style={S('display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600')}><span style={S(`width: 20px; height: 20px; border-radius: 5px; background: ${g.tile}; color: #fff; display: inline-flex; align-items: center; justify-content: center`)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={g.icon}></path></svg></span>{g.title} ({g.count})</span>
+          {(g.msgs || []).map((m, _im) => (<React.Fragment key={_im}><span style={S('display: block; font-size: 12px; color: #475569; padding: 2px 0 0 28px')}>{m}</span></React.Fragment>))}
+        </button>
+      </React.Fragment>))}
+    </div>
+  </>)}
+  <div style={S('flex: 1; min-width: 0; display: flex; flex-direction: column')}>
+
+{(isOtherTab) && (<>
+  <div style={S('flex: 1; display: flex; align-items: center; justify-content: center; background: #fff')}>
     <div style={S('max-width: 460px; text-align: center; padding: 24px')}>
-      <span style={S('width: 44px; height: 44px; border-radius: 12px; background: #eef1fd; color: #203BDC; display: inline-flex; align-items: center; justify-content: center')}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={otherIcon}></path></svg></span>
+      <span style={S('width: 44px; height: 44px; border-radius: 12px; background: #eceefe; color: #203BDC; display: inline-flex; align-items: center; justify-content: center')}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={otherIcon}></path></svg></span>
       <h2 style={S('margin: 12px 0 0; font-size: 16px; font-weight: 600')}>{otherTitle}</h2>
       <p style={S('margin: 6px 0 0; font-size: 13px; color: #475569; line-height: 1.55')}>{otherText}</p>
+    </div>
+  </div>
+</>)}
+{(isGuardPage) && (<>
+  <div style={S('flex: 1; overflow-y: auto; background: #fff')}>
+    <div style={S('max-width: 720px; padding: 32px')}>
+      <h2 style={S('margin: 0; font-size: 18px; font-weight: 600')}>Guardrails</h2>
+      <p style={S('margin: 4px 0 0; font-size: 13px; color: #686873')}>Áp dụng cho mọi bước trong Quy trình này. Guardrails của Space luôn áp dụng trước và không tắt được ở đây.</p>
+      <div style={S('margin-top: 18px; border: 1px solid #e3e1dc; border-radius: 12px; padding: 16px')}>
+        <div style={S('font-size: 11px; font-weight: 600; letter-spacing: .04em; color: #475569')}>NỘI DUNG <span style={S('font-weight: 400; letter-spacing: 0; color: #686873')}>· {aiCount} bước AI</span></div>
+        {(guards || []).map((g, _ig) => (<React.Fragment key={_ig}><label style={S('display: flex; gap: 8px; align-items: flex-start; font-size: 13px; padding: 5px 0; cursor: pointer')}><input type="checkbox" checked={g.on} onChange={g.toggle} style={S('margin-top: 2px; accent-color: #203BDC')} /><span>{g.label}</span></label></React.Fragment>))}
+        <div style={S('font-size: 11px; font-weight: 600; letter-spacing: .04em; color: #475569; margin-top: 14px')}>HÀNH ĐỘNG <span style={S('font-weight: 400; letter-spacing: 0; color: #686873')}>· {actCount} bước Tool, HTTP</span></div>
+        {(actGuards || []).map((g, _ig) => (<React.Fragment key={_ig}><label style={S('display: flex; gap: 8px; align-items: flex-start; font-size: 13px; padding: 5px 0; cursor: pointer')}><input type="checkbox" checked={g.on} onChange={g.toggle} style={S('margin-top: 2px; accent-color: #203BDC')} /><span>{g.label}</span></label></React.Fragment>))}
+      </div>
+    </div>
+  </div>
+</>)}
+{(isVersionsPage) && (<>
+  <div style={S('flex: 1; overflow-y: auto; background: #fff')}>
+    <div style={S('max-width: 720px; padding: 32px')}>
+      <h2 style={S('margin: 0; font-size: 18px; font-weight: 600')}>Phiên bản</h2>
+      <p style={S('margin: 4px 0 0; font-size: 13px; color: #686873')}>Mỗi lần publish tạo một phiên bản. Lượt chạy đang dở vẫn chạy tiếp theo phiên bản cũ.</p>
+      <div style={S('margin-top: 18px; border: 1px solid #e3e1dc; border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 10px')}>
+        <span style={S(`width: 8px; height: 8px; border-radius: 999px; background: ${statusDot}`)}></span>
+        <span style={S('flex: 1')}><b style={S('display: block; font-size: 14px; font-weight: 600')}>{versionTitle}</b><span style={S('font-size: 12px; color: #686873')}>{versionSub}</span></span>
+        <span style={S('font-size: 12px; color: #686873')}>{stepCount} bước</span>
+      </div>
     </div>
   </div>
 </>)}
@@ -1517,6 +1612,9 @@ class ProcessBuilderInner extends React.Component<any, any> {
     </>)}
 
     <div data-ui="1" style={S('position: absolute; left: 16px; bottom: 16px; display: flex; align-items: center; gap: 2px; background: #fff; border: 1px solid #e6e6e9; border-radius: 10px; padding: 3px; box-shadow: 0 2px 8px rgba(15,23,42,.06); z-index: 6')}>
+      <button type="button" className={Q('tbtn')} aria-label="Hoàn tác" title="Hoàn tác" onClick={undo} disabled={canUndoNot} style={S('width: 30px; height: 30px')}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5 M4 9h10a6 6 0 0 1 0 12h-3"></path></svg></button>
+      <button type="button" className={Q('tbtn')} aria-label="Làm lại" title="Làm lại" onClick={redo} disabled={canRedoNot} style={S('width: 30px; height: 30px')}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 14l5-5-5-5 M20 9H10a6 6 0 0 0 0 12h3"></path></svg></button>
+      <span style={S('width: 1px; height: 18px; background: #e3e1dc; margin: 0 2px')}></span>
       <button type="button" className={Q('tbtn')} aria-label="Phóng to" title="Phóng to" onClick={zoomIn} style={S('width: 30px; height: 30px')}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M21 21l-4.3-4.3 M11 8v6 M8 11h6"></path></svg></button>
       <button type="button" className={Q('tbtn')} aria-label="Thu nhỏ" title="Thu nhỏ" onClick={zoomOut} style={S('width: 30px; height: 30px')}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M21 21l-4.3-4.3 M8 11h6"></path></svg></button>
       <button type="button" className={Q('tbtn')} aria-label="Vừa khung" title="Vừa khung" onClick={fit} style={S('width: 30px; height: 30px')}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 9V4h5 M20 9V4h-5 M4 15v5h5 M20 15v5h-5"></path></svg></button>
@@ -1527,7 +1625,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
 
     {(aiBanner) && (<>
       <div data-ui="1" role="status" style={S('position: absolute; left: 50%; top: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; background: #f3f5fe; border: 1px solid #c7d2fe; border-radius: 10px; padding: 7px 8px 7px 12px; font-size: 12.5px; color: #1e3a8a; max-width: 520px; z-index: 5')}>
-        <span>AI dựng {draftSteps} bước từ mô tả của bạn. Bấm Kiểm tra để xem chỗ còn thiếu.</span>
+        <span>AI dựng {draftSteps} bước từ mô tả của bạn. Xem mục Sẵn sàng publish bên trái để biết chỗ còn thiếu.</span>
         <button type="button" className={Q('ghost')} onClick={dismissBanner} style={S('height: 28px; padding: 0 8px; border-radius: 6px; font-size: 12px; color: #1e3a8a; font-weight: 500')}>Đã hiểu</button>
       </div>
     </>)}
@@ -1589,11 +1687,18 @@ class ProcessBuilderInner extends React.Component<any, any> {
 
     {/* Panel nổi bên phải */}
     {(panelOpen) && (<>
-      <aside data-ui="1" style={S(`position: absolute; right: 16px; top: 16px; bottom: 16px; width: ${panelW}px; max-width: calc(100% - 220px); background: #fff; border: 1px solid #e6e6e9; border-radius: 14px; box-shadow: 0 8px 28px rgba(15,23,42,.10); overflow-y: auto; z-index: 8`)}>
+      <aside data-ui="1" style={S(`position: absolute; right: 0; top: 0; bottom: 0; width: ${panelW}px; max-width: calc(100% - 200px); background: #fff; border-left: 1px solid #e3e1dc; overflow-y: auto; z-index: 8; box-sizing: border-box`)}>
+      <div style={S('height: 44px; padding: 0 12px; border-bottom: 1px solid #e3e1dc; display: flex; align-items: center; gap: 4px; position: sticky; top: 0; background: #fff; z-index: 2')}>
+        {(panelTabs || []).map((t, _it) => (<React.Fragment key={_it}>
+          <button type="button" onClick={t.pick} aria-pressed={t.on} style={S(`height: 28px; padding: 0 12px; border-radius: 8px; border: 0; font-size: 14px; font-weight: 500; background: ${t.bg}; color: ${t.fg}`)}>{t.label}</button>
+        </React.Fragment>))}
+        <span style={S('flex: 1')}></span>
+        <button type="button" className={Q('ghost')} aria-label={expandLabel} title={expandLabel} onClick={toggleExpand} style={S('width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #686873')}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 3h6v6 M9 21H3v-6 M21 3l-7 7 M3 21l7-7"></path></svg></button>
+        <button type="button" className={Q('ghost')} aria-label="Đóng bảng cấu hình" title="Đóng" onClick={panelClose} style={S('width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #686873')}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12 M18 6L6 18"></path></svg></button>
+      </div>
     {(pmRun) && (<>
       <div style={S('padding: 14px 16px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 8px')}>
-        <h2 style={S('margin: 0; font-size: 15px; font-weight: 600; flex: 1')}>Chạy thử <span style={S(`font-weight: 400; color: ${runStatusColor}`)}>· {runStatusText}</span></h2>
-        <button type="button" className={Q('ghost')} aria-label="Đóng" title="Đóng" onClick={panelClose} style={S('width: 28px; height: 28px; border-radius: 6px')}>✕</button>
+        <h2 style={S('margin: 0; font-size: 15px; font-weight: 600; flex: 1')}>Chạy thử Quy trình <span style={S(`font-weight: 400; color: ${runStatusColor}`)}>· {runStatusText}</span></h2>
       </div>
       <div role="tablist" style={S('display: flex; gap: 4px; padding: 8px 12px 0')}>
         {(runTabs || []).map((t, _it) => (<React.Fragment key={_it}>
@@ -1653,8 +1758,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
           <span style={S(`width: 28px; height: 28px; border-radius: 7px; background: ${sel.tileBg}; color: ${sel.tile}; display: flex; align-items: center; justify-content: center; flex-shrink: 0`)}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={sel.icon}></path></svg></span>
           <label className={Q('sr')} htmlFor="ntitle">Tên bước</label>
           <input id="ntitle" value={sel.title} onChange={onTitle} style={S('flex: 1; min-width: 0; border: 1px solid transparent; border-radius: 6px; font: inherit; font-size: 15px; font-weight: 600; padding: 3px 6px; background: transparent')} />
-          <button type="button" className={Q('ghost')} aria-label={expandLabel} title={expandLabel} onClick={toggleExpand} style={S('width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center')}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 3h6v6 M9 21H3v-6 M21 3l-7 7 M3 21l7-7"></path></svg></button>
-          <button type="button" className={Q('ghost')} aria-label="Đóng" title="Đóng" onClick={panelClose} style={S('width: 28px; height: 28px; border-radius: 6px')}>✕</button>
+
         </div>
         {(sel.hasTabs) && (<>
           <div role="tablist" style={S('display: flex; gap: 4px; margin-top: 10px')}>
@@ -1779,21 +1883,9 @@ class ProcessBuilderInner extends React.Component<any, any> {
     </>)}
 
     {(pmProcess) && (<>
-      <div style={S('padding: 18px')}>
-        <div style={S('display: flex; align-items: center')}><h2 style={S('margin: 0; font-size: 15px; font-weight: 600; flex: 1')}>Cài đặt Quy trình</h2><button type="button" className={Q('ghost')} aria-label="Đóng" title="Đóng" onClick={panelClose} style={S('width: 28px; height: 28px; border-radius: 6px')}>✕</button></div>
-        <p style={S('margin: 4px 0 0; font-size: 12.5px; color: #475569')}>Áp dụng cho mọi bước trong Quy trình này.</p>
-        <div style={S('margin-top: 14px; border: 1px solid #e5e5e5; border-radius: 10px; padding: 12px')}>
-          <div style={S('display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600')}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>Guardrails cho mọi bước</div>
-          <div style={S('font-size: 11px; font-weight: 600; letter-spacing: .04em; color: #475569; margin-top: 10px')}>NỘI DUNG <span style={S('font-weight: 400; letter-spacing: 0; color: #64748b')}>· {aiCount} bước AI</span></div>
-          {(guards || []).map((g, _ig) => (<React.Fragment key={_ig}><label style={S('display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; padding: 4px 0; cursor: pointer')}><input type="checkbox" checked={g.on} onChange={g.toggle} style={S('margin-top: 2px; accent-color: #203BDC')} /><span>{g.label}</span></label></React.Fragment>))}
-          <div style={S('font-size: 11px; font-weight: 600; letter-spacing: .04em; color: #475569; margin-top: 10px')}>HÀNH ĐỘNG <span style={S('font-weight: 400; letter-spacing: 0; color: #64748b')}>· {actCount} bước Tool, HTTP</span></div>
-          {(actGuards || []).map((g, _ig) => (<React.Fragment key={_ig}><label style={S('display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; padding: 4px 0; cursor: pointer')}><input type="checkbox" checked={g.on} onChange={g.toggle} style={S('margin-top: 2px; accent-color: #203BDC')} /><span>{g.label}</span></label></React.Fragment>))}
-          <p style={S('font-size: 11.5px; color: #64748b; margin: 8px 0 0')}>Guardrails của Space luôn áp dụng trước và không tắt được ở đây.</p>
-        </div>
-        <div style={S('display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px')}>
-          <div style={S('background: #f8fafc; border-radius: 8px; padding: 10px')}><div style={S('font-size: 20px; font-weight: 600')}>{stepCount}</div><div style={S('font-size: 11.5px; color: #475569')}>bước</div></div>
-          <div style={S('background: #f8fafc; border-radius: 8px; padding: 10px')}><div style={S(`font-size: 20px; font-weight: 600; color: ${issueColor}`)}>{issueCount}</div><div style={S('font-size: 11.5px; color: #475569')}>lỗi cần sửa</div></div>
-        </div>
+      <div style={S('padding: 18px 16px')}>
+        <p style={S('margin: 0; font-size: 13px; color: #475569; line-height: 1.55')}>Chọn một bước trên canvas để cấu hình. Quy trình có {stepCount} bước, còn <b style={S(`color: ${issueColor}`)}>{issueCount} lỗi</b> cần sửa.</p>
+        <p style={S(`margin: 10px 0 0; font-size: 12.5px; color: ${toolHintColor}; line-height: 1.5`)}>{toolHint}</p>
       </div>
     </>)}
 
@@ -1802,6 +1894,8 @@ class ProcessBuilderInner extends React.Component<any, any> {
   </div>
 </div>
 </>)}
+  </div>
+</div>
 
 {(toast) && (<>
   <div role="status" style={S(`position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); background: ${toastBg}; color: #fff; font-size: 13px; border-radius: 10px; padding: 10px 16px; box-shadow: 0 8px 24px hsl(240 10% 8% / .25); z-index: 60; max-width: 520px; text-align: center; line-height: 1.45`)}>{toastText}</div>

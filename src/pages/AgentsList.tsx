@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Add01Icon, Search01Icon, FilterIcon, Chat01Icon,
-  SparklesIcon, Cancel01Icon, BoltIcon, TimeScheduleIcon, UserMultipleIcon,
+  SparklesIcon, Cancel01Icon, BoltIcon, TimeScheduleIcon, UserMultipleIcon, FlowCircleIcon,
 } from "@hugeicons/core-free-icons";
 import { useCanShareAgent } from "@/components/configure/ShareAgentModal";
 import { useAgentShareVersion, agentShareStore } from "@/components/configure/agentShareStore";
@@ -30,7 +30,7 @@ import { agentModelStore } from "@/components/configure/agentModelStore";
 const tabs = ["Tất cả Nhân sự số", "Published", "Draft", "Removed", "Chờ duyệt", "Bị từ chối", "Shared with me"] as const;
 /** Display labels — "Published/Draft" read as "Đang live/Bản nháp" to match the card lines. */
 const TAB_LABEL: Partial<Record<typeof tabs[number], string>> = { Published: "Đang live", Draft: "Bản nháp", Removed: "Đã gỡ", "Shared with me": "Được thêm vào" };
-const kindFilters = ["All", "Nhân sự số", "Nhân sự số tự động", "Quy trình"] as const;
+const kindFilters = ["All", "Nhân sự số", "Quy trình", "Nhân sự số tự động"] as const;
 
 const SUGGESTIONS = [
   { label: "Customer support", prompt: "A customer-support agent that answers FAQs, guides users through documentation, and escalates tickets when needed." },
@@ -292,6 +292,51 @@ function ConversationalCard({ a }: { a: typeof agents[number] }) {
           <span>Updated {a.updated}</span>
           <span>·</span>
           <span className="truncate">{agentModelStore.label(a.id)}</span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+/** Same card anatomy as ConversationalCard (tile, name, version line, description, stat row,
+ * updated line) so a Nhân sự số Quy trình reads as the same kind of thing in the list. */
+function ProcessCard({ p }: { p: typeof PROCESS_AGENTS[number] }) {
+  return (
+    <Link
+      to={`/process/${p.id}`}
+      className="group rounded-xl border border-border bg-surface hover:border-primary/30 hover:shadow-elev transition-base"
+    >
+      <div className="p-5">
+        <div className="flex items-start gap-3 mb-3">
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-primary-soft text-primary">
+            <HugeiconsIcon icon={FlowCircleIcon} size={20} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-sm truncate mb-0.5">{p.name}</h3>
+            <div className="flex flex-col gap-0.5 text-xs">
+              <span className="flex items-center gap-1.5 min-w-0">
+                <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-muted-foreground/60" aria-hidden />
+                <span className="text-muted-foreground">Bản nháp · chưa publish</span>
+              </span>
+            </div>
+          </div>
+          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-primary-soft text-primary shrink-0">Quy trình</span>
+        </div>
+
+        <p className="text-xs text-muted-foreground leading-relaxed mb-4 line-clamp-2 min-h-[32px]">{p.desc}</p>
+
+        <div className="flex items-center gap-1.5 pt-3 border-t border-border">
+          <HugeiconsIcon icon={FlowCircleIcon} size={12} className="text-muted-foreground" />
+          <span className="text-xs">
+            <b className="font-display">{p.meta.split(" · ")[0].split(" ")[0]}</b>
+            <span className="text-muted-foreground ml-1">bước</span>
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5 mt-3 text-xs text-muted-foreground">
+          <span>{p.updated}</span>
+          <span>·</span>
+          <span className="truncate">{p.meta.split(" · ")[1] ?? ""}</span>
         </div>
       </div>
     </Link>
@@ -673,6 +718,23 @@ export default function AgentsList() {
         </div>
       )}
 
+      {showProcess && (activeTab === "Tất cả Nhân sự số" || activeTab === "Draft") && (
+        <div className="mb-8">
+          {!singleKindView && (
+            <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+              Quy trình
+              <span className="text-xs font-normal text-muted-foreground">{processAgents.length}</span>
+            </h2>
+          )}
+          {processAgents.length === 0 ? (
+            <GroupEmptyState message="Không có Quy trình nào khớp với từ khóa" onShowAll={clearFilters} />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {processAgents.map(p => <ProcessCard key={p.id} p={p} />)}
+            </div>
+          )}
+        </div>
+      )}
       {showAutomation && (
         <div className="mb-8">
           {!singleKindView && (
@@ -691,36 +753,6 @@ export default function AgentsList() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {automationAgents.map(a => <AutomationCard key={a.id} a={a} />)}
-            </div>
-          )}
-        </div>
-      )}
-      {showProcess && (activeTab === "Tất cả Nhân sự số" || activeTab === "Draft") && (
-        <div className="mb-8">
-          {!singleKindView && (
-            <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-              Quy trình
-              <span className="text-xs font-normal text-muted-foreground">{processAgents.length}</span>
-            </h2>
-          )}
-          {processAgents.length === 0 ? (
-            <GroupEmptyState message="Không có Quy trình nào khớp với từ khóa" onShowAll={clearFilters} />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {processAgents.map(p => (
-                <Link key={p.id} to={`/process/${p.id}`} className="block rounded-xl border border-border bg-surface p-4 hover:border-ring/60 hover:shadow-sm transition-base">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-primary-soft text-primary">Quy trình</span>
-                    <span className="text-[11px] px-2 py-0.5 rounded-md border border-border text-muted-foreground">Bản nháp</span>
-                  </div>
-                  <div className="text-sm font-semibold text-foreground mb-1">{p.name}</div>
-                  <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{p.desc}</p>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{p.meta}</span>
-                    <span>{p.updated}</span>
-                  </div>
-                </Link>
-              ))}
             </div>
           )}
         </div>
