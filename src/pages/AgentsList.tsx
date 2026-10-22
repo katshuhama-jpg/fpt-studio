@@ -16,9 +16,10 @@ import { agentPublishStore } from "@/components/configure/agentPublishStore";
 import { runsStore } from "@/components/configure/runsStore";
 import { triggerStore, triggerNeedsSetup, type TriggerType } from "@/components/configure/triggerStore";
 import { AGENTS as ALL_AGENTS } from "@/components/configure/agentStore";
-// Nhân sự số Quy trình records (kind "process") live in agentStore so Workforce can use them as
-// steps, but they open in /process/:id - listed with the Quy trình cards below, not here.
-const agents = ALL_AGENTS.filter(a => a.kind !== "process");
+import { processStore } from "@/components/process/processStore";
+// Nhân sự số Quy trình are AgentRecords too (kind "process") - same tabs, counts and statuses,
+// listed in their own "Quy trình" group below.
+const agents = ALL_AGENTS;
 import { useOrg } from "@/pages/organization/orgStore";
 import { recheckAgentGroupPublish } from "@/components/configure/collabGroupStore";
 import { getChannelName } from "@/components/configure/channelCatalog";
@@ -40,17 +41,13 @@ const SUGGESTIONS = [
 
 /** Gợi ý mô tả khi tạo Nhân sự số Quy trình (AI dựng sẵn các bước). */
 const PROCESS_SUGGESTIONS = [
+  { label: "Mua sắm FHO-FPD", prompt: "Nhân sự số gửi đề nghị mua sắm của FHO. Chuẩn bị hồ sơ và 3 báo giá, Trưởng phòng duyệt, phần mềm/cloud qua IT bảo mật, trên 50 triệu thêm Kế toán và Giám đốc. Duyệt xong tạo PO trên Odoo, kho nhận hàng, đối chiếu 3 chiều rồi Kế toán thanh toán." },
+  { label: "Rule bồi thường MB Life", prompt: "Nhân sự số gửi hồ sơ bồi thường đã đọc OCR và số hợp đồng MB Life. Lấy Policy, lịch sử bồi thường và bảng tham chiếu cùng lúc, chạy rule chứng từ, hiệu lực và thẩm định không dùng LLM, trả về PASS, WARN, NOT_EVALUATED cho từng rule." },
   { label: "Duyệt đề nghị mua sắm", prompt: "Nhân sự số gửi đề nghị mua sắm kèm chứng từ. Trích xuất chứng từ, nếu vượt 50 triệu thì giám đốc duyệt, không thì tự duyệt. Duyệt xong tạo PO trên SAP ERP, từ chối thì soạn thư báo lại người đề nghị." },
   { label: "Đối chiếu hoá đơn với PO", prompt: "Khi hệ thống kế toán gửi hoá đơn VAT qua HTTP, trích xuất số tiền, lấy PO tương ứng từ ERP để so khớp. Khớp thì ghi nhận công nợ, lệch thì chuyển kế toán xem lại." },
   { label: "Tiếp nhận hồ sơ vay", prompt: "Nhận hồ sơ vay gồm CCCD và sao kê lương. Phân loại sản phẩm vay, tra chính sách tín dụng, chấm điều kiện cơ bản rồi chuyển chuyên viên thẩm định. Đạt thì tạo hồ sơ trên LOS, không đạt thì soạn thư từ chối." },
 ] as const;
 
-/** Nhân sự số Quy trình demo (prototype - chưa có store riêng). */
-const PROCESS_AGENTS = [
-  { id: "mbl-rules", name: "Rule thẩm định MB Life", desc: "Tra Policy, lịch sử bồi thường, bảng tham chiếu song song rồi chạy rule D/E/A tất định. Được Workforce bồi thường MB Life gọi.", meta: "10 bước · Nhân sự số gọi", updated: "Cập nhật vừa xong" },
-  { id: "procure", name: "Đề nghị mua sắm FHO-FPD", desc: "Dựng từ wiki Agentic BPM: duyệt nhiều cấp, tạo PO trên Odoo, nhận hàng, đối chiếu 3 chiều, thanh toán.", meta: "30 bước · Nhân sự số gọi", updated: "Cập nhật vừa xong" },
-  { id: "invoice", name: "Đối chiếu hoá đơn với PO", desc: "Nhận hoá đơn qua HTTP, so khớp với PO trên ERP, lệch thì chuyển kế toán xem lại.", meta: "10 bước · HTTP", updated: "Cập nhật 1 giờ trước" },
-];
 
 const TRIGGER_TYPE_LABEL: Record<TriggerType, string> = {
   scheduled: "Schedule",
@@ -300,10 +297,12 @@ function ConversationalCard({ a }: { a: typeof agents[number] }) {
 
 /** Same card anatomy as ConversationalCard (tile, name, version line, description, stat row,
  * updated line) so a Nhân sự số Quy trình reads as the same kind of thing in the list. */
-function ProcessCard({ p }: { p: typeof PROCESS_AGENTS[number] }) {
+function ProcessCard({ p }: { p: typeof agents[number] }) {
+  const g = processStore.getGraph(p.id);
+  const steps = g ? g.nodes.filter((n: any) => n.type !== "note").length : ({ procure: 30, invoice: 10, "mbl-rules": 10 } as Record<string, number>)[p.processId ?? ""] ?? 1;
   return (
     <Link
-      to={`/process/${p.id}`}
+      to={`/agents/${p.id}`}
       className="group rounded-xl border border-border bg-surface hover:border-primary/30 hover:shadow-elev transition-base"
     >
       <div className="p-5">
@@ -313,12 +312,7 @@ function ProcessCard({ p }: { p: typeof PROCESS_AGENTS[number] }) {
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-sm truncate mb-0.5">{p.name}</h3>
-            <div className="flex flex-col gap-0.5 text-xs">
-              <span className="flex items-center gap-1.5 min-w-0">
-                <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-muted-foreground/60" aria-hidden />
-                <span className="text-muted-foreground">Bản nháp · chưa publish</span>
-              </span>
-            </div>
+            <AgentVersionLines agentId={p.id} />
           </div>
           <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-primary-soft text-primary shrink-0">Quy trình</span>
         </div>
@@ -328,15 +322,15 @@ function ProcessCard({ p }: { p: typeof PROCESS_AGENTS[number] }) {
         <div className="flex items-center gap-1.5 pt-3 border-t border-border">
           <HugeiconsIcon icon={FlowCircleIcon} size={12} className="text-muted-foreground" />
           <span className="text-xs">
-            <b className="font-display">{p.meta.split(" · ")[0].split(" ")[0]}</b>
+            <b className="font-display">{steps}</b>
             <span className="text-muted-foreground ml-1">bước</span>
           </span>
         </div>
 
         <div className="flex items-center gap-1.5 mt-3 text-xs text-muted-foreground">
-          <span>{p.updated}</span>
+          <span>Updated {p.updated}</span>
           <span>·</span>
-          <span className="truncate">{p.meta.split(" · ")[1] ?? ""}</span>
+          <span className="truncate">Quy trình</span>
         </div>
       </div>
     </Link>
@@ -497,15 +491,17 @@ export default function AgentsList() {
     ? tabFiltered.filter(a => a.name.toLowerCase().includes(q) || a.desc.toLowerCase().includes(q))
     : tabFiltered;
 
-  const conversationalAgents = searched.filter(a => getAgentKind(a.id) === "conversational");
-  const automationAgents = searched.filter(a => getAgentKind(a.id) === "automation");
-  const allConversationalCount = visibleAgents.filter(a => getAgentKind(a.id) === "conversational").length;
-  const allAutomationCount = visibleAgents.filter(a => getAgentKind(a.id) === "automation").length;
+  const notProcess = (a: typeof agents[number]) => a.kind !== "process";
+  const conversationalAgents = searched.filter(a => notProcess(a) && getAgentKind(a.id) === "conversational");
+  const automationAgents = searched.filter(a => notProcess(a) && getAgentKind(a.id) === "automation");
+  const allConversationalCount = visibleAgents.filter(a => notProcess(a) && getAgentKind(a.id) === "conversational").length;
+  const allAutomationCount = visibleAgents.filter(a => notProcess(a) && getAgentKind(a.id) === "automation").length;
 
   const showConversational = kindFilter !== "Nhân sự số tự động" && kindFilter !== "Quy trình";
   const showAutomation = kindFilter !== "Nhân sự số" && kindFilter !== "Quy trình";
   const showProcess = kindFilter === "All" || kindFilter === "Quy trình";
-  const processAgents = PROCESS_AGENTS.filter(p => !q || p.name.toLowerCase().includes(q) || p.desc.toLowerCase().includes(q));
+  const processAgents = searched.filter(a => a.kind === "process");
+  const allProcessCount = visibleAgents.filter(a => a.kind === "process").length;
   const singleKindView = kindFilter !== "All";
 
   const clearFilters = () => {
@@ -547,10 +543,10 @@ export default function AgentsList() {
       {/* ── Hero title + chat box ─────────────────────────────────────── */}
       <div className="flex flex-col items-center mb-8">
         <h2 className="font-display text-3xl font-semibold tracking-tight text-center mb-2">
-          Where do you want to start?
+          Bạn muốn bắt đầu từ đâu?
         </h2>
         <p className="text-base text-muted-foreground text-center mb-6">
-          Pick a starting point, then refine it in the builder.
+          Chọn một điểm bắt đầu, rồi chỉnh tiếp trong trình dựng.
         </p>
         <div className="w-full max-w-[672px] rounded-2xl border border-border bg-surface p-4 shadow-sm focus-within:border-ring transition-colors">
         <div role="radiogroup" aria-label="Loại Nhân sự số" className="flex gap-1 p-1 mb-3 rounded-lg bg-surface-muted w-fit">
@@ -575,7 +571,7 @@ export default function AgentsList() {
         </p>
         <textarea
           className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none leading-relaxed min-h-[56px]"
-          placeholder={isProcessKind ? "VD: Nhận hoá đơn, đọc số tiền, so với PO trên ERP, lệch thì chuyển kế toán xem lại." : 'e.g. "A bank customer-support assistant that answers credit-card questions in a formal tone."'}
+          placeholder={isProcessKind ? "VD: Nhận hoá đơn, đọc số tiền, so với PO trên ERP, lệch thì chuyển kế toán xem lại." : 'VD: Trợ lý chăm sóc khách hàng ngân hàng, trả lời thắc mắc về thẻ tín dụng, giọng trang trọng.'}
           rows={2}
           value={prompt}
           onChange={e => setPrompt(e.target.value)}
@@ -585,7 +581,7 @@ export default function AgentsList() {
         />
         <div className="flex items-center justify-between mt-3">
           <p className="text-xs text-muted-foreground">
-            {isProcessKind ? "Nêu các bước, ai duyệt, dùng hệ thống nào - Tối thiểu 20 ký tự." : "The more specific, the closer the draft - At least 20 characters."}
+            {isProcessKind ? "Nêu các bước, ai duyệt, dùng hệ thống nào - Tối thiểu 20 ký tự." : "Mô tả càng cụ thể, bản nháp càng sát - Tối thiểu 20 ký tự."}
           </p>
 
           {/* Right actions */}
@@ -596,7 +592,7 @@ export default function AgentsList() {
               title={!canCreateAgent ? "Bạn không có quyền tạo Nhân sự số." : undefined}
               className="text-sm text-muted-foreground hover:text-foreground transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
             >
-              Use a template
+              Dùng mẫu
             </button>}
             <button
               onClick={handleBuild}
@@ -612,7 +608,7 @@ export default function AgentsList() {
         </div>
 
         <div className="flex items-center gap-2 mt-4">
-          <span className="text-xs text-muted-foreground">Suggestions</span>
+          <span className="text-xs text-muted-foreground">Gợi ý</span>
           {(isProcessKind ? PROCESS_SUGGESTIONS : SUGGESTIONS).map(s => (
             <button
               key={s.label}
@@ -631,7 +627,7 @@ export default function AgentsList() {
           title={!canCreateAgent ? "Bạn không có quyền tạo Nhân sự số." : undefined}
           className="btn-secondary mt-4 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-surface"
         >
-          Create from blank
+          Tạo từ đầu
         </button>
       </div>
 
@@ -718,7 +714,7 @@ export default function AgentsList() {
         </div>
       )}
 
-      {showProcess && (activeTab === "Tất cả Nhân sự số" || activeTab === "Draft") && (
+      {showProcess && (
         <div className="mb-8">
           {!singleKindView && (
             <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
@@ -727,7 +723,12 @@ export default function AgentsList() {
             </h2>
           )}
           {processAgents.length === 0 ? (
-            <GroupEmptyState message="Không có Quy trình nào khớp với từ khóa" onShowAll={clearFilters} />
+            <GroupEmptyState
+              message={allProcessCount === 0
+                ? "Chưa có Quy trình nào - Chọn Quy trình ở ô tạo phía trên để dựng Quy trình đầu tiên."
+                : "Không có Quy trình nào khớp với bộ lọc"}
+              onShowAll={allProcessCount > 0 ? clearFilters : undefined}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {processAgents.map(p => <ProcessCard key={p.id} p={p} />)}
