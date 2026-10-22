@@ -811,67 +811,9 @@ export default function AgentBuilder() {
             ))}
           </nav>
 
-          {/* Ready to publish + Collapse — Build-tab only, pinned directly above Collapse
-              sidebar at the bottom, same position as the External Agent detail sidebar's
-              Setup checklist. Fixed height; the nav above scrolls instead of this clipping. */}
+          {/* Collapse — Build-tab only, pinned at the bottom of the nav. */}
           {tab === "build" && (
           <div className="shrink-0 px-3 py-3 border-t border-border space-y-2">
-            <div className="rounded-lg border border-border bg-surface-muted/50 p-2.5">
-              {(() => {
-                const agentTriggers = triggerStore.list(id ?? "new");
-                const checklist = [
-                  { label: "Đã viết Instructions",     done: true,  section: "instructions" },
-                  { label: "Đã chọn Model",             done: true,  section: "model" },
-                  { label: "Đã cấu hình Guardrails",    done: agentGuardrailStore.list(id ?? "new").length > 0 || agentGuardrailStore.listAttachedConsoleGuardrailIds(id ?? "new").length > 0, section: "guardrails" },
-                  { label: "Đã cấu hình Kết nối",       done: agentConnectorStore.list(id ?? "new").length > 0, section: "instructions" },
-                  { label: "Đã thêm Tri thức",          done: knowledgeStore.list(id ?? "new").length > 0 || knowledgeStore.listAttachedConsoleKbIds(id ?? "new").length > 0, section: "knowledge" },
-                  ...(agentTriggers.length > 0
-                    ? [{ label: "Đã cấu hình Trigger", done: !agentTriggers.some(triggerNeedsSetup), section: "triggers" }]
-                    : []),
-                  ...(revokedAll.length > 0
-                    ? [{ label: REVOKED_COPY.checklist(revokedAll.length), done: false, failed: true, revoked: true, section: revokedAll[0].type === "skill" ? "skills" : revokedAll[0].type === "knowledge" ? "knowledge" : revokedAll[0].type === "guardrail" ? "guardrails" : "instructions" }]
-                    : []),
-                  { ...(() => { const r = evaluationStore.readiness(id ?? "new"); return { label: r === "failed" ? "Evaluate chưa đạt" : r === "passed" ? "Đã đạt Evaluate" : "Đã chạy Evaluate", done: r === "passed", failed: r === "failed" }; })(), section: null as string | null, evaluation: true },
-                ];
-                const doneCount = checklist.filter(i => i.done).length;
-                return (
-                  <>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-semibold text-foreground">Sẵn sàng publish</span>
-                      <span className="text-xs text-muted-foreground">{doneCount}/{checklist.length}</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-border overflow-hidden mb-2">
-                      <div className="h-full rounded-full bg-primary" style={{ width: `${(doneCount / checklist.length) * 100}%` }} />
-                    </div>
-                    <div className="space-y-1">
-                      {checklist.map(item => (
-                        <div key={item.label} className="flex items-center gap-1.5 text-sm">
-                          {item.done
-                            ? <HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} className="text-primary shrink-0" />
-                            : (item as any).revoked ? <AlertTriangle size={11} className="text-destructive shrink-0" aria-hidden />
-                            : <span className="w-3 h-3 rounded-full border-2 border-muted-foreground shrink-0 inline-block" />}
-                          {(item as any).revoked ? (
-                            <button onClick={() => setSection(item.section!)} className="text-destructive font-medium hover:underline text-left">{item.label}</button>
-                          ) : (item as any).evaluation ? (
-                            <button
-                              onClick={() => setParams({ tab: "evaluate", section: "runs" })}
-                              className={`${item.done ? "text-primary" : (item as any).failed ? "text-destructive" : "text-muted-foreground"} hover:underline text-left`}
-                            >{item.label}</button>
-                          ) : item.done && item.section ? (
-                            <button
-                              onClick={() => setSection(item.section!)}
-                              className="text-primary hover:underline text-left"
-                            >{item.label}</button>
-                          ) : (
-                            <span className={item.done ? "text-primary" : "text-muted-foreground"}>{item.label}</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
             {!viewOnly && <button
               onClick={() => setBuildMode("ai")}
               className="w-full h-8 rounded-lg border border-border bg-surface text-muted-foreground hover:bg-surface-muted text-xs font-medium flex items-center justify-center gap-1.5 transition-base"
