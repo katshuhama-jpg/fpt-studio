@@ -108,7 +108,7 @@ function TestSetList({ agentId, agentName }: { agentId: string; agentName: strin
       {sets.length === 0 ? (
         <EmptyState icon={FlaskConicalIcon} title="Chưa có bộ test nào"
           desc={getAgent(agentId).kind === "process"
-            ? `Tạo bộ test đầu tiên để kiểm tra ${agentName} chạy đúng trước khi publish. Mỗi test case là một bộ dữ liệu vào ở bước Bắt đầu và kết quả mong đợi ở bước Trả kết quả.`
+            ? `Tạo bộ test đầu tiên để kiểm tra ${agentName} chạy đúng trước khi publish. Mỗi test case là một bộ dữ liệu vào ở bước Bắt đầu và kết quả mong đợi ở các đầu ra của Quy trình.`
             : `Tạo bộ test đầu tiên để kiểm tra ${agentName} trả lời đúng, đủ và an toàn trước khi publish. AI có thể sinh test case từ Instructions, Knowledge, Guardrails, Skills và Connectors của Nhân sự số.`}>
           <button className="btn-primary" onClick={() => setGenOpen(true)}><HugeiconsIcon icon={AiMagicIcon} size={14} /> Tạo bằng AI</button>
           <button className="btn-secondary" onClick={() => setManualOpen(true)}>Tạo thủ công</button>
