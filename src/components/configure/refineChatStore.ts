@@ -20,7 +20,7 @@ export type RefineMsgBody =
   | { kind: "tool"; name: string; done: boolean }
   /** A proposed change. `baseHash` fingerprints the Instructions it was written against, so a
    * proposal left pending goes stale once the Instructions change. */
-  | { kind: "diff"; before: string; after: string; applied?: boolean; dismissed?: boolean; baseHash?: string }
+  | { kind: "diff"; before?: string; after: string; applied?: boolean; dismissed?: boolean; baseHash?: string }
   | { kind: "clarify"; question: string; options: RefineClarifyOption[]; answered?: string }
   | { kind: "connector"; service: string; logo: string; perms: string[]; connected?: boolean; skipped?: boolean };
 export type RefineMsg = RefineMsgBody & { id: string; at: number };

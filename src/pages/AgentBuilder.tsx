@@ -992,12 +992,15 @@ function AiBuildSidebar({
     return [
       { id: newMsgId(), at, kind: "text", role: "user", text: seedPrompt },
       { id: newMsgId(), at, kind: "tool", name: "Phân tích yêu cầu", done: true },
-      { id: newMsgId(), at, kind: "text", role: "ai", text: "Mình đã phân tích yêu cầu. Đây là Instructions khởi đầu mình đề xuất:" },
-      { id: newMsgId(), at, kind: "diff", before: "Help customers 24/7 in a friendly tone.", after: seedPrompt.slice(0, 100) + (seedPrompt.length > 100 ? "…" : ""), baseHash: textHash(seedPrompt) },
+      { id: newMsgId(), at, kind: "text", role: "ai", text: "Mình đã tạo Instructions khởi đầu từ mô tả của bạn. Cần chỉnh gì, bạn cứ nhắn ở đây." },
+      { id: newMsgId(), at, kind: "diff", after: seedPrompt.slice(0, 160) + (seedPrompt.length > 160 ? "…" : ""), applied: true, baseHash: textHash(seedPrompt) },
     ];
   };
 
   const messages = useRefineChat(chatKey, seed);
+  // Re-check "Đề xuất đã cũ" the moment the Instructions change, even with the panel open.
+  const [, setInstrTick] = useState(0);
+  useEffect(() => instructionDraftStore.subscribe(aid => { if (aid === agentId) setInstrTick(t => t + 1); }), [agentId]);
   const setMessages = (fn: (m: RefineMsg[]) => RefineMsg[]) => refineChatStore.update(chatKey, fn);
 
   const [input, setInput] = useState("");
@@ -1010,6 +1013,15 @@ function AiBuildSidebar({
   const keepOffsetRef = useRef<number | null>(null);
 
   const setMode = (m: RefineApprovalMode) => { setModeState(m); refineChatStore.setMode(m); setModeOpen(false); };
+  const modeRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!modeOpen) return;
+    const onDown = (e: MouseEvent) => { if (modeRef.current && !modeRef.current.contains(e.target as Node)) setModeOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setModeOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
+  }, [modeOpen]);
 
   // Follow new messages (and a reply as it streams in), but not when older ones are being loaded.
   const last = messages[messages.length - 1];
@@ -1063,8 +1075,18 @@ function AiBuildSidebar({
   };
 
   // Tự động applies a proposed change straight away; Thủ công waits for Áp dụng / Bỏ qua.
-  const pushDiff = (before: string, after: string) =>
-    push({ kind: "diff", before, after, applied: refineChatStore.getMode() === "auto", baseHash: textHash(currentInstructions()) });
+  /** Writes a proposal into the Instructions draft: replaces `before` when it is there, otherwise
+   * adds `after` as a new paragraph at the end. */
+  const writeToInstructions = (before: string | undefined, after: string) => {
+    const cur = currentInstructions();
+    const next = before && cur.includes(before) ? cur.replace(before, after) : `${cur.trimEnd()}\n\n${after}`;
+    instructionDraftStore.set(agentId, next);
+  };
+  const pushDiff = (before: string | undefined, after: string) => {
+    const auto = refineChatStore.getMode() === "auto";
+    push({ kind: "diff", before, after, applied: auto, baseHash: textHash(currentInstructions()) });
+    if (auto) writeToInstructions(before, after);
+  };
 
   const handleSend = async (text?: string) => {
     const msg = (text ?? input).trim();
@@ -1111,14 +1133,23 @@ function AiBuildSidebar({
     ];
     streamAi(idx === -1 ? `Đã hiểu - "${answer.slice(0, 55)}". Mình đề xuất cập nhật Instructions theo yêu cầu này:` : replies[idx]);
     await new Promise(r => setTimeout(r, 600));
-    pushDiff("Cách Nhân sự số đang hoạt động.", idx === -1 ? answer.slice(0, 80) : ["Act autonomously without confirmation.", "Always draft a proposal for user review before applying.", "Only act when explicitly instructed."][idx]);
+    pushDiff(undefined, idx === -1 ? answer.slice(0, 160) : [
+      "Tự xử lý yêu cầu, không cần hỏi lại người dùng.",
+      "Luôn soạn đề xuất để người dùng duyệt trước khi áp dụng.",
+      "Chỉ hành động khi người dùng yêu cầu rõ ràng.",
+    ][idx]);
   };
 
   const handleConnectorConnect = (id: string) =>
     setMessages(m => m.map(x => x.id === id && x.kind === "connector" ? { ...x, connected: true } : x));
 
-  const handleDiffApply = (id: string) =>
+  const handleDiffApply = (id: string) => {
+    const d = messages.find(x => x.id === id);
+    if (!d || d.kind !== "diff" || d.applied || d.dismissed) return;
+    if (d.baseHash && d.baseHash !== textHash(currentInstructions())) return; // went stale meanwhile
     setMessages(m => m.map(x => x.id === id && x.kind === "diff" ? { ...x, applied: true } : x));
+    writeToInstructions(d.before, d.after);
+  };
   // Bỏ qua keeps the card in the history, marked, instead of deleting it.
   const handleDiffDismiss = (id: string) =>
     setMessages(m => m.map(x => x.id === id && x.kind === "diff" ? { ...x, dismissed: true } : x));
@@ -1166,7 +1197,7 @@ function AiBuildSidebar({
             <span className="text-xs font-semibold text-primary">Đề xuất thay đổi - Instructions</span>
           </div>
           <div className={`font-mono text-xs space-y-1 ${msg.dismissed || stale ? "opacity-60" : ""}`}>
-            <div className="bg-destructive/10 text-destructive px-2 py-1 rounded line-through">− {msg.before}</div>
+            {msg.before && <div className="bg-destructive/10 text-destructive px-2 py-1 rounded line-through">− {msg.before}</div>}
             <div className="bg-success/10 text-success px-2 py-1 rounded">+ {msg.after}</div>
           </div>
           {msg.applied ? (
@@ -1326,7 +1357,8 @@ function AiBuildSidebar({
             onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
             placeholder="Nói bạn muốn sửa gì..."
             className="w-full resize-none bg-transparent text-sm placeholder:text-muted-foreground outline-none px-1 py-0.5 max-h-32" />
-          <div className="flex items-center gap-1.5 relative">
+          <div className="flex items-center gap-1.5">
+            <div ref={modeRef} className="relative">
             <button onClick={() => setModeOpen(o => !o)} aria-haspopup="menu" aria-expanded={modeOpen}
               className="h-7 px-2 rounded-md hover:bg-surface-muted text-xs text-muted-foreground flex items-center gap-1 transition-base">
               <HugeiconsIcon icon={mode === "manual" ? Shield01Icon : BoltIcon} size={12} className={mode === "manual" ? "" : "text-warning"} />
@@ -1352,6 +1384,7 @@ function AiBuildSidebar({
                 <div className="border-t border-border mt-1 pt-1.5 px-2 text-[11px] text-muted-foreground">Lựa chọn được lưu cho các phiên sau.</div>
               </div>
             )}
+            </div>
             <div className="flex-1" />
             <button onClick={() => handleSend()} aria-label="Gửi" disabled={!input.trim()} className="h-7 w-7 rounded-md bg-primary text-primary-foreground hover:bg-primary-glow disabled:opacity-40 flex items-center justify-center transition-base shrink-0">
               <HugeiconsIcon icon={SentIcon} size={12} />
@@ -1491,6 +1524,11 @@ function GeneralTab({ agentId, onRefineWithAI, onChatToTest, previewCollapsed, o
     setInstructions(next);
     instructionDraftStore.set(agentId, next);
   };
+  // Áp dụng in Refine với AI writes the Instructions from outside this editor - show it here.
+  useEffect(() => instructionDraftStore.subscribe(aid => {
+    if (aid === agentId) setInstructions(instructionDraftStore.get(agentId) ?? defaultInstructions);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [agentId]);
   // "Thêm" in an empty "/" menu category -> the screen where that resource is managed.
   const goAdd = (cat: Category) =>
     setParams({ tab: "build", section: cat === "skills" ? "skills" : cat === "knowledge" ? "knowledge" : "connectors" });
@@ -1567,7 +1605,7 @@ function GeneralTab({ agentId, onRefineWithAI, onChatToTest, previewCollapsed, o
         </div>
 
         {/* View action buttons */}
-        <div className="flex items-center gap-2 mt-4">
+        <div className="flex items-center gap-2 mt-4 flex-wrap">
           {/* Toggle: Preview / Markdown */}
           <div className="flex items-center bg-surface-muted rounded-lg p-0.5 border border-border">
             {([
@@ -1576,7 +1614,7 @@ function GeneralTab({ agentId, onRefineWithAI, onChatToTest, previewCollapsed, o
             ] as const).map(({ id, label, icon: Icon }) => (
               <button key={id}
                 onClick={() => setViewMode(id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-base ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-base whitespace-nowrap ${
                   viewMode === id
                     ? "bg-white shadow-soft text-foreground font-medium"
                     : "text-muted-foreground hover:text-foreground"
@@ -1589,11 +1627,11 @@ function GeneralTab({ agentId, onRefineWithAI, onChatToTest, previewCollapsed, o
 
           {/* Action buttons */}
           <button onClick={() => onRefineWithAI?.()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm text-foreground transition-base">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm text-foreground transition-base whitespace-nowrap shrink-0">
             <HugeiconsIcon icon={SparklesIcon} size={13} className="text-primary" /> Refine với AI
           </button>
           <button onClick={() => onChatToTest?.()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm text-foreground transition-base">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm text-foreground transition-base whitespace-nowrap shrink-0">
             <HugeiconsIcon icon={Chat01Icon} size={13} className="text-muted-foreground" /> Chat to Test
           </button>
         </div>
