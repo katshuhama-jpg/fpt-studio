@@ -9,7 +9,8 @@ import TasksGrid from "@/components/tasks/TasksGrid";
 import BusinessProcessesGrid from "@/components/business-processes/BusinessProcessesGrid";
 import TriggersTab from "@/components/configure/TriggersTab";
 import TriggerFormDialog from "@/components/configure/TriggerFormDialog";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Info } from "lucide-react";
+import { refineChatStore, useRefineChat, newMsgId, textHash, type RefineMsg, type RefineMsgBody, type RefineApprovalMode } from "@/components/configure/refineChatStore";
 import TriggerBlockedByConnectorNotice from "@/components/configure/TriggerBlockedByConnectorNotice";
 import { RevokedChip, RevokedDot, RevokedBanner, RevokedReason, RevokedRemoveButton, REVOKED_ROW_CLASS, useRevokedResources } from "@/components/governance/RevokedBadge";
 import { isResourceRevoked, listRevokedResources, REVOKED_COPY, type RevocableType } from "@/components/governance/revokedResources";
@@ -895,6 +896,8 @@ export default function AgentBuilder() {
           }}
         >
           <AiBuildSidebar
+            agentId={id ?? "new"}
+            publishTick={publishTick}
             onClose={() => setBuildMode("manual")}
             contextLabel={currentSectionLabel}
             sections={nav.flatMap((g: any) => g.items ?? [g])}
@@ -955,66 +958,113 @@ export default function AgentBuilder() {
 }
 
 /* ============ AI BUILD SIDEBAR (left chat panel) ============ */
+// Chat history lives in refineChatStore (per Agent, per person) - closing the panel, reloading,
+// leaving the Agent or coming back on another device shows the same thread. See that file.
 
-/* --- message types --- */
-type MsgRole = "user" | "ai";
-type AiMsg =
-  | { kind: "text"; role: MsgRole; text: string; streaming?: boolean }
-  | { kind: "tool"; name: string; done: boolean }
-  | { kind: "diff"; before: string; after: string; applied?: boolean }
-  | { kind: "clarify"; question: string; options: ClarifyOption[]; answered?: string }
-  | { kind: "connector"; service: string; logo: string; perms: string[]; connected?: boolean };
+const REFINE_PAGE = 40;
 
-interface ClarifyOption { icon: string; title: string; desc: string; }
+const fmtMarkerTime = (at: number) => {
+  const d = new Date(at);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
+};
 
 function AiBuildSidebar({
-  onClose, contextLabel, sections, currentSection, onSectionChange, seedPrompt,
+  agentId, onClose, contextLabel, sections, currentSection, onSectionChange, seedPrompt, publishTick,
 }: {
+  agentId: string;
   onClose: () => void;
   contextLabel: string;
   sections: any[];
   currentSection: string;
   onSectionChange: (s: string) => void;
   seedPrompt?: string;
+  publishTick?: number;
 }) {
-  const initMessages = (): AiMsg[] => {
-    const base: AiMsg[] = [
-      { kind: "text", role: "ai", text: `Hi Nam - I'm focused on @${contextLabel}. Tell me what to change and I'll propose edits you can review.` },
+  void sections; void currentSection; void onSectionChange; void publishTick;
+  const chatKey = refineChatStore.key(agentId, seedPrompt);
+  const currentInstructions = () => instructionDraftStore.get(agentId) ?? (seedPrompt || getAgent(agentId)?.instructions || "");
+
+  // The opening chat of an Agent created from a prompt - written once, then it's just history.
+  const seed = (): RefineMsg[] => {
+    if (!seedPrompt) return [];
+    const at = Date.now();
+    return [
+      { id: newMsgId(), at, kind: "text", role: "user", text: seedPrompt },
+      { id: newMsgId(), at, kind: "tool", name: "Phân tích yêu cầu", done: true },
+      { id: newMsgId(), at, kind: "text", role: "ai", text: "Mình đã phân tích yêu cầu. Đây là Instructions khởi đầu mình đề xuất:" },
+      { id: newMsgId(), at, kind: "diff", before: "Help customers 24/7 in a friendly tone.", after: seedPrompt.slice(0, 100) + (seedPrompt.length > 100 ? "…" : ""), baseHash: textHash(seedPrompt) },
     ];
-    if (seedPrompt) {
-      base.push({ kind: "text", role: "user", text: seedPrompt });
-      base.push({ kind: "tool", name: `analyze_request("${seedPrompt.slice(0, 30)}…")`, done: true });
-      base.push({ kind: "text", role: "ai", text: "I've analyzed the request. Here's a proposed starting system prompt:" });
-      base.push({ kind: "diff", before: "Help customers 24/7 in a friendly tone.", after: seedPrompt.slice(0, 100) + (seedPrompt.length > 100 ? "…" : "") });
-    }
-    return base;
   };
 
-  const [messages, setMessages] = useState<AiMsg[]>(initMessages);
+  const messages = useRefineChat(chatKey, seed);
+  const setMessages = (fn: (m: RefineMsg[]) => RefineMsg[]) => refineChatStore.update(chatKey, fn);
+
   const [input, setInput] = useState("");
-  const [customAnswers, setCustomAnswers] = useState<Record<number, string>>({});
+  const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
+  const [mode, setModeState] = useState<RefineApprovalMode>(() => refineChatStore.getMode());
+  const [modeOpen, setModeOpen] = useState(false);
+  const [shown, setShown] = useState(REFINE_PAGE);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const keepOffsetRef = useRef<number | null>(null);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  const setMode = (m: RefineApprovalMode) => { setModeState(m); refineChatStore.setMode(m); setModeOpen(false); };
 
-  const push = (msg: AiMsg) => setMessages(m => [...m, msg]);
+  // Follow new messages (and a reply as it streams in), but not when older ones are being loaded.
+  const last = messages[messages.length - 1];
+  const lastSig = last ? `${last.id}:${last.kind === "text" ? last.text.length : ""}` : "";
+  useEffect(() => {
+    if (keepOffsetRef.current !== null) return;
+    bottomRef.current?.scrollIntoView({ block: "end" });
+  }, [lastSig, messages.length]);
+  // After loading older messages, keep the reader where they were.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el && keepOffsetRef.current !== null) {
+      el.scrollTop = el.scrollHeight - keepOffsetRef.current;
+      keepOffsetRef.current = null;
+    }
+  }, [shown]);
 
+  const start = Math.max(0, messages.length - shown);
+  const loadOlder = () => {
+    if (start === 0) return;
+    const el = scrollRef.current;
+    keepOffsetRef.current = el ? el.scrollHeight - el.scrollTop : null;
+    setShown(s => s + REFINE_PAGE);
+  };
+
+  const push = (msg: RefineMsgBody & { id?: string; at?: number }) =>
+    setMessages(m => [...m, { id: newMsgId(), at: Date.now(), ...msg } as RefineMsg]);
+
+  // Runs outside the panel's lifetime: closing the panel doesn't stop the reply.
   const streamAi = (text: string) => {
-    push({ kind: "text", role: "ai", text: "", streaming: true });
+    const id = newMsgId();
+    push({ id, kind: "text", role: "ai", text: "", streaming: true, full: text });
     let i = 0;
     const iv = setInterval(() => {
       i++;
-      if (i > text.length) { clearInterval(iv); setMessages(m => m.map((x, idx) => idx === m.length - 1 && x.kind === "text" && x.streaming ? { ...x, text, streaming: false } : x)); return; }
-      setMessages(m => m.map((x, idx) => idx === m.length - 1 && x.kind === "text" && x.streaming ? { ...x, text: text.slice(0, i) } : x));
+      if (i > text.length) {
+        clearInterval(iv);
+        setMessages(m => m.map(x => x.id === id && x.kind === "text" ? { ...x, text, streaming: false } : x));
+        return;
+      }
+      setMessages(m => m.map(x => x.id === id && x.kind === "text" ? { ...x, text: text.slice(0, i) } : x));
     }, 14);
   };
 
   const runTool = async (name: string): Promise<void> => {
-    push({ kind: "tool", name, done: false });
+    const id = newMsgId();
+    push({ id, kind: "tool", name, done: false });
     await new Promise(r => setTimeout(r, 900));
-    setMessages(m => m.map(x => x.kind === "tool" && x.name === name && !x.done ? { ...x, done: true } : x));
+    setMessages(m => m.map(x => x.id === id && x.kind === "tool" ? { ...x, done: true } : x));
     await new Promise(r => setTimeout(r, 200));
   };
+
+  // Tự động applies a proposed change straight away; Thủ công waits for Áp dụng / Bỏ qua.
+  const pushDiff = (before: string, after: string) =>
+    push({ kind: "diff", before, after, applied: refineChatStore.getMode() === "auto", baseHash: textHash(currentInstructions()) });
 
   const handleSend = async (text?: string) => {
     const msg = (text ?? input).trim();
@@ -1027,54 +1077,210 @@ function AiBuildSidebar({
     const lower = msg.toLowerCase();
     if (lower.includes("gmail") || lower.includes("email") || lower.includes("outlook")) {
       const svc = lower.includes("outlook") ? "Outlook" : "Gmail";
-      await runTool(`check_connector_auth("${svc}")`);
-      streamAi(`Nhân sự số cần quyền truy cập ${svc} to send and read email on your behalf. Please confirm the connection below.`);
+      await runTool(`Kiểm tra kết nối ${svc}`);
+      streamAi(`Nhân sự số cần quyền truy cập ${svc} để đọc và gửi email thay bạn. Bạn xác nhận kết nối bên dưới nhé.`);
       await new Promise(r => setTimeout(r, 800));
       push({
         kind: "connector",
         service: svc,
         logo: svc === "Gmail" ? "📧" : "📨",
-        perms: [
-          "Read email and metadata",
-          "Send email on your behalf",
-          "Manage labels",
-        ],
+        perms: ["Đọc email và thông tin email", "Gửi email thay bạn", "Quản lý nhãn"],
       });
       return;
     }
 
-    await runTool(`analyze_request("${msg.slice(0, 22)}…")`);
+    await runTool("Phân tích yêu cầu");
     push({
       kind: "clarify",
       question: `"${msg.slice(0, 32)}${msg.length > 32 ? "…" : ""}" - Nhân sự số nên xử lý thế nào?`,
       options: [
-        { icon: "bolt", title: "Fully autonomous", desc: "Nhân sự số tự quyết, không cần hỏi thêm" },
-        { icon: "eye", title: "Propose, you approve", desc: "Nhân sự số soạn đề xuất, bạn duyệt rồi mới áp dụng" },
-        { icon: "hand-stop", title: "Only when asked", desc: "Nhân sự số chờ hướng dẫn cụ thể từ người dùng" },
+        { icon: "bolt", title: "Tự quyết hoàn toàn", desc: "Nhân sự số tự quyết, không cần hỏi thêm" },
+        { icon: "eye", title: "Đề xuất, bạn duyệt", desc: "Nhân sự số soạn đề xuất, bạn duyệt rồi mới áp dụng" },
+        { icon: "hand-stop", title: "Chỉ làm khi được yêu cầu", desc: "Nhân sự số chờ hướng dẫn cụ thể từ người dùng" },
       ],
     });
   };
 
-  const handleAnswer = async (idx: number, answer: string, msgIdx: number) => {
-    setMessages(m => m.map((x, i) => i === msgIdx && x.kind === "clarify" ? { ...x, answered: answer } : x));
+  const handleAnswer = async (idx: number, answer: string, msgId: string) => {
+    setMessages(m => m.map(x => x.id === msgId && x.kind === "clarify" ? { ...x, answered: answer } : x));
     await new Promise(r => setTimeout(r, 400));
     const replies = [
-      "Got it - Fully autonomous mode. Updating instructions:",
+      "Đã hiểu - Nhân sự số sẽ tự quyết. Mình đề xuất cập nhật Instructions:",
       "Đã hiểu - Nhân sự số sẽ soạn đề xuất trước khi áp dụng:",
-      "OK - Nhân sự số sẽ chờ hướng dẫn, không tự quyết:",
+      "Đã hiểu - Nhân sự số sẽ chờ hướng dẫn, không tự quyết:",
     ];
-    streamAi(idx === -1 ? `Got it - "${answer.slice(0, 55)}". I'll configure this based on your request:` : replies[idx]);
+    streamAi(idx === -1 ? `Đã hiểu - "${answer.slice(0, 55)}". Mình đề xuất cập nhật Instructions theo yêu cầu này:` : replies[idx]);
     await new Promise(r => setTimeout(r, 600));
-    push({ kind: "diff", before: "Cách Nhân sự số đang hoạt động.", after: idx === -1 ? answer.slice(0, 80) : ["Act autonomously without confirmation.", "Always draft a proposal for user review before applying.", "Only act when explicitly instructed."][idx] });
+    pushDiff("Cách Nhân sự số đang hoạt động.", idx === -1 ? answer.slice(0, 80) : ["Act autonomously without confirmation.", "Always draft a proposal for user review before applying.", "Only act when explicitly instructed."][idx]);
   };
 
-  const handleConnectorConnect = (service: string) =>
-    setMessages(m => m.map(x => x.kind === "connector" && x.service === service ? { ...x, connected: true } : x));
+  const handleConnectorConnect = (id: string) =>
+    setMessages(m => m.map(x => x.id === id && x.kind === "connector" ? { ...x, connected: true } : x));
 
-  const handleDiffApply = (msgIdx: number) =>
-    setMessages(m => m.map((x, i) => i === msgIdx && x.kind === "diff" ? { ...x, applied: true } : x));
+  const handleDiffApply = (id: string) =>
+    setMessages(m => m.map(x => x.id === id && x.kind === "diff" ? { ...x, applied: true } : x));
+  // Bỏ qua keeps the card in the history, marked, instead of deleting it.
+  const handleDiffDismiss = (id: string) =>
+    setMessages(m => m.map(x => x.id === id && x.kind === "diff" ? { ...x, dismissed: true } : x));
 
-  const quickActions = ["Connect Gmail", "Tighten the system prompt", "Add a guardrail against legal advice", "Make tone more formal"];
+  const quickActions = ["Kết nối Gmail", "Viết Instructions gọn hơn", "Thêm guardrail chặn tư vấn pháp lý", "Giọng văn trang trọng hơn"];
+
+  // Publish / Khôi phục markers, placed in the thread by time so a Builder sees which part of
+  // the conversation went into which version. Only releases made after the thread started.
+  const firstAt = messages[0]?.at;
+  const releases = agentId === "new" || firstAt === undefined ? [] : agentPublishStore.releases(agentId).filter(r => r.at >= firstAt);
+  const marker = (r: typeof releases[number]) => (
+    <div key={`rel-${r.version}-${r.at}`} className="flex items-center gap-2 py-1" role="separator" aria-label={`${r.via === "rollback" ? "Khôi phục" : "Publish"} ${r.version}`}>
+      <div className="flex-1 h-px bg-border" />
+      <span className="text-xs text-muted-foreground whitespace-nowrap">
+        {r.via === "rollback" ? "Khôi phục" : "Publish"} {r.version} - {fmtMarkerTime(r.at)}
+      </span>
+      <div className="flex-1 h-px bg-border" />
+    </div>
+  );
+
+  const renderMsg = (msg: RefineMsg) => {
+    const i = msg.id;
+    if (msg.kind === "text" && msg.role === "user") return (
+      <div key={i} className="flex justify-end">
+        <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-3 py-2 text-xs max-w-[90%] leading-relaxed whitespace-pre-wrap">{msg.text}</div>
+      </div>
+    );
+    if (msg.kind === "text" && msg.role === "ai") return (
+      <div key={i} className="bg-surface-muted/60 border border-border rounded-2xl rounded-bl-sm px-3 py-2.5 text-sm leading-relaxed w-full">
+        {msg.text}{msg.streaming && <span className="inline-block w-0.5 h-3 bg-muted-foreground ml-0.5 animate-pulse align-middle" />}
+      </div>
+    );
+    if (msg.kind === "tool") return (
+      <div key={i} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs w-fit border ${msg.done ? "border-success/30 bg-success/10 text-success" : "border-primary/30 bg-primary-soft text-primary"}`}>
+        {msg.done ? <HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} /> : <HugeiconsIcon icon={SparklesIcon} size={11} className="animate-pulse" />}
+        {msg.name}
+      </div>
+    );
+    if (msg.kind === "diff") {
+      const stale = !msg.applied && !msg.dismissed && !!msg.baseHash && msg.baseHash !== textHash(currentInstructions());
+      return (
+        <div key={i} className={`rounded-xl border p-2.5 ${msg.applied || msg.dismissed || stale ? "border-border bg-surface" : "border-primary/30 bg-primary-soft/40"}`}>
+          <div className="flex items-center gap-1.5 mb-2">
+            <HugeiconsIcon icon={SparklesIcon} size={11} className="text-primary" />
+            <span className="text-xs font-semibold text-primary">Đề xuất thay đổi - Instructions</span>
+          </div>
+          <div className={`font-mono text-xs space-y-1 ${msg.dismissed || stale ? "opacity-60" : ""}`}>
+            <div className="bg-destructive/10 text-destructive px-2 py-1 rounded line-through">− {msg.before}</div>
+            <div className="bg-success/10 text-success px-2 py-1 rounded">+ {msg.after}</div>
+          </div>
+          {msg.applied ? (
+            <div className="flex items-center gap-1.5 text-xs text-success mt-2"><HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} /> Đã áp dụng vào Instructions</div>
+          ) : msg.dismissed ? (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-2"><HugeiconsIcon icon={Cancel01Icon} size={11} /> Đã bỏ qua</div>
+          ) : stale ? (
+            <div className="text-xs text-muted-foreground mt-2 leading-relaxed">
+              <span className="font-medium text-foreground">Đề xuất đã cũ.</span> Instructions đã thay đổi sau khi có đề xuất này. Nhắn lại yêu cầu để nhận đề xuất mới.
+            </div>
+          ) : (
+            <div className="flex gap-1.5 mt-2">
+              <button onClick={() => handleDiffApply(i)} className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium">Áp dụng</button>
+              <button onClick={() => handleDiffDismiss(i)} className="h-7 px-2.5 rounded-md hover:bg-surface-muted text-xs text-muted-foreground">Bỏ qua</button>
+            </div>
+          )}
+        </div>
+      );
+    }
+    if (msg.kind === "clarify") return (
+      <div key={i} className="rounded-xl border border-primary/20 bg-primary-soft/20 p-2.5 space-y-2">
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-primary"><HugeiconsIcon icon={Chat01Icon} size={11} /> Cần thêm thông tin</div>
+        <p className="text-xs text-foreground leading-relaxed">{msg.question}</p>
+        {msg.answered ? (
+          <div className="flex items-center gap-1.5 text-xs text-primary"><HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} /> Đã chọn: <strong>{msg.answered}</strong></div>
+        ) : (
+          <div className="space-y-1.5">
+            {msg.options.map((opt, oi) => (
+              <button key={oi} onClick={() => handleAnswer(oi, opt.title, i)}
+                className="w-full flex items-start gap-2 px-2.5 py-2 rounded-lg border border-border bg-surface hover:border-primary/40 hover:bg-primary-soft/30 transition-base text-left">
+                <div className="w-6 h-6 rounded-md bg-surface-muted border border-border flex items-center justify-center shrink-0 mt-0.5">
+                  {oi === 0 ? <HugeiconsIcon icon={BoltIcon} size={11} className="text-primary" /> : oi === 1 ? <HugeiconsIcon icon={BookOpen01Icon} size={11} className="text-primary" /> : <HugeiconsIcon icon={Shield01Icon} size={11} className="text-primary" />}
+                </div>
+                <div><div className="text-xs font-medium">{opt.title}</div><div className="text-xs text-muted-foreground mt-0.5">{opt.desc}</div></div>
+              </button>
+            ))}
+            <div className="border border-border rounded-lg bg-surface p-2 space-y-1.5">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium"><HugeiconsIcon icon={Add01Icon} size={11} /> Tự nhập câu trả lời</div>
+              <textarea
+                rows={2}
+                aria-label="Tự nhập câu trả lời"
+                placeholder="Nhập yêu cầu cụ thể…"
+                value={customAnswers[i] ?? ""}
+                onChange={e => setCustomAnswers(a => ({ ...a, [i]: e.target.value }))}
+                className="w-full resize-none bg-surface-muted text-xs placeholder:text-muted-foreground outline-none px-2 py-1.5 rounded-md border border-border focus:border-primary transition-base"
+              />
+              <button
+                disabled={!customAnswers[i]?.trim()}
+                onClick={() => { const v = customAnswers[i]?.trim(); if (v) handleAnswer(-1, v, i); }}
+                className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-primary text-primary-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-base"
+              >
+                <HugeiconsIcon icon={SentIcon} size={10} /> Gửi
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+    if (msg.kind === "connector") return (
+      <div key={i} className="rounded-xl border border-warning/40 bg-warning-soft/30 p-2.5">
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-warning mb-2"><HugeiconsIcon icon={Plug01Icon} size={11} /> Cần kết nối tài khoản</div>
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-9 h-9 rounded-xl bg-white border border-border flex items-center justify-center shrink-0 shadow-sm">
+            {msg.service === "Gmail" ? (
+              <svg viewBox="0 0 48 48" width="22" height="22" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path fill="#EA4335" d="M6 40h6V23.8L4 18v18c0 2.2 1.8 4 4 4z"/>
+                <path fill="#34A853" d="M36 40h6c2.2 0 4-1.8 4-4V18l-8 5.8z"/>
+                <path fill="#FBBC05" d="M36 8H12L24 17.3 36 8z"/>
+                <path fill="#4285F4" d="M12 23.8V8L4 13.3 4 18l8 5.8z"/>
+                <path fill="#C5221F" d="M44 13.3L36 8v15.8l8-5.8z"/>
+                <path fill="#EA4335" d="M12 8v15.8l12 8.7 12-8.7V8L24 17.3z"/>
+              </svg>
+            ) : msg.service === "Outlook" ? (
+              <svg viewBox="0 0 48 48" width="22" height="22" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path fill="#1565C0" d="M28 4h12c2.2 0 4 1.8 4 4v32c0 2.2-1.8 4-4 4H28V4z"/>
+                <path fill="#1E88E5" d="M28 4v44H8c-2.2 0-4-1.8-4-4V8c0-2.2 1.8-4 4-4h20z"/>
+                <path fill="#fff" d="M18 14c-5 0-9 4-9 9s4 9 9 9 9-4 9-9-4-9-9-9zm0 14c-2.8 0-5-2.2-5-5s2.2-5 5-5 5 2.2 5 5-2.2 5-5 5z"/>
+                <path fill="#fff" opacity=".7" d="M32 18h8v2h-8zm0 4h8v2h-8zm0 4h8v2h-8z"/>
+              </svg>
+            ) : (
+              <span className="text-lg">{msg.logo}</span>
+            )}
+          </div>
+          <div><div className="text-xs font-medium">{msg.service}</div><div className="text-xs text-muted-foreground">Nhân sự số cần quyền truy cập để làm việc thay bạn.</div></div>
+        </div>
+        <div className="text-xs font-medium mb-1.5">Quyền cần cấp:</div>
+        {msg.perms.map((p, pi) => <div key={pi} className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><HugeiconsIcon icon={CheckmarkCircle01Icon} size={10} className="text-success" />{p}</div>)}
+        {msg.connected ? (
+          <div className="flex items-center gap-1.5 text-xs text-success mt-2"><HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} /> Đã kết nối {msg.service}</div>
+        ) : msg.skipped ? (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-2"><HugeiconsIcon icon={Cancel01Icon} size={11} /> Đã bỏ qua</div>
+        ) : (
+          <div className="flex gap-1.5 mt-2">
+            <button onClick={() => handleConnectorConnect(i)} className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium">
+              Kết nối {msg.service}
+            </button>
+            <button onClick={() => setMessages(m => m.map(x => x.id === i && x.kind === "connector" ? { ...x, skipped: true } : x))} className="h-7 px-2.5 rounded-md border border-border text-xs text-muted-foreground">Bỏ qua</button>
+          </div>
+        )}
+      </div>
+    );
+    return null;
+  };
+
+  // Interleave the visible messages with any Publish markers that fall between them.
+  const visible = messages.slice(start);
+  const rows: React.ReactNode[] = [];
+  let prevAt = start > 0 ? messages[start - 1].at : -Infinity;
+  for (const msg of visible) {
+    for (const r of releases) if (r.at > prevAt && r.at <= msg.at) rows.push(marker(r));
+    rows.push(renderMsg(msg));
+    prevAt = msg.at;
+  }
+  for (const r of releases) if (r.at > prevAt) rows.push(marker(r));
 
   return (
     <aside className="w-[476px] border-r border-border flex flex-col shrink-0 h-full" style={{background:"hsl(var(--card))", minWidth:"476px"}}>
@@ -1087,138 +1293,21 @@ function AiBuildSidebar({
           <div className="text-sm font-semibold leading-tight">Refine với AI</div>
           <div className="text-xs text-muted-foreground leading-tight">Chat để chỉnh Nhân sự số</div>
         </div>
-        <button onClick={onClose} className="h-8 w-8 rounded-md hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base">
+        <button onClick={onClose} aria-label="Đóng Refine với AI" title="Đóng - lịch sử chat vẫn được giữ" className="h-8 w-8 rounded-md hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base">
           <HugeiconsIcon icon={Cancel01Icon} size={15} />
         </button>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
-        {messages.map((msg, i) => {
-          if (msg.kind === "text" && msg.role === "user") return (
-            <div key={i} className="flex justify-end">
-              <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-3 py-2 text-xs max-w-[90%] leading-relaxed">{msg.text}</div>
-            </div>
-          );
-          if (msg.kind === "text" && msg.role === "ai") return (
-            <div key={i} className="bg-surface-muted/60 border border-border rounded-2xl rounded-bl-sm px-3 py-2.5 text-sm leading-relaxed w-full">
-              {msg.text}{msg.streaming && <span className="inline-block w-0.5 h-3 bg-muted-foreground ml-0.5 animate-pulse align-middle" />}
-            </div>
-          );
-          if (msg.kind === "tool") return (
-            <div key={i} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs w-fit border ${msg.done ? "border-success/30 bg-success/10 text-success" : "border-primary/30 bg-primary-soft text-primary"}`}>
-              {msg.done ? <HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} /> : <HugeiconsIcon icon={SparklesIcon} size={11} className="animate-pulse" />}
-              {msg.name}
-            </div>
-          );
-          if (msg.kind === "diff") return (
-            <div key={i} className="rounded-xl border border-primary/30 bg-primary-soft/40 p-2.5">
-              {msg.applied ? (
-                <div className="flex items-center gap-1.5 text-xs text-success"><HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} /> Applied to system prompt</div>
-              ) : (
-                <>
-                  <div className="flex items-center gap-1.5 mb-2"><HugeiconsIcon icon={SparklesIcon} size={11} className="text-primary" /><span className="text-xs font-semibold text-primary">Proposed change · System prompt</span></div>
-                  <div className="font-mono text-xs space-y-1">
-                    <div className="bg-destructive/10 text-destructive px-2 py-1 rounded line-through">− {msg.before}</div>
-                    <div className="bg-success/10 text-success px-2 py-1 rounded">+ {msg.after}</div>
-                  </div>
-                  <div className="flex gap-1.5 mt-2">
-                    <button onClick={() => handleDiffApply(i)} className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium">Apply</button>
-                    <button onClick={() => setMessages(m => m.filter((_, j) => j !== i))} className="h-7 px-2.5 rounded-md hover:bg-surface-muted text-xs text-muted-foreground">Discard</button>
-                  </div>
-                </>
-              )}
-            </div>
-          );
-          if (msg.kind === "clarify") return (
-            <div key={i} className="rounded-xl border border-primary/20 bg-primary-soft/20 p-2.5 space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-primary"><HugeiconsIcon icon={Chat01Icon} size={11} /> Need more information</div>
-              <p className="text-xs text-foreground leading-relaxed">{msg.question}</p>
-              {msg.answered ? (
-                <div className="flex items-center gap-1.5 text-xs text-primary"><HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} /> Selected: <strong>{msg.answered}</strong></div>
-              ) : (
-                <div className="space-y-1.5">
-                  {msg.options.map((opt, oi) => (
-                    <button key={oi} onClick={() => handleAnswer(oi, opt.title, i)}
-                      className="w-full flex items-start gap-2 px-2.5 py-2 rounded-lg border border-border bg-surface hover:border-primary/40 hover:bg-primary-soft/30 transition-base text-left">
-                      <div className="w-6 h-6 rounded-md bg-surface-muted border border-border flex items-center justify-center shrink-0 mt-0.5">
-                        {oi === 0 ? <HugeiconsIcon icon={BoltIcon} size={11} className="text-primary" /> : oi === 1 ? <HugeiconsIcon icon={BookOpen01Icon} size={11} className="text-primary" /> : <HugeiconsIcon icon={Shield01Icon} size={11} className="text-primary" />}
-                      </div>
-                      <div><div className="text-xs font-medium">{opt.title}</div><div className="text-xs text-muted-foreground mt-0.5">{opt.desc}</div></div>
-                    </button>
-                  ))}
-                  {/* Custom input — always visible */}
-                  <div className="border border-border rounded-lg bg-surface p-2 space-y-1.5">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium"><HugeiconsIcon icon={Add01Icon} size={11} /> Write your own answer</div>
-                    <textarea
-                      rows={2}
-                      placeholder="Enter your specific request…"
-                      value={customAnswers[i] ?? ""}
-                      onChange={e => setCustomAnswers(a => ({ ...a, [i]: e.target.value }))}
-                      className="w-full resize-none bg-surface-muted text-xs placeholder:text-muted-foreground outline-none px-2 py-1.5 rounded-md border border-border focus:border-primary transition-base"
-                    />
-                    <button
-                      disabled={!customAnswers[i]?.trim()}
-                      onClick={() => { const v = customAnswers[i]?.trim(); if (v) handleAnswer(-1, v, i); }}
-                      className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-primary text-primary-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-base"
-                    >
-                      <HugeiconsIcon icon={SentIcon} size={10} /> Send
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-          if (msg.kind === "connector") return (
-            <div key={i} className="rounded-xl border border-warning/40 bg-warning-soft/30 p-2.5">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-warning mb-2"><HugeiconsIcon icon={Plug01Icon} size={11} /> Account connection requested</div>
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-9 h-9 rounded-xl bg-white border border-border flex items-center justify-center shrink-0 shadow-sm">
-                  {msg.service === "Gmail" ? (
-                    <svg viewBox="0 0 48 48" width="22" height="22" xmlns="http://www.w3.org/2000/svg">
-                      <path fill="#EA4335" d="M6 40h6V23.8L4 18v18c0 2.2 1.8 4 4 4z"/>
-                      <path fill="#34A853" d="M36 40h6c2.2 0 4-1.8 4-4V18l-8 5.8z"/>
-                      <path fill="#FBBC05" d="M36 8H12L24 17.3 36 8z"/>
-                      <path fill="#4285F4" d="M12 23.8V8L4 13.3 4 18l8 5.8z"/>
-                      <path fill="#C5221F" d="M44 13.3L36 8v15.8l8-5.8z"/>
-                      <path fill="#EA4335" d="M12 8v15.8l12 8.7 12-8.7V8L24 17.3z"/>
-                    </svg>
-                  ) : msg.service === "Outlook" ? (
-                    <svg viewBox="0 0 48 48" width="22" height="22" xmlns="http://www.w3.org/2000/svg">
-                      <path fill="#1565C0" d="M28 4h12c2.2 0 4 1.8 4 4v32c0 2.2-1.8 4-4 4H28V4z"/>
-                      <path fill="#1E88E5" d="M28 4v44H8c-2.2 0-4-1.8-4-4V8c0-2.2 1.8-4 4-4h20z"/>
-                      <path fill="#fff" d="M18 14c-5 0-9 4-9 9s4 9 9 9 9-4 9-9-4-9-9-9zm0 14c-2.8 0-5-2.2-5-5s2.2-5 5-5 5 2.2 5 5-2.2 5-5 5z"/>
-                      <path fill="#fff" opacity=".7" d="M32 18h8v2h-8zm0 4h8v2h-8zm0 4h8v2h-8z"/>
-                    </svg>
-                  ) : (
-                    <span className="text-lg">{msg.logo}</span>
-                  )}
-                </div>
-                <div><div className="text-xs font-medium">{msg.service}</div><div className="text-xs text-muted-foreground">Nhân sự số cần quyền truy cập để làm việc thay bạn.</div></div>
-              </div>
-              <div className="text-xs font-medium mb-1.5">Permissions requested:</div>
-              {msg.perms.map((p, pi) => <div key={pi} className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><HugeiconsIcon icon={CheckmarkCircle01Icon} size={10} className="text-success" />{p}</div>)}
-              {msg.connected ? (
-                <div className="flex items-center gap-1.5 text-xs text-success mt-2"><HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} /> {msg.service} connected</div>
-              ) : (
-                <div className="flex gap-1.5 mt-2">
-                  <button onClick={() => handleConnectorConnect(msg.service)} className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium flex items-center gap-1">
-                    <svg viewBox="0 0 48 48" width="12" height="12" xmlns="http://www.w3.org/2000/svg" style={{flexShrink:0}}>
-                      <path fill="#fff" d="M6 40h6V23.8L4 18v18c0 2.2 1.8 4 4 4z"/>
-                      <path fill="#fff" d="M36 40h6c2.2 0 4-1.8 4-4V18l-8 5.8z"/>
-                      <path fill="#fff" opacity=".8" d="M12 23.8V8L4 13.3 4 18l8 5.8z"/>
-                      <path fill="#fff" opacity=".8" d="M44 13.3L36 8v15.8l8-5.8z"/>
-                      <path fill="#fff" d="M12 8v15.8l12 8.7 12-8.7V8L24 17.3z"/>
-                    </svg>
-                    Connect {msg.service}
-                  </button>
-                  <button onClick={() => setMessages(m => m.map((x, j) => j === i && x.kind === "connector" ? { ...x, connected: false, perms: [] } : x))} className="h-7 px-2.5 rounded-md border border-border text-xs text-muted-foreground">Skip</button>
-                </div>
-              )}
-            </div>
-          );
-          return null;
-        })}
+      <div ref={scrollRef} onScroll={e => { if (e.currentTarget.scrollTop < 40 && start > 0) loadOlder(); }} className="flex-1 overflow-y-auto p-3 space-y-2.5">
+        <div className="rounded-lg border border-primary/20 bg-primary-soft/30 px-3 py-2 text-xs text-muted-foreground leading-relaxed flex gap-2">
+          <Info size={13} className="text-primary shrink-0 mt-0.5" />
+          <span>Bạn đang trò chuyện với chính Nhân sự số này. Nó tự chỉnh cấu hình của mình trên bản nháp - chỉ có hiệu lực khi bạn Publish. Lịch sử chat được giữ lại, chỉ mình bạn xem được.</span>
+        </div>
+        {start > 0 && (
+          <button onClick={loadOlder} className="w-full text-xs text-primary hover:underline py-1">Xem tin nhắn cũ hơn</button>
+        )}
+        {rows}
         <div className="flex flex-wrap gap-1.5 pt-1">
           {quickActions.map(s => (
             <button key={s} onClick={() => handleSend(s)} className="text-xs px-2 py-1 rounded-full bg-surface border border-border hover:bg-primary-soft hover:text-primary hover:border-primary/30 transition-base">
@@ -1232,17 +1321,44 @@ function AiBuildSidebar({
       {/* Composer */}
       <div className="border-t border-border p-2.5 shrink-0 bg-surface">
         <div className="rounded-xl border border-border bg-surface focus-within:border-primary transition-base p-1.5">
-          <div className="flex items-end gap-1.5">
-            <textarea rows={2} value={input} onChange={e => setInput(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-              placeholder={`Update ${contextLabel.toLowerCase()}…`}
-              className="flex-1 resize-none bg-transparent text-sm placeholder:text-muted-foreground outline-none px-1 py-0.5 max-h-32" />
-            <button onClick={() => handleSend()} className="h-7 w-7 rounded-md bg-primary text-primary-foreground hover:bg-primary-glow flex items-center justify-center transition-base shrink-0">
+          <textarea rows={2} value={input} onChange={e => setInput(e.target.value)}
+            aria-label="Nói bạn muốn sửa gì"
+            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+            placeholder="Nói bạn muốn sửa gì..."
+            className="w-full resize-none bg-transparent text-sm placeholder:text-muted-foreground outline-none px-1 py-0.5 max-h-32" />
+          <div className="flex items-center gap-1.5 relative">
+            <button onClick={() => setModeOpen(o => !o)} aria-haspopup="menu" aria-expanded={modeOpen}
+              className="h-7 px-2 rounded-md hover:bg-surface-muted text-xs text-muted-foreground flex items-center gap-1 transition-base">
+              <HugeiconsIcon icon={mode === "manual" ? Shield01Icon : BoltIcon} size={12} className={mode === "manual" ? "" : "text-warning"} />
+              {mode === "manual" ? "Thủ công" : "Tự động"}
+            </button>
+            {modeOpen && (
+              <div role="menu" className="absolute bottom-9 left-0 w-72 z-50 bg-surface border border-border rounded-xl shadow-lg p-2">
+                <div className="px-2 pt-1 pb-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Chế độ duyệt</div>
+                {([
+                  { k: "manual", icon: Shield01Icon, title: "Thủ công", desc: "Luôn cần bạn xác nhận trước khi thay đổi cấu hình" },
+                  { k: "auto", icon: BoltIcon, title: "Tự động", desc: "Tự áp dụng thay đổi cấu hình. Kết nối công cụ ngoài vẫn hỏi bạn", tag: "Mặc định" },
+                ] as const).map(o => (
+                  <button key={o.k} role="menuitemradio" aria-checked={mode === o.k} onClick={() => setMode(o.k)}
+                    className={`w-full flex items-start gap-2 px-2 py-2 rounded-lg text-left hover:bg-surface-muted transition-base ${mode === o.k ? "bg-primary-soft/40" : ""}`}>
+                    <HugeiconsIcon icon={o.icon} size={14} className="mt-0.5 text-primary shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium flex items-center gap-1.5">{o.title}{"tag" in o && <span className="chip text-[10px]">{o.tag}</span>}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">{o.desc}</div>
+                    </div>
+                    {mode === o.k && <HugeiconsIcon icon={CheckmarkCircle01Icon} size={13} className="text-primary mt-0.5" />}
+                  </button>
+                ))}
+                <div className="border-t border-border mt-1 pt-1.5 px-2 text-[11px] text-muted-foreground">Lựa chọn được lưu cho các phiên sau.</div>
+              </div>
+            )}
+            <div className="flex-1" />
+            <button onClick={() => handleSend()} aria-label="Gửi" disabled={!input.trim()} className="h-7 w-7 rounded-md bg-primary text-primary-foreground hover:bg-primary-glow disabled:opacity-40 flex items-center justify-center transition-base shrink-0">
               <HugeiconsIcon icon={SentIcon} size={12} />
             </button>
           </div>
         </div>
-        <div className="text-xs text-muted-foreground mt-1.5 px-1">Enter to send · Shift+Enter for new line</div>
+        <div className="text-xs text-muted-foreground mt-1.5 px-1">Enter để gửi - Shift+Enter để xuống dòng</div>
       </div>
     </aside>
   );
