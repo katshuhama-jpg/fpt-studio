@@ -325,6 +325,8 @@
     /* Rose — distinct from Person's purple and every other node accent — for the Sub-process
        node, which calls another whole Workforce as a reusable step (S-gap-6). */
     --wf-subprocess: #BE185D; --wf-subprocess-bg: #FCE7F3;
+    /* Slate-teal for the deterministic Code step - reads as "system/engine", not an AI agent. */
+    --wf-code: #0F766E;    --wf-code-bg: #DDF4F0;
     /* Condition chip has exactly two states — warn (unconfigured) and this default one, which
        doubles as "configured": no third color for "has data". */
     --wf-warn: #D97706;    --wf-cond-border: #8891A6;

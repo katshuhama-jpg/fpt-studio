@@ -13,17 +13,18 @@ import NoteNode from "./nodes/NoteNode";
 import TriggerNode from "./nodes/TriggerNode";
 import ToolNode from "./nodes/ToolNode";
 import SubProcessNode from "./nodes/SubProcessNode";
+import CodeNode from "./nodes/CodeNode";
 import DeletableEdge from "./edges/DeletableEdge";
 import Palette, { WORKFORCE_DRAG_MIME, type PaletteItemType } from "./Palette";
 import AgentPickerPopover from "./AgentPickerPopover";
 import PersonPickerPopover from "./PersonPickerPopover";
 import DestinationTypePopup from "./DestinationTypePopup";
 import { WorkforceNodeActionsContext, type WorkforceNodeActions } from "./nodes/nodeActionsContext";
-import { createAgentNode, createOmniNode, createPersonNode, createNoteNode, createTriggerNode, createToolNode, createSubProcessNode, createRoute, createDirectEdge } from "./graphOps";
+import { createAgentNode, createOmniNode, createPersonNode, createNoteNode, createTriggerNode, createToolNode, createSubProcessNode, createCodeNode, createRoute, createDirectEdge } from "./graphOps";
 import { WF_DOT_COLOR } from "./slateTheme";
 import type { WorkforceNode, WorkforceEdge } from "./types";
 
-const nodeTypes = { agent: AgentNode, omni: OmniNode, person: PersonNode, condition: ConditionNode, note: NoteNode, trigger: TriggerNode, tool: ToolNode, subprocess: SubProcessNode };
+const nodeTypes = { agent: AgentNode, omni: OmniNode, person: PersonNode, condition: ConditionNode, note: NoteNode, trigger: TriggerNode, tool: ToolNode, subprocess: SubProcessNode, code: CodeNode };
 const edgeTypes = { deletable: DeletableEdge };
 
 interface CanvasProps {
@@ -76,7 +77,7 @@ export default function Canvas({
   // next destination; "notify" stays a dead end, same as every Person node was before task
   // kinds existed.
   const isRoutableSource = (data: WorkforceNode["data"]) =>
-    data.kind === "agent" || data.kind === "subprocess" || (data.kind === "person" && data.taskKind !== "notify");
+    data.kind === "agent" || data.kind === "subprocess" || data.kind === "code" || (data.kind === "person" && data.taskKind !== "notify");
 
   const isValidConnection = useCallback((connection: Connection) => {
     if (!connection.source || !connection.target) return false;
@@ -192,6 +193,11 @@ export default function Canvas({
       setNodes(ns => ns.concat(createToolNode(position)));
       lastAddedPositionRef.current = position;
       toast("Đã thêm Tool vào Workforce");
+    } else if (type === "code") {
+      onBeforeMutate();
+      setNodes(ns => ns.concat(createCodeNode(position)));
+      lastAddedPositionRef.current = position;
+      toast("Đã thêm bước Code vào Workforce");
     } else if (type === "subprocess") {
       onBeforeMutate();
       setNodes(ns => ns.concat(createSubProcessNode(position)));
@@ -267,6 +273,15 @@ export default function Canvas({
       setAgentPicker({ position: flow, connectFrom: sourceId });
     } else if (type === "person") {
       setPersonPicker({ position: flow, connectFrom: sourceId });
+    } else if (type === "code") {
+      onBeforeMutate();
+      const source = findNode(sourceId);
+      const destNode = createCodeNode(flow);
+      const { condition, edges: newEdges } = createRoute(sourceId, flow, source?.position ?? flow, destNode.id);
+      setNodes(ns => ns.concat(condition, destNode));
+      setEdges(es => es.concat(newEdges));
+      lastAddedPositionRef.current = flow;
+      toast("Đã thêm bước Code vào Workforce");
     } else if (type === "subprocess") {
       // Same shortcut Agent/Omni/Person already get — Sub-process is a full routing node too
       // (both Handles, per SubProcessNode.tsx), it just used to be missing from this popup, so

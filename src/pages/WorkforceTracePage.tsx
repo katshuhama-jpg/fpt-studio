@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Bot, Boxes, Headset, User, Zap, CheckCircle2, Square, TriangleAlert, GitBranch, XCircle } from "lucide-react";
+import { ChevronLeft, Bot, Boxes, Headset, User, Zap, CheckCircle2, Square, TriangleAlert, GitBranch, XCircle, Code2 } from "lucide-react";
 import { ReactFlowProvider, useNodesState, useEdgesState } from "reactflow";
 import { AGENTS } from "@/components/configure/agentStore";
 import { triggerStore } from "@/components/configure/triggerStore";
@@ -13,7 +13,7 @@ import { getNodesUnreachableFromTrigger } from "@/components/workforce/graphOps"
 import type { WorkforceNodeActions } from "@/components/workforce/nodes/nodeActionsContext";
 import type { RunNodeStatus } from "@/components/workforce/useRunTrace";
 
-const KIND_ICON: Record<string, typeof Bot> = { trigger: Zap, agent: Bot, omni: Headset, person: User, subprocess: Boxes };
+const KIND_ICON: Record<string, typeof Bot> = { trigger: Zap, agent: Bot, omni: Headset, person: User, subprocess: Boxes, code: Code2 };
 const STATUS_META = {
   success: { label: "Thành công", icon: CheckCircle2, bg: "var(--wf-pub-bg)", ink: "var(--wf-pub-ink)" },
   stopped: { label: "Đã dừng", icon: Square, bg: "var(--wf-bg)", ink: "var(--wf-muted)" },
@@ -68,6 +68,7 @@ export default function WorkforceTracePage() {
       case "omni": return "Omni Supports";
       case "person": return members.find(m => m.id === n.data.memberId)?.name ?? "Người trong tổ chức";
       case "subprocess": return (n.data.workforceId ? workforceStore.get(n.data.workforceId)?.name : undefined) ?? "Sub-process";
+      case "code": return n.data.name || "Bước Code";
       case "trigger": {
         const agentId = triggerAgentIds.get(n.id) ?? null;
         const record = agentId && n.data.triggerId ? triggerStore.get(agentId, n.data.triggerId) : undefined;

@@ -8,6 +8,7 @@ import { HANDLE_CLASS } from "./handleStyle";
 import NodeToolbarMenu from "./NodeToolbarMenu";
 import NodeTypeTab from "./NodeTypeTab";
 import MissingTriggerNotice from "./MissingTriggerNotice";
+import FlowControlChips from "./FlowControlChips";
 
 export default function AgentNode({ id, data, selected }: NodeProps<AgentNodeData>) {
   const { onDelete, unreachableNodeIds, runTrace } = useWorkforceNodeActions();
@@ -18,7 +19,7 @@ export default function AgentNode({ id, data, selected }: NodeProps<AgentNodeDat
 
   const openAgent = (e: React.MouseEvent) => {
     e.stopPropagation();
-    window.open(`/agents/${data.agentId}`, "_blank", "noopener,noreferrer");
+    window.open(agent?.kind === "process" ? `/process/${agent.processId}` : `/agents/${data.agentId}`, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -40,7 +41,7 @@ export default function AgentNode({ id, data, selected }: NodeProps<AgentNodeDat
     >
       <NodeToolbarMenu visible={!!selected} onDelete={() => onDelete(id)} />
       <Handle type="target" position={Position.Left} className={HANDLE_CLASS} />
-      <NodeTypeTab icon={<Bot size={12} />} label="Nhân sự số" kind="agent" />
+      <NodeTypeTab icon={<Bot size={12} />} label={agent?.kind === "process" ? "Nhân sự số · Quy trình" : "Nhân sự số"} kind="agent" />
       <div className="flex items-start gap-[11px]" style={{ padding: "12px 14px 14px" }}>
         <div
           className="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center shrink-0"
@@ -66,6 +67,10 @@ export default function AgentNode({ id, data, selected }: NodeProps<AgentNodeDat
           <ExternalLink size={13} />
         </button>
       </div>
+      {agent?.outputs && agent.outputs.length > 0 && (
+        <p className="text-[11px] m-0 truncate" style={{ padding: "0 14px 10px", color: "var(--wf-muted)" }}>Đầu ra: {agent.outputs.map(o => o.key).join(", ")}</p>
+      )}
+      <FlowControlChips data={data} />
       {missingTrigger && <MissingTriggerNotice />}
       <Handle type="source" position={Position.Right} className={HANDLE_CLASS} />
     </div>

@@ -1,9 +1,9 @@
-import { Bot, Boxes, Check, CheckCircle2, GitBranch, Headset, Loader2, Play, ShieldCheck, Square, User, X, XCircle, Zap } from "lucide-react";
+import { Bot, Boxes, Check, CheckCircle2, GitBranch, Headset, Loader2, Play, ShieldCheck, Square, User, X, XCircle, Zap, Code2 } from "lucide-react";
 import type { WorkforceNode } from "./types";
 import type { RunTraceState } from "./useRunTrace";
 
 const KIND_ICON: Record<string, typeof Bot> = {
-  trigger: Zap, agent: Bot, omni: Headset, person: User, subprocess: Boxes,
+  trigger: Zap, agent: Bot, omni: Headset, person: User, subprocess: Boxes, code: Code2,
 };
 
 /** Same three-line summary ConditionNode.tsx itself shows on-canvas — duplicated rather than

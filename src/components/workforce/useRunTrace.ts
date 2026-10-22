@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ApprovalMode, WorkforceNode, WorkforceEdge } from "./types";
+import type { ApprovalMode, WorkforceNode, WorkforceEdge, ConditionRule } from "./types";
+import { AGENTS } from "@/components/configure/agentStore";
 
 /** On-canvas run trace / test-run mode (S-gap-7) — simulates a run starting from a chosen
  * Trigger and walks the graph one meaningful hop at a time, the same shape of feature every
@@ -48,6 +49,7 @@ export interface PendingApproval {
 }
 
 type StepResult =
+  | { kind: "fork"; options: RunRouteOption[] }
   | { kind: "auto"; nextNodeId: string; touchedNodeIds: string[]; touchedEdgeIds: string[] }
   | { kind: "choice"; options: RunRouteOption[] }
   | { kind: "approval"; option: RunRouteOption; mode: ApprovalMode; assigneeId: string | null }
@@ -56,6 +58,35 @@ type StepResult =
 /** Same routing shape as `isRoutableSource` in Canvas.tsx and `getNodesUnreachableFromTrigger`
  * in graphOps.ts — kept as a local copy rather than imported since this one needs to reason
  * about a single node's data, not decide whether a *connection* is legal. */
+/** Sample values of every structured output on the canvas (Agent/Quy trình outputs from
+ * agentStore, Code outputs from the node) - what a simulated run evaluates rule Conditions
+ * against, so a route on e.g. `so_warn > 0` is taken automatically instead of asking. */
+function sampleVars(nodes: WorkforceNode[]): Record<string, string> {
+  const vars: Record<string, string> = {};
+  for (const n of nodes) {
+    const outs = n.data.kind === "agent" ? AGENTS.find(a => a.id === (n.data as any).agentId)?.outputs ?? [] : n.data.kind === "code" ? n.data.outputs : [];
+    for (const o of outs) if (o.sample !== undefined) vars[o.key] = o.sample;
+  }
+  return vars;
+}
+
+function ruleHolds(r: ConditionRule, vars: Record<string, string>): boolean | null {
+  const a = vars[r.variable];
+  if (a === undefined) return null;
+  const na = parseFloat(a), nb = parseFloat(r.value);
+  switch (r.operator) {
+    case "bằng": return r.numeric ? na === nb : a === r.value;
+    case "khác": return a !== r.value;
+    case "chứa": return a.includes(r.value);
+    case "không chứa": return !a.includes(r.value);
+    case "lớn hơn": return na > nb;
+    case "lớn hơn hoặc bằng": return na >= nb;
+    case "nhỏ hơn": return na < nb;
+    case "nhỏ hơn hoặc bằng": return na <= nb;
+  }
+  return null;
+}
+
 function computeStep(nodeId: string, nodes: WorkforceNode[], edges: WorkforceEdge[]): StepResult {
   const node = nodes.find(n => n.id === nodeId);
   if (!node) return { kind: "end", reason: "terminal" };
@@ -69,6 +100,7 @@ function computeStep(nodeId: string, nodes: WorkforceNode[], edges: WorkforceEdg
   const isRoutable =
     node.data.kind === "agent" ||
     node.data.kind === "subprocess" ||
+    node.data.kind === "code" ||
     (node.data.kind === "person" && node.data.taskKind !== "notify");
   if (!isRoutable) return { kind: "end", reason: "terminal" };
 
@@ -89,6 +121,24 @@ function computeStep(nodeId: string, nodes: WorkforceNode[], edges: WorkforceEdg
     const approval = condNode?.data.kind === "condition" ? condNode.data.approval : null;
     if (approval) return { kind: "approval", option: o, mode: approval.mode, assigneeId: approval.assigneeId };
     return { kind: "auto", nextNodeId: o.targetId, touchedNodeIds: [o.conditionId, o.targetId], touchedEdgeIds: [o.sourceEdgeId, o.destEdgeId] };
+  }
+  if ((node.data as any).fanOut === "all") return { kind: "fork", options };
+  // Every route is a rule on structured data - evaluate it on the sample outputs instead of
+  // asking the tester to pick, the way a real run would.
+  const conds = options.map(o => nodes.find(n => n.id === o.conditionId)?.data);
+  if (conds.every(c => c?.kind === "condition" && c.type === "rule" && c.rules.length > 0)) {
+    const vars = sampleVars(nodes);
+    const hit = options.find((o, i) => {
+      const c = conds[i] as any;
+      const res: (boolean | null)[] = c.rules.map((r: ConditionRule) => ruleHolds(r, vars));
+      if (res.some(x => x === null)) return false;
+      return c.ruleMatch === "any" ? res.some(Boolean) : res.every(Boolean);
+    });
+    if (hit) {
+      const approval = findApproval(hit.conditionId, nodes);
+      if (approval) return { kind: "approval", option: hit, mode: approval.mode, assigneeId: approval.assigneeId };
+      return { kind: "auto", nextNodeId: hit.targetId, touchedNodeIds: [hit.conditionId, hit.targetId], touchedEdgeIds: [hit.sourceEdgeId, hit.destEdgeId] };
+    }
   }
   return { kind: "choice", options };
 }
@@ -121,6 +171,11 @@ export interface RunTraceState {
    * it in Run History) once `status` has already flipped to "done". */
   pendingApproval: PendingApproval | null;
   endReason: "terminal" | "unwired" | "stopped" | "rejected" | null;
+  /** Branches started by a fork ("Chạy song song mọi tuyến ra") still waiting their turn - the
+   * simulation walks parallel branches one after another, but they all count as running. */
+  queue: string[];
+  /** How many branches have reached each join node ("Chờ đủ các nhánh vào") so far. */
+  arrivals: Record<string, number>;
 }
 
 const IDLE_STATE: RunTraceState = {
@@ -133,6 +188,8 @@ const IDLE_STATE: RunTraceState = {
   choiceOptions: null,
   pendingApproval: null,
   endReason: null,
+  queue: [],
+  arrivals: {},
 };
 
 // Long enough to read as a deliberate step-by-step trace, short enough not to feel sluggish
@@ -154,6 +211,8 @@ interface PendingAdvance {
   touchedNodeIds: string[];
   touchedEdgeIds: string[];
   nextNodeId: string;
+  /** Extra branch targets a fork starts alongside `nextNodeId`. */
+  forked?: string[];
 }
 
 export function useRunTrace(nodes: WorkforceNode[], edges: WorkforceEdge[]) {
@@ -178,6 +237,8 @@ export function useRunTrace(nodes: WorkforceNode[], edges: WorkforceEdge[]) {
       choiceOptions: null,
       pendingApproval: null,
       endReason: null,
+      queue: [],
+      arrivals: {},
     });
   }, []);
 
@@ -286,14 +347,48 @@ export function useRunTrace(nodes: WorkforceNode[], edges: WorkforceEdge[]) {
     if (state.status !== "running" || !state.currentNodeId || state.travelingEdgeIds.size > 0) return;
     const nodeId = state.currentNodeId;
     const t = setTimeout(() => {
+      const node = nodesRef.current.find(n => n.id === nodeId);
+      const isJoin = !!(node?.data as any)?.joinAll;
       const result = computeStep(nodeId, nodesRef.current, edgesRef.current);
       setState(s => {
         // The run may have been stopped, or moved on already, while this timer was pending.
         if (s.status !== "running" || s.currentNodeId !== nodeId) return s;
+        // Hand the run to the next waiting parallel branch (or finish when none is left).
+        const nextBranch = (st: RunTraceState, nodeStatus: Map<string, RunNodeStatus>, arrivals = st.arrivals): RunTraceState | null => {
+          if (st.queue.length === 0) return null;
+          const [next, ...rest] = st.queue;
+          nodeStatus.set(next, "current");
+          return { ...st, nodeStatus, arrivals, queue: rest, currentNodeId: next, steps: [...st.steps, next] };
+        };
+        if (isJoin) {
+          const need = edgesRef.current.filter(e => e.target === nodeId).length;
+          const got = (s.arrivals[nodeId] ?? 0) + 1;
+          const arrivals = { ...s.arrivals, [nodeId]: got };
+          if (got < need) {
+            // Not every branch is here yet: park at the join (it is listed once, when the last
+            // branch arrives) and continue with the next waiting branch.
+            const parked = { ...s, steps: s.steps[s.steps.length - 1] === nodeId ? s.steps.slice(0, -1) : s.steps };
+            const moved = nextBranch(parked, new Map(s.nodeStatus), arrivals);
+            if (moved) return moved;
+          }
+          s = { ...s, arrivals };
+        }
         if (result.kind === "end") {
           const nodeStatus = new Map(s.nodeStatus);
           nodeStatus.set(nodeId, "done");
+          const moved = nextBranch(s, nodeStatus);
+          if (moved) return moved;
           return { ...s, status: "done", nodeStatus, endReason: result.reason };
+        }
+        if (result.kind === "fork") {
+          const [first, ...rest] = result.options;
+          pendingRef.current = {
+            touchedNodeIds: result.options.map(o => o.conditionId),
+            touchedEdgeIds: result.options.flatMap(o => [o.sourceEdgeId, o.destEdgeId]),
+            nextNodeId: first.targetId,
+            forked: rest.map(o => o.targetId),
+          };
+          return { ...s, travelingEdgeIds: new Set(result.options.flatMap(o => [o.sourceEdgeId, o.destEdgeId])) };
         }
         if (result.kind === "choice") {
           return { ...s, status: "choice", choiceOptions: result.options };
@@ -328,11 +423,13 @@ export function useRunTrace(nodes: WorkforceNode[], edges: WorkforceEdge[]) {
         nodeStatus.set(fromNodeId, "done");
         for (const id of pending.touchedNodeIds) nodeStatus.set(id, "done");
         nodeStatus.set(pending.nextNodeId, "current");
+        for (const id of pending.forked ?? []) nodeStatus.set(id, "current");
         const edgeIds = new Set(s.edgeIds);
         for (const id of pending.touchedEdgeIds) edgeIds.add(id);
         pendingRef.current = null;
         return {
           ...s,
+          queue: [...(pending.forked ?? []), ...s.queue],
           steps: [...s.steps, pending.nextNodeId],
           currentNodeId: pending.nextNodeId,
           nodeStatus,

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Bot, Boxes, Headset, User } from "lucide-react";
+import { Bot, Boxes, Code2, Headset, User } from "lucide-react";
 import type { PaletteItemType } from "./Palette";
 import { useReturnFocusOnUnmount } from "./useReturnFocus";
 
@@ -35,6 +35,9 @@ export default function DestinationTypePopup({
         </button>
         <button onClick={() => onPick("subprocess")} className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
           <Boxes size={14} className="text-primary" /> Sub-process
+        </button>
+        <button onClick={() => onPick("code")} className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
+          <Code2 size={14} className="text-primary" /> Code (tất định)
         </button>
       </div>
     </>,

@@ -1,11 +1,12 @@
-import { Bot, Boxes, Headset, StickyNote, User, Wrench, Zap } from "lucide-react";
+import { Bot, Boxes, Code2, Headset, StickyNote, User, Wrench, Zap } from "lucide-react";
 
-export type PaletteItemType = "agent" | "omni" | "trigger" | "person" | "note" | "tool" | "subprocess";
+export type PaletteItemType = "agent" | "omni" | "trigger" | "person" | "note" | "tool" | "subprocess" | "code";
 
 const ITEMS: { type: PaletteItemType; label: string; icon: typeof Bot; accent: string; accentBg: string }[] = [
   { type: "agent", label: "Nhân sự số", icon: Bot, accent: "var(--wf-agent)", accentBg: "var(--wf-agent-bg)" },
   { type: "omni", label: "Omni Supports", icon: Headset, accent: "var(--wf-omni)", accentBg: "var(--wf-omni-bg)" },
   { type: "trigger", label: "Trigger", icon: Zap, accent: "var(--wf-trigger)", accentBg: "var(--wf-trigger-bg)" },
+  { type: "code", label: "Code", icon: Code2, accent: "var(--wf-code)", accentBg: "var(--wf-code-bg)" },
   { type: "tool", label: "Tool", icon: Wrench, accent: "var(--wf-tool)", accentBg: "var(--wf-tool-bg)" },
   { type: "subprocess", label: "Sub-process", icon: Boxes, accent: "var(--wf-subprocess)", accentBg: "var(--wf-subprocess-bg)" },
   { type: "person", label: "Người trong tổ chức", icon: User, accent: "var(--wf-person)", accentBg: "var(--wf-person-bg)" },

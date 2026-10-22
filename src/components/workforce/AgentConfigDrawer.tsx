@@ -2,10 +2,17 @@ import { X, ExternalLink, Trash2 } from "lucide-react";
 import { AGENTS } from "@/components/configure/agentStore";
 import Toggle from "./Toggle";
 import { useReturnFocusOnUnmount } from "./useReturnFocus";
+import FlowControlSection from "./FlowControlSection";
+import OutputFieldsList from "./OutputFieldsList";
+import type { FlowControl } from "./types";
 
 export default function AgentConfigDrawer({
-  agentId, isDestination, keepContext, onChangeKeepContext, onClose, onDelete,
+  agentId, isDestination, keepContext, onChangeKeepContext, onClose, onDelete, flow, outCount, inCount, onChangeFlow,
 }: {
+  flow: FlowControl;
+  outCount: number;
+  inCount: number;
+  onChangeFlow: (patch: FlowControl) => void;
   agentId: string;
   isDestination: boolean;
   keepContext: boolean;
@@ -24,7 +31,7 @@ export default function AgentConfigDrawer({
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold leading-tight truncate">{agent?.name ?? "Nhân sự số"}</div>
-          <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Nhân sự số</div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{agent?.kind === "process" ? "Nhân sự số · Quy trình" : "Nhân sự số"}</div>
         </div>
         <button onClick={onDelete} aria-label="Xóa node" className="w-8 h-8 min-w-[44px] min-h-[44px] -m-2 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">
           <Trash2 size={14} />
@@ -37,12 +44,12 @@ export default function AgentConfigDrawer({
       <div className="flex-1 overflow-y-auto px-4 py-4">
         <p className="text-xs text-muted-foreground mb-3">{agent?.desc}</p>
         <a
-          href={`/agents/${agentId}`}
+          href={agent?.kind === "process" ? `/process/${agent.processId}` : `/agents/${agentId}`}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-medium transition-base mb-4"
         >
-          <ExternalLink size={12} /> Mở Nhân sự số
+          <ExternalLink size={12} /> {agent?.kind === "process" ? "Mở Quy trình" : "Mở Nhân sự số"}
         </a>
 
         {isDestination ? (
@@ -60,8 +67,13 @@ export default function AgentConfigDrawer({
             </p>
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground italic">Nhân sự số nguồn - Chưa có cấu hình bổ sung.</p>
+          null
         )}
+        {agent?.kind === "process" && (
+          <p className="text-xs leading-relaxed rounded-lg bg-surface-muted px-3 py-2 mt-3">Bước này chạy tất định theo Quy trình đã publish - không dùng LLM để chấm điểm hay tính tiền. Cùng hồ sơ luôn ra cùng kết quả.</p>
+        )}
+        <OutputFieldsList fields={agent?.outputs ?? []} />
+        <FlowControlSection value={flow} outCount={outCount} inCount={inCount} onChange={onChangeFlow} />
       </div>
     </aside>
   );

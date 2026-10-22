@@ -250,9 +250,10 @@ function seedWorkforces(): Workforce[] {
   };
 
   // Built from the wiki "Logic xử lý bồi thường cho sản phẩm BHNT - Hỗ trợ viện phí/phẫu thuật"
-  // (MB Life, pageId 119517464) using ONLY the node kinds this canvas already has - no new node.
-  // S1 OCR -> S2 claim type -> S3 chứng từ -> S4 rule -> S5 dự toán -> S6 summary -> TĐV.
-  // Gaps found while building are written on-canvas as Note nodes (see the reply to Tyler).
+  // (MB Life, pageId 119517464). S1 OCR -> S2 claim type, then S2 forks: S3 chứng từ -> S4 rule
+  // (Nhân sự số Quy trình, tất định) -> S5 dự toán (Code) runs in parallel with S6 AI Summary,
+  // both join at "Gộp hồ sơ", which routes on so_warn / so_not_evaluated to the right TĐV.
+  // Numbers (X, hạn mức, ngưỡng OCR) live in the Workforce's paramPack, not in the steps.
   const mblClaim: Workforce = {
     id: "wf-mbl-claim",
     name: "Thẩm định bồi thường viện phí/phẫu thuật - MB Life",
@@ -260,16 +261,34 @@ function seedWorkforces(): Workforce[] {
     createdAt: Date.now() - 2 * HOUR,
     updatedAt: Date.now() - 5 * 60_000,
     updatedBy: "Tran Nam",
+    paramPack: {
+      name: "MB Life - Hỗ trợ viện phí/phẫu thuật HSCR 3.0",
+      version: "2026.10",
+      params: [
+        { key: "nguong_do_tin_cay_ocr", value: "0.85", note: "Dưới ngưỡng thì chuyển nhân viên nhập liệu kiểm tra" },
+        { key: "gioi_han_ngay_nam", value: "150", note: "Số ngày nằm viện tối đa được trả mỗi năm" },
+        { key: "gioi_han_ngay_tron_doi", value: "1000", note: "Số ngày nằm viện tối đa trọn đời" },
+        { key: "he_so_icu", value: "2", note: "Nằm ICU: 2X mỗi ngày" },
+        { key: "he_so_benh_hiem_ngheo", value: "3", note: "Bệnh hiểm nghèo: 3X mỗi ngày" },
+        { key: "nguong_ngay_tham_hoi", value: "8", note: "Nằm viện trên số ngày này thì có quyền lợi thay lời thăm hỏi" },
+        { key: "tran_tham_hoi", value: "500000", note: "Trần quyền lợi thay lời thăm hỏi (đồng)" },
+        { key: "he_so_phau_thuat", value: "10", note: "Phẫu thuật cơ bản: 10X" },
+        { key: "so_lan_phau_thuat_nam", value: "2", note: "Số lần phẫu thuật tối đa được trả mỗi năm" },
+        { key: "tran_tron_doi_x", value: "1000", note: "Tổng quyền lợi trọn đời tối đa 1000X" },
+        { key: "rule_version", value: "MBL-HSCR3-2026.10", note: "Phiên bản bộ rule D/E/A Quy trình Rule thẩm định dùng" },
+        { key: "bang_icd_version", value: "ICD-MBL-2026Q3", note: "Danh mục ICD nhóm bệnh và bệnh hiểm nghèo" },
+      ],
+    },
     nodes: [
       { id: "trigger-mbl", type: "trigger", position: { x: -260, y: 160 }, data: { kind: "trigger", triggerId: MBL_CLAIM_TRIGGER_ID } },
       { id: "s1-ocr", type: "agent", position: { x: 60, y: 160 }, data: { kind: "agent", agentId: "claim-ocr-agent", keepContext: true } },
       { id: "c-ocr-ok", type: "condition", position: { x: 380, y: 60 }, data: {
-        kind: "condition", type: "llm", ruleMatch: "all", rules: [], approval: null,
-        llmText: "Đã phân loại đủ trang và các trường bắt buộc (ngày vào/ra, ICD, số ngày giường) có độ tin cậy đạt ngưỡng.",
+        kind: "condition", type: "rule", ruleMatch: "all", approval: null, llmText: "",
+        rules: [{ id: "r-ocr-ok", variable: "do_tin_cay", operator: "lớn hơn hoặc bằng", value: "0.85", numeric: true }],
       } },
       { id: "c-ocr-low", type: "condition", position: { x: 380, y: 300 }, data: {
-        kind: "condition", type: "llm", ruleMatch: "all", rules: [], approval: null,
-        llmText: "Có trang không phân loại được hoặc trường bắt buộc có độ tin cậy thấp.",
+        kind: "condition", type: "rule", ruleMatch: "all", approval: null, llmText: "",
+        rules: [{ id: "r-ocr-low", variable: "do_tin_cay", operator: "nhỏ hơn", value: "0.85", numeric: true }],
       } },
       { id: "p-verify", type: "person", position: { x: 660, y: 300 }, data: {
         kind: "person", memberId: "m-plat-3", taskKind: "do", slaMinutes: 120, escalation: { memberId: "m-plat-2" },
@@ -278,58 +297,118 @@ function seedWorkforces(): Workforce[] {
         kind: "condition", type: "llm", ruleMatch: "all", rules: [], approval: null,
         llmText: "Nhân viên nhập liệu đã sửa trường sai và gán lại loại trang.",
       } },
-      { id: "s2-type", type: "agent", position: { x: 940, y: 160 }, data: { kind: "agent", agentId: "claim-type-agent", keepContext: true } },
-      { id: "c-type", type: "condition", position: { x: 1220, y: 160 }, data: {
+      { id: "s2-type", type: "agent", position: { x: 940, y: 160 }, data: { kind: "agent", agentId: "claim-type-agent", keepContext: true, fanOut: "all" } },
+      { id: "c-type", type: "condition", position: { x: 1220, y: 60 }, data: {
         kind: "condition", type: "llm", ruleMatch: "all", rules: [], approval: null,
-        llmText: "Đã ra 1 trong 8 mã claim type (IP, IP-Sur, IP-ICU, IP-ICU-Sur, IP-CI-Sur, IP-CI, IP-AD, IP-AD-Sur).",
+        llmText: "Nhánh thẩm định: kiểm tra chứng từ, chạy rule, dự toán.",
       } },
-      { id: "s3-docs", type: "agent", position: { x: 1500, y: 160 }, data: { kind: "agent", agentId: "claim-docs-agent", keepContext: true } },
-      { id: "c-docs-full", type: "condition", position: { x: 1780, y: 60 }, data: {
+      { id: "c-to-summary", type: "condition", position: { x: 1220, y: 560 }, data: {
         kind: "condition", type: "llm", ruleMatch: "all", rules: [], approval: null,
-        llmText: "Mọi chứng từ bắt buộc theo claim type đều Received.",
+        llmText: "Nhánh song song: AI Summary đọc toàn bộ giấy tờ y tế.",
       } },
-      { id: "c-docs-missing", type: "condition", position: { x: 1780, y: 300 }, data: {
-        kind: "condition", type: "llm", ruleMatch: "all", rules: [], approval: null,
-        llmText: "Có chứng từ bắt buộc Not received - báo bộ phận tiếp nhận yêu cầu bổ sung, vẫn chạy tiếp để TĐV thấy đủ bức tranh.",
+      { id: "s3-docs", type: "agent", position: { x: 1500, y: 60 }, data: { kind: "agent", agentId: "claim-docs-agent", keepContext: true } },
+      { id: "c-docs-full", type: "condition", position: { x: 1780, y: -40 }, data: {
+        kind: "condition", type: "rule", ruleMatch: "all", approval: null, llmText: "",
+        rules: [{ id: "r-docs-full", variable: "so_chung_tu_thieu", operator: "bằng", value: "0", numeric: true }],
       } },
-      { id: "p-request-docs", type: "person", position: { x: 2060, y: 300 }, data: {
+      { id: "c-docs-missing", type: "condition", position: { x: 1780, y: 200 }, data: {
+        kind: "condition", type: "rule", ruleMatch: "all", approval: null, llmText: "",
+        rules: [{ id: "r-docs-missing", variable: "so_chung_tu_thieu", operator: "lớn hơn", value: "0", numeric: true }],
+      } },
+      { id: "p-request-docs", type: "person", position: { x: 2060, y: 200 }, data: {
         kind: "person", memberId: "m-plat-4", taskKind: "do", slaMinutes: 1440, escalation: null,
       } },
-      { id: "c-requested", type: "condition", position: { x: 2200, y: 460 }, data: {
+      { id: "c-requested", type: "condition", position: { x: 2200, y: 340 }, data: {
         kind: "condition", type: "llm", ruleMatch: "all", rules: [], approval: null,
         llmText: "Đã gửi yêu cầu bổ sung chứng từ cho khách.",
       } },
-      { id: "s4-rules", type: "agent", position: { x: 2340, y: 160 }, data: { kind: "agent", agentId: "claim-rules-agent", keepContext: true } },
-      { id: "c-rules", type: "condition", position: { x: 2620, y: 160 }, data: {
+      { id: "s4-rules", type: "agent", position: { x: 2340, y: 60 }, data: { kind: "agent", agentId: "claim-rules-process", keepContext: true } },
+      { id: "c-rules", type: "condition", position: { x: 2620, y: 60 }, data: {
         kind: "condition", type: "llm", ruleMatch: "all", rules: [], approval: null,
-        llmText: "Đã có kết quả PASS / WARN / NOT_EVALUATED cho toàn bộ rule MVP.",
+        llmText: "Đã có kết quả PASS / WARN / NOT_EVALUATED cho bộ rule.",
       } },
-      { id: "s5-estimate", type: "agent", position: { x: 2900, y: 160 }, data: { kind: "agent", agentId: "claim-estimate-agent", keepContext: true } },
-      { id: "c-estimate", type: "condition", position: { x: 3180, y: 160 }, data: {
+      { id: "s5-estimate", type: "code", position: { x: 2900, y: 60 }, data: {
+        kind: "code", name: "Dự toán chi phí (HSCR 3.0)", lang: "Python", toolIds: ["mbl-policy", "mbl-claim-history"],
+        code: [
+          "def main(inputs, params):",
+          "    X = inputs[\"muc_x\"]  # từ Policy",
+          "    days = inputs[\"so_ngay_giuong\"] or (inputs[\"ngay_ra\"] - inputs[\"ngay_vao\"]).days",
+          "    con_nam = params[\"gioi_han_ngay_nam\"] - inputs[\"so_ngay_da_tra_nam\"]",
+          "    con_tron_doi = params[\"gioi_han_ngay_tron_doi\"] - inputs[\"so_ngay_da_tra_tron_doi\"]",
+          "    eligible = max(0, min(days, con_nam, con_tron_doi))",
+          "    rate = params[\"he_so_benh_hiem_ngheo\"] if inputs[\"la_benh_hiem_ngheo\"] else (params[\"he_so_icu\"] if inputs[\"la_icu\"] else 1)",
+          "    q51 = eligible * rate * X",
+          "    q52 = min(X, params[\"tran_tham_hoi\"]) if days > params[\"nguong_ngay_tham_hoi\"] else 0",
+          "    q61 = params[\"he_so_phau_thuat\"] * X if inputs[\"co_phau_thuat\"] and inputs[\"so_lan_phau_thuat_nam\"] < params[\"so_lan_phau_thuat_nam\"] else 0",
+          "    tong = min(q51 + q52 + q61, params[\"tran_tron_doi_x\"] * X - inputs[\"tong_da_tra_tron_doi\"])",
+          "    return {\"so_ngay_duoc_tra\": eligible, \"chi_tiet\": {\"5.1\": q51, \"5.2\": q52, \"6.1\": q61}, \"tong_du_toan\": tong}",
+        ].join("\n"),
+        outputs: [
+          { key: "so_ngay_duoc_tra", label: "Số ngày được trả sau hạn mức", type: "number", sample: "5" },
+          { key: "chi_tiet", label: "Số tiền từng quyền lợi (5.1, 5.2, 6.1) kèm công thức", type: "table", sample: "5.1: 1.500.000 · 6.1: 3.000.000" },
+          { key: "tong_du_toan", label: "Tổng dự toán (đồng)", type: "number", sample: "4500000" },
+        ],
+      } },
+      { id: "c-est", type: "condition", position: { x: 3180, y: 60 }, data: {
         kind: "condition", type: "llm", ruleMatch: "all", rules: [], approval: null,
-        llmText: "Đã tính xong dự toán từng quyền lợi và tổng sau hạn mức.",
+        llmText: "Đã tính xong dự toán.",
       } },
-      { id: "s6-summary", type: "agent", position: { x: 3460, y: 160 }, data: { kind: "agent", agentId: "claim-summary-agent", keepContext: true } },
-      { id: "c-tdv", type: "condition", position: { x: 3740, y: 160 }, data: {
-        kind: "condition", type: "llm", ruleMatch: "all", rules: [],
-        llmText: "Thẩm định viên xem claim type, chứng từ, kết quả rule, dự toán và AI Summary rồi ra quyết định cuối. Agent không tự từ chối hồ sơ.",
+      { id: "s6-summary", type: "agent", position: { x: 1500, y: 560 }, data: { kind: "agent", agentId: "claim-summary-agent", keepContext: true } },
+      { id: "c-sum", type: "condition", position: { x: 2620, y: 560 }, data: {
+        kind: "condition", type: "llm", ruleMatch: "all", rules: [], approval: null,
+        llmText: "Đã trả lời Q1-Q5 kèm dẫn chứng.",
+      } },
+      { id: "j-package", type: "code", position: { x: 3460, y: 240 }, data: {
+        kind: "code", name: "Gộp hồ sơ cho thẩm định viên", lang: "Python", toolIds: [], joinAll: true,
+        code: [
+          "def main(inputs, params):",
+          "    # Chờ đủ 2 nhánh: thẩm định (rule + dự toán) và AI Summary",
+          "    return {",
+          "        \"so_warn\": inputs[\"so_warn\"],",
+          "        \"so_not_evaluated\": inputs[\"so_not_evaluated\"],",
+          "        \"lech_voi_co\": inputs[\"lech_voi_co\"],",
+          "        \"tong_du_toan\": inputs[\"tong_du_toan\"],",
+          "        \"ho_so_tdv\": {k: inputs[k] for k in (\"claim_type\", \"ket_qua_rule\", \"chi_tiet\", \"tom_tat\")},",
+          "    }",
+        ].join("\n"),
+        outputs: [
+          { key: "so_warn", label: "Số rule WARN", type: "number", sample: "1" },
+          { key: "so_not_evaluated", label: "Số rule NOT_EVALUATED", type: "number", sample: "1" },
+          { key: "lech_voi_co", label: "AI Summary lệch với cờ S2", type: "boolean", sample: "false" },
+          { key: "tong_du_toan", label: "Tổng dự toán (đồng)", type: "number", sample: "4500000" },
+          { key: "ho_so_tdv", label: "Hồ sơ đầy đủ cho TĐV", type: "table" },
+        ],
+      } },
+      { id: "c-tdv-clean", type: "condition", position: { x: 3740, y: 120 }, data: {
+        kind: "condition", type: "rule", ruleMatch: "all",
+        rules: [
+          { id: "r-clean-1", variable: "so_warn", operator: "bằng", value: "0", numeric: true },
+          { id: "r-clean-2", variable: "so_not_evaluated", operator: "bằng", value: "0", numeric: true },
+        ],
+        llmText: "",
         approval: { mode: "required", assigneeId: "m-plat-2" },
       } },
-      { id: "p-result", type: "person", position: { x: 4020, y: 160 }, data: {
+      { id: "c-tdv-warn", type: "condition", position: { x: 3740, y: 380 }, data: {
+        kind: "condition", type: "rule", ruleMatch: "any",
+        rules: [
+          { id: "r-warn-1", variable: "so_warn", operator: "lớn hơn", value: "0", numeric: true },
+          { id: "r-warn-2", variable: "so_not_evaluated", operator: "lớn hơn", value: "0", numeric: true },
+        ],
+        llmText: "",
+        approval: { mode: "required", assigneeId: "m-plat-1" },
+      } },
+      { id: "p-result", type: "person", position: { x: 4020, y: 240 }, data: {
         kind: "person", memberId: "m-plat-4", taskKind: "notify", slaMinutes: null, escalation: null,
       } },
 
-      { id: "t-policy", type: "tool", position: { x: 2340, y: 660 }, data: { kind: "tool", ref: { source: "builtin", id: "mbl-policy" } } },
-      { id: "t-history", type: "tool", position: { x: 2620, y: 660 }, data: { kind: "tool", ref: { source: "builtin", id: "mbl-claim-history" } } },
-      { id: "t-ref", type: "tool", position: { x: 2900, y: 660 }, data: { kind: "tool", ref: { source: "builtin", id: "ref-lookup" } } },
-      { id: "t-fraud", type: "tool", position: { x: 3180, y: 660 }, data: { kind: "tool", ref: { source: "builtin", id: "vision-fraud" } } },
+      { id: "t-policy", type: "tool", position: { x: 2340, y: 800 }, data: { kind: "tool", ref: { source: "builtin", id: "mbl-policy" } } },
+      { id: "t-history", type: "tool", position: { x: 2620, y: 800 }, data: { kind: "tool", ref: { source: "builtin", id: "mbl-claim-history" } } },
+      { id: "t-ref", type: "tool", position: { x: 2900, y: 800 }, data: { kind: "tool", ref: { source: "builtin", id: "ref-lookup" } } },
+      { id: "t-fraud", type: "tool", position: { x: 3180, y: 800 }, data: { kind: "tool", ref: { source: "builtin", id: "vision-fraud" } } },
 
-      { id: "note-mbl-rules", type: "note", position: { x: 1220, y: 460 }, data: {
-        kind: "note", text: "Thiếu node: 37 rule (D/E/A) và công thức dự toán đang giao cho Agent LLM vì canvas chưa có bước Code/Rule chạy tất định. Wiki yêu cầu ngược lại: không dùng LLM để tính ngày, tiền, đếm claim. Kết quả PASS/WARN/NOT_EVALUATED cũng chỉ nằm trong câu trả lời của agent, Condition không đọc được từng rule.",
-      }, style: { width: 300, height: 190 } },
-      { id: "note-mbl-flow", type: "note", position: { x: 3460, y: 460 }, data: {
-        kind: "note", text: "Mô phỏng: S6 Summary đáng lẽ chạy song song với S2-S5 nhưng canvas chỉ có rẽ nhánh loại trừ, nên xếp tuần tự. Các bước nối nhau qua Condition dạng \"đã xong\" chỉ để thoả invariant Nguồn -> Condition -> Đích. Bộ tham số theo khách/sản phẩm (X, hạn mức, danh mục) chưa có chỗ cấu hình riêng.",
-      }, style: { width: 300, height: 190 } },
+      { id: "note-mbl-flow", type: "note", position: { x: 60, y: 560 }, data: {
+        kind: "note", text: "Rule thẩm định là Nhân sự số Quy trình, dự toán là bước Code: cả hai tất định, không dùng LLM tính ngày hay tiền. AI Summary chạy song song, bước Gộp hồ sơ chờ đủ hai nhánh rồi rẽ theo so_warn / so_not_evaluated. Ngưỡng và hạn mức nằm ở tab Tham số.",
+      }, style: { width: 300, height: 170 } },
     ],
     edges: [
       { id: "e-trigger-mbl", source: "trigger-mbl", target: "s1-ocr", type: "deletable", markerEnd: ROUTE_ARROW },
@@ -341,6 +420,8 @@ function seedWorkforces(): Workforce[] {
       edge("e-cv-s2", "c-verified", "s2-type", "c-verified"),
       edge("e-s2-ctype", "s2-type", "c-type", "c-type"),
       edge("e-ctype-s3", "c-type", "s3-docs", "c-type"),
+      edge("e-s2-csum", "s2-type", "c-to-summary", "c-to-summary"),
+      edge("e-csum-s6", "c-to-summary", "s6-summary", "c-to-summary"),
       edge("e-s3-cfull", "s3-docs", "c-docs-full", "c-docs-full"),
       edge("e-cfull-s4", "c-docs-full", "s4-rules", "c-docs-full"),
       edge("e-s3-cmiss", "s3-docs", "c-docs-missing", "c-docs-missing"),
@@ -349,10 +430,14 @@ function seedWorkforces(): Workforce[] {
       edge("e-cr-s4", "c-requested", "s4-rules", "c-requested"),
       edge("e-s4-crules", "s4-rules", "c-rules", "c-rules"),
       edge("e-crules-s5", "c-rules", "s5-estimate", "c-rules"),
-      edge("e-s5-cest", "s5-estimate", "c-estimate", "c-estimate"),
-      edge("e-cest-s6", "c-estimate", "s6-summary", "c-estimate"),
-      edge("e-s6-ctdv", "s6-summary", "c-tdv", "c-tdv"),
-      edge("e-ctdv-result", "c-tdv", "p-result", "c-tdv"),
+      edge("e-s5-cest", "s5-estimate", "c-est", "c-est"),
+      edge("e-cest-j", "c-est", "j-package", "c-est"),
+      edge("e-s6-csum2", "s6-summary", "c-sum", "c-sum"),
+      edge("e-csum2-j", "c-sum", "j-package", "c-sum"),
+      edge("e-j-clean", "j-package", "c-tdv-clean", "c-tdv-clean"),
+      edge("e-clean-result", "c-tdv-clean", "p-result", "c-tdv-clean"),
+      edge("e-j-warn", "j-package", "c-tdv-warn", "c-tdv-warn"),
+      edge("e-warn-result", "c-tdv-warn", "p-result", "c-tdv-warn"),
     ],
   };
 
@@ -432,6 +517,11 @@ export const workforceStore = {
     const wf = store.get(id);
     if (!wf) return;
     store.set(id, touch({ ...wf, nodes, edges }));
+  },
+  saveParams(id: string, paramPack: Workforce["paramPack"]) {
+    const wf = store.get(id);
+    if (!wf) return;
+    store.set(id, touch({ ...wf, paramPack }));
   },
   publish(id: string) {
     const wf = store.get(id);

@@ -31,7 +31,28 @@ export interface ConditionApproval {
   assigneeId: string | null;
 }
 
-export interface AgentNodeData {
+/** One field of a step's structured output - what a Condition rule can route on (instead of
+ * only an LLM reading free text). `sample` is the value a simulated run ("Chạy thử") uses. */
+export type OutputFieldType = "text" | "number" | "boolean" | "table";
+export interface OutputField {
+  key: string;
+  label: string;
+  type: OutputFieldType;
+  sample?: string;
+}
+
+/** How a routing step treats several outgoing routes, and whether it waits for every incoming
+ * branch - the two settings that turn the exclusive-choice graph into one that can run steps
+ * in parallel (fork) and join them back (join), e.g. MB Life's AI Summary running alongside
+ * claim type -> documents -> rules -> estimate. */
+export interface FlowControl {
+  /** "choose" (default) = take exactly one route; "all" = run every outgoing route at once. */
+  fanOut?: "choose" | "all";
+  /** Wait until every incoming route has arrived before running (join). */
+  joinAll?: boolean;
+}
+
+export interface AgentNodeData extends FlowControl {
   kind: "agent";
   agentId: string;
   /** "Giữ ngữ cảnh hội thoại" — only meaningful when this node is acting as a route
@@ -47,7 +68,7 @@ export interface OmniNodeData {
 
 export type HumanTaskKind = "do" | "notify";
 
-export interface PersonNodeData {
+export interface PersonNodeData extends FlowControl {
   kind: "person";
   memberId: string | null;
   /** What kind of handoff this is (S-gap-5, generalizing this into a real Human Task node,
@@ -101,6 +122,18 @@ export interface SubProcessNodeData {
   workforceId: string | null;
 }
 
+/** Deterministic step run as code on the canvas itself - for rules and money math that must
+ * not go through an LLM (same input always gives the same output). Routable like Agent. */
+export interface CodeNodeData extends FlowControl {
+  kind: "code";
+  name: string;
+  lang: "Python" | "JavaScript";
+  code: string;
+  outputs: OutputField[];
+  /** builtinCatalog setIds this code may call (e.g. "mbl-policy"). */
+  toolIds: string[];
+}
+
 export type ToolRefSource = "builtin" | "connector";
 
 export interface ToolNodeData {
@@ -132,11 +165,25 @@ export interface TriggerNodeData {
   triggerId: string | null;
 }
 
-export type WorkforceNodeData = AgentNodeData | OmniNodeData | PersonNodeData | ConditionNodeData | NoteNodeData | TriggerNodeData | ToolNodeData | SubProcessNodeData;
+export type WorkforceNodeData = AgentNodeData | OmniNodeData | PersonNodeData | ConditionNodeData | NoteNodeData | TriggerNodeData | ToolNodeData | SubProcessNodeData | CodeNodeData;
 export type WorkforceNode = Node<WorkforceNodeData>;
 export type WorkforceEdge = Edge;
 
 export type WorkforceStatus = "draft" | "published";
+
+/** Per-customer / per-product configuration pack (e.g. MB Life - HSCR 3.0): numbers and
+ * reference-table versions that Code steps and Quy trình read as {{params.key}}, so the same
+ * Workforce can be reused for another customer by swapping the pack, not editing steps. */
+export interface WorkforceParam {
+  key: string;
+  value: string;
+  note: string;
+}
+export interface WorkforceParamPack {
+  name: string;
+  version: string;
+  params: WorkforceParam[];
+}
 
 export interface Workforce {
   id: string;
@@ -147,6 +194,7 @@ export interface Workforce {
   createdAt: number;
   updatedAt: number;
   updatedBy: string;
+  paramPack?: WorkforceParamPack;
 }
 
 export function newConditionRule(): ConditionRule {

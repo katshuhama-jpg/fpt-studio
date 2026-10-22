@@ -38,7 +38,7 @@ const APPROVAL_MODE_META: { value: ApprovalMode; label: string; desc: string }[]
 
 export default function ConditionDrawer({
   sourceLabel, destinationLabel, destinationKind, data, onSave, onClose, onDelete, keepContext, onChangeKeepContext,
-  assigneeName, assigneeInitials, onPickAssignee,
+  assigneeName, assigneeInitials, onPickAssignee, sourceOutputs = [],
 }: {
   sourceLabel: string;
   destinationLabel: string;
@@ -55,6 +55,9 @@ export default function ConditionDrawer({
   assigneeName?: string | null;
   assigneeInitials?: string;
   onPickAssignee?: () => void;
+  /** Structured outputs of the route's source step (Agent/Quy trình/Code) - offered as rule
+   * variables so a route can branch on real data instead of an LLM reading text. */
+  sourceOutputs?: { key: string; label: string; type: string }[];
 }) {
   useReturnFocusOnUnmount();
   const [type, setType] = useState<ConditionType>(data.type);
@@ -186,7 +189,8 @@ export default function ConditionDrawer({
               {rules.map(r => {
                 const vt = ruleVariableType(r);
                 const ops = vt === "number" ? NUM_OPS : TEXT_OPS;
-                const custom = isCustomVariable(r.variable);
+                const fromSource = sourceOutputs.some(o => o.key === r.variable);
+                const custom = isCustomVariable(r.variable) && !fromSource;
                 const selectValue = r.variable === "" ? "" : custom ? CUSTOM_VARIABLE : r.variable;
                 return (
                   <div key={r.id} className="relative rounded-[10px] p-3.5" style={{ border: "1px solid var(--wf-border, hsl(var(--border)))" }}>
@@ -212,13 +216,24 @@ export default function ConditionDrawer({
                             onChange={e => {
                               const v = e.target.value;
                               if (v === CUSTOM_VARIABLE) updateRule(r.id, { variable: "", numeric: false, operator: TEXT_OPS[0] });
-                              else updateRule(r.id, { variable: v, numeric: false, operator: (VARIABLES.find(x => x.key === v)?.type === "number" ? NUM_OPS[0] : TEXT_OPS[0]) });
+                              else {
+                                const so = sourceOutputs.find(o => o.key === v);
+                                if (so) updateRule(r.id, { variable: v, numeric: so.type === "number", operator: so.type === "number" ? NUM_OPS[0] : TEXT_OPS[0] });
+                                else updateRule(r.id, { variable: v, numeric: false, operator: (VARIABLES.find(x => x.key === v)?.type === "number" ? NUM_OPS[0] : TEXT_OPS[0]) });
+                              }
                             }}
                             className="w-full h-[38px] px-3 rounded-[8px] border bg-white text-[13.5px] outline-none focus:border-primary appearance-none [font-family:var(--wf-font-body,inherit)]"
                             style={{ borderColor: "var(--wf-border, hsl(var(--border)))", color: "var(--wf-text, #12151C)" }}
                           >
                             <option value="">Chọn biến…</option>
-                            {VARIABLES.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}
+                            {sourceOutputs.length > 0 && (
+                              <optgroup label={`Đầu ra của ${sourceLabel}`}>
+                                {sourceOutputs.map(o => <option key={o.key} value={o.key}>{o.key} - {o.label}</option>)}
+                              </optgroup>
+                            )}
+                            <optgroup label="Biến hội thoại">
+                              {VARIABLES.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}
+                            </optgroup>
                             <option value={CUSTOM_VARIABLE}>+ Biến khác (tuỳ chỉnh)…</option>
                           </select>
                           <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--wf-cond-border, #8891A6)" }} />

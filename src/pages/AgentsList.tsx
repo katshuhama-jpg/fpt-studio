@@ -15,7 +15,10 @@ import { getAgentKind } from "@/components/configure/agentKindStore";
 import { agentPublishStore } from "@/components/configure/agentPublishStore";
 import { runsStore } from "@/components/configure/runsStore";
 import { triggerStore, triggerNeedsSetup, type TriggerType } from "@/components/configure/triggerStore";
-import { AGENTS as agents } from "@/components/configure/agentStore";
+import { AGENTS as ALL_AGENTS } from "@/components/configure/agentStore";
+// Nhân sự số Quy trình records (kind "process") live in agentStore so Workforce can use them as
+// steps, but they open in /process/:id - listed with the Quy trình cards below, not here.
+const agents = ALL_AGENTS.filter(a => a.kind !== "process");
 import { useOrg } from "@/pages/organization/orgStore";
 import { recheckAgentGroupPublish } from "@/components/configure/collabGroupStore";
 import { getChannelName } from "@/components/configure/channelCatalog";
@@ -44,7 +47,8 @@ const PROCESS_SUGGESTIONS = [
 
 /** Nhân sự số Quy trình demo (prototype - chưa có store riêng). */
 const PROCESS_AGENTS = [
-  { id: "procure", name: "Đề nghị mua sắm FHO-FPD", desc: "Dựng từ wiki Agentic BPM: duyệt nhiều cấp, tạo PO trên Odoo, nhận hàng, đối chiếu 3 chiều, thanh toán.", meta: "21 bước · Nhân sự số gọi", updated: "Cập nhật vừa xong" },
+  { id: "mbl-rules", name: "Rule thẩm định MB Life", desc: "Tra Policy, lịch sử bồi thường, bảng tham chiếu song song rồi chạy rule D/E/A tất định. Được Workforce bồi thường MB Life gọi.", meta: "10 bước · Nhân sự số gọi", updated: "Cập nhật vừa xong" },
+  { id: "procure", name: "Đề nghị mua sắm FHO-FPD", desc: "Dựng từ wiki Agentic BPM: duyệt nhiều cấp, tạo PO trên Odoo, nhận hàng, đối chiếu 3 chiều, thanh toán.", meta: "30 bước · Nhân sự số gọi", updated: "Cập nhật vừa xong" },
   { id: "invoice", name: "Đối chiếu hoá đơn với PO", desc: "Nhận hoá đơn qua HTTP, so khớp với PO trên ERP, lệch thì chuyển kế toán xem lại.", meta: "10 bước · HTTP", updated: "Cập nhật 1 giờ trước" },
 ];
 
