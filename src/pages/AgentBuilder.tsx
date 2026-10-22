@@ -365,7 +365,14 @@ export default function AgentBuilder() {
   const lockContent = viewOnly && tab !== "insights" && !(isProcess && tab === "build" && section === "flow");
   /** In Evaluate, a view-only person may still run tests and read results - those controls carry
    * data-viewonly-allow. */
-  const isAllowed = (t: EventTarget | null) => tab === "evaluate" && !!(t as HTMLElement | null)?.closest?.("[data-viewonly-allow]");
+  const isAllowed = (t: EventTarget | null) =>
+    (tab === "evaluate" && !!(t as HTMLElement | null)?.closest?.("[data-viewonly-allow]"))
+    // Someone who lost edit rights can still open their own Refine với AI history (read-only).
+    || !!(t as HTMLElement | null)?.closest?.("[data-refine-history]");
+  // Refine với AI: editors chat; a view-only person sees it only if they have history of their
+  // own (e.g. their edit right was taken away), and then only to read it (22/10).
+  const refineReadOnly = viewOnly;
+  const refineAvailable = !refineReadOnly || refineChatStore.hasForAgent(id ?? "new");
   // "View agent history" gates Insights → History (the conversation list and its Trace) on top
   // of just being able to open the Agent — e.g. Viewer can open an Agent shared with them
   // without seeing that Agent's conversation history, since Viewer has no "agents.history" by
@@ -598,8 +605,8 @@ export default function AgentBuilder() {
                   <span className="block mt-2 space-y-1">{processUsages.map(u => <a key={u.id} href={`/workforce/${u.id}`} className="block text-primary hover:underline">{u.name}</a>)}</span>
                 </>
               ) : published
-                ? "Nhân sự số đang live sẽ dừng phục vụ người dùng ngay. Cấu hình, phiên bản và quyền đã cấp sẽ bị xóa hẳn, không khôi phục được."
-                : "Cấu hình, phiên bản và quyền đã cấp sẽ bị xóa hẳn, không khôi phục được."}
+                ? "Nhân sự số đang live sẽ dừng phục vụ người dùng ngay. Cấu hình, phiên bản, quyền đã cấp và lịch sử chat Refine với AI của mọi người sẽ bị xóa hẳn, không khôi phục được."
+                : "Cấu hình, phiên bản, quyền đã cấp và lịch sử chat Refine với AI của mọi người sẽ bị xóa hẳn, không khôi phục được."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -610,6 +617,7 @@ export default function AgentBuilder() {
                 const name = agent.name;
                 if (published) agentPublishStore.unpublish(id);
                 deleteAgent(id);
+                refineChatStore.removeAgent(id);
                 setConfirmDelete(false);
                 toast.success(`Đã xóa "${name}".`);
                 navigate("/agents");
@@ -949,8 +957,8 @@ export default function AgentBuilder() {
         {/* AI chat sidebar — slides in from left */}
         <div
           style={{
-            width: buildMode === "ai" && !isProcess ? "476px" : "0px",
-            opacity: buildMode === "ai" && !isProcess ? 1 : 0,
+            width: buildMode === "ai" && !isProcess && refineAvailable ? "476px" : "0px",
+            opacity: buildMode === "ai" && !isProcess && refineAvailable ? 1 : 0,
             overflow: "hidden",
             flexShrink: 0,
             transition: "width 320ms cubic-bezier(0.4,0,0.2,1), opacity 280ms ease",
@@ -960,6 +968,7 @@ export default function AgentBuilder() {
         >
           <AiBuildSidebar
             agentId={id ?? "new"}
+            readOnly={refineReadOnly}
             publishTick={publishTick}
             onClose={() => setBuildMode("manual")}
             contextLabel={currentSectionLabel}
@@ -1013,7 +1022,7 @@ export default function AgentBuilder() {
               </div>
             )}
             <div className={`flex-1 overflow-y-auto bg-background ${isProcess && tab === "build" && section === "flow" ? "hidden" : ""}`}>
-              {tab === "build" && section === "instructions" && <GeneralTab key={id ?? "new"} agentId={id ?? "new"} onRefineWithAI={() => setBuildMode("ai")} onChatToTest={() => { setBuildMode("manual"); setPreviewView("chat"); }} previewCollapsed={previewCollapsed} onReopenPreview={() => setPreviewCollapsed(false)} />}
+              {tab === "build" && section === "instructions" && <GeneralTab key={id ?? "new"} agentId={id ?? "new"} onRefineWithAI={refineAvailable ? () => setBuildMode("ai") : undefined} onChatToTest={() => { setBuildMode("manual"); setPreviewView("chat"); }} previewCollapsed={previewCollapsed} onReopenPreview={() => setPreviewCollapsed(false)} />}
               {tab === "build" && section === "knowledge" && <KnowledgeTab agentId={id ?? "new"} />}
               {tab === "build" && section === "guardrails" && <GuardrailsAgentTab agentId={id ?? "new"} />}
               {tab === "build" && section === "skills" && <SkillsAgentTab agentId={id ?? "new"} />}
@@ -1056,9 +1065,11 @@ const fmtMarkerTime = (at: number) => {
 };
 
 function AiBuildSidebar({
-  agentId, onClose, contextLabel, sections, currentSection, onSectionChange, seedPrompt, publishTick,
+  agentId, readOnly = false, onClose, contextLabel, sections, currentSection, onSectionChange, seedPrompt, publishTick,
 }: {
   agentId: string;
+  /** No edit right on this Agent any more: read the thread, no chatting or applying. */
+  readOnly?: boolean;
   onClose: () => void;
   contextLabel: string;
   sections: any[];
@@ -1294,6 +1305,8 @@ function AiBuildSidebar({
             <div className="text-xs text-muted-foreground mt-2 leading-relaxed">
               <span className="font-medium text-foreground">Đề xuất đã cũ.</span> Instructions đã thay đổi sau khi có đề xuất này. Nhắn lại yêu cầu để nhận đề xuất mới.
             </div>
+          ) : readOnly ? (
+            <div className="text-xs text-muted-foreground mt-2">Chưa áp dụng</div>
           ) : (
             <div className="flex gap-1.5 mt-2">
               <button onClick={() => handleDiffApply(i)} className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium">Áp dụng</button>
@@ -1309,6 +1322,8 @@ function AiBuildSidebar({
         <p className="text-xs text-foreground leading-relaxed">{msg.question}</p>
         {msg.answered ? (
           <div className="flex items-center gap-1.5 text-xs text-primary"><HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} /> Đã chọn: <strong>{msg.answered}</strong></div>
+        ) : readOnly ? (
+          <div className="text-xs text-muted-foreground">Chưa trả lời</div>
         ) : (
           <div className="space-y-1.5">
             {msg.options.map((opt, oi) => (
@@ -1375,6 +1390,8 @@ function AiBuildSidebar({
           <div className="flex items-center gap-1.5 text-xs text-success mt-2"><HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} /> Đã kết nối {msg.service}</div>
         ) : msg.skipped ? (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-2"><HugeiconsIcon icon={Cancel01Icon} size={11} /> Đã bỏ qua</div>
+        ) : readOnly ? (
+          <div className="text-xs text-muted-foreground mt-2">Chưa kết nối</div>
         ) : (
           <div className="flex gap-1.5 mt-2">
             <button onClick={() => handleConnectorConnect(i)} className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium">
@@ -1419,23 +1436,30 @@ function AiBuildSidebar({
       <div ref={scrollRef} onScroll={e => { if (e.currentTarget.scrollTop < 40 && start > 0) loadOlder(); }} className="flex-1 overflow-y-auto p-3 space-y-2.5">
         <div className="rounded-lg border border-primary/20 bg-primary-soft/30 px-3 py-2 text-xs text-muted-foreground leading-relaxed flex gap-2">
           <Info size={13} className="text-primary shrink-0 mt-0.5" />
-          <span>Bạn đang trò chuyện với chính Nhân sự số này. Nó tự chỉnh cấu hình của mình trên bản nháp - chỉ có hiệu lực khi bạn Publish. Lịch sử chat được giữ lại, chỉ mình bạn xem được.</span>
+          <span>{readOnly
+            ? "Bạn đang xem lại lịch sử chat của mình. Bạn không còn quyền sửa Nhân sự số này nên không chat tiếp hay áp dụng đề xuất được."
+            : "Bạn đang trò chuyện với chính Nhân sự số này. Nó tự chỉnh cấu hình của mình trên bản nháp - chỉ có hiệu lực khi bạn Publish. Lịch sử chat được giữ lại, chỉ mình bạn xem được."}</span>
         </div>
         {start > 0 && (
           <button onClick={loadOlder} className="w-full text-xs text-primary hover:underline py-1">Xem tin nhắn cũ hơn</button>
         )}
         {rows}
-        <div className="flex flex-wrap gap-1.5 pt-1">
+        {!readOnly && <div className="flex flex-wrap gap-1.5 pt-1">
           {quickActions.map(s => (
             <button key={s} onClick={() => handleSend(s)} className="text-xs px-2 py-1 rounded-full bg-surface border border-border hover:bg-primary-soft hover:text-primary hover:border-primary/30 transition-base">
               {s}
             </button>
           ))}
-        </div>
+        </div>}
         <div ref={bottomRef} />
       </div>
 
-      {/* Composer */}
+      {/* Composer - replaced by a note when the person can only read their history */}
+      {readOnly ? (
+        <div className="border-t border-border px-3 py-3 shrink-0 bg-surface text-xs text-muted-foreground leading-relaxed">
+          Chỉ xem lại. Muốn chat tiếp, hãy nhờ chủ sở hữu hoặc Admin cấp lại quyền sửa Nhân sự số này.
+        </div>
+      ) : (
       <div className="border-t border-border p-2.5 shrink-0 bg-surface">
         <div className="rounded-xl border border-border bg-surface focus-within:border-primary transition-base p-1.5">
           <textarea rows={2} value={input} onChange={e => setInput(e.target.value)}
@@ -1479,6 +1503,7 @@ function AiBuildSidebar({
         </div>
         <div className="text-xs text-muted-foreground mt-1.5 px-1">Enter để gửi - Shift+Enter để xuống dòng</div>
       </div>
+      )}
     </aside>
   );
 }
@@ -1712,10 +1737,10 @@ function GeneralTab({ agentId, onRefineWithAI, onChatToTest, previewCollapsed, o
           </div>
 
           {/* Action buttons */}
-          <button onClick={() => onRefineWithAI?.()}
+          {onRefineWithAI && <button onClick={() => onRefineWithAI()} data-refine-history
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm text-foreground transition-base whitespace-nowrap shrink-0">
             <HugeiconsIcon icon={SparklesIcon} size={13} className="text-primary" /> Refine với AI
-          </button>
+          </button>}
           <button onClick={() => onChatToTest?.()}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm text-foreground transition-base whitespace-nowrap shrink-0">
             <HugeiconsIcon icon={Chat01Icon} size={13} className="text-muted-foreground" /> Chat to Test

@@ -75,6 +75,18 @@ export const refineChatStore = {
   get(key: string): RefineMsg[] { return chats[key] ?? []; },
   set(key: string, list: RefineMsg[]) { chats = { ...chats, [key]: list }; save(); emit(key); },
   update(key: string, fn: (list: RefineMsg[]) => RefineMsg[]) { this.set(key, fn(this.get(key))); },
+  /** Whether this person has any history on this Agent (decides if a view-only person still
+   * sees "Refine với AI" - to read their old thread, not to chat). */
+  hasForAgent(agentId: string): boolean { return this.has(this.key(agentId)); },
+  /** Deleting an Agent deletes every person's Refine với AI thread on it. */
+  removeAgent(agentId: string) {
+    const prefix = `${agentId}::`;
+    const keys = Object.keys(chats).filter(k => k.startsWith(prefix));
+    if (!keys.length) return;
+    chats = Object.fromEntries(Object.entries(chats).filter(([k]) => !k.startsWith(prefix)));
+    save();
+    keys.forEach(emit);
+  },
   subscribe(key: string, fn: () => void) {
     if (!listeners.has(key)) listeners.set(key, new Set());
     listeners.get(key)!.add(fn);
