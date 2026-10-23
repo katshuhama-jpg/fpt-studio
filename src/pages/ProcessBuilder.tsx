@@ -684,7 +684,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     this.commit(this.state.nodes, edges, { add: null });
   }
   makeNode(type, preset, title) { this.seq += 1; return { id: 'n' + this.seq, type: type, title: title || TYPES[type].name, x: 0, y: 0, cfg: Object.assign(defaultCfg(type), preset || {}) }; }
-  capFull() { if (this.state.nodes.length >= 500) { this.showToast('Quy trình đã đủ 500 bước - Tách bớt sang Subflow rồi thêm lại.'); return true; } return false; }
+  capFull() { if (this.state.nodes.length >= 500) { this.showToast('Quy trình đã đủ 500 bước - Gộp hoặc bỏ bớt bước rồi thêm lại.'); return true; } return false; }
   addNode(type, from, preset, title) {
     if (this.capFull()) return;
     if (this.roStop()) return;
@@ -785,11 +785,11 @@ class ProcessBuilderInner extends React.Component<any, any> {
       stop = issues[0] + (TYPES[n.type].err && c.retry ? ' (đã thử lại 3 lần)' : '');
     } else {
       switch (n.type) {
-        case 'condition': out = c.cases.length; for (var i = 0; i < c.cases.length; i++) if (self.evalCase(c.cases[i], vars)) { out = i; break; } note = out < c.cases.length ? 'Đi nhánh "' + c.cases[out].name + '"' : 'Không nhánh nào đúng, đi Còn lại'; break;
+        case 'condition': out = c.cases.length; for (var i = 0; i < c.cases.length; i++) if (self.evalCase(c.cases[i], vars)) { out = i; break; } note = out < c.cases.length ? 'Đi nhánh "' + c.cases[out].name + '"' : 'Điều kiện sai, đi nhánh "Không"'; break;
         case 'switch': out = c.vals.length; for (var j = 0; j < c.vals.length; j++) if (String(vars[c.on]) === c.vals[j].name) { out = j; break; } note = c.on + ' = ' + vars[c.on] + (out < c.vals.length ? '' : ', đi Mặc định'); break;
         case 'classify': out = 0; vars.nhom = c.cats[0].name; note = 'AI xếp vào "' + c.cats[0].name + '" (độ tin cậy 0,91)'; break;
         case 'extract': c.fields.forEach(function (f) { if (f.name && vars[f.name] === undefined) vars[f.name] = mockOf(f.name); }); note = 'Lấy ' + c.fields.length + ' trường từ ' + c.doc; break;
-        case 'agent': outputsOf(n).forEach(function (v) { if (vars[v] === undefined) vars[v] = mockOf(v); }); note = (c.agent === 'new' ? 'Nhân sự số của bước này' : c.agent) + ' đã trả lời'; break;
+        case 'agent': outputsOf(n).forEach(function (v) { if (vars[v] === undefined) vars[v] = mockOf(v); }); note = c.model + ' trả lời' + (c.output === 'json' ? ': ' + outputsOf(n).join(', ') : ''); break;
         case 'respond': var rsp = {}; c.outs.forEach(function (o) { if (o.name) rsp[o.name] = fill(o.desc || '', vars); }); r = Object.assign({}, r, { resp: rsp }); note = 'Gửi cho Nhân sự số: ' + Object.keys(rsp).map(function (k) { return k + ' = ' + rsp[k]; }).join(', '); break;
         case 'tool': outputsOf(n).forEach(function (v) { vars[v] = mockOf(v); }); note = c.tool + ' chạy xong'; break;
         case 'func': fnOf(c).out.forEach(function (v) { vars[v] = mockOf(v); }); note = fnOf(c).name + (c.fn === 'http' ? ': ' + c.method + ' ' + fill(c.url, vars) + ' → 200' : ''); break;
