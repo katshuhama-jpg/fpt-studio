@@ -540,7 +540,7 @@ export function AnalyticsOverview({ a }: { a: A }) {
 export function AnalyticsUsage({ a }: { a: A }) {
   const noun = useNoun();
   const users = a.rows.map(d => ({ day: d.day, "Lần đầu": d.newUsers, "Quay lại": d.users - d.newUsers }));
-  const rates = a.rows.map(d => ({ day: d.day, "Tự xử lý": pct(d.resolved, d.sessions), "Bỏ dở": pct(d.abandoned, d.sessions) }));
+  const rates = a.rows.map(d => d.sessions ? { day: d.day, "Tự xử lý": pct(d.resolved, d.sessions), "Bỏ dở": pct(d.abandoned, d.sessions) } : { day: d.day });
   const heatDows = a.today ? [dowOf(a.rows[0].date)] : DOW;
   const cells = a.heat.filter(h => heatDows.includes(h.dow));
   const maxHeat = Math.max(1, ...cells.map(h => h.sessions));
@@ -566,7 +566,7 @@ export function AnalyticsUsage({ a }: { a: A }) {
             </ResponsiveContainer>
           </div>
         </Card>
-        <Card title={`Kết quả ${noun} (%)`} note="Tự xử lý: Nhân sự số trả lời được và không bị Dislike">
+        <Card title={`Kết quả ${noun} (%)`} note={`Tự xử lý: Nhân sự số trả lời được và không bị Dislike${a.today ? ". Giờ không có " + noun + " thì để trống" : ""}`}>
           <div className="h-56" role="img" aria-label={`Tỷ lệ tự xử lý và bỏ dở theo ${a.step}`}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={rates} margin={{ top: 16, right: 8, left: -16, bottom: 0 }}>
@@ -623,7 +623,7 @@ export function AnalyticsUsage({ a }: { a: A }) {
 /* ============ CHẤT LƯỢNG ============ */
 export function AnalyticsFeedback({ a }: { a: A }) {
   const { cur } = a;
-  const series = a.rows.map(d => ({ day: d.day, Like: pct(d.likes, d.likes + d.dislikes), Dislike: pct(d.dislikes, d.likes + d.dislikes) }));
+  const series = a.rows.map(d => d.likes + d.dislikes ? { day: d.day, Like: pct(d.likes, d.likes + d.dislikes), Dislike: pct(d.dislikes, d.likes + d.dislikes) } : { day: d.day });
   const g = GUARDRAIL.map(x => ({ ...x, count: Math.round(x.count * a.factor) }));
   const maxG = Math.max(1, ...g.map(x => x.count));
   return (
@@ -776,8 +776,8 @@ export function AnalyticsTopics({ a, agentId }: { a: A; agentId: string }) {
 
 /* ============ HOẠT ĐỘNG ============ */
 export function AnalyticsOperations({ a }: { a: A }) {
-  const lat = a.rows.map(d => ({ day: d.day, "Lúc chậm": Math.round(d.p95 * 10) / 10, "Thông thường": Math.round(d.p50 * 10) / 10 }));
-  const err = a.rows.map(d => ({ day: d.day, "Không trả lời được": pct(d.fallbacks, d.sessions), "Lỗi": pct(d.errors, d.runs) }));
+  const lat = a.rows.map(d => d.sessions ? { day: d.day, "Lúc chậm": Math.round(d.p95 * 10) / 10, "Thông thường": Math.round(d.p50 * 10) / 10 } : { day: d.day });
+  const err = a.rows.map(d => d.sessions ? { day: d.day, "Không trả lời được": pct(d.fallbacks, d.sessions), "Lỗi": pct(d.errors, d.runs) } : { day: d.day });
   const iv = tickEvery(a.rows.length);
   const dots = a.rows.length < 3;
   return (
