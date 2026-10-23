@@ -1,7 +1,8 @@
 import { useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { InformationCircleIcon } from "@hugeicons/core-free-icons";
+import { InformationCircleIcon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend,
 } from "recharts";
@@ -170,10 +171,53 @@ function Header({ title, desc }: { title: string; desc: string }) {
         <h2 className="font-display text-xl font-semibold">{title}</h2>
         <p className="text-sm text-muted-foreground mt-1">{desc}</p>
       </div>
-      <span className="text-xs text-muted-foreground bg-surface border border-border rounded-lg px-3 h-8 inline-flex items-center">
-        28 ngày gần nhất · so với 28 ngày trước đó
-      </span>
+      <div className="flex items-center gap-1 bg-surface border border-border rounded-lg p-1" role="group" aria-label="Khoảng thời gian">
+        {["7 ngày", "28 ngày", "90 ngày"].map(t => (
+          <button key={t} type="button" aria-pressed={t === "28 ngày"}
+            className={`px-3 h-7 rounded-md text-xs font-medium transition-base ${t === "28 ngày" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-surface-muted"}`}>
+            {t}
+          </button>
+        ))}
+      </div>
     </div>
+  );
+}
+
+/** Pill showing change vs previous period; colour + arrow + text so it never relies on colour alone. */
+function DeltaPill({ diff, prev, good, unit }: { diff: number; prev: number; good: 1 | -1; unit?: "pp" }) {
+  const rel = prev ? (diff / prev) * 100 : 0;
+  const better = diff * good >= 0;
+  const text = unit === "pp" ? `${diff >= 0 ? "+" : ""}${vn(diff, 1)} điểm` : `${rel >= 0 ? "+" : ""}${vn(rel, 1)}%`;
+  return (
+    <span className={`inline-flex items-center gap-1 h-6 px-2 rounded-full text-xs font-semibold whitespace-nowrap ${better ? "bg-[hsl(var(--success-soft))] text-[hsl(var(--success-strong))]" : "bg-[hsl(var(--destructive-soft))] text-[hsl(var(--destructive-strong))]"}`}>
+      {diff >= 0 ? "↑" : "↓"} {text}
+    </span>
+  );
+}
+
+/** Tiny trend line for a card. */
+function Spark({ values, color = "hsl(var(--primary))", height = 44 }: { values: number[]; color?: string; height?: number }) {
+  const w = 200, h = height, mx = Math.max(...values), mn = Math.min(...values);
+  const pts = values.map((v, i) => [i * (w / (values.length - 1)), h - 4 - ((v - mn) / ((mx - mn) || 1)) * (h - 8)]);
+  const d = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join("");
+  return (
+    <svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true">
+      <path d={`${d}L${w},${h}L0,${h}Z`} fill={color} opacity={0.1} />
+      <path d={d} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+/** Tiny bar series for a card; the latest bar is solid, the rest muted. */
+function MiniBars({ values, height = 44 }: { values: number[]; height?: number }) {
+  const w = 200, h = height, mx = Math.max(...values), bw = w / values.length;
+  return (
+    <svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true">
+      {values.map((v, i) => (
+        <rect key={i} x={i * bw + 0.8} y={h - (v / mx) * h} width={bw - 1.6} height={(v / mx) * h} rx={1.5}
+          fill="hsl(var(--primary))" opacity={i === values.length - 1 ? 1 : 0.35} />
+      ))}
+    </svg>
   );
 }
 
@@ -181,19 +225,17 @@ function Header({ title, desc }: { title: string; desc: string }) {
 function Kpi({ label, value, cur, prev, good, unit, info, sub }: {
   label: string; value: string; cur: number; prev: number; good: 1 | -1; unit?: "pp"; info: string; sub?: string;
 }) {
-  const diff = cur - prev;
-  const rel = prev ? (diff / prev) * 100 : 0;
-  const better = diff * good >= 0;
-  const text = unit === "pp" ? `${diff >= 0 ? "+" : ""}${vn(diff, 1)} điểm %` : `${rel >= 0 ? "+" : ""}${vn(rel, 1)}%`;
   return (
     <div className="surface-card p-4">
-      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground mb-1">
+      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>{label}</span>
         <span title={info} aria-label={info} className="cursor-help"><HugeiconsIcon icon={InformationCircleIcon} size={13} /></span>
       </div>
-      <div className="font-display text-2xl font-semibold tracking-tight">{value}</div>
-      <div className={`text-xs mt-1 ${better ? "text-success" : "text-destructive"}`}>{diff >= 0 ? "↑" : "↓"} {text} so với kỳ trước</div>
-      {sub && <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>}
+      <div className="flex items-baseline justify-between gap-2 mt-1.5">
+        <span className="font-display text-2xl font-semibold tracking-tight tabular-nums">{value}</span>
+        <DeltaPill diff={cur - prev} prev={prev} good={good} unit={unit} />
+      </div>
+      {sub && <div className="text-xs text-muted-foreground mt-1">{sub}</div>}
     </div>
   );
 }
@@ -214,10 +256,10 @@ function HBars({ rows, max = 100, tone = "primary" }: { rows: { label: string; v
   return (
     <div className="space-y-2.5">
       {rows.map(r => (
-        <div key={r.label} className="grid grid-cols-[minmax(7rem,12rem)_1fr_auto] items-center gap-3 text-sm">
+        <div key={r.label} className="grid grid-cols-[minmax(0,9rem)_1fr_6.5rem] items-center gap-3 text-sm">
           <span className="truncate" title={r.label}>{r.label}</span>
-          <div className="h-2.5 rounded-full bg-surface-muted overflow-hidden">
-            <div className={`h-full rounded-full ${r.highlight ? (tone === "destructive" ? "bg-destructive" : "bg-primary") : "bg-primary/40"}`} style={{ width: `${Math.max(1, (r.value / max) * 100)}%` }} />
+          <div className="h-2 rounded-full bg-surface-muted overflow-hidden">
+            <div className="h-full rounded-full" style={{ width: `${Math.max(1, (r.value / max) * 100)}%`, background: r.highlight ? (tone === "destructive" ? "hsl(var(--destructive))" : "hsl(var(--primary))") : "hsl(var(--primary) / 0.4)" }} />
           </div>
           <span className="text-xs text-muted-foreground tabular-nums text-right whitespace-nowrap">{r.text}</span>
         </div>
@@ -226,11 +268,13 @@ function HBars({ rows, max = 100, tone = "primary" }: { rows: { label: string; v
   );
 }
 
-function VersionLines({ markers }: { markers: { label: string; day: string }[] }) {
-  return <>{markers.map(m => (
-    <ReferenceLine key={m.label} x={m.day} stroke="hsl(var(--primary))" strokeOpacity={0.6} strokeDasharray="3 3"
-      label={{ value: m.label, position: "insideTopLeft", fontSize: 11, fill: "hsl(var(--primary))" }} />
-  ))}</>;
+/** Publish markers. Returned as an array (not a wrapper component) because Recharts only draws
+ * ReferenceLine elements that are direct children of the chart. */
+function versionLines(markers: { label: string; day: string }[]) {
+  return markers.map(m => (
+    <ReferenceLine key={m.label} x={m.day} stroke="hsl(var(--primary))" strokeOpacity={0.55} strokeDasharray="4 4"
+      label={{ value: m.label, position: "insideTopLeft", fontSize: 11, fontWeight: 600, fill: "hsl(var(--primary))" }} />
+  ));
 }
 
 /* ============ TỔNG QUAN ============ */
@@ -262,8 +306,8 @@ export function AnalyticsOverview({ agentId }: { agentId: string }) {
               <XAxis dataKey="day" tick={AXIS} tickLine={false} axisLine={false} interval={3} />
               <YAxis tick={AXIS} tickLine={false} axisLine={false} />
               <Tooltip contentStyle={TT} cursor={{ fill: "hsl(var(--surface-muted))" }} />
-              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
-              <VersionLines markers={markers} />
+              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, color: "hsl(var(--muted-foreground))", paddingTop: 8 }} />
+              {versionLines(markers)}
               <Bar dataKey="Tự xử lý" stackId="a" fill="hsl(var(--primary))" isAnimationActive={false} />
               <Bar dataKey="Chưa tự xử lý" stackId="a" fill="hsl(var(--border-strong))" radius={[4, 4, 0, 0]} isAnimationActive={false} />
             </BarChart>
@@ -316,9 +360,9 @@ export function AnalyticsUsage({ agentId }: { agentId: string }) {
                 <XAxis dataKey="day" tick={AXIS} tickLine={false} axisLine={false} interval={4} />
                 <YAxis tick={AXIS} tickLine={false} axisLine={false} />
                 <Tooltip contentStyle={TT} cursor={{ fill: "hsl(var(--surface-muted))" }} />
-                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="Lần đầu" stackId="u" fill="hsl(var(--accent))" isAnimationActive={false} />
-                <Bar dataKey="Quay lại" stackId="u" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, color: "hsl(var(--muted-foreground))", paddingTop: 8 }} />
+                <Bar dataKey="Lần đầu" stackId="u" fill="hsl(var(--primary) / 0.35)" maxBarSize={18} isAnimationActive={false} />
+                <Bar dataKey="Quay lại" stackId="u" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} maxBarSize={18} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -331,8 +375,8 @@ export function AnalyticsUsage({ agentId }: { agentId: string }) {
                 <XAxis dataKey="day" tick={AXIS} tickLine={false} axisLine={false} interval={4} />
                 <YAxis tick={AXIS} tickLine={false} axisLine={false} unit="%" domain={[0, 100]} />
                 <Tooltip contentStyle={TT} formatter={(v: number, n: string) => [`${vn(v, 1)}%`, n]} />
-                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
-                <VersionLines markers={markers} />
+                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, color: "hsl(var(--muted-foreground))", paddingTop: 8 }} />
+                {versionLines(markers)}
                 <Line type="linear" dataKey="Tự xử lý" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} isAnimationActive={false} />
                 <Line type="linear" dataKey="Bỏ dở" stroke="hsl(var(--warning))" strokeWidth={2} dot={false} isAnimationActive={false} />
               </LineChart>
@@ -402,8 +446,8 @@ export function AnalyticsFeedback({ agentId }: { agentId: string }) {
               <XAxis dataKey="day" tick={AXIS} tickLine={false} axisLine={false} interval={3} />
               <YAxis tick={AXIS} tickLine={false} axisLine={false} unit="%" domain={[0, 100]} />
               <Tooltip contentStyle={TT} formatter={(v: number, n: string) => [`${vn(v, 1)}%`, n]} />
-              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
-              <VersionLines markers={markers} />
+              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, color: "hsl(var(--muted-foreground))", paddingTop: 8 }} />
+              {versionLines(markers)}
               <Line type="linear" dataKey="Like" stroke="hsl(var(--success))" strokeWidth={2} dot={false} isAnimationActive={false} />
               <Line type="linear" dataKey="Dislike" stroke="hsl(var(--destructive))" strokeWidth={2} dot={false} isAnimationActive={false} />
             </LineChart>
@@ -460,7 +504,7 @@ export function AnalyticsTopics({ agentId }: { agentId: string }) {
                   <td className="px-5 py-2.5 max-w-[320px]">{u.q}</td>
                   <td className="px-3 text-muted-foreground">{u.topic}</td>
                   <td className="text-right tabular-nums px-3">{u.times}</td>
-                  <td className="px-3"><span className={`chip ${u.reason === "Trả lời sai" ? "chip-destructive" : "chip-warning"}`}>{u.reason}</span></td>
+                  <td className="px-3"><span className={`chip whitespace-nowrap ${u.reason === "Trả lời sai" ? "bg-[hsl(var(--destructive-soft))] text-destructive border-[hsl(var(--destructive)/0.2)]" : "chip-warning"}`}>{u.reason}</span></td>
                   <td className="px-3 text-muted-foreground">{u.last}</td>
                   <td className="px-5 text-right">
                     <button className="btn-secondary h-8 text-xs whitespace-nowrap" onClick={() => toast.success("Đã thêm vào bộ test", { description: u.q })}>Tạo test case</button>
@@ -493,8 +537,8 @@ export function AnalyticsOperations({ agentId }: { agentId: string }) {
                 <XAxis dataKey="day" tick={AXIS} tickLine={false} axisLine={false} interval={4} />
                 <YAxis tick={AXIS} tickLine={false} axisLine={false} unit="s" />
                 <Tooltip contentStyle={TT} formatter={(v: number, n: string) => [`${vn(v, 1)} giây`, n]} />
-                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
-                <VersionLines markers={markers} />
+                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, color: "hsl(var(--muted-foreground))", paddingTop: 8 }} />
+                {versionLines(markers)}
                 <Line type="linear" dataKey="Lúc chậm" stroke="hsl(var(--warning))" strokeWidth={2} dot={false} isAnimationActive={false} />
                 <Line type="linear" dataKey="Thông thường" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} isAnimationActive={false} />
               </LineChart>
@@ -509,8 +553,8 @@ export function AnalyticsOperations({ agentId }: { agentId: string }) {
                 <XAxis dataKey="day" tick={AXIS} tickLine={false} axisLine={false} interval={4} />
                 <YAxis tick={AXIS} tickLine={false} axisLine={false} unit="%" />
                 <Tooltip contentStyle={TT} formatter={(v: number, n: string) => [`${vn(v, 1)}%`, n]} />
-                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
-                <VersionLines markers={markers} />
+                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, color: "hsl(var(--muted-foreground))", paddingTop: 8 }} />
+                {versionLines(markers)}
                 <Line type="linear" dataKey="Không trả lời được" stroke="hsl(var(--warning))" strokeWidth={2} dot={false} isAnimationActive={false} />
                 <Line type="linear" dataKey="Lỗi" stroke="hsl(var(--destructive))" strokeWidth={2} dot={false} isAnimationActive={false} />
               </LineChart>
@@ -590,8 +634,8 @@ export function AnalyticsCost({ agentId }: { agentId: string }) {
                 <XAxis dataKey="day" tick={AXIS} tickLine={false} axisLine={false} interval={3} />
                 <YAxis tick={AXIS} tickLine={false} axisLine={false} tickFormatter={compact} />
                 <Tooltip contentStyle={TT} formatter={(v: number) => [vn(v), "Token"]} cursor={{ fill: "hsl(var(--surface-muted))" }} />
-                <VersionLines markers={markers} />
-                <Bar dataKey="Token" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                {versionLines(markers)}
+                <Bar dataKey="Token" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} maxBarSize={16} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </div>
