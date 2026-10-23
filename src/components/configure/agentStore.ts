@@ -303,13 +303,6 @@ Mỗi chứng từ bắt buộc trả trạng thái Received / Not received. Kh�
 IP và IP-Sur không bắt buộc bảng kê: ghi chú để bước dự toán lấy số ngày từ giấy ra viện.`,
   },
   {
-    id: "qt-procure", name: "Đề nghị mua sắm FHO-FPD", emoji: "🔀", bg: "bg-primary-soft", accent: "bg-gradient-brand",
-    status: "Draft", desc: "Dựng từ wiki Agentic BPM: duyệt nhiều cấp, tạo PO trên Odoo, nhận hàng, đối chiếu 3 chiều, thanh toán.",
-    ownerId: "m-fsoft-ceo", sharedWith: ["m-plat-1", "m-plat-7"], kind: "process", processId: "procure",
-    model: "Quy trình", convs: 0, success: 0, channels: ["Workspace"], updated: "Just now",
-    instructions: `Nhân sự số Quy trình - mở để xem các bước.`,
-  },
-  {
     id: "qt-invoice", name: "Đối chiếu hoá đơn với PO", emoji: "🔀", bg: "bg-primary-soft", accent: "bg-gradient-brand",
     status: "Draft", desc: "Nhận hoá đơn qua HTTP, so khớp với PO trên ERP, lệch thì chuyển kế toán xem lại.",
     ownerId: "m-fsoft-ceo", kind: "process", processId: "invoice",
@@ -318,7 +311,7 @@ IP và IP-Sur không bắt buộc bảng kê: ghi chú để bước dự toán 
   },
   {
     id: "claim-rules-process", name: "Rule thẩm định MB Life", emoji: "🔀", bg: "bg-primary-soft", accent: "bg-gradient-brand",
-    status: "Published", desc: "Nhân sự số Quy trình: tra Policy, lịch sử bồi thường, bảng tham chiếu rồi chạy rule D/E/A tất định. Mỗi rule ra PASS / WARN / NOT_EVALUATED kèm dẫn chứng.",
+    status: "Published", desc: "Nhân sự số Quy trình: tra Policy, lịch sử bồi thường, bảng tham chiếu cùng lúc, chạy rule D/E/A qua API rule engine, trả PASS / WARN / NOT_EVALUATED cho Nhân sự số gọi nó.",
     ownerId: "m-fsoft-ceo", kind: "process", processId: "mbl-rules",
     model: "Quy trình", convs: 0, success: 0, channels: ["Workspace"], updated: "Just now",
     outputs: [
