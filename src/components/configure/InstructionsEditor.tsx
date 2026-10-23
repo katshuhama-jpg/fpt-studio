@@ -104,8 +104,17 @@ function anchorFor(root: HTMLElement, node: Text, index: number): SlashAnchor {
  * chip has to be one atomic block (Backspace removes it whole, the text inside can't be edited)
  * — something a textarea can't do. The value handed to / received from the parent is plain text
  * with `{{ref:…}}` tokens (see instructionRefs.ts). */
-export default function InstructionsEditor({ agentId, value, onChange, onAdd, placeholder, className = "" }: {
+export default function InstructionsEditor({ agentId, value, onChange, onAdd, placeholder, className = "", trigger = "/", scope, readOnly, ariaLabel = "Instructions", onBlur: onBlurProp, fieldKey }: {
   agentId: string;
+  /** Character that opens the menu ("/" in Instructions, "@" for skills-only fields). */
+  trigger?: string;
+  /** Limit the menu to one category (e.g. "skills") — it opens straight on that list. */
+  scope?: Category;
+  readOnly?: boolean;
+  ariaLabel?: string;
+  onBlur?: () => void;
+  /** data-field for focusing the first error. */
+  fieldKey?: string;
   value: string;
   onChange: (next: string) => void;
   /** Where "Thêm" in an empty menu category should take the Builder. */
@@ -143,13 +152,13 @@ export default function InstructionsEditor({ agentId, value, onChange, onAdd, pl
     const pos = caretInText(root);
     const st = slash.current;
     if (st) {
-      if (!pos || pos.node !== st.node || pos.offset <= st.index || st.node.data[st.index] !== "/") { closeMenu(); return; }
+      if (!pos || pos.node !== st.node || pos.offset <= st.index || st.node.data[st.index] !== trigger) { closeMenu(); return; }
       const q = st.node.data.slice(st.index + 1, pos.offset);
       if (/^\s/.test(q) || q.length > 60) { closeMenu(); return; }
       setMenu({ query: q, anchor: anchorFor(root, st.node, st.index) });
       return;
     }
-    if (justTypedSlash && pos && pos.offset > 0 && pos.node.data[pos.offset - 1] === "/" && slashAllowed(root, pos.node, pos.offset - 1)) {
+    if (justTypedSlash && pos && pos.offset > 0 && pos.node.data[pos.offset - 1] === trigger && slashAllowed(root, pos.node, pos.offset - 1)) {
       slash.current = { node: pos.node, index: pos.offset - 1 };
       setMenu({ query: "", anchor: anchorFor(root, pos.node, pos.offset - 1) });
     }
@@ -248,18 +257,20 @@ export default function InstructionsEditor({ agentId, value, onChange, onAdd, pl
     <>
       <div
         ref={rootRef}
-        contentEditable
+        contentEditable={!readOnly}
         suppressContentEditableWarning
+        data-field={fieldKey}
+        aria-readonly={readOnly || undefined}
         role="textbox"
         aria-multiline="true"
-        aria-label="Instructions"
+        aria-label={ariaLabel}
         spellCheck={false}
         data-placeholder={placeholder}
         onInput={e => {
           clearSelected();
           emit();
           const ne = e.nativeEvent as InputEvent;
-          syncMenu(ne.inputType === "insertText" && ne.data === "/");
+          syncMenu(ne.inputType === "insertText" && ne.data === trigger);
         }}
         onKeyDown={onKeyDown}
         onKeyUp={() => { if (slash.current) syncMenu(false); }}
@@ -268,7 +279,7 @@ export default function InstructionsEditor({ agentId, value, onChange, onAdd, pl
         onCopy={onCopy}
         onCut={e => { onCopy(e); document.execCommand("delete"); }}
         onFocus={refreshChips}
-        onBlur={() => { clearSelected(); closeMenu(); }}
+        onBlur={() => { clearSelected(); closeMenu(); onBlurProp?.(); }}
         className={`whitespace-pre-wrap break-words outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground ${className}`}
       />
       {menu && (
@@ -277,6 +288,7 @@ export default function InstructionsEditor({ agentId, value, onChange, onAdd, pl
           agentId={agentId}
           query={menu.query}
           anchor={menu.anchor}
+          scope={scope}
           onPick={pick}
           onClose={closeMenu}
           onAdd={cat => { closeMenu(); onAdd?.(cat); }}

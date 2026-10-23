@@ -61,8 +61,11 @@ const SlashMenu = forwardRef<SlashMenuHandle, {
   onClose: () => void;
   /** "Thêm" link in an empty category. */
   onAdd: (cat: Category) => void;
-}>(function SlashMenu({ agentId, query, anchor, onPick, onClose, onAdd }, ref) {
-  const [nav, setNav] = useState<NavPath | null>(null); // null = level 1 (the three categories)
+  /** Lock the menu to one category: it opens on that list and can't go back to level 1. */
+  scope?: Category;
+}>(function SlashMenu({ agentId, query, anchor, onPick, onClose, onAdd, scope }, ref) {
+  const [nav, setNav] = useState<NavPath | null>(scope ? { cat: scope } : null); // null = level 1 (the three categories)
+  const atScopeRoot = !!scope && !!nav && nav.cat === scope && !nav.kbId && !nav.connectorId && !nav.folderId;
   const [highlight, setHighlight] = useState(0);
   const [phase, setPhase] = useState<"loading" | "ready">("loading");
   const [reloadKey, setReloadKey] = useState(0);
@@ -119,8 +122,8 @@ const SlashMenu = forwardRef<SlashMenuHandle, {
 
   const enter = useCallback((next: NavPath) => { setNav(next); }, []);
   const goBack = useCallback(() => {
-    setNav(prev => (prev ? parentNav(prev) : null));
-  }, []);
+    setNav(prev => (prev ? (parentNav(prev) ?? (scope ? prev : null)) : null));
+  }, [scope]);
 
   const activate = useCallback((row: Row | undefined, how: "insert" | "open") => {
     if (!row) return;
@@ -148,13 +151,13 @@ const SlashMenu = forwardRef<SlashMenuHandle, {
           }
           return false;
         case "ArrowLeft":
-          if (nav) { goBack(); return true; }
+          if (nav && !atScopeRoot) { goBack(); return true; }
           return false;
         case "Escape": onClose(); return true;
         default: return false;
       }
     },
-  }), [selRows.length, current, activate, nav, goBack, onClose]);
+  }), [selRows.length, current, activate, nav, goBack, onClose, atScopeRoot]);
 
   // Open below the caret; flip above when there isn't room for the menu underneath.
   useLayoutEffect(() => {
@@ -248,7 +251,7 @@ const SlashMenu = forwardRef<SlashMenuHandle, {
         <span className={`text-sm truncate ${query ? "text-foreground" : "text-muted-foreground"}`}>{query || placeholder}</span>
       </div>
 
-      {nav && (
+      {nav && !atScopeRoot && (
         <div className="flex items-center gap-1.5 px-2 py-1.5 border-b shrink-0">
           <button type="button" onClick={goBack} aria-label="Quay lại" className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground shrink-0">
             <HugeiconsIcon icon={ArrowLeft01Icon} size={13} />
@@ -285,7 +288,7 @@ const SlashMenu = forwardRef<SlashMenuHandle, {
       </div>
 
       <div className="px-3 py-1.5 border-t text-[11px] text-muted-foreground shrink-0 whitespace-nowrap overflow-hidden text-ellipsis">
-        ↑↓ di chuyển · ↵ chèn · → mở · ← quay lại · Esc đóng
+        {scope ? "↑↓ di chuyển · ↵ chèn · Esc đóng" : "↑↓ di chuyển · ↵ chèn · → mở · ← quay lại · Esc đóng"}
       </div>
     </div>,
     document.body,

@@ -2,7 +2,7 @@ import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { createPortal } from "react-dom";
 
 import { HugeiconsIcon } from "@hugeicons/react"
-import { SquareLock01Icon, Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, Attachment01Icon, BlockedIcon, BookOpen01Icon, Cancel01Icon, BoltIcon, PauseIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, InformationCircleIcon, MinusSignIcon, CircleArrowReload01Icon, Wrench01Icon, UserGroupIcon, ArrowLeftDoubleIcon } from "@hugeicons/core-free-icons";
+import { SquareLock01Icon, Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, Attachment01Icon, BlockedIcon, BookOpen01Icon, Cancel01Icon, BoltIcon, PauseIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, InformationCircleIcon, MinusSignIcon, CircleArrowReload01Icon, Wrench01Icon, UserGroupIcon, ArrowLeftDoubleIcon, Notification01Icon } from "@hugeicons/core-free-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import { ProcessCanvas } from "@/pages/ProcessBuilder";
@@ -19,6 +19,7 @@ import { isResourceRevoked, listRevokedResources, REVOKED_COPY, type RevocableTy
 import { agentOnlyForIn, saveSharingInAgent } from "@/components/governance/spaceDelete";
 import DeleteTriggerDialog from "@/components/configure/DeleteTriggerDialog";
 import HistoryTab from "@/components/history/HistoryTab";
+import AgentAnalytics, { type AnalyticsSection } from "@/components/insights/AgentAnalytics";
 import { AgentVersionsPanel } from "@/components/governance/agentVersionsPanel";
 import { AgentStatusCluster } from "@/components/governance/agentStatusCluster";
 import HistoryChatPanel from "@/components/history/HistoryChatPanel";
@@ -65,7 +66,8 @@ import { skillStore, type Skill } from "@/components/configure/skillStore";
 import { agentSkillStore } from "@/components/configure/agentSkillStore";
 import { builtinSkillStore, type BuiltinSkill } from "@/components/configure/builtinSkillStore";
 import { agentCapabilityStore } from "@/components/configure/agentCapabilityStore";
-import AgentCapabilitiesModal from "@/components/configure/AgentCapabilitiesModal";
+import InactiveReminderTab from "@/components/reminders/InactiveReminderTab";
+import CapabilitiesEditor from "@/components/configure/CapabilitiesEditor";
 import CreateSkillModal, { type SkillFormData } from "@/components/configure/CreateSkillModal";
 import CreateSkillChoiceModal from "@/components/configure/CreateSkillChoiceModal";
 import UploadSkillModal from "@/components/configure/UploadSkillModal";
@@ -158,6 +160,7 @@ const developNav = [
   { id: "knowledge",    label: "Knowledge",      icon: NoteIcon },
   { id: "triggers",     label: "Triggers",       icon: TimeScheduleIcon },
   { id: "versions",     label: "Phiên bản",      icon: HistoryIcon },
+  { id: "advanced",     label: "Cài đặt nâng cao", icon: SlidersHorizontalIcon },
   { id: "sub-agents",   label: "Nhân sự số con",     icon: UserMultipleIcon, comingSoon: true, hidden: true },
 ];
 
@@ -172,12 +175,17 @@ const processNav = [
 const PROCESS_SECTIONS = processNav.map(n => n.id);
 
 const INSIGHTS_SUBTABS = [
-  { id: "performance", label: "Performance", icon: Analytics01Icon },
-  { id: "quality", label: "Quality", icon: Activity01Icon },
+  { id: "performance", label: "Tổng quan", icon: Analytics01Icon },
+  { id: "usage", label: "Sử dụng", icon: UserMultipleIcon },
+  { id: "feedback", label: "Chất lượng", icon: StarIcon },
+  { id: "topics", label: "Người dùng hỏi gì", icon: FileQuestionMarkIcon },
+  { id: "operations", label: "Hoạt động", icon: Activity01Icon },
+  { id: "cost", label: "Chi phí", icon: CpuIcon },
+  { id: "quality", label: "Monitor", icon: MonitorDotIcon },
   { id: "history", label: "History", icon: HistoryIcon },
 ];
 
-const BUILD_SECTIONS = ["flow", "instructions", "knowledge", "guardrails", "skills", "triggers", "connectors", "versions"];
+const BUILD_SECTIONS = ["flow", "instructions", "knowledge", "guardrails", "skills", "triggers", "connectors", "versions", "advanced"];
 const INSIGHTS_SECTIONS = INSIGHTS_SUBTABS.map(s => s.id);
 const EVAL_ICONS: Record<string, any> = { "test-sets": FlaskConicalIcon, runs: PlayCircleIcon, metrics: CheckListIcon, publish: Rocket01Icon };
 
@@ -665,21 +673,11 @@ export default function AgentBuilder() {
         onClose={() => setCardMissingDesc(false)}
         onWrite={() => {
           setCardMissingDesc(false);
-          setPreviewCollapsed(false);
-          setPreviewView("config");
-          setParams({ tab: "build", section: "instructions" });
+          setParams({ tab: "build", section: "advanced", atab: "agent-card" });
           agentCardStore.requestFocus(id ?? "new");
         }}
       />
 
-      {/* ?panel=capabilities — deep link from Kênh triển khai / the Publish warning to the capabilities editor. */}
-      {params.get("panel") === "capabilities" && (
-        <AgentCapabilitiesModal
-          agentId={id ?? "new"}
-          onClose={() => { const next = new URLSearchParams(params); next.delete("panel"); setParams(next, { replace: true }); }}
-          onChanged={() => setPublishTick(t => t + 1)}
-        />
-      )}
 
       <AlertDialog open={!!handoffWarn} onOpenChange={o => { if (!o) setHandoffWarn(null); }}>
         <AlertDialogContent>
@@ -690,7 +688,7 @@ export default function AgentBuilder() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => { setHandoffWarn(null); setParams({ tab: "build", section: "instructions", panel: "capabilities" }); }}>Mở Năng lực</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => { setHandoffWarn(null); setParams({ tab: "build", section: "advanced", atab: "capabilities" }); }}>Mở Năng lực</AlertDialogCancel>
             <AlertDialogAction onClick={() => { setHandoffWarn(null); setShowPublish(true); }}>Vẫn publish</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -886,93 +884,9 @@ export default function AgentBuilder() {
             ))}
           </nav>
 
-          {/* Ready to publish + Collapse — Build-tab only, pinned directly above Collapse
-              sidebar at the bottom, same position as the External Agent detail sidebar's
-              Setup checklist. Fixed height; the nav above scrolls instead of this clipping. */}
+          {/* Collapse — Build-tab only, pinned at the bottom of the nav. */}
           {tab === "build" && (
           <div className="shrink-0 px-3 py-3 border-t border-border space-y-2">
-            <div className="rounded-lg border border-border bg-surface-muted/50 p-2.5">
-              {isProcess ? (() => {
-                const items = processReady?.items ?? [];
-                const doneCount = items.filter(i => i.done).length;
-                return (
-                  <>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-semibold text-foreground">Sẵn sàng publish</span>
-                      <span className="text-xs text-muted-foreground">{doneCount}/{items.length || 5}</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-border overflow-hidden mb-2">
-                      <div className="h-full rounded-full bg-primary" style={{ width: `${items.length ? (doneCount / items.length) * 100 : 0}%` }} />
-                    </div>
-                    <div className="space-y-1">
-                      {items.map((item, i) => (
-                        <button key={item.label} onClick={() => { setParams({ tab: "build", section: i === 3 ? "guardrails" : "flow" }); if (i === 1 || i === 2) setProcessCmd({ kind: "issues", t: Date.now() }); if (i === 4 && !viewOnly) setProcessCmd({ kind: "run", t: Date.now() }); }}
-                          className={`flex items-center gap-1.5 text-sm text-left hover:underline ${item.done ? "text-primary" : item.failed ? "text-destructive font-medium" : "text-muted-foreground"}`}>
-                          {item.done
-                            ? <HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} className="text-primary shrink-0" />
-                            : item.failed ? <AlertTriangle size={11} className="text-destructive shrink-0" aria-hidden />
-                            : <span className="w-3 h-3 rounded-full border-2 border-muted-foreground shrink-0 inline-block" />}
-                          {item.label}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                );
-              })() : (() => {
-                const agentTriggers = triggerStore.list(id ?? "new");
-                const checklist = [
-                  { label: "Đã viết Instructions",     done: true,  section: "instructions" },
-                  { label: "Đã chọn Model",             done: true,  section: "model" },
-                  { label: "Đã cấu hình Guardrails",    done: agentGuardrailStore.list(id ?? "new").length > 0 || agentGuardrailStore.listAttachedConsoleGuardrailIds(id ?? "new").length > 0, section: "guardrails" },
-                  { label: "Đã cấu hình Kết nối",       done: agentConnectorStore.list(id ?? "new").length > 0, section: "instructions" },
-                  { label: "Đã thêm Tri thức",          done: knowledgeStore.list(id ?? "new").length > 0 || knowledgeStore.listAttachedConsoleKbIds(id ?? "new").length > 0, section: "knowledge" },
-                  ...(agentTriggers.length > 0
-                    ? [{ label: "Đã cấu hình Trigger", done: !agentTriggers.some(triggerNeedsSetup), section: "triggers" }]
-                    : []),
-                  ...(revokedAll.length > 0
-                    ? [{ label: REVOKED_COPY.checklist(revokedAll.length), done: false, failed: true, revoked: true, section: revokedAll[0].type === "skill" ? "skills" : revokedAll[0].type === "knowledge" ? "knowledge" : revokedAll[0].type === "guardrail" ? "guardrails" : "instructions" }]
-                    : []),
-                  { ...(() => { const r = evaluationStore.readiness(id ?? "new"); return { label: r === "failed" ? "Evaluate chưa đạt" : r === "passed" ? "Đã đạt Evaluate" : "Đã chạy Evaluate", done: r === "passed", failed: r === "failed" }; })(), section: null as string | null, evaluation: true },
-                ];
-                const doneCount = checklist.filter(i => i.done).length;
-                return (
-                  <>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-semibold text-foreground">Sẵn sàng publish</span>
-                      <span className="text-xs text-muted-foreground">{doneCount}/{checklist.length}</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-border overflow-hidden mb-2">
-                      <div className="h-full rounded-full bg-primary" style={{ width: `${(doneCount / checklist.length) * 100}%` }} />
-                    </div>
-                    <div className="space-y-1">
-                      {checklist.map(item => (
-                        <div key={item.label} className="flex items-center gap-1.5 text-sm">
-                          {item.done
-                            ? <HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} className="text-primary shrink-0" />
-                            : (item as any).revoked ? <AlertTriangle size={11} className="text-destructive shrink-0" aria-hidden />
-                            : <span className="w-3 h-3 rounded-full border-2 border-muted-foreground shrink-0 inline-block" />}
-                          {(item as any).revoked ? (
-                            <button onClick={() => setSection(item.section!)} className="text-destructive font-medium hover:underline text-left">{item.label}</button>
-                          ) : (item as any).evaluation ? (
-                            <button
-                              onClick={() => setParams({ tab: "evaluate", section: "runs" })}
-                              className={`${item.done ? "text-primary" : (item as any).failed ? "text-destructive" : "text-muted-foreground"} hover:underline text-left`}
-                            >{item.label}</button>
-                          ) : item.done && item.section ? (
-                            <button
-                              onClick={() => setSection(item.section!)}
-                              className="text-primary hover:underline text-left"
-                            >{item.label}</button>
-                          ) : (
-                            <span className={item.done ? "text-primary" : "text-muted-foreground"}>{item.label}</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
             {!viewOnly && <button
               onClick={() => setBuildMode("ai")}
               className="w-full h-8 rounded-lg border border-border bg-surface text-muted-foreground hover:bg-surface-muted text-xs font-medium flex items-center justify-center gap-1.5 transition-base"
@@ -1057,6 +971,7 @@ export default function AgentBuilder() {
                   </button>
                 </div>
               )}
+              {tab === "build" && section === "advanced" && <AdvancedSettingsTab agentId={id ?? "new"} readOnly={viewOnly} />}
               {tab === "build" && section === "versions" && (
                 <AgentVersionsPanel key={publishTick} agentId={id ?? "new"} onPublish={() => canPublishAgent && requestPublish()} onChanged={() => setPublishTick(t => t + 1)} />
               )}
@@ -1064,8 +979,8 @@ export default function AgentBuilder() {
                 <TriggersTab agentId={id ?? "new"} onChange={() => setTriggerTick(t => t + 1)} />
               )}
               {tab === "evaluate" && <EvaluationTab agentId={id ?? "new"} agentName={agent.name} section={section as EvalSection} onRefineWithAI={() => setParams({ tab: "build", section: "instructions", buildMode: "ai" })} />}
-              {tab === "channels" && <DeployTab agentId={id} onViewTriggers={() => setParams({ tab: "build", section: "triggers" })} onViewVersions={() => setParams({ tab: "build", section: "versions" })} onOpenPublish={() => canPublishAgent && requestPublish()} onOpenCapabilities={() => setParams({ tab: "build", section: "instructions", panel: "capabilities" })} />}
-              {tab === "insights" && section === "performance" && <PerformanceTab />}
+              {tab === "channels" && <DeployTab agentId={id} onViewTriggers={() => setParams({ tab: "build", section: "triggers" })} onViewVersions={() => setParams({ tab: "build", section: "versions" })} onOpenPublish={() => canPublishAgent && requestPublish()} onOpenCapabilities={() => setParams({ tab: "build", section: "advanced", atab: "capabilities" })} />}
+              {tab === "insights" && ["performance", "usage", "feedback", "topics", "operations", "cost"].includes(section) && <AgentAnalytics agentId={id ?? "new"} section={section as AnalyticsSection} />}
               {tab === "insights" && section === "quality" && <MonitorSection agentId={id ?? "new"} />}
               {tab === "insights" && section === "history" && canSeeHistory && (
                 kind === "automation"
@@ -4014,18 +3929,61 @@ function EmptyStateBox({ icon, description, addLabel, onAdd, disabled, disabledR
   );
 }
 
+const ADVANCED_TABS = [
+  { id: "starter-prompts", label: "Starter Prompts", icon: Chat01Icon },
+  { id: "agent-card", label: "Danh thiếp Nhân sự số", icon: UserCheck01Icon },
+  { id: "capabilities", label: "Khả năng của Nhân sự số", icon: BoltIcon },
+  { id: "inactive-reminder", label: "Inactive reminder", icon: Notification01Icon },
+] as const;
+type AdvancedTabId = typeof ADVANCED_TABS[number]["id"];
+
+/** Build › Cài đặt nâng cao — what used to be the "Advanced settings" group at the bottom of the
+ * config rail, now its own left-nav section with one tab per item (?atab= keeps the tab).
+ * Nhân sự số con stays in the config rail. */
+function AdvancedSettingsTab({ agentId, readOnly }: { agentId: string; readOnly?: boolean }) {
+  const [params, setParams] = useSearchParams();
+  useAgentCard(agentId);
+  const fromUrl = ADVANCED_TABS.find(t => t.id === params.get("atab"))?.id;
+  const current: AdvancedTabId = fromUrl ?? (agentCardStore.peekFocus(agentId) ? "agent-card" : "starter-prompts");
+  const select = (t: string) => { const next = new URLSearchParams(params); next.set("atab", t); setParams(next, { replace: true }); };
+  const trigger = "h-full flex-none gap-1.5 rounded-md border border-transparent px-3 py-1 text-sm font-medium text-muted-foreground hover:text-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-offset-0";
+  return (
+    <div className="max-w-[880px] mx-auto px-8 py-8">
+      <div className="flex items-start gap-3 mb-6">
+        <div className="w-11 h-11 rounded-xl bg-primary-soft flex items-center justify-center shrink-0">
+          <HugeiconsIcon icon={SlidersHorizontalIcon} size={20} className="text-primary" />
+        </div>
+        <div>
+          <h1 className="text-xl font-semibold">Cài đặt nâng cao</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Gợi ý mở đầu, danh thiếp, năng lực mặc định và lời nhắc khi người dùng im lặng.</p>
+        </div>
+      </div>
+      <Tabs value={current} onValueChange={select}>
+        <div className="overflow-x-auto mb-6">
+          <TabsList className="h-9 w-fit rounded-lg bg-muted p-[3px] text-muted-foreground">
+            {ADVANCED_TABS.map(t => (
+              <TabsTrigger key={t.id} value={t.id} className={trigger}>
+                <HugeiconsIcon icon={t.icon} size={16} strokeWidth={1.5} /> {t.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
+        <TabsContent value="starter-prompts" className="mt-0"><StarterPromptsInner /></TabsContent>
+        <TabsContent value="agent-card" className="mt-0"><AgentCardBlock agentId={agentId} /></TabsContent>
+        <TabsContent value="capabilities" className="mt-0"><CapabilitiesEditor agentId={agentId} /></TabsContent>
+        <TabsContent value="inactive-reminder" className="mt-0"><InactiveReminderTab agentId={agentId} readOnly={readOnly} /></TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
 function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: { agentId: string; model: string; onModelChange: (id: string) => void; onConnectionsChange?: () => void }) {
   const { can } = useMyPermissions();
   const canManageSubAgents = can("agents.manage");
   const [open, setOpen] = useState<Record<string, boolean>>({ connectors: true, skills: true, knowledge: true, guardrails: true, triggers: true, "sub-agents": true, "starter-prompts": true });
-  const [showAdvanced, setShowAdvanced] = useState(() => agentCardStore.peekFocus(agentId));
-  useAgentCard(agentId);
-  useEffect(() => { if (agentCardStore.peekFocus(agentId) && !showAdvanced) setShowAdvanced(true); });
   const guardrailsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const skillsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const knowledgeAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
-  const subAgentsAddRef = useRef<(() => void) | null>(null);
-  const starterPromptsAddRef = useRef<(() => void) | null>(null);
   const connectorsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const triggersAddRef = useRef<(() => void) | null>(null);
   const revokedAll = useRevokedResources(agentId);
@@ -4068,32 +4026,6 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
       content: (
         <GuardrailsInner agentId={agentId} onRegisterAdd={(fn) => { guardrailsAddRef.current = fn; }} />
       ),
-    },
-  ];
-
-  const advancedSections = [
-    {
-      id: "sub-agents", icon: UserMultipleIcon, label: "Nhân sự số con",
-      onAdd: () => subAgentsAddRef.current?.(),
-      disabled: !canManageSubAgents,
-      content: (
-        <SubAgentsInner onRegisterAdd={(fn) => { subAgentsAddRef.current = fn; }} />
-      ),
-    },
-    {
-      id: "starter-prompts", icon: Chat01Icon, label: "Starter Prompts",
-      onAdd: () => starterPromptsAddRef.current?.(),
-      content: (
-        <StarterPromptsInner onRegisterAdd={(fn) => { starterPromptsAddRef.current = fn; }} />
-      ),
-    },
-    {
-      id: "agent-card", icon: UserCheck01Icon, label: "Danh thiếp Nhân sự số",
-      content: <AgentCardBlock agentId={agentId} />,
-    },
-    {
-      id: "capabilities", icon: BoltIcon, label: "Khả năng của Nhân sự số",
-      content: <CapabilitiesInner agentId={agentId} />,
     },
   ];
 
@@ -4153,26 +4085,11 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
         );
       })}
 
-      {/* Advanced settings — collapsible group. Each item below is a self-contained card
-          (own header + row list + dashed add button) rather than sharing the accordion
-          header/toggle chrome the top sections use. */}
-      <div className="border-b border-border">
-        <button
-          onClick={() => setShowAdvanced(o => !o)}
-          className="w-full flex items-center gap-2.5 px-4 py-3 text-left hover:bg-surface-muted transition-base"
-        >
-          <HugeiconsIcon icon={SlidersHorizontalIcon} size={15} className="text-muted-foreground shrink-0" />
-          <span className="text-sm font-medium flex-1 text-muted-foreground">Advanced settings</span>
-          <HugeiconsIcon icon={ChevronDownIcon} size={14} className={`text-muted-foreground shrink-0 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
-        </button>
-        {showAdvanced && (
-          <div className="px-4 py-3 space-y-3">
-            {advancedSections.map((s: any) => (
-              <div key={s.id}>{s.content}</div>
-            ))}
-          </div>
-        )}
+      {/* Nhân sự số con — kept in the config rail (the rest of Advanced settings moved to Build › Cài đặt nâng cao). */}
+      <div className="px-4 py-3 border-b border-border">
+        <SubAgentsInner />
       </div>
+
     </div>
   );
 }
@@ -7381,49 +7298,6 @@ function DeleteStarterPromptDialog({ title, open, onOpenChange, onConfirm }: {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  );
-}
-
-/** "Agent capabilities" — the platform behaviours a builder is allowed to switch off for this
- * agent (memory, web search, planning, sandbox, ...). Sits in Advanced settings because every
- * one of them is on by default and most agents never touch them; the ones the platform keeps on
- * permanently aren't listed at all, and document/design generation is toggled in Skills instead
- * (see builtinSkillStore.ts) so a capability never has two switches.
- *
- * The rail shows only the on/total count and an Edit button — the nine cards each carry a
- * description (and some a condition note) that doesn't fit legibly in a 476px sidebar, so the
- * switches themselves live in a dialog. */
-function CapabilitiesInner({ agentId }: { agentId: string }) {
-  const [tick, setTick] = useState(0);
-  void tick;
-  const [showEditor, setShowEditor] = useState(false);
-  const capabilities = agentCapabilityStore.list();
-  const onCount = agentCapabilityStore.onCount(agentId);
-
-  return (
-    <>
-      <div className="rounded-xl border border-border bg-surface overflow-hidden">
-        <div className="flex items-center gap-2 px-3.5 py-3">
-          <HugeiconsIcon icon={BoltIcon} size={16} className="text-foreground shrink-0" />
-          <span className="text-sm font-semibold flex-1">Khả năng của Nhân sự số</span>
-          <span className="text-sm text-muted-foreground tabular-nums shrink-0">{onCount}/{capabilities.length}</span>
-          <button
-            onClick={() => setShowEditor(true)}
-            className="h-7 px-2.5 rounded-md border border-border text-xs font-medium text-foreground hover:bg-surface-muted transition-base shrink-0"
-          >
-            Edit
-          </button>
-        </div>
-      </div>
-
-      {showEditor && (
-        <AgentCapabilitiesModal
-          agentId={agentId}
-          onClose={() => setShowEditor(false)}
-          onChanged={() => setTick(t => t + 1)}
-        />
-      )}
-    </>
   );
 }
 
