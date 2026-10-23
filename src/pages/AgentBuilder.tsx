@@ -19,6 +19,7 @@ import { isResourceRevoked, listRevokedResources, REVOKED_COPY, type RevocableTy
 import { agentOnlyForIn, saveSharingInAgent } from "@/components/governance/spaceDelete";
 import DeleteTriggerDialog from "@/components/configure/DeleteTriggerDialog";
 import HistoryTab from "@/components/history/HistoryTab";
+import AgentAnalytics, { type AnalyticsSection } from "@/components/insights/AgentAnalytics";
 import { AgentVersionsPanel } from "@/components/governance/agentVersionsPanel";
 import { AgentStatusCluster } from "@/components/governance/agentStatusCluster";
 import HistoryChatPanel from "@/components/history/HistoryChatPanel";
@@ -174,8 +175,13 @@ const processNav = [
 const PROCESS_SECTIONS = processNav.map(n => n.id);
 
 const INSIGHTS_SUBTABS = [
-  { id: "performance", label: "Performance", icon: Analytics01Icon },
-  { id: "quality", label: "Quality", icon: Activity01Icon },
+  { id: "performance", label: "Tổng quan", icon: Analytics01Icon },
+  { id: "usage", label: "Sử dụng", icon: UserMultipleIcon },
+  { id: "feedback", label: "Chất lượng", icon: StarIcon },
+  { id: "topics", label: "Người dùng hỏi gì", icon: FileQuestionMarkIcon },
+  { id: "operations", label: "Hoạt động", icon: Activity01Icon },
+  { id: "cost", label: "Chi phí", icon: CpuIcon },
+  { id: "quality", label: "Monitor", icon: MonitorDotIcon },
   { id: "history", label: "History", icon: HistoryIcon },
 ];
 
@@ -974,7 +980,7 @@ export default function AgentBuilder() {
               )}
               {tab === "evaluate" && <EvaluationTab agentId={id ?? "new"} agentName={agent.name} section={section as EvalSection} onRefineWithAI={() => setParams({ tab: "build", section: "instructions", buildMode: "ai" })} />}
               {tab === "channels" && <DeployTab agentId={id} onViewTriggers={() => setParams({ tab: "build", section: "triggers" })} onViewVersions={() => setParams({ tab: "build", section: "versions" })} onOpenPublish={() => canPublishAgent && requestPublish()} onOpenCapabilities={() => setParams({ tab: "build", section: "advanced", atab: "capabilities" })} />}
-              {tab === "insights" && section === "performance" && <PerformanceTab />}
+              {tab === "insights" && ["performance", "usage", "feedback", "topics", "operations", "cost"].includes(section) && <AgentAnalytics agentId={id ?? "new"} section={section as AnalyticsSection} />}
               {tab === "insights" && section === "quality" && <MonitorSection agentId={id ?? "new"} />}
               {tab === "insights" && section === "history" && canSeeHistory && (
                 kind === "automation"
