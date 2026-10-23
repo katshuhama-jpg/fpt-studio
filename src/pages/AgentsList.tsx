@@ -299,7 +299,7 @@ function ConversationalCard({ a }: { a: typeof agents[number] }) {
  * updated line) so a Nhân sự số Quy trình reads as the same kind of thing in the list. */
 function ProcessCard({ p }: { p: typeof agents[number] }) {
   const g = processStore.getGraph(p.id);
-  const steps = g ? g.nodes.filter((n: any) => n.type !== "note").length : ({ procure: 30, invoice: 10, "mbl-rules": 10 } as Record<string, number>)[p.processId ?? ""] ?? 1;
+  const steps = g ? g.nodes.filter((n: any) => n.type !== "note").length : ({ invoice: 11, "mbl-rules": 12 } as Record<string, number>)[p.processId ?? ""] ?? 1;
   return (
     <Link
       to={`/agents/${p.id}`}

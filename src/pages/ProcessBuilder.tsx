@@ -120,24 +120,24 @@ var ICON = {
 var COL = { start: ['#15803D', '#dcfce7'], agent: ['#203BDC', '#e0e7ff'], ai: ['#4F46E5', '#ede9fe'], human: ['#9333EA', '#f3e8ff'], integ: ['#7C3AED', '#ede9fe'], fx: ['#0369A1', '#e0f2fe'], var: ['#0369A1', '#e0f2fe'], logic: ['#C2410C', '#ffedd5'], end: ['#B91C1C', '#fee2e2'], note: ['#A16207', '#fef9c3'] };
 var TYPES = {
   start: { c: 'start', name: 'Start', icon: ICON.bolt },
-  agent: { c: 'agent', name: 'Nhân sự số', desc: 'Giao việc cho AI: đọc tệp, trích xuất, phân loại, soạn thảo', icon: ICON.bot, kw: 'agent ai nang suat', err: 1, ai: 1 },
+  agent: { c: 'agent', name: 'Prompt', desc: 'Gọi AI một lần: đọc dữ liệu hoặc tệp, trả ra văn bản hoặc các trường cố định', icon: ICON.bot, kw: 'prompt ai llm doc tep trich xuat phan loai tom tat', err: 1, ai: 1 },
   classify: { gone: 1, c: 'ai', name: 'Phân loại', desc: 'AI xếp dữ liệu vào nhóm, mỗi nhóm một nhánh', icon: ICON.tag, kw: 'classify phan loai nhom', ai: 1 },
   extract: { gone: 1, c: 'ai', name: 'Trích xuất', desc: 'Lấy các trường từ tài liệu, hoá đơn, giấy tờ', icon: ICON.scan, kw: 'extract trich xuat doc tai lieu hoa don cccd', ai: 1 },
-  human: { c: 'human', name: 'Human approval', desc: 'Gửi cho người duyệt hoặc nhập thêm thông tin rồi chờ', icon: ICON.approve, kw: 'human review duyet nguoi xac nhan' },
+  human: { c: 'human', name: 'Human approval', desc: 'Gửi yêu cầu duyệt, chờ người nhận bấm trả lời', icon: ICON.approve, kw: 'human review duyet nguoi xac nhan' },
   tool: { c: 'integ', name: 'Tool', desc: 'Dùng tool đã kết nối trong Space', icon: ICON.tool, kw: 'tool connector tich hop', err: 1, act: 1 },
   func: { gone: 1, c: 'fx', name: 'Hàm', desc: 'HTTP, xử lý dữ liệu, ngày giờ, chờ', icon: ICON.fx, kw: 'function ham http json', err: 1 },
-  variable: { p2: 1, c: 'var', name: 'Set variable', desc: 'Khai báo hoặc gán giá trị biến', icon: ICON.vars, kw: 'variable bien gan' },
-  condition: { c: 'logic', name: 'Condition', desc: 'Rẽ nhánh theo điều kiện, có nhánh Còn lại', icon: ICON.branch, kw: 'if else neu dieu kien re nhanh' },
-  switch: { gone: 1, c: 'logic', name: 'Chọn theo giá trị', desc: 'Mỗi giá trị của một biến đi một nhánh', icon: ICON.switch, kw: 'switch case gia tri' },
-  decision: { c: 'logic', name: 'Decision table', desc: 'Tra bảng quy tắc, ra giá trị cho các bước sau', icon: ICON.table, kw: 'dmn decision table bang quyet dinh quy tac rule tuyen duyet' },
+  variable: { c: 'var', name: 'Set variable', desc: 'Khai báo hoặc gán giá trị biến', icon: ICON.vars, kw: 'variable bien gan' },
+  condition: { c: 'logic', name: 'Condition', desc: 'Đúng đi nhánh Có, sai đi nhánh Không', icon: ICON.branch, kw: 'if else neu dieu kien re nhanh' },
+  switch: { c: 'logic', name: 'Switch', desc: 'Mỗi giá trị của một biến đi một nhánh, không khớp đi Mặc định', icon: ICON.switch, kw: 'switch case gia tri' },
+  decision: { gone: 1, c: 'logic', name: 'Decision table', desc: 'Tra bảng quy tắc, ra giá trị cho các bước sau', icon: ICON.table, kw: 'dmn decision table bang quyet dinh quy tac rule tuyen duyet' },
   parallel: { c: 'logic', name: 'Parallel', desc: 'Khối chạy nhiều nhánh cùng lúc, chờ đủ các nhánh rồi đi tiếp', icon: ICON.par, kw: 'parallel song song dong thoi' },
   join: { gone: 1, c: 'logic', name: 'Gộp nhánh', desc: 'Chờ các nhánh song song xong rồi chạy tiếp', icon: ICON.join, kw: 'join merge gop nhanh hoi tu cho du' },
-  wait: { c: 'human', name: 'Wait', desc: 'Chờ một khoảng thời gian, hoặc chờ sự kiện từ hệ thống khác', icon: ICON.wait, kw: 'wait event cho su kien webhook callback nhan hang hoa don' },
-  code: { c: 'fx', name: 'Code', desc: 'Tính toán, chạy quy tắc bằng Python hoặc JavaScript', icon: ICON.code, kw: 'code python javascript script tinh toan rule', err: 1 },
+  wait: { c: 'human', name: 'Wait', desc: 'Chờ một khoảng thời gian, hoặc chờ tới một thời điểm', icon: ICON.wait, kw: 'wait event cho su kien webhook callback nhan hang hoa don' },
+  code: { gone: 1, c: 'fx', name: 'Code', desc: 'Tính toán, chạy quy tắc bằng Python hoặc JavaScript', icon: ICON.code, kw: 'code python javascript script tinh toan rule', err: 1 },
   loop: { c: 'logic', name: 'Loop', desc: 'Chạy các bước bên trong cho từng phần tử', icon: ICON.loop, kw: 'loop lap for each' },
   subflow: { p2: 1, c: 'integ', name: 'Subflow', desc: 'Chạy một Quy trình khác đã publish', icon: ICON.flow, kw: 'child workflow quy trinh con', err: 1 },
-  end: { c: 'end', name: 'End', desc: 'Dừng Quy trình, trả dữ liệu đầu ra cho bên gọi', icon: ICON.end, kw: 'end ket thuc dung' },
-  respond: { gone: 1, c: 'agent', name: 'Trả kết quả cho Nhân sự số', desc: 'Gửi dữ liệu trả về cho Nhân sự số đã gọi Quy trình', icon: ICON.reply, kw: 'respond tra ket qua agent' },
+  end: { c: 'end', name: 'End', desc: 'Kết thúc lần chạy: thành công hoặc thất bại', icon: ICON.end, kw: 'end ket thuc dung' },
+  respond: { c: 'integ', name: 'Respond to the agent', desc: 'Gửi dữ liệu trả về cho Nhân sự số đã gọi Quy trình', icon: ICON.reply, kw: 'respond tra ket qua agent' },
   note: { c: 'note', name: 'Note', desc: 'Giải thích cho người xem sau', icon: ICON.note, kw: 'note ghi chu' }
 };
 var TRIGGERS = [
@@ -171,6 +171,8 @@ var TOOLS = [
   { name: 'SharePoint · Lấy tệp', desc: 'Đọc tệp trong thư viện tài liệu', out: ['tep'] },
   { name: 'DataSuite · Truy vấn bảng', desc: 'Lấy dữ liệu từ bảng đã kết nối', out: ['ket_qua'] },
   { name: 'ERP nội bộ · Lấy PO', desc: 'API Tool: lấy PO theo mã', out: ['po_tong_tien', 'po_trang_thai'] },
+  { name: 'MB Life · Rule engine', desc: 'API Tool: chạy bộ rule chứng từ D, hiệu lực E, thẩm định A', out: ['ket_qua_rule', 'so_warn', 'so_not_evaluated', 'rule_version'] },
+  { name: 'LOS · Chấm điều kiện', desc: 'API Tool: chấm điều kiện tín dụng bán lẻ', out: ['ket_qua_cham', 'ly_do'] },
   { name: 'LOS · Tạo hồ sơ vay', desc: 'API Tool: tạo hồ sơ trên hệ thống khởi tạo khoản vay', out: ['ma_ho_so_vay'] }
 ];
 var FLOWS = [{ name: 'Kiểm tra nhà cung cấp', ver: 'v3' }, { name: 'Gửi thông báo đa kênh', ver: 'v1' }];
@@ -183,9 +185,9 @@ var DOCS = [
   { id: 'statement', label: 'Sao kê ngân hàng', out: ['thu_nhap_tb', 'so_thang'] },
   { id: 'contract', label: 'Hợp đồng', out: ['ben_a', 'ben_b', 'gia_tri', 'ngay_hieu_luc'] }
 ];
-var INNER_OK = ['agent', 'human', 'wait', 'tool', 'code'];
-var PAL_HEAD = { agent: 'AI', human: 'Con người', tool: 'Hành động', condition: 'Điều hướng', note: 'Khác' };
-var PAL = ['agent', 'human', 'wait', 'tool', 'code', 'condition', 'decision', 'parallel', 'loop', 'note'];
+var INNER_OK = ['agent', 'human', 'wait', 'tool', 'variable'];
+var PAL_HEAD = { agent: 'AI', human: 'Con người', tool: 'Hành động', condition: 'Điều hướng', end: 'Khác' };
+var PAL = ['agent', 'human', 'tool', 'variable', 'respond', 'condition', 'switch', 'parallel', 'loop', 'wait', 'end', 'note'];
 var EVENTS = ['Odoo · Phiếu nhập kho được xác nhận', 'Gmail · Email có hoá đơn đính kèm', 'SAP ERP · Hoá đơn được ghi nhận', 'Webhook · Hệ thống ngoài gọi lại'];
 var PEOPLE = ['', 'Trưởng phòng của người đề nghị', 'Giám đốc khối của người đề nghị', 'Nhóm IT bảo mật FHO', 'Kế toán trưởng FHO', 'Giám đốc FHO', 'Ban Mua sắm FHO-FPD', 'Kế toán công nợ FHO', 'Nhóm Kế toán công nợ', 'Nhóm Thẩm định bán lẻ'];
 
@@ -212,11 +214,11 @@ function trigOf(c) { return TRIGGERS.filter(function (t) { return t.id === c.tri
 function defaultCfg(type) {
   switch (type) {
     case 'start': return { trigger: 'manual', agentMode: 'wait', inputs: [], freq: 'week', time: '08:00', app: 'Gmail · Khi có email mới' };
-    case 'agent': return { agent: 'new', doc: '', instructions: '', model: 'DeepSeek V4 Flash', tools: '', kb: '', askHuman: false, output: 'text', outVars: [], retry: false, err: 'stop' };
+    case 'agent': return { doc: '', instructions: '', model: 'DeepSeek V4 Flash', output: 'text', outVars: [], retry: false, err: 'stop' };
     case 'classify': return { input: '', model: 'DeepSeek V4 Flash', cats: [{ name: 'Nhóm 1', desc: '' }, { name: 'Nhóm 2', desc: '' }] };
     case 'extract': return { doc: '', fields: [] };
-    case 'human': return { assignee: '', title: '', message: '', fields: [{ name: 'quyet_dinh', desc: 'Duyệt / Từ chối' }, { name: 'y_kien', desc: 'Ý kiến' }], timeout: '3', tunit: 'ngày', remind: 'none', onTimeout: 'remind', escalateTo: '', delegate: true };
-    case 'wait': return { mode: 'event', amount: '1', aunit: 'ngày', source: '', key: '', fields: [], timeout: '7', tunit: 'ngày', onTimeout: 'branch' };
+    case 'human': return { assignee: '', title: '', message: '', fields: [{ name: 'quyet_dinh', desc: 'Duyệt / Từ chối' }, { name: 'y_kien', desc: 'Ý kiến' }], timeout: '3', tunit: 'ngày', onTimeout: 'branch' };
+    case 'wait': return { mode: 'delay', amount: '1', aunit: 'ngày', at: '' };
     case 'decision': return { hit: 'first', outCols: [{ name: '', desc: '' }], rows: [{ when: '', then: '' }] };
     case 'parallel': return { branches: [{ name: 'Nhánh 1', desc: '', inner: [] }, { name: 'Nhánh 2', desc: '', inner: [] }] };
     case 'join': return { mode: 'all' };
@@ -224,11 +226,11 @@ function defaultCfg(type) {
     case 'tool': return { tool: '', acc: '', params: '', retry: false, err: 'stop' };
     case 'func': return { fn: 'http', method: 'POST', url: '', body: '', input: '', amount: '3', unit: 'ngày', retry: true, err: 'stop' };
     case 'variable': return { vars: [{ name: '', value: '' }] };
-    case 'condition': return { cases: [{ name: 'Nếu', logic: 'VÀ', rows: [{ v: '', op: 'Bằng', val: '' }] }] };
+    case 'condition': return { cases: [{ name: 'Có', logic: 'VÀ', rows: [{ v: '', op: 'Bằng', val: '' }] }] };
     case 'switch': return { on: '', vals: [{ name: 'Giá trị 1', desc: '' }] };
     case 'loop': return { mode: 'each', list: '', until: '', par: false, inner: [] };
     case 'subflow': return { flow: '', retry: false, err: 'stop' };
-    case 'end': return { status: 'ok', message: '', vals: {} };
+    case 'end': return { status: 'ok', message: '' };
     case 'respond': return { outs: [{ name: 'ket_qua', desc: '' }] };
     case 'note': return { text: 'Ghi lại lý do của đoạn này cho người xem sau.' };
   }
@@ -238,13 +240,14 @@ function outsOf(n) {
   var c = n.cfg;
   if (n.parent) return [''];
   switch (n.type) {
-    case 'end': case 'respond': case 'note': return [];
-    case 'condition': return c.cases.map(function (cs) { return cs.name || 'Nhánh'; }).concat(['Còn lại']);
+    case 'end': case 'note': return [];
+    case 'respond': return [''];
+    case 'condition': return ['Có', 'Không'];
     case 'classify': return c.cats.map(function (x) { return x.name || 'Nhóm'; }).concat(['Khác']);
     case 'switch': return c.vals.map(function (x) { return x.name || 'Giá trị'; }).concat(['Mặc định']);
     case 'parallel': return [''];
     case 'human': return c.onTimeout === 'branch' ? ['Đã trả lời', 'Quá hạn'] : [''];
-    case 'wait': return c.mode === 'event' && c.onTimeout === 'branch' ? ['Đã nhận', 'Quá hạn'] : [''];
+    case 'wait': return [''];
   }
   var o = [''];
   if (TYPES[n.type].err && c.err === 'branch') o.push('Lỗi');
@@ -253,7 +256,7 @@ function outsOf(n) {
 function outputsOf(n) {
   var c = n.cfg;
   switch (n.type) {
-    case 'start': return c.inputs.map(function (f) { return f.name; }).filter(Boolean).concat(['ma_lan_chay']).concat(c.trigger === 'schedule' ? ['thoi_diem_chay'] : []).concat(c.trigger === 'app' ? ['su_kien'] : []);
+    case 'start': return c.inputs.map(function (f) { return f.name; }).filter(Boolean).concat(c.trigger === 'schedule' ? ['thoi_diem_chay'] : []).concat(c.trigger === 'app' ? ['su_kien'] : []);
     case 'agent': return c.output === 'json' ? c.outVars : ['tra_loi'];
     case 'classify': return ['nhom'];
     case 'extract': return c.fields.map(function (f) { return f.name; }).filter(Boolean);
@@ -262,7 +265,7 @@ function outputsOf(n) {
     case 'func': return fnOf(c).out;
     case 'variable': return c.vars.map(function (v) { return v.name; }).filter(Boolean);
     case 'loop': return ['ket_qua_lap'];
-    case 'wait': return c.mode === 'event' ? c.fields.map(function (f) { return f.name; }).filter(Boolean) : [];
+    case 'wait': return [];
     case 'decision': return c.outCols.map(function (f) { return f.name; }).filter(Boolean);
     case 'code': return c.outVars.filter(Boolean);
     case 'subflow': return ['ket_qua'];
@@ -275,15 +278,17 @@ function subOf(n) {
     case 'start': return trigOf(c).name;
     case 'tool': return c.tool;
     case 'func': return fnOf(c).name;
-    case 'agent': return c.agent === 'new' ? '' : c.agent;
+    case 'agent': return c.output === 'json' ? c.outVars.filter(Boolean).length + ' trường · ' + c.model : c.model;
     case 'subflow': return c.flow;
-    case 'wait': return c.mode === 'event' ? c.source : 'Chờ ' + c.amount + ' ' + c.aunit;
+    case 'wait': return c.mode === 'until' ? 'Tới ' + (c.at || '...') : 'Chờ ' + c.amount + ' ' + c.aunit;
+    case 'respond': return c.outs.map(function (o) { return o.name; }).filter(Boolean).join(', ');
+    case 'switch': return c.on ? 'Theo ' + c.on : '';
     case 'parallel': return c.branches.length + ' nhánh · chờ đủ rồi đi tiếp';
     case 'end': return c.status === 'ok' ? 'Thành công' : 'Thất bại';
     case 'code': return c.lang;
     case 'decision': return c.rows.length + ' quy tắc · ' + (c.hit === 'collect' ? 'Gom tất cả' : 'Quy tắc đầu tiên');
     case 'join': return c.mode === 'all' ? 'Chờ tất cả nhánh' : 'Nhánh đầu tiên xong';
-    case 'human': return c.timeout + ' ' + c.tunit + (c.onTimeout === 'escalate' && c.escalateTo ? ' · leo thang' : '');
+    case 'human': return (c.assignee ? c.assignee + ' · ' : '') + c.timeout + ' ' + c.tunit;
   }
   return '';
 }
@@ -295,10 +300,10 @@ function issuesOf(n, s) {
       c.inputs.forEach(function (f) { if (f.name && !f.desc && c.trigger === 'agent') m.push('Đầu vào ' + f.name + ' cần mô tả để Nhân sự số biết truyền gì'); });
       c.inputs.forEach(function (f) { if (!f.name) m.push('Có đầu vào chưa đặt tên'); });
       break;
-    case 'agent': if (c.agent === 'new' && !c.instructions.trim()) m.push('Cần viết hướng dẫn cho Nhân sự số'); if (c.output === 'json' && !c.outVars.filter(Boolean).length) m.push('Cần ít nhất một trường đầu ra'); break;
+    case 'agent': if (!c.instructions.trim()) m.push('Cần viết prompt'); if (c.output === 'json' && !c.outVars.filter(Boolean).length) m.push('Cần ít nhất một trường đầu ra'); break;
     case 'classify': if (!c.input) m.push('Cần chọn dữ liệu cần phân loại'); if (c.cats.some(function (x) { return !x.desc.trim(); })) m.push('Mỗi nhóm cần mô tả để AI biết xếp vào đâu'); break;
     case 'extract': if (!c.doc) m.push('Cần chọn tài liệu để trích xuất'); if (!c.fields.length) m.push('Cần ít nhất một trường cần lấy'); break;
-    case 'human': if (!c.assignee) m.push('Cần chọn người nhận'); if (!c.title.trim()) m.push('Cần tiêu đề'); if (!c.message.trim()) m.push('Cần nội dung'); if (!c.fields.length) m.push('Cần ít nhất một trường để người duyệt trả lời'); if (c.onTimeout === 'escalate' && !c.escalateTo) m.push('Cần chọn người nhận khi leo thang'); var hh = hoursOf(c); if (hh < 1 || hh > 720) m.push('Hạn trả lời từ 1 giờ tới 30 ngày'); break;
+    case 'human': if (!c.assignee) m.push('Cần chọn người nhận'); if (!c.title.trim()) m.push('Cần tiêu đề'); if (!c.message.trim()) m.push('Cần nội dung'); if (!c.fields.length) m.push('Cần ít nhất một trường để người duyệt trả lời'); var hh = hoursOf(c); if (hh <= 0) m.push('Cần nhập hạn trả lời'); else if (hh > 720) m.push('Hạn trả lời tối đa 30 ngày'); break;
     case 'tool': if (!c.tool) m.push('Cần chọn tool'); if (!c.acc) m.push('Cần chọn tài khoản chạy tool'); break;
     case 'func':
       if (c.fn === 'http' && !c.url.trim()) m.push('Cần nhập URL');
@@ -309,13 +314,12 @@ function issuesOf(n, s) {
     case 'switch': if (!c.on) m.push('Cần chọn biến để so giá trị'); break;
     case 'loop': if (c.mode === 'each' && !c.list) m.push('Cần chọn danh sách để lặp'); if (c.mode === 'until' && !c.until.trim()) m.push('Cần điều kiện dừng'); if (!c.inner.length) m.push('Thêm ít nhất một bước vào vòng lặp'); break;
     case 'subflow': if (!c.flow) m.push('Cần chọn Quy trình con'); break;
-    case 'wait': if (c.mode === 'time') { var th = hoursOf({ timeout: c.amount, tunit: c.aunit }); if (th <= 0) m.push('Cần nhập thời gian chờ'); else if (th > 2160) m.push('Chờ tối đa 90 ngày'); break; } var wh = hoursOf(c); if (wh <= 0 || wh > 2160) m.push('Chờ tối đa 90 ngày'); if (!c.source) m.push('Cần chọn sự kiện cần chờ'); if (!c.key) m.push('Cần chọn khoá ghép sự kiện với lần chạy này'); break;
+    case 'wait': if (c.mode === 'until') { if (!String(c.at || '').trim()) m.push('Cần chọn thời điểm chạy tiếp'); break; } var th = hoursOf({ timeout: c.amount, tunit: c.aunit }); if (th <= 0) m.push('Cần nhập thời gian chờ'); else if (th > 720) m.push('Chờ tối đa 30 ngày'); break;
     case 'decision': if (!c.outCols.some(function (o) { return o.name; })) m.push('Cần ít nhất một cột kết quả'); if (c.rows.some(function (r) { return !r.when.trim() || !r.then.trim(); })) m.push('Mỗi quy tắc cần điều kiện Khi và kết quả Thì'); break;
     case 'parallel': if (c.branches.length < 2) m.push('Cần ít nhất hai nhánh'); if (c.branches.some(function (b) { return !(b.inner || []).length; })) m.push('Mỗi nhánh cần ít nhất một bước'); break;
-    case 'end': (s.outs || []).forEach(function (o) { if (o.name && !String((c.vals || {})[o.name] || '').trim()) m.push('Cần điền giá trị cho đầu ra ' + o.name); }); break;
     case 'join': if (s.edges.filter(function (e) { return e.to === n.id; }).length < 2) m.push('Nối ít nhất hai nhánh vào bước này'); break;
     case 'code': if (!c.code.trim()) m.push('Cần viết code'); if (!c.outVars.filter(Boolean).length) m.push('Cần khai báo ít nhất một kết quả trả ra'); break;
-    case 'respond': if (c.outs.some(function (o) { return !o.name.trim(); })) m.push('Cần đặt tên cho mỗi dữ liệu trả về'); break;
+    case 'respond': if (!c.outs.length) m.push('Cần ít nhất một dữ liệu trả về'); if (c.outs.some(function (o) { return !o.name.trim(); })) m.push('Cần đặt tên cho mỗi dữ liệu trả về'); if (c.outs.some(function (o) { return o.name.trim() && !String(o.desc || '').trim(); })) m.push('Cần điền giá trị cho mỗi dữ liệu trả về'); break;
   }
   if (n.type !== 'start' && n.type !== 'note' && !n.parent && !s.edges.some(function (e) { return e.to === n.id; })) m.push('Bước này chưa được nối vào luồng');
   return m;
@@ -324,7 +328,7 @@ function startNode0(s) { return s.nodes.filter(function (n) { return n.type === 
 function upstreamOf(id, s) {
   var seen = {}, stack = [id], res = [];
   while (stack.length) { var cur = stack.pop(); s.edges.forEach(function (e) { if (e.to === cur && !seen[e.from]) { seen[e.from] = 1; stack.push(e.from); } }); }
-  s.nodes.forEach(function (n) { if (seen[n.id]) outputsOf(n).forEach(function (v) { res.push({ v: v, l: v + ' · ' + n.title }); }); });
+  s.nodes.forEach(function (n) { if (seen[n.id] || (n.parent && seen[n.parent])) outputsOf(n).forEach(function (v) { res.push({ v: v, l: v + ' · ' + n.title }); }); });
   return res;
 }
 function reachable(id, edges) {
@@ -410,11 +414,10 @@ function layoutFlow(f) {
 }
 
 var SUGGEST = [
-  { key: 'buy', label: 'Duyệt đề nghị mua sắm', name: 'Duyệt đề nghị mua sắm', text: 'Nhân sự số gửi đề nghị mua sắm kèm chứng từ. Trích xuất chứng từ, nếu vượt 50 triệu thì giám đốc duyệt, không thì tự duyệt. Duyệt xong tạo PO trên SAP ERP, từ chối thì soạn thư báo lại.' },
-  { key: 'procure', label: 'Mua sắm FHO-FPD', name: 'Đề nghị mua sắm FHO-FPD', text: 'Nhân sự số gửi đề nghị mua sắm của FHO. Chuẩn bị hồ sơ và 3 báo giá, Trưởng phòng duyệt, phần mềm/cloud qua IT bảo mật, trên 50 triệu thêm Kế toán và Giám đốc. Duyệt xong tạo PO trên Odoo, kho nhận hàng, đối chiếu 3 chiều rồi Kế toán thanh toán.' },
+  { key: 'buy', label: 'Duyệt đề nghị mua sắm', name: 'Duyệt đề nghị mua sắm', text: 'Hệ thống gửi đề nghị mua sắm kèm chứng từ qua HTTP. Đọc chứng từ, nếu vượt 50 triệu thì giám đốc duyệt, không thì tự duyệt. Duyệt xong tạo PO trên SAP ERP, từ chối thì gửi email báo lại.' },
   { key: 'mbl-rules', label: 'Rule bồi thường MB Life', name: 'Rule thẩm định MB Life', text: 'Nhân sự số gửi hồ sơ bồi thường đã đọc OCR và số hợp đồng MB Life. Lấy Policy, lịch sử bồi thường và bảng tham chiếu cùng lúc, chạy rule chứng từ, hiệu lực và thẩm định không dùng LLM, trả về PASS, WARN, NOT_EVALUATED cho từng rule.' },
-  { key: 'invoice', label: 'Đối chiếu hoá đơn với PO', name: 'Đối chiếu hoá đơn với PO', text: 'Khi hệ thống kế toán gửi hoá đơn VAT qua HTTP, trích xuất số tiền, lấy PO tương ứng từ ERP để so khớp. Khớp thì ghi nhận công nợ, lệch thì chuyển kế toán xem lại.' },
-  { key: 'loan', label: 'Tiếp nhận hồ sơ vay', name: 'Tiếp nhận hồ sơ vay', text: 'Nhận hồ sơ vay gồm CCCD và sao kê lương. Trích xuất CCCD, phân loại sản phẩm vay, Nhân sự số chấm điều kiện theo chính sách tín dụng rồi chuyển chuyên viên thẩm định. Đạt thì tạo hồ sơ trên LOS.' }
+  { key: 'invoice', label: 'Đối chiếu hoá đơn với PO', name: 'Đối chiếu hoá đơn với PO', text: 'Khi hệ thống kế toán gửi hoá đơn VAT qua HTTP, đọc số tiền, lấy PO tương ứng từ ERP để so khớp. Khớp thì ghi nhận công nợ, lệch thì chuyển kế toán xem lại.' },
+  { key: 'loan', label: 'Tiếp nhận hồ sơ vay', name: 'Tiếp nhận hồ sơ vay', text: 'Nhận hồ sơ vay gồm CCCD và sao kê lương. Đọc CCCD và sao kê, chấm điều kiện tín dụng trên LOS. Đạt thì tạo hồ sơ, cần thẩm định thì chuyển chuyên viên.' }
 ];
 function N(id, type, title, cfg) { return { id: id, type: type, title: title, x: 0, y: 0, cfg: Object.assign(defaultCfg(type), cfg || {}) }; }
 function E(list) { return list.map(function (a) { return { from: a[0], out: a[1], to: a[2] }; }); }
@@ -427,114 +430,72 @@ function kid(n, parent, ln) { n.parent = parent; n.lane = ln || 0; return n; }
 function draftFlow(key) {
   var f;
   if (key === 'invoice') f = {
-    outs: [O('trang_thai', 'Văn bản', 'Đã ghi nhận công nợ / Trả lại nhà cung cấp / Cần xử lý tay'), O('ma_but_toan', 'Văn bản', 'Mã bút toán công nợ khi khớp')],
     nodes: [
       N('n1', 'start', 'Start', { trigger: 'http', inputs: [I('ma_po', 'Văn bản', 'Mã đơn mua hàng'), I('tep_hoa_don', 'Tệp', 'Hoá đơn PDF hoặc XML')] }),
-      N('n2', 'agent', 'Trích xuất hoá đơn', { doc: 'tep_hoa_don', instructions: 'Đọc hoá đơn {{tep_hoa_don}}, lấy số tiền, mã số thuế, ngày hoá đơn.', output: 'json', outVars: ['so_tien', 'ma_so_thue', 'ngay_hd'] }),
+      N('n2', 'agent', 'Đọc hoá đơn', { doc: 'tep_hoa_don', instructions: 'Đọc hoá đơn {{tep_hoa_don}}, lấy số hoá đơn, tổng tiền, mã số thuế.', output: 'json', outVars: ['so_hd', 'so_tien', 'ma_so_thue'] }),
       N('n3', 'tool', 'Lấy PO từ ERP', { tool: 'ERP nội bộ · Lấy PO', acc: 'space', params: '{{ma_po}}', err: 'branch' }),
-      N('n4', 'condition', 'Khớp với PO?', { cases: [C('Khớp', 'so_tien', 'Bằng', '{{po_tong_tien}}')] }),
-      N('n5', 'tool', 'Ghi nhận công nợ', { tool: 'SAP ERP · Ghi nhận công nợ', acc: 'space' }),
-      N('n6', 'human', 'Kế toán xem lại', { assignee: 'Nhóm Kế toán công nợ', title: 'Hoá đơn lệch PO', message: 'Hoá đơn {{ma_po}} lệch với PO. Số tiền: {{so_tien}}.', fields: [{ name: 'quyet_dinh', desc: 'Chấp nhận / Trả lại' }, { name: 'y_kien', desc: 'Ý kiến' }] }),
-      N('n7', 'condition', 'Kế toán chấp nhận?', { cases: [C('Chấp nhận', 'quyet_dinh', 'Bằng', 'Chấp nhận')] }),
-      N('n8', 'tool', 'Báo nhà cung cấp', { tool: 'Gmail · Gửi email', acc: 'space', params: 'Hoá đơn {{ma_po}} bị trả lại: {{y_kien}}' }),
-      N('n10', 'end', 'Đã ghi nhận', { status: 'ok', vals: { trang_thai: 'Đã ghi nhận công nợ', ma_but_toan: '{{ma_but_toan}}' } }),
-      N('n11', 'end', 'Trả lại nhà cung cấp', { status: 'ok', vals: { trang_thai: 'Trả lại nhà cung cấp', ma_but_toan: '-' } }),
-      N('n9', 'end', 'Cần xử lý tay', { status: 'fail', message: 'Không lấy được PO từ ERP', vals: { trang_thai: 'Cần xử lý tay', ma_but_toan: '-' } })
+      N('n4', 'condition', 'Khớp với PO?', { cases: [C('Có', 'so_tien', 'Bằng', '{{po_tong_tien}}')] }),
+      N('n5', 'tool', 'Ghi nhận công nợ', { tool: 'SAP ERP · Ghi nhận công nợ', acc: 'space', params: '{{ma_po}}, {{so_hd}}, {{so_tien}}' }),
+      N('n6', 'human', 'Kế toán xem lại', { assignee: 'Nhóm Kế toán công nợ', title: 'Hoá đơn lệch PO', message: 'Hoá đơn {{so_hd}} lệch với PO {{ma_po}}. Hoá đơn: {{so_tien}}, PO: {{po_tong_tien}}.', fields: [{ name: 'quyet_dinh', desc: 'Chấp nhận / Trả lại' }, { name: 'y_kien', desc: 'Ý kiến' }], timeout: '2', tunit: 'ngày', onTimeout: 'branch' }),
+      N('n7', 'condition', 'Kế toán chấp nhận?', { cases: [C('Có', 'quyet_dinh', 'Bằng', 'Chấp nhận')] }),
+      N('n8', 'tool', 'Báo nhà cung cấp', { tool: 'Gmail · Gửi email', acc: 'space', params: 'Hoá đơn {{so_hd}} bị trả lại: {{y_kien}}' }),
+      N('n10', 'end', 'Đã ghi nhận', { status: 'ok' }),
+      N('n11', 'end', 'Trả lại nhà cung cấp', { status: 'ok', message: 'Hoá đơn lệch PO, đã báo nhà cung cấp' }),
+      N('n9', 'end', 'Cần xử lý tay', { status: 'fail', message: 'Không lấy được PO từ ERP' })
     ],
-    edges: E([['n1', 0, 'n2'], ['n2', 0, 'n3'], ['n3', 0, 'n4'], ['n3', 1, 'n9'], ['n4', 0, 'n5'], ['n4', 1, 'n6'], ['n6', 0, 'n7'], ['n7', 0, 'n5'], ['n7', 1, 'n8'], ['n5', 0, 'n10'], ['n8', 0, 'n11']])
+    edges: E([['n1', 0, 'n2'], ['n2', 0, 'n3'], ['n3', 0, 'n4'], ['n3', 1, 'n9'], ['n4', 0, 'n5'], ['n4', 1, 'n6'], ['n6', 0, 'n7'], ['n6', 1, 'n8'], ['n7', 0, 'n5'], ['n7', 1, 'n8'], ['n5', 0, 'n10'], ['n8', 0, 'n11']])
   };
   else if (key === 'loan') f = {
-    outs: [O('ket_qua', 'Văn bản', 'Đã tạo hồ sơ / Không đạt'), O('ma_ho_so_vay', 'Văn bản', 'Mã hồ sơ trên LOS')],
     nodes: [
       N('n1', 'start', 'Start', { trigger: 'manual', inputs: [I('cccd', 'Tệp', 'Ảnh hai mặt CCCD'), I('sao_ke', 'Tệp', 'Sao kê 3 tháng'), I('so_tien_vay', 'Số', 'Đơn vị đồng')] }),
       N('n2', 'agent', 'Đọc CCCD', { doc: 'cccd', instructions: 'Đọc CCCD {{cccd}}, lấy số CCCD, họ tên, ngày sinh, ngày hết hạn.', output: 'json', outVars: ['so_cccd', 'ho_ten', 'ngay_sinh', 'ngay_het_han'] }),
-      N('n4', 'agent', 'Chấm điều kiện', { doc: 'sao_ke', instructions: 'Đối chiếu sao kê {{sao_ke}} và số tiền {{so_tien_vay}} với chính sách tín dụng. Trả về san_pham (Tiêu dùng / Mua xe), dat (true/false) và ly_do.', kb: 'Chính sách tín dụng bán lẻ', output: 'json', outVars: ['san_pham', 'dat', 'ly_do'] }),
-      N('n5', 'condition', 'Đạt điều kiện?', { cases: [C('Đạt', 'dat', 'Bằng', 'true')] }),
-      N('n6', 'human', 'Chuyên viên thẩm định', { assignee: 'Nhóm Thẩm định bán lẻ', title: 'Thẩm định hồ sơ vay', message: 'Hồ sơ {{ho_ten}}, vay {{so_tien_vay}} ({{san_pham}}). AI chấm: {{ly_do}}.' }),
-      N('n7', 'tool', 'Tạo hồ sơ trên LOS', { tool: 'LOS · Tạo hồ sơ vay', acc: 'space', params: '{{so_cccd}}, {{so_tien_vay}}, {{san_pham}}' }),
-      N('n8', 'end', 'Đã tạo hồ sơ', { status: 'ok', vals: { ket_qua: 'Đã tạo hồ sơ', ma_ho_so_vay: '{{ma_ho_so_vay}}' } }),
-      N('n9', 'end', 'Không đạt', { status: 'ok', vals: { ket_qua: 'Không đạt: {{ly_do}}', ma_ho_so_vay: '-' } })
+      N('n3', 'agent', 'Đọc sao kê', { doc: 'sao_ke', instructions: 'Đọc sao kê {{sao_ke}}, tính thu nhập trung bình mỗi tháng và số tháng có lương.', output: 'json', outVars: ['thu_nhap_tb', 'so_thang'] }),
+      N('n4', 'tool', 'Chấm điều kiện tín dụng', { tool: 'LOS · Chấm điều kiện', acc: 'space', params: '{{so_tien_vay}}, {{thu_nhap_tb}}, {{so_thang}}' }),
+      N('n5', 'switch', 'Kết quả chấm', { on: 'ket_qua_cham', vals: [{ name: 'Đạt', desc: '' }, { name: 'Cần thẩm định', desc: '' }] }),
+      N('n6', 'human', 'Chuyên viên thẩm định', { assignee: 'Nhóm Thẩm định bán lẻ', title: 'Thẩm định hồ sơ vay', message: 'Hồ sơ {{ho_ten}}, vay {{so_tien_vay}}. Thu nhập trung bình {{thu_nhap_tb}}.', fields: [{ name: 'quyet_dinh', desc: 'Duyệt / Từ chối' }, { name: 'y_kien', desc: 'Ý kiến' }], timeout: '2', tunit: 'ngày', onTimeout: 'stop' }),
+      N('n7', 'condition', 'Được duyệt?', { cases: [C('Có', 'quyet_dinh', 'Bằng', 'Duyệt')] }),
+      N('n8', 'tool', 'Tạo hồ sơ trên LOS', { tool: 'LOS · Tạo hồ sơ vay', acc: 'space', params: '{{so_cccd}}, {{so_tien_vay}}' }),
+      N('n9', 'end', 'Đã tạo hồ sơ', { status: 'ok' }),
+      N('n10', 'end', 'Không đạt', { status: 'fail', message: 'Hồ sơ không đạt điều kiện' })
     ],
-    edges: E([['n1', 0, 'n2'], ['n2', 0, 'n4'], ['n4', 0, 'n5'], ['n5', 0, 'n6'], ['n5', 1, 'n9'], ['n6', 0, 'n7'], ['n7', 0, 'n8']])
+    edges: E([['n1', 0, 'n2'], ['n2', 0, 'n3'], ['n3', 0, 'n4'], ['n4', 0, 'n5'], ['n5', 0, 'n8'], ['n5', 1, 'n6'], ['n5', 2, 'n10'], ['n6', 0, 'n7'], ['n7', 0, 'n8'], ['n7', 1, 'n10'], ['n8', 0, 'n9']])
   };
   else if (key === 'mbl-rules') f = {
-    outs: [O('ket_qua_rule', 'Đối tượng', 'Kết quả từng rule: PASS, WARN, NOT_EVALUATED'), O('so_warn', 'Số', 'Số rule WARN'), O('so_not_evaluated', 'Số', 'Số rule chưa đánh giá được'), O('rule_version', 'Văn bản', 'Phiên bản bộ rule')],
     nodes: [
       N('n1', 'start', 'Start', { trigger: 'agent', inputs: [I('ho_so_ocr', 'Văn bản', 'Kết quả đọc hồ sơ từ Doc Agent (JSON)'), I('so_hop_dong', 'Văn bản', 'Số hợp đồng MB Life'), I('claim_type', 'Văn bản', 'Mã claim type, VD: IP-Sur')] }),
       N('n2', 'parallel', 'Lấy dữ liệu đối chiếu', { branches: [lane('Policy', ['n3']), lane('Lịch sử bồi thường', ['n4']), lane('Bảng tham chiếu', ['n5'])] }),
       kid(N('n3', 'tool', 'Tra Policy', { tool: 'MB Life · Policy Info', acc: 'space', params: '{{so_hop_dong}}' }), 'n2', 0),
       kid(N('n4', 'tool', 'Lấy lịch sử bồi thường', { tool: 'MB Life · Lịch sử bồi thường', acc: 'space', params: '{{so_hop_dong}}' }), 'n2', 1),
       kid(N('n5', 'tool', 'Tra bảng tham chiếu', { tool: 'Bảng tham chiếu · Tra cứu', acc: 'space', params: 'ICD trong {{ho_so_ocr}}' }), 'n2', 2),
-      N('n7', 'decision', 'Rule chứng từ D1-D9', { hit: 'collect', outCols: [{ name: 'D1', desc: 'PASS' }, { name: 'D2', desc: 'PASS' }, { name: 'D5', desc: 'PASS' }], rows: [{ when: 'so_trang_thieu > 0', then: 'D1 = WARN' }, { when: 'ngay_ra < ngay_vao', then: 'D2 = WARN' }, { when: 'co_dau_moc = false', then: 'D5 = WARN' }] }),
-      N('n8', 'code', 'Rule hiệu lực và thẩm định (E, A)', { lang: 'Python', code: 'def main(inputs, params):\n    kq = {}\n    kq["E1"] = "PASS" if inputs["ngay_vao"] >= inputs["ngay_hieu_luc"] else "WARN"\n    kq["E2"] = "WARN" if inputs["trong_blacklist"] else "PASS"\n    kq["E3"] = "NOT_EVALUATED"  # chưa có dữ liệu NBU\n    kq["A2"] = "WARN" if inputs["so_ngay_da_tra_nam"] + inputs["so_ngay"] > params["gioi_han_ngay_nam"] else "PASS"\n    return { "ket_qua_e_a": kq }', outVars: ['ket_qua_e_a'], err: 'branch' }),
-      N('n9', 'code', 'Tổng hợp kết quả rule', { lang: 'Python', code: 'def main(inputs, params):\n    tat_ca = {**inputs["ket_qua_d"], **inputs["ket_qua_e_a"]}\n    return {\n        "ket_qua_rule": tat_ca,\n        "so_warn": sum(1 for v in tat_ca.values() if v == "WARN"),\n        "so_not_evaluated": sum(1 for v in tat_ca.values() if v == "NOT_EVALUATED"),\n        "rule_version": params["rule_version"],\n    }', outVars: ['ket_qua_rule', 'so_warn', 'so_not_evaluated', 'rule_version'] }),
-      N('n10', 'end', 'Trả kết quả rule', { status: 'ok', vals: { ket_qua_rule: '{{ket_qua_rule}}', so_warn: '{{so_warn}}', so_not_evaluated: '{{so_not_evaluated}}', rule_version: '{{rule_version}}' } }),
-      N('n12', 'human', 'Báo lỗi dữ liệu cho TĐV', { assignee: 'Nhóm Thẩm định bán lẻ', title: 'Không chạy được rule', message: 'Hồ sơ {{so_hop_dong}} thiếu dữ liệu để chạy rule E/A.', fields: [{ name: 'xu_ly', desc: 'Đã bổ sung / Bỏ qua' }], timeout: '4', tunit: 'giờ', remind: 'half', onTimeout: 'remind' }),
-      N('n11', 'note', 'Cách dựng', { text: 'Không dùng LLM: rule D chạy bằng Decision table, rule E/A và phép đếm bằng Code. Ba nguồn dữ liệu lấy song song trong một khối.' })
+      N('n6', 'condition', 'Đủ dữ liệu?', { cases: [C('Có', 'hop_dong', 'Khác', 'null')] }),
+      N('n7', 'tool', 'Chạy rule D, E, A', { tool: 'MB Life · Rule engine', acc: 'space', params: '{{ho_so_ocr}}, {{hop_dong}}, {{lich_su}}, {{nhom_benh}}, {{claim_type}}' }),
+      N('n8', 'variable', 'Tổng hợp kết quả', { vars: [{ name: 'ket_luan', value: '{{so_warn}} WARN, {{so_not_evaluated}} NOT_EVALUATED' }] }),
+      N('n9', 'respond', 'Trả kết quả rule', { outs: [{ name: 'ket_qua_rule', desc: '{{ket_qua_rule}}' }, { name: 'so_warn', desc: '{{so_warn}}' }, { name: 'so_not_evaluated', desc: '{{so_not_evaluated}}' }, { name: 'rule_version', desc: '{{rule_version}}' }, { name: 'ket_luan', desc: '{{ket_luan}}' }] }),
+      N('n10', 'end', 'Xong', { status: 'ok' }),
+      N('n11', 'respond', 'Trả NOT_EVALUATED', { outs: [{ name: 'ket_qua_rule', desc: 'NOT_EVALUATED' }, { name: 'ly_do', desc: 'Không tìm thấy hợp đồng {{so_hop_dong}}' }] }),
+      N('n12', 'end', 'Thiếu dữ liệu', { status: 'fail', message: 'Không tìm thấy hợp đồng' }),
+      N('n13', 'note', 'Cách dựng', { text: 'Không dùng LLM: rule D, E, A chạy trong API rule engine của MB Life, gọi qua Tool. Ba nguồn dữ liệu lấy cùng lúc trong khối Parallel. Mọi nhánh đều trả kết quả cho Nhân sự số trong 100 giây.' })
     ],
-    edges: E([['n1', 0, 'n2'], ['n2', 0, 'n7'], ['n7', 0, 'n8'], ['n8', 0, 'n9'], ['n8', 1, 'n12'], ['n12', 0, 'n9'], ['n9', 0, 'n10']])
-  };
-  else if (key === 'procure') f = {
-    outs: [O('ma_po', 'Văn bản', 'Mã PO trên Odoo, nếu đã tạo'), O('trang_thai', 'Văn bản', 'Đã thanh toán / Bị từ chối / Huỷ PO / Ngoại lệ'), O('ly_do', 'Văn bản', 'Ý kiến của người từ chối hoặc ghi chú xử lý')],
-    nodes: [
-      N('n1', 'start', 'Start', { trigger: 'agent', inputs: [I('yeu_cau', 'Văn bản', 'Hàng hoá, dịch vụ cần mua, số lượng'), I('nguoi_de_nghi', 'Email', 'Email công ty của người đề nghị'), I('phong_ban', 'Văn bản', 'Phòng ban đề nghị'), I('han_giao', 'Ngày', 'Ngày cần nhận hàng')] }),
-      N('n2', 'agent', 'Chuẩn bị hồ sơ mua sắm', { instructions: 'Từ {{yeu_cau}}: lấy 3 báo giá trong Danh mục nhà cung cấp, lập bảng so sánh, kiểm tra ngân sách còn lại của {{phong_ban}}. Trả về tong_tien (đồng), loai_hang (Phần mềm / Cloud / Phần cứng / Dịch vụ), nha_cung_cap, bang_so_sanh, ngan_sach_con.', tools: 'DataSuite · Truy vấn bảng', kb: 'Danh mục nhà cung cấp', output: 'json', outVars: ['tong_tien', 'loai_hang', 'nha_cung_cap', 'bang_so_sanh', 'ngan_sach_con'] }),
-      N('n3', 'human', 'Trưởng phòng duyệt', { assignee: 'Trưởng phòng của người đề nghị', title: 'Duyệt cấp 1 - đề nghị mua sắm', message: '{{nguoi_de_nghi}} đề nghị: {{yeu_cau}}. Tổng {{tong_tien}} đồng. So sánh báo giá: {{bang_so_sanh}}.', fields: [{ name: 'tp_duyet', desc: 'Duyệt / Từ chối' }, { name: 'tp_y_kien', desc: 'Ý kiến' }], timeout: '24', tunit: 'giờ', remind: 'before', onTimeout: 'escalate', escalateTo: 'Giám đốc khối của người đề nghị' }),
-      N('n4', 'condition', 'Trưởng phòng đồng ý?', { cases: [C('Đồng ý', 'tp_duyet', 'Bằng', 'Duyệt')] }),
-      N('n5', 'decision', 'Tuyến duyệt', { hit: 'collect', outCols: [{ name: 'can_it', desc: 'false' }, { name: 'can_cap2', desc: 'false' }], rows: [{ when: 'loai_hang thuộc Phần mềm, Cloud', then: 'can_it = true' }, { when: 'tong_tien > 50000000', then: 'can_cap2 = true' }] }),
-      N('n6', 'condition', 'Cần IT bảo mật?', { cases: [C('Cần IT', 'can_it', 'Bằng', 'true')] }),
-      N('n7', 'human', 'IT bảo mật duyệt', { assignee: 'Nhóm IT bảo mật FHO', title: 'Duyệt bảo mật - phần mềm/cloud', message: 'Đề nghị {{yeu_cau}} thuộc loại {{loai_hang}}. Kiểm tra yêu cầu bảo mật trước khi mua.', fields: [{ name: 'it_duyet', desc: 'Duyệt / Từ chối' }, { name: 'it_y_kien', desc: 'Ý kiến' }], timeout: '24', tunit: 'giờ', remind: 'before', onTimeout: 'escalate', escalateTo: 'Giám đốc FHO' }),
-      N('n8', 'condition', 'IT đồng ý?', { cases: [C('Đồng ý', 'it_duyet', 'Bằng', 'Duyệt')] }),
-      N('n9', 'condition', 'Cần duyệt cấp 2?', { cases: [C('Trên 50 triệu', 'can_cap2', 'Bằng', 'true')] }),
-      N('n10', 'parallel', 'Kế toán và Giám đốc', { branches: [lane('Kế toán', ['n11']), lane('Giám đốc', ['n12'])] }),
-      kid(N('n11', 'human', 'Kế toán duyệt', { assignee: 'Kế toán trưởng FHO', title: 'Duyệt cấp 2 - Kế toán', message: 'Đề nghị {{yeu_cau}}, {{tong_tien}} đồng. Ngân sách còn {{ngan_sach_con}}.', fields: [{ name: 'kt_duyet', desc: 'Duyệt / Từ chối' }, { name: 'kt_y_kien', desc: 'Ý kiến' }], timeout: '48', tunit: 'giờ', remind: 'half', onTimeout: 'escalate', escalateTo: 'Giám đốc FHO' }), 'n10', 0),
-      kid(N('n12', 'human', 'Giám đốc duyệt', { assignee: 'Giám đốc FHO', title: 'Duyệt cấp 2 - Giám đốc', message: 'Đề nghị {{yeu_cau}}, {{tong_tien}} đồng. Kế toán duyệt song song.', fields: [{ name: 'gd_duyet', desc: 'Duyệt / Từ chối' }, { name: 'gd_y_kien', desc: 'Ý kiến' }], timeout: '48', tunit: 'giờ', remind: 'half', onTimeout: 'remind' }), 'n10', 1),
-      N('n14', 'condition', 'Cả hai đồng ý?', { cases: [{ name: 'Đồng ý', logic: 'VÀ', rows: [{ v: 'kt_duyet', op: 'Bằng', val: 'Duyệt' }, { v: 'gd_duyet', op: 'Bằng', val: 'Duyệt' }] }] }),
-      N('n15', 'tool', 'Tạo PO trên Odoo', { tool: 'Odoo · Tạo đơn mua hàng (PO)', acc: 'space', params: '{{nha_cung_cap}}, {{yeu_cau}}, {{tong_tien}}, {{han_giao}}' }),
-      N('n16', 'human', 'Người mua sắm xác nhận PO', { assignee: 'Ban Mua sắm FHO-FPD', title: 'Xác nhận PO trước khi gửi', message: 'PO {{ma_po}} đã tạo. Kiểm tra lại trước khi gửi nhà cung cấp.', fields: [{ name: 'xac_nhan_po', desc: 'Gửi / Huỷ' }], timeout: '8', tunit: 'giờ', remind: 'half', onTimeout: 'remind' }),
-      N('n17', 'condition', 'Gửi PO?', { cases: [C('Gửi', 'xac_nhan_po', 'Bằng', 'Gửi')] }),
-      N('n18', 'tool', 'Gửi PO cho nhà cung cấp', { tool: 'Gmail · Gửi email', acc: 'space', params: 'PO {{ma_po}} gửi {{nha_cung_cap}}' }),
-      N('n19', 'wait', 'Chờ kho nhập hàng', { mode: 'event', source: 'Odoo · Phiếu nhập kho được xác nhận', key: 'ma_po', fields: [{ name: 'so_phieu_nhap', desc: 'Số phiếu nhập kho' }, { name: 'so_luong_nhan', desc: 'Số lượng thực nhận' }], timeout: '30', tunit: 'ngày', onTimeout: 'branch' }),
-      N('n20', 'wait', 'Chờ hoá đơn nhà cung cấp', { mode: 'event', source: 'Gmail · Email có hoá đơn đính kèm', key: 'ma_po', fields: [{ name: 'tep_hoa_don', desc: 'Tệp hoá đơn PDF hoặc XML' }], timeout: '15', tunit: 'ngày làm việc', onTimeout: 'branch' }),
-      N('n21', 'agent', 'Trích xuất hoá đơn', { doc: 'tep_hoa_don', instructions: 'Đọc hoá đơn {{tep_hoa_don}}, lấy số hoá đơn, tổng tiền và số lượng.', output: 'json', outVars: ['so_hd', 'so_tien_hd', 'so_luong_hd'] }),
-      N('n22', 'code', 'Đối chiếu 3 chiều', { lang: 'Python', code: 'def main(inputs):\n    po_tien = float(inputs["tong_tien"])\n    hd_tien = float(inputs["so_tien_hd"])\n    lech_tien = abs(hd_tien - po_tien)\n    lech_sl = int(inputs["so_luong_nhan"]) != int(inputs["so_luong_hd"])\n    khop = lech_tien <= po_tien * 0.01 and not lech_sl\n    return { "khop": khop, "chenh_lech": lech_tien }', outVars: ['khop', 'chenh_lech'], err: 'branch' }),
-      N('n23', 'condition', 'Khớp 3 chiều?', { cases: [C('Khớp', 'khop', 'Bằng', 'true')] }),
-      N('n24', 'human', 'Kế toán thanh toán', { assignee: 'Kế toán công nợ FHO', title: 'Thanh toán và đóng hồ sơ', message: 'PO {{ma_po}}, hoá đơn {{so_hd}} khớp với phiếu nhập {{so_phieu_nhap}}. Thực hiện thanh toán.', fields: [{ name: 'da_thanh_toan', desc: 'Đã thanh toán / Tạm hoãn' }], timeout: '3', tunit: 'ngày làm việc', remind: 'half', onTimeout: 'remind' }),
-      N('n25', 'human', 'Mua sắm xử lý ngoại lệ', { assignee: 'Ban Mua sắm FHO-FPD', title: 'Ngoại lệ PO {{ma_po}}', message: 'PO {{ma_po}} lệch {{chenh_lech}} đồng, hoặc chưa nhận được hàng / hoá đơn đúng hạn.', fields: [{ name: 'xu_ly', desc: 'Đã xử lý / Huỷ PO' }], timeout: '3', tunit: 'ngày làm việc', remind: 'half', onTimeout: 'remind' }),
-      N('n26', 'end', 'Đã thanh toán', { status: 'ok', vals: { ma_po: '{{ma_po}}', trang_thai: 'Đã thanh toán', ly_do: '-' } }),
-      N('n32', 'end', 'Xử lý ngoại lệ xong', { status: 'ok', vals: { ma_po: '{{ma_po}}', trang_thai: 'Ngoại lệ', ly_do: '{{xu_ly}}' } }),
-      N('n28', 'end', 'Trưởng phòng từ chối', { status: 'fail', vals: { ma_po: '-', trang_thai: 'Bị từ chối', ly_do: 'Trưởng phòng: {{tp_y_kien}}' } }),
-      N('n29', 'end', 'IT từ chối', { status: 'fail', vals: { ma_po: '-', trang_thai: 'Bị từ chối', ly_do: 'IT bảo mật: {{it_y_kien}}' } }),
-      N('n30', 'end', 'Cấp 2 từ chối', { status: 'fail', vals: { ma_po: '-', trang_thai: 'Bị từ chối', ly_do: 'Kế toán: {{kt_duyet}}, Giám đốc: {{gd_duyet}}' } }),
-      N('n31', 'end', 'Huỷ PO', { status: 'fail', vals: { ma_po: '{{ma_po}}', trang_thai: 'Huỷ PO', ly_do: 'Người mua sắm huỷ PO' } }),
-      N('n27', 'note', 'Cách dựng', { text: 'Ngưỡng duyệt sửa ở Decision table. Kế toán, Giám đốc duyệt trong khối Parallel. Chờ kho và hoá đơn bằng bước Wait (sự kiện), ghép theo ma_po.' })
-    ],
-    edges: E([['n1', 0, 'n2'], ['n2', 0, 'n3'], ['n3', 0, 'n4'], ['n4', 0, 'n5'], ['n4', 1, 'n28'], ['n5', 0, 'n6'],
-      ['n6', 0, 'n7'], ['n6', 1, 'n9'], ['n7', 0, 'n8'], ['n8', 0, 'n9'], ['n8', 1, 'n29'],
-      ['n9', 0, 'n10'], ['n9', 1, 'n15'], ['n10', 0, 'n14'], ['n14', 0, 'n15'], ['n14', 1, 'n30'],
-      ['n15', 0, 'n16'], ['n16', 0, 'n17'], ['n17', 0, 'n18'], ['n17', 1, 'n31'], ['n18', 0, 'n19'],
-      ['n19', 0, 'n20'], ['n19', 1, 'n25'], ['n20', 0, 'n21'], ['n20', 1, 'n25'], ['n21', 0, 'n22'], ['n22', 0, 'n23'], ['n22', 1, 'n25'],
-      ['n23', 0, 'n24'], ['n23', 1, 'n25'], ['n24', 0, 'n26'], ['n25', 0, 'n32']])
+    edges: E([['n1', 0, 'n2'], ['n2', 0, 'n6'], ['n6', 0, 'n7'], ['n6', 1, 'n11'], ['n7', 0, 'n8'], ['n8', 0, 'n9'], ['n9', 0, 'n10'], ['n11', 0, 'n12']])
   };
   else f = {
-    outs: [O('ma_po', 'Văn bản', 'Mã PO nếu được duyệt'), O('trang_thai', 'Văn bản', 'Đã duyệt / Từ chối')],
     nodes: [
-      N('n1', 'start', 'Start', { trigger: 'agent', inputs: [I('chung_tu', 'Tệp', 'Báo giá hoặc đề nghị đã ký'), I('nguoi_de_nghi', 'Email', 'Email công ty của người đề nghị'), I('so_tien', 'Số', 'Tổng tiền đề nghị, đơn vị đồng')] }),
+      N('n1', 'start', 'Start', { trigger: 'http', inputs: [I('chung_tu', 'Tệp', 'Báo giá hoặc đề nghị đã ký'), I('nguoi_de_nghi', 'Email', 'Email công ty của người đề nghị'), I('so_tien', 'Số', 'Tổng tiền đề nghị, đơn vị đồng')] }),
       N('n2', 'agent', 'Đọc chứng từ', { doc: 'chung_tu', instructions: 'Đọc chứng từ {{chung_tu}}, lấy nhà cung cấp và danh mục hàng.', output: 'json', outVars: ['nha_cung_cap', 'danh_muc'] }),
-      N('n3', 'condition', 'Vượt hạn mức?', { cases: [C('Trên 50 triệu', 'so_tien', 'Lớn hơn', '50000000')] }),
-      N('n4', 'human', 'Giám đốc duyệt', { assignee: 'Giám đốc khối của người đề nghị', title: 'Duyệt đề nghị mua sắm', message: '{{nguoi_de_nghi}} đề nghị mua {{danh_muc}} của {{nha_cung_cap}}, số tiền {{so_tien}}.' }),
-      N('n5', 'condition', 'Được duyệt?', { cases: [C('Đồng ý', 'quyet_dinh', 'Bằng', 'Duyệt')] }),
-      N('n6', 'tool', 'Tạo PO trên SAP ERP', { tool: 'SAP ERP · Tạo đơn mua hàng', acc: 'space' }),
-      N('n7', 'agent', 'Soạn thư từ chối', { instructions: 'Soạn email lịch sự báo {{nguoi_de_nghi}} đề nghị chưa được duyệt, nêu ý kiến {{y_kien}}.' }),
-      N('n8', 'end', 'Đã duyệt', { status: 'ok', vals: { ma_po: '{{ma_po}}', trang_thai: 'Đã duyệt' } }),
-      N('n9', 'end', 'Từ chối', { status: 'fail', vals: { ma_po: '-', trang_thai: 'Từ chối' } })
+      N('n3', 'condition', 'Trên 50 triệu?', { cases: [C('Có', 'so_tien', 'Lớn hơn', '50000000')] }),
+      N('n4', 'human', 'Giám đốc duyệt', { assignee: 'Giám đốc khối của người đề nghị', title: 'Duyệt đề nghị mua sắm', message: '{{nguoi_de_nghi}} đề nghị mua {{danh_muc}} của {{nha_cung_cap}}, số tiền {{so_tien}}.', fields: [{ name: 'quyet_dinh', desc: 'Duyệt / Từ chối / Cần bổ sung' }, { name: 'y_kien', desc: 'Ý kiến' }], timeout: '3', tunit: 'ngày', onTimeout: 'branch' }),
+      N('n5', 'switch', 'Giám đốc quyết định', { on: 'quyet_dinh', vals: [{ name: 'Duyệt', desc: '' }, { name: 'Cần bổ sung', desc: '' }] }),
+      N('n6', 'tool', 'Tạo PO trên SAP ERP', { tool: 'SAP ERP · Tạo đơn mua hàng', acc: 'space', params: '{{nha_cung_cap}}, {{so_tien}}' }),
+      N('n7', 'tool', 'Báo người đề nghị', { tool: 'Gmail · Gửi email', acc: 'space', params: 'Gửi {{nguoi_de_nghi}}: đề nghị chưa được duyệt. {{y_kien}}' }),
+      N('n8', 'end', 'Đã tạo PO', { status: 'ok' }),
+      N('n9', 'end', 'Không duyệt', { status: 'fail', message: 'Đề nghị không được duyệt hoặc quá hạn' })
     ],
-    edges: E([['n1', 0, 'n2'], ['n2', 0, 'n3'], ['n3', 0, 'n4'], ['n3', 1, 'n6'], ['n4', 0, 'n5'], ['n5', 0, 'n6'], ['n5', 1, 'n7'], ['n6', 0, 'n8'], ['n7', 0, 'n9']])
+    edges: E([['n1', 0, 'n2'], ['n2', 0, 'n3'], ['n3', 0, 'n4'], ['n3', 1, 'n6'], ['n4', 0, 'n5'], ['n4', 1, 'n7'], ['n5', 0, 'n6'], ['n5', 1, 'n7'], ['n5', 2, 'n7'], ['n6', 0, 'n8'], ['n7', 0, 'n9']])
   };
   return layoutFlow(f);
 }
-function pickKey(text) { var t = norm(text); if (t.indexOf('mb life') >= 0 || t.indexOf('boi thuong') >= 0) return 'mbl-rules'; if (t.indexOf('doi chieu 3 chieu') >= 0 || t.indexOf('fho') >= 0) return 'procure'; if (t.indexOf('hoa don') >= 0) return 'invoice'; if (t.indexOf('vay') >= 0 || t.indexOf('ho so') >= 0) return 'loan'; return 'buy'; }
-var MOCK = { po_tong_tien: '75000000', po_trang_thai: 'Đã duyệt', ma_lan_chay: 'QT-2026-0193', san_pham: 'Tiêu dùng', ma_ho_so_vay: 'HSV-2026-118', xu_ly: 'Đã xử lý', ket_qua_rule: 'D1 PASS, D2 PASS, D5 PASS, E1 PASS, E2 PASS, E3 NOT_EVALUATED, A2 WARN', so_warn: '1', so_not_evaluated: '1', rule_version: 'MBL-HSCR3-2026.10', ket_qua_e_a: 'E1 PASS, E2 PASS, E3 NOT_EVALUATED, A2 WARN', so_luong_nhan: '20', so_luong_hd: '20', so_tien_hd: '120000000', chenh_lech: '0', tep_hoa_don: 'HD-55812.pdf', so_hd: 'HD-55812', yeu_cau: '20 license Microsoft 365 E3, 12 tháng', tong_tien: '120000000', loai_hang: 'Phần mềm', ngan_sach_con: '300000000', bang_so_sanh: 'FPT IS 120tr · CMC 128tr · Viettel 131tr', khop: 'true', so_phieu_nhap: 'PNK-1021', so_hoa_don: 'HD-55812', nha_cung_cap: 'Công ty TNHH Phong Vũ', danh_muc: '20 laptop Dell Latitude', ma_so_thue: '0101234567', ngay_hd: '2026-10-18', so_cccd: '001090012345', ho_ten: 'Nguyễn Văn An', ngay_sinh: '1990-05-12', dat: 'true', ly_do: 'Thu nhập trung bình 32 triệu/tháng, đủ điều kiện', tra_loi: 'Đã xử lý xong', ma_po: 'PO-2026-0481', so_tien: '75000000', ma_but_toan: 'BT-77120', status: '200' };
+function pickKey(text) { var t = norm(text); if (t.indexOf('mb life') >= 0 || t.indexOf('boi thuong') >= 0) return 'mbl-rules'; if (t.indexOf('hoa don') >= 0) return 'invoice'; if (t.indexOf('vay') >= 0 || t.indexOf('ho so') >= 0) return 'loan'; return 'buy'; }
+var MOCK = { ket_qua_cham: 'Cần thẩm định', hop_dong: 'MBL-0091234', lich_su: '2 lần, 2025', thu_nhap_tb: '32000000', so_thang: '3', po_tong_tien: '75000000', po_trang_thai: 'Đã duyệt', ma_lan_chay: 'QT-2026-0193', san_pham: 'Tiêu dùng', ma_ho_so_vay: 'HSV-2026-118', xu_ly: 'Đã xử lý', ket_qua_rule: 'D1 PASS, D2 PASS, D5 PASS, E1 PASS, E2 PASS, E3 NOT_EVALUATED, A2 WARN', so_warn: '1', so_not_evaluated: '1', rule_version: 'MBL-HSCR3-2026.10', ket_qua_e_a: 'E1 PASS, E2 PASS, E3 NOT_EVALUATED, A2 WARN', so_luong_nhan: '20', so_luong_hd: '20', so_tien_hd: '120000000', chenh_lech: '0', tep_hoa_don: 'HD-55812.pdf', so_hd: 'HD-55812', yeu_cau: '20 license Microsoft 365 E3, 12 tháng', tong_tien: '120000000', loai_hang: 'Phần mềm', ngan_sach_con: '300000000', bang_so_sanh: 'FPT IS 120tr · CMC 128tr · Viettel 131tr', khop: 'true', so_phieu_nhap: 'PNK-1021', so_hoa_don: 'HD-55812', nha_cung_cap: 'Công ty TNHH Phong Vũ', danh_muc: '20 laptop Dell Latitude', ma_so_thue: '0101234567', ngay_hd: '2026-10-18', so_cccd: '001090012345', ho_ten: 'Nguyễn Văn An', ngay_sinh: '1990-05-12', dat: 'true', ly_do: 'Thu nhập trung bình 32 triệu/tháng, đủ điều kiện', tra_loi: 'Đã xử lý xong', ma_po: 'PO-2026-0481', so_tien: '75000000', ma_but_toan: 'BT-77120', status: '200' };
 function mockOf(k) { return MOCK[k] !== undefined ? MOCK[k] : 'Mẫu ' + k; }
 function sampleOf(f) { if (MOCK[f.name] !== undefined) return MOCK[f.name]; var m = { 'Số': '75000000', 'Ngày': '2026-10-20', 'Tệp': f.name + '.pdf', 'Có / Không': 'true', 'Email': 'lan.nt@fpt.com' }; return m[f.t] || 'Mẫu ' + f.name; }
 function msOf(type, seed) { var base = { agent: 2400, classify: 900, extract: 1300, tool: 540, func: 260, subflow: 1800 }; return (base[type] || 6) + (seed * 37) % (base[type] ? 400 : 9); }
@@ -685,7 +646,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
         res.push(Object.assign(T('tool', 'Hay dùng'), { more: true, goTab: 'tool' }));
         res.push(T('human', 'Hay dùng'));
       }
-      ['agent', 'human', 'wait', 'code', 'condition', 'decision', 'parallel', 'loop', 'end', 'note'].forEach(function (k) {
+      ['agent', 'human', 'variable', 'respond', 'condition', 'switch', 'parallel', 'loop', 'wait', 'end', 'note'].forEach(function (k) {
         if (!q && k === 'human') return;
         if (match(TYPES[k].name + ' ' + TYPES[k].kw + ' ' + TYPES[k].desc)) res.push(T(k, 'Bước', { desc: q ? TYPES[k].desc : '' }));
       });
@@ -712,7 +673,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     this.commit(this.state.nodes, edges, { add: null });
   }
   makeNode(type, preset, title) { this.seq += 1; return { id: 'n' + this.seq, type: type, title: title || TYPES[type].name, x: 0, y: 0, cfg: Object.assign(defaultCfg(type), preset || {}) }; }
-  capFull() { if (this.state.nodes.length >= 200) { this.showToast('Quy trình đã đủ 200 bước - Gộp hoặc bỏ bớt bước rồi thêm lại.'); return true; } return false; }
+  capFull() { if (this.state.nodes.length >= 500) { this.showToast('Quy trình đã đủ 500 bước - Tách bớt sang Subflow rồi thêm lại.'); return true; } return false; }
   addNode(type, from, preset, title) {
     if (this.capFull()) return;
     if (this.roStop()) return;
@@ -764,8 +725,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     var s = this.state, list = [];
     s.nodes.forEach(function (n) { var m = issuesOf(n, s); if (m.length) list.push({ id: n.id, title: n.title, type: n.type, msgs: m }); });
     var st = s.nodes.filter(function (n) { return n.type === 'start'; })[0];
-    if (!s.nodes.some(function (n) { return n.type === 'end'; })) list.push({ id: st ? st.id : 'n1', title: 'Quy trình', type: 'end', msgs: ['Thêm ít nhất một bước End để bên gọi nhận đầu ra'] });
-    (s.outs || []).forEach(function (o, i) { if (!o.name) list.push({ id: st ? st.id : 'n1', title: 'Quy trình', type: 'end', msgs: ['Đầu ra thứ ' + (i + 1) + ' chưa đặt tên'] }); });
+    if (st && st.cfg.trigger === 'agent' && !s.nodes.some(function (n) { return n.type === 'respond'; })) list.push({ id: st.id, title: 'Quy trình', type: 'respond', msgs: ['Quy trình được Nhân sự số gọi cần bước Respond to the agent để trả kết quả'] });
     return list;
   }
 
@@ -798,18 +758,15 @@ class ProcessBuilderInner extends React.Component<any, any> {
     var issues = issuesOf(n, s).filter(function (m) { return m !== 'Bước này chưa được nối vào luồng' && m.indexOf('cần mô tả') < 0 && m.indexOf('Mỗi nhóm') < 0; });
     if (answer === '__timeout') {
       out = 1; ms = 8010; note = 'Quá hạn ' + c.timeout + ' ' + c.tunit + ', đi nhánh Quá hạn'; st = 'Quá hạn';
-    } else if (answer !== undefined && n.type === 'wait') {
-      outputsOf(n).forEach(function (v) { vars[v] = mockOf(v); }); ms = 8010; note = 'Nhận sự kiện "' + c.source + '" khớp ' + c.key + ' = ' + (vars[c.key] || '');
     } else if (answer !== undefined) {
       vars[c.fields[0] ? c.fields[0].name : 'quyet_dinh'] = answer; vars.nguoi_duyet = 'Bạn (chạy thử)'; ms = 8010; note = 'Bạn trả lời "' + answer + '" thay ' + (c.assignee || 'người duyệt');
-    } else if (n.type === 'wait' && c.mode === 'time') {
-      if (issues.length) stop = issues[0]; else { ms = 8010; note = 'Chờ ' + c.amount + ' ' + c.aunit + ' rồi chạy tiếp'; }
-    } else if (n.type === 'human' || n.type === 'wait') {
+    } else if (n.type === 'wait') {
+      if (issues.length) stop = issues[0]; else { ms = 8010; note = (c.mode === 'until' ? 'Chờ tới ' + fill(c.at, vars) : 'Chờ ' + c.amount + ' ' + c.aunit) + ' rồi chạy tiếp (chạy thử không chờ thật)'; }
+    } else if (n.type === 'human') {
       if (issues.length) stop = issues[0];
       else { this.setState({ run: Object.assign({}, r, { status: 'paused', tab: 'result', waitId: n.id }) }); return; }
     } else if (n.type === 'start') {
       note = c.inputs.length ? 'Nhận ' + c.inputs.length + ' dữ liệu đầu vào' : trigOf(c).name;
-      vars.ma_lan_chay = 'QT-2026-0193'; note += '. Bên gọi nhận ngay ma_lan_chay = QT-2026-0193 để tra kết quả';
     } else if (issues.length && TYPES[n.type].err && c.err !== 'stop') {
       st = c.retry ? 'Lỗi sau 3 lần thử' : 'Lỗi'; ms += c.retry ? 3000 : 0;
       if (c.err === 'branch') { out = outsOf(n).length - 1; note = issues[0] + '. Đi nhánh Lỗi.'; } else note = issues[0] + '. Dùng giá trị mặc định.';
@@ -822,6 +779,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
         case 'classify': out = 0; vars.nhom = c.cats[0].name; note = 'AI xếp vào "' + c.cats[0].name + '" (độ tin cậy 0,91)'; break;
         case 'extract': c.fields.forEach(function (f) { if (f.name && vars[f.name] === undefined) vars[f.name] = mockOf(f.name); }); note = 'Lấy ' + c.fields.length + ' trường từ ' + c.doc; break;
         case 'agent': outputsOf(n).forEach(function (v) { if (vars[v] === undefined) vars[v] = mockOf(v); }); note = (c.agent === 'new' ? 'Nhân sự số của bước này' : c.agent) + ' đã trả lời'; break;
+        case 'respond': var rsp = {}; c.outs.forEach(function (o) { if (o.name) rsp[o.name] = fill(o.desc || '', vars); }); r = Object.assign({}, r, { resp: rsp }); note = 'Gửi cho Nhân sự số: ' + Object.keys(rsp).map(function (k) { return k + ' = ' + rsp[k]; }).join(', '); break;
         case 'tool': outputsOf(n).forEach(function (v) { vars[v] = mockOf(v); }); note = c.tool + ' chạy xong'; break;
         case 'func': fnOf(c).out.forEach(function (v) { vars[v] = mockOf(v); }); note = fnOf(c).name + (c.fn === 'http' ? ': ' + c.method + ' ' + fill(c.url, vars) + ' → 200' : ''); break;
         case 'variable': c.vars.forEach(function (v) { vars[v.name] = fill(v.value, vars); }); note = c.vars.map(function (v) { return v.name + ' = ' + fill(v.value, vars); }).join(', '); break;
@@ -859,9 +817,8 @@ class ProcessBuilderInner extends React.Component<any, any> {
     var ran = r.ran.concat([n.id]).concat(extraRan);
     if (stop) { this.setState({ last: last, run: Object.assign({}, r, { log: log, ran: ran, failId: failInner || n.id, vars: vars }) }); this.finish(false, 'Dừng ở bước "' + n.title + '": ' + stop + '.'); return; }
     if (n.type === 'end') {
-      var o = {}; (s.outs || []).forEach(function (x) { if (x.name) o[x.name] = fill((c.vals || {})[x.name] || '', vars); });
       this.setState({ last: last, run: Object.assign({}, r, { log: log, ran: ran, vars: vars }) });
-      this.finish(c.status === 'ok', (c.status === 'ok' ? 'Chạy xong qua ' + ran.length + ' bước, kết thúc thành công.' : 'Kết thúc với trạng thái thất bại' + (c.message ? ': ' + c.message : '.')) + ' Bên gọi tra bằng ma_lan_chay và nhận đầu ra dưới đây.', JSON.stringify(o, null, 2));
+      this.finish(c.status === 'ok', (c.status === 'ok' ? 'Chạy xong qua ' + ran.length + ' bước, kết thúc thành công.' : 'Kết thúc với trạng thái thất bại' + (c.message ? ': ' + c.message : '.')) + (r.resp ? ' Nhân sự số nhận dữ liệu dưới đây từ bước Respond to the agent.' : ''), r.resp ? JSON.stringify(r.resp, null, 2) : undefined);
       return;
     }
     // bước trong một nhánh của khối Song song: chạy bước kế trong nhánh, hết nhánh thì chuyển nhánh khác, đủ nhánh thì ra khỏi khối
@@ -903,7 +860,6 @@ class ProcessBuilderInner extends React.Component<any, any> {
     var allCards = [
       { k: 'chat', st: 'live', name: 'Trợ lý nội bộ công chức', ver: 'v1.0.0', updated: 'Cập nhật 6 ngày trước', desc: 'Tra cứu số liệu phường, văn bản và trả lời kiến nghị cử tri.', meta: 'DeepSeek V4 Flash', icon: ICON.bot, act: '214 hội thoại' },
       { k: 'chat', st: 'live', name: 'Hỗ trợ thủ tục hành chính', ver: 'v1.2.0', updated: 'Cập nhật 2 ngày trước', desc: 'Hướng dẫn hồ sơ, lệ phí và thời hạn giải quyết thủ tục.', meta: 'DeepSeek V4 Flash', icon: ICON.bot, act: '260 hội thoại' },
-      { k: 'process', st: 'draft', name: 'Đề nghị mua sắm FHO-FPD', ver: 'v0.1.0', updated: 'Cập nhật vừa xong', desc: 'Dựng từ wiki Agentic BPM: duyệt nhiều cấp, tạo PO trên Odoo, nhận hàng, đối chiếu 3 chiều, thanh toán.', meta: '30 bước · Nhân sự số gọi', icon: ICON.flow, tpl: 'procure', act: 'Chưa publish' },
       { k: 'process', st: 'draft', name: 'Đối chiếu hoá đơn với PO', ver: 'v0.1.0', updated: 'Cập nhật 1 giờ trước', desc: 'Nhận hoá đơn qua HTTP, so khớp với PO trên ERP, lệch thì chuyển kế toán xem lại.', meta: '10 bước · HTTP', icon: ICON.flow, tpl: 'invoice', act: 'Chưa publish' },
       { k: 'chat', st: 'live', name: 'Tư vấn khoản vay', ver: 'v0.3.0', updated: 'Cập nhật 3 ngày trước', desc: 'Tư vấn sản phẩm vay, hỏi nhu cầu và thu nhập của khách.', meta: 'DeepSeek V4 Flash', icon: ICON.bot, act: '0 hội thoại' }
     ];
@@ -1049,21 +1005,16 @@ class ProcessBuilderInner extends React.Component<any, any> {
           if (c.trigger === 'app') pf.push(P('app', 'Sự kiện', 'select', { options: opt(['Gmail · Khi có email mới', 'SharePoint · Khi có tệp mới', 'DataSuite · Khi có dòng mới']) }));
           if (c.trigger === 'http') pf.push(P('url', 'Địa chỉ nhận', 'input', { value: 'https://eos.fpt.ai/hooks/qt-8f21', ro: true, hint: 'Gửi POST kèm JSON và API key của Space.' }));
           if (c.trigger !== 'schedule' && c.trigger !== 'app') editors.push(LE('inputs', 'ĐẦU VÀO', { aPh: 'ten_dau_vao', bPh: c.trigger === 'agent' ? 'Mô tả cho Nhân sự số' : 'Mô tả', addLabel: '+ Thêm đầu vào', picking: s.picking === n.id,
-            note: (c.trigger === 'agent' ? 'Nhân sự số đọc tên và mô tả để biết cần truyền gì khi gọi Quy trình này. ' : '') + 'Bên gọi nhận ngay ma_lan_chay để tra kết quả; đầu ra khai báo ở Thông tin Quy trình.',
+            note: c.trigger === 'agent' ? 'Nhân sự số đọc tên và mô tả để biết cần truyền gì. Trả kết quả bằng bước Respond to the agent, trong vòng 100 giây.' : 'Các bước sau dùng được những đầu vào này.',
             types: INTYPES.map(function (ty) { return { label: ty, pick: function () { self.updateCfg({ inputs: c.inputs.concat([{ name: '', t: ty, desc: '' }]) }); self.setState({ picking: null }); } }; }),
             add: function () { self.setState({ picking: s.picking === n.id ? null : n.id }); } }));
           break;
         case 'agent':
-          pf.push(P('agent', 'Nhân sự số', 'select', { options: [{ v: 'new', l: 'Nhân sự số mới cho bước này' }].concat(AGENTS.map(function (a) { return { v: a, l: a }; })), hint: c.agent === 'new' ? 'Chỉ dùng trong Quy trình này.' : 'Nhân sự số Năng suất đã publish trong Space.' }));
-          if (c.agent === 'new') {
-            pf.push(P('model', 'Model', 'select', { options: MODELS }));
-            pf.push(P('instructions', 'Hướng dẫn', 'text', { ph: 'Mô tả việc Nhân sự số cần làm. VD: Đối chiếu sao kê với chính sách tín dụng và kết luận đạt hay không.', canVar: true }));
-            pf.push(P('tools', 'Tool', 'select', { options: opt([''].concat(TOOLS.map(function (x) { return x.name; }))), hint: 'Kết nối Nhân sự số với hệ thống khác.' }));
-            pf.push(P('kb', 'Tri thức', 'select', { options: opt([''].concat(KBS)), hint: 'Nguồn tin cậy để Nhân sự số dựa vào.' }));
-            pf.push(P('askHuman', 'Nhờ người hỗ trợ', 'toggle', { ph: 'Khi Nhân sự số chưa chắc cách xử lý, gửi câu hỏi cho chủ Quy trình qua Omni Inbox.' }));
-          }
+          help = 'Gọi AI một lần với prompt này. Không có tool, tri thức hay hội thoại: muốn vậy thì dùng Workforce.';
+          pf.push(P('model', 'Model', 'select', { options: MODELS }));
+          pf.push(P('instructions', 'Prompt', 'text', { ph: 'VD: Đọc hoá đơn {{tep_hoa_don}}, lấy số hoá đơn, số tiền, mã số thuế.', canVar: true }));
           var afiles = up.filter(function (o) { return /^tep/.test(o.v) || (startNode && startNode.cfg.inputs.some(function (f) { return f.name === o.v && f.t === 'Tệp'; })); });
-          pf.push(P('doc', 'Tệp đầu vào (không bắt buộc)', 'select', { options: [{ v: '', l: afiles.length ? 'Không dùng tệp' : 'Chưa có tệp nào ở các bước trước' }].concat(afiles), hint: 'Nhân sự số đọc tệp này: hoá đơn, CCCD, hợp đồng... Dùng với đầu ra có cấu trúc để trích xuất trường.' }));
+          pf.push(P('doc', 'Tệp đầu vào (không bắt buộc)', 'select', { options: [{ v: '', l: afiles.length ? 'Không dùng tệp' : 'Chưa có tệp nào ở các bước trước' }].concat(afiles), hint: 'AI đọc tệp này: hoá đơn, CCCD, hợp đồng... Dùng với đầu ra có cấu trúc để lấy các trường.' }));
           pf.push(P('output', 'Đầu ra', 'select', { options: [{ v: 'text', l: 'Văn bản' }, { v: 'json', l: 'Có cấu trúc (các trường)' }], hint: c.output === 'json' ? '' : 'Muốn phân loại hoặc trích xuất, chọn Có cấu trúc rồi dùng bước Condition để rẽ nhánh theo kết quả.' }));
           if (c.output === 'json') editors.push({ title: 'TRƯỜNG ĐẦU RA', hasB: false, addLabel: '+ Thêm trường', hasNote: true, note: 'Chọn mẫu như Hoá đơn VAT, CCCD để có sẵn các trường hay dùng.', hasExtra: true, extraLabel: 'Dùng mẫu có sẵn', extra: function () { self.setState({ picking: s.picking === n.id ? null : n.id }); }, picking: s.picking === n.id,
             types: DOCS.map(function (dd) { return { label: dd.label, pick: function () { self.updateCfg({ outVars: dd.out.slice(), output: 'json' }); self.setState({ picking: null }); } }; }),
@@ -1084,28 +1035,20 @@ class ProcessBuilderInner extends React.Component<any, any> {
             note: 'Chọn mẫu như Hoá đơn VAT, CCCD để có sẵn các trường hay dùng.' }));
           break;
         case 'human':
-          help = 'Quy trình tạm dừng tới khi người nhận trả lời. Khi chạy thử, bạn trả lời thay họ. Dùng bước Condition sau đó để rẽ theo câu trả lời.';
+          help = 'Quy trình tạm dừng tới khi người nhận bấm trả lời. Khi chạy thử, bạn trả lời thay họ. Dùng Condition hoặc Switch sau đó để rẽ theo câu trả lời.';
           pf.push(P('assignee', 'Gửi cho', 'select', { options: opt(PEOPLE), hint: 'Người nhận thấy yêu cầu trong Omni Inbox và email.' }));
           pf.push(P('title', 'Tiêu đề', 'input', { ph: 'VD: Duyệt đề nghị mua sắm' }));
           pf.push(P('message', 'Nội dung', 'text', { ph: 'VD: {{nguoi_de_nghi}} đề nghị mua hàng, số tiền {{so_tien}}.', canVar: true }));
-          pf.push(P('timeout', 'Hạn trả lời', 'input', { ph: 'VD: 24' }));
-          pf.push(P('tunit', 'Đơn vị', 'select', { options: opt(['giờ', 'ngày', 'ngày làm việc']) }));
-          pf.push(P('remind', 'Nhắc người nhận', 'select', { options: [{ v: 'none', l: 'Không nhắc' }, { v: 'half', l: 'Khi còn một nửa thời hạn' }, { v: 'before', l: '2 giờ trước hạn' }] }));
-          pf.push(P('onTimeout', 'Khi quá hạn', 'select', { options: [{ v: 'remind', l: 'Nhắc lại, chờ tiếp' }, { v: 'escalate', l: 'Leo thang cho người khác' }, { v: 'branch', l: 'Đi nhánh Quá hạn' }], hint: c.onTimeout === 'branch' ? 'Bước có thêm nhánh Quá hạn để xử lý riêng.' : '' }));
-          if (c.onTimeout === 'escalate') pf.push(P('escalateTo', 'Leo thang cho', 'select', { options: opt(PEOPLE) }));
-          pf.push(P('delegate', 'Cho phép uỷ quyền', 'toggle', { ph: 'Người nhận vắng mặt có thể chuyển cho người khác duyệt thay. Lịch sử ghi cả hai người.' }));
+          pf.push(P('timeout', 'Hạn trả lời', 'input', { ph: 'VD: 3' }));
+          pf.push(P('tunit', 'Đơn vị', 'select', { options: opt(['giờ', 'ngày']), hint: 'Tối đa 30 ngày, bằng thời gian tối đa của một lần chạy.' }));
+          pf.push(P('onTimeout', 'Khi quá hạn', 'select', { options: [{ v: 'branch', l: 'Đi nhánh Quá hạn' }, { v: 'stop', l: 'Dừng Quy trình' }] }));
           editors.push(LE('fields', 'TRƯỜNG NGƯỜI NHẬN TRẢ LỜI', { aPh: 'ten_truong', bPh: 'Gợi ý, VD: Duyệt / Từ chối', addLabel: '+ Thêm trường', note: 'Đặt tên bắt đầu bằng tep_ nếu cần người nhận tải tệp lên.' }));
           break;
         case 'wait':
-          pf.push(P('mode', 'Chờ gì', 'select', { options: [{ v: 'time', l: 'Một khoảng thời gian' }, { v: 'event', l: 'Sự kiện từ hệ thống khác' }] }));
-          if (c.mode === 'time') { help = 'Quy trình tạm dừng rồi tự chạy tiếp sau khoảng thời gian này.'; pf.push(P('amount', 'Chờ trong', 'input', { ph: 'VD: 2' })); pf.push(P('aunit', 'Đơn vị', 'select', { options: opt(['phút', 'giờ', 'ngày', 'ngày làm việc']), hint: 'Tối đa 90 ngày.' })); break; }
-          help = 'Quy trình dừng ở đây, không tốn tài nguyên, tới khi sự kiện đến. Mỗi lần chạy được ghép với đúng sự kiện của nó qua khoá ghép.';
-          pf.push(P('source', 'Sự kiện cần chờ', 'select', { options: opt([''].concat(EVENTS)) }));
-          pf.push(P('key', 'Khoá ghép', 'select', { options: ups, hint: 'Sự kiện có cùng giá trị này mới đánh thức lần chạy, VD: ma_po.' }));
-          pf.push(P('timeout', 'Chờ tối đa', 'input', { ph: 'VD: 30' }));
-          pf.push(P('tunit', 'Đơn vị', 'select', { options: opt(['giờ', 'ngày', 'ngày làm việc']) }));
-          pf.push(P('onTimeout', 'Khi quá hạn', 'select', { options: [{ v: 'branch', l: 'Đi nhánh Quá hạn' }, { v: 'stop', l: 'Dừng Quy trình, báo lỗi' }] }));
-          editors.push(LE('fields', 'DỮ LIỆU NHẬN TỪ SỰ KIỆN', { aPh: 'ten_truong', bPh: 'Mô tả', addLabel: '+ Thêm trường' }));
+          pf.push(P('mode', 'Chờ', 'select', { options: [{ v: 'delay', l: 'Một khoảng thời gian (Delay)' }, { v: 'until', l: 'Tới một thời điểm (Delay until)' }] }));
+          help = 'Quy trình tạm dừng rồi tự chạy tiếp. Muốn chờ hệ thống khác xong việc, dùng Loop: gọi Tool kiểm tra rồi Wait, lặp đến khi có kết quả.';
+          if (c.mode === 'until') pf.push(P('at', 'Thời điểm', 'input', { ph: 'VD: 2026-11-01 08:00 hoặc {{han_giao}}', canVar: true, hint: 'Giờ Việt Nam (GMT+7). Tối đa 30 ngày kể từ lúc bắt đầu chạy.' }));
+          else { pf.push(P('amount', 'Chờ trong', 'input', { ph: 'VD: 2' })); pf.push(P('aunit', 'Đơn vị', 'select', { options: opt(['phút', 'giờ', 'ngày']), hint: 'Tối đa 30 ngày.' })); }
           break;
         case 'decision':
           help = 'Mỗi dòng là một quy tắc. Khi: điều kiện, nối bằng "và", VD: tong_tien > 50000000 và loai_hang thuộc Phần mềm, Cloud. Thì: gán kết quả, cách nhau bằng ";", VD: can_it = true. Sửa ngưỡng ở một chỗ, mọi nhánh sau đều theo.';
@@ -1115,7 +1058,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
           break;
         case 'parallel':
           help = 'Các nhánh chạy cùng lúc. Ra khỏi khối là mọi nhánh đã xong. Thêm bước vào nhánh bằng nút + trong khung.';
-          editors.push({ title: 'NHÁNH', hasB: false, addLabel: '+ Thêm nhánh', hasNote: true, note: 'Mỗi nhánh là một chuỗi bước chạy thẳng: Nhân sự số, Human approval, Wait, Tool, Code.', hasExtra: false, extraLabel: '', extra: function () {}, picking: false, types: [],
+          editors.push({ title: 'NHÁNH', hasB: false, addLabel: '+ Thêm nhánh', hasNote: true, note: 'Mỗi nhánh là một chuỗi bước chạy thẳng: Prompt, Human approval, Wait, Tool, Set variable.', hasExtra: false, extraLabel: '', extra: function () {}, picking: false, types: [],
             items: c.branches.map(function (b, i) { return { a: b.name, aPh: 'Tên nhánh', aAria: 'Tên nhánh ' + (i + 1), aFont: 'inherit', hasTag: false, lock: c.branches.length <= 2,
               onA: function (ev) { var br2 = c.branches.slice(); br2[i] = Object.assign({}, b, { name: ev.target.value }); self.updateCfg({ branches: br2 }); },
               remove: function () { var kill = {}; (b.inner || []).forEach(function (k) { kill[k] = 1; }); var br2 = c.branches.filter(function (_, j) { return j !== i; }); self.setState(function (st) { return { nodes: st.nodes.filter(function (x) { return !kill[x.id]; }).map(function (x) { if (x.id === n.id) return Object.assign({}, x, { cfg: Object.assign({}, x.cfg, { branches: br2 }) }); if (x.parent === n.id && x.lane > i) return Object.assign({}, x, { lane: x.lane - 1 }); return x; }) }; }); self.relayoutSoon(); } }; }),
@@ -1165,7 +1108,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
           pf.push(P('mode', 'Kiểu lặp', 'select', { options: [{ v: 'each', l: 'Với từng phần tử' }, { v: 'until', l: 'Lặp đến khi' }] }));
           if (c.mode === 'each') pf.push(P('list', 'Danh sách', 'select', { options: ups, hint: 'Các bước bên trong đọc phần tử hiện tại qua biến phan_tu.' }));
           else pf.push(P('until', 'Dừng khi', 'input', { ph: 'VD: trang_thai = "Xong"' }));
-          pf.push(P('par', 'Chạy song song', 'toggle', { ph: 'Mặc định chạy lần lượt. Bật để chạy tối đa 5 phần tử cùng lúc.' }));
+          pf.push(P('par', 'Chạy song song', 'toggle', { ph: 'Mặc định chạy lần lượt. Bật để chạy tối đa 50 phần tử cùng lúc.' }));
           help = 'Thêm bước vào vòng lặp bằng nút + trong khung, hoặc chọn khung rồi bấm bảng Thêm bước bên trái.';
           break;
         case 'subflow':
@@ -1174,14 +1117,11 @@ class ProcessBuilderInner extends React.Component<any, any> {
         case 'end':
           pf.push(P('status', 'Trạng thái', 'select', { options: [{ v: 'ok', l: 'Thành công' }, { v: 'fail', l: 'Thất bại' }] }));
           pf.push(P('message', 'Ghi chú (không bắt buộc)', 'input', { ph: 'VD: Hồ sơ thiếu giấy tờ' }));
-          help = 'Bên gọi Quy trình (Nhân sự số, API, MCP) nhận các giá trị đầu ra dưới đây cùng trạng thái.';
-          editors.push({ title: 'GIÁ TRỊ ĐẦU RA', hasB: true, addLabel: 'Sửa đầu ra ở Thông tin Quy trình', hasNote: !(s.outs || []).length, note: 'Quy trình chưa khai báo đầu ra. Khai báo ở Thông tin Quy trình.', hasExtra: false, extraLabel: '', extra: function () {}, picking: false, types: [],
-            items: (s.outs || []).map(function (o, i) { return { a: o.name, b: (c.vals || {})[o.name] || '', aPh: 'ten', bPh: 'Giá trị, VD: {{ma_po}}', aAria: 'Đầu ra ' + (i + 1), bAria: 'Giá trị ' + o.name, aFont: 'ui-monospace, monospace', hasTag: true, tag: o.t, lock: true, onA: function () {}, onB: function (ev) { var v2 = Object.assign({}, c.vals || {}); v2[o.name] = ev.target.value; self.updateCfg({ vals: v2 }); }, remove: function () {} }; }),
-            add: function () { self.setState({ sel: null, panelHidden: false }); } });
+          help = 'Kết thúc lần chạy. Muốn trả dữ liệu cho Nhân sự số, thêm bước Respond to the agent trước bước này.';
           break;
         case 'respond':
-          help = 'Nhân sự số đã gọi Quy trình nhận lại các dữ liệu này.';
-          editors.push(LE('outs', 'DỮ LIỆU TRẢ VỀ', { aPh: 'ten_du_lieu', bPh: 'Giá trị, VD: {{ma_po}}', addLabel: '+ Thêm dữ liệu', min: 1 }));
+          help = 'Nhân sự số đã gọi Quy trình nhận các dữ liệu này. Quy trình phải tới bước này trong vòng 100 giây kể từ lúc được gọi; Quy trình vẫn chạy tiếp sau bước này.';
+          editors.push(LE('outs', 'DỮ LIỆU TRẢ VỀ', { aPh: 'ten_du_lieu', bPh: 'Giá trị, VD: {{so_warn}}', addLabel: '+ Thêm dữ liệu', min: 1 }));
           break;
         case 'note':
           pf.push(P('text', 'Nội dung', 'text', {}));
@@ -1189,7 +1129,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
       }
       pf.forEach(function (f) { f.hasHint = !!f.hint; });
       if (n.type === 'condition') {
-        help = 'Xét từ trên xuống, mỗi lần chạy chỉ đi một nhánh.';
+        help = 'Điều kiện đúng thì đi nhánh Có, sai thì đi nhánh Không. Rẽ theo nhiều giá trị thì dùng Switch.';
         cases = c.cases.map(function (cs, ci) {
           var setCase = function (ncs) { var arr = c.cases.slice(); arr[ci] = ncs; self.updateCfg({ cases: arr }); };
           return { id: 'case-' + ci, name: cs.name, logic: cs.logic, canRemove: c.cases.length > 1,
@@ -1275,9 +1215,6 @@ class ProcessBuilderInner extends React.Component<any, any> {
       panelReopen: building && s.panelHidden && !selNode && !showRun && (!emb || !ro), notEmb: !emb, runBtnLabel: emb ? 'Chạy thử' : 'Test run', reopenCfg: function () { self.setState({ panelHidden: false }); },
       bannerLeft: (function () { var pw = building && (pmNode || showRun || (pmProcess && !s.panelHidden)) ? (s.expand ? 640 : 476) : 0, lw = s.palOpen && !ro ? 232 : 0; return 'calc(' + lw + 'px + (100% - ' + (lw + pw) + 'px) / 2)'; })(),
       pendingBanner: building && !ro && (s.status === 'pending' || !!pendVer), pendingText: (pendVer || 'v1') + ' đang chờ duyệt. Bạn đang sửa bản nháp mới - Bản đã gửi duyệt giữ nguyên.',
-      procOuts: (s.outs || []).map(function (o, i) { var set = function (p) { var a2 = (self.state.outs || []).slice(); a2[i] = Object.assign({}, o, p); self.setState({ outs: a2 }); }; return { name: o.name, t: o.t, desc: o.desc, aria: 'Tên đầu ra ' + (i + 1), onName: function (ev) { set({ name: ev.target.value.replace(/\s+/g, '_') }); }, onDesc: function (ev) { set({ desc: ev.target.value }); }, remove: function () { self.setState({ outs: (self.state.outs || []).filter(function (_, j) { return j !== i; }) }); } }; }),
-      outPicking: !!s.outPick, toggleOutPick: function () { if (self.roStop()) return; self.setState({ outPick: !self.state.outPick }); },
-      outTypes: OUTTYPES.map(function (ty) { return { label: ty, pick: function () { self.setState({ outs: (self.state.outs || []).concat([{ name: '', t: ty, desc: '' }]), outPick: false }); } }; }),
       nameInput: s.name || '', desc: s.desc || '', descLen: (s.desc || '').length, nameLen: (s.name || '').length, nameInvalid: !!s.nameErr, nameBorder: s.nameErr ? '#dc2626' : '#e5e5e5',
       nameHint: s.nameErr ? 'Nhập tên Quy trình để lưu.' : 'Tên hiện ở danh sách Nhân sự số.', nameHintColor: s.nameErr ? '#dc2626' : '#686873',
       onName: function (e) { if (self.ro()) return; var v = e.target.value.slice(0, 100); self.setState({ name: v, nameErr: !v.trim(), savedName: v.trim() ? v.trim() : self.state.savedName }); },
@@ -1495,7 +1432,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
       );
     }
     var v = this.renderVals(); this._v = v;
-    var { actCount, actGuards, addCase, addCrumb, addEmpty, addFrom, addHasCrumb, addHasFrom, addOpen, addQ, addRoot, addSections, addShowTabs, addTabs, aiBanner, aiCount, autoLayout, backToList, bannerLeft, building, canRedoNot, canTest, canUndoNot, canvasCursor, canvasRef, cases, checkOpen, checkPos, closeAdd, collapseSide, ctxItems, ctxOpen, ctxX, ctxY, deleteProcess, deleteSel, desc, descLen, dirIcon, dirLabel, dismissBanner, draftSteps, edgeDel, edgesD, editors, errD, errMode, errRetry, expandLabel, expandSide, fit, guards, hasIssues, isGuardPage, isOtherTab, isVersionsPage, issueColor, issueCount, issueGroups, last, lastHas, moreOpen, name, nameBorder, nameHint, nameHintColor, nameInput, nameInvalid, nameLen, navItems, noIssues, noRunInputs, nodeTabs, notEmb, onAddKey, onAddQ, onBgDown, onDesc, onErrMode, onMove, onName, onNameBlur, onTitle, onUp, opOpts, openRun, openVersions, otherIcon, otherText, otherTitle, outPicking, outTypes, outVars, palClosed, palItems, palOpen, panelClose, panelOpen, panelReopen, panelTabs, panelW, pendingBanner, pendingText, pf, pmNode, pmProcess, pmRun, procOuts, pubOpen, pubState, publish, publishDisabled, publishLabel, ranD, readOnly, readyChipFg, readyChipIcon, readyChipText, readyDone, readyItems, readyOpen, readyPct, readyTotal, redo, reopenCfg, rerun, roBanner, runBar, runBtnLabel, runDone, runHasOutput, runInputTitle, runInputs, runLocked, runLog, runOutput, runPaused, runResBg, runResBorder, runResText, runRunning, runShowInput, runShowResult, runShowTrace, runStatusColor, runStatusText, runStep, runTabs, sel, selD, share, showHeader, showReady, showReadyChip, sideRail, sideShow, startRun, statusBg, statusDot, statusFg, statusLabel, stepCount, tabCfg, tabLast, tmpD, toast, toastBg, toastText, toggleCheck, toggleDir, toggleExpand, toggleMore, toggleOutPick, togglePal, togglePub, toggleReady, toggleRetry, toolHint, toolHintColor, topTabs, triggerName, undo, varOpts, versionSub, versionTitle, viewNodes, waitActions, waitBody, waitExpire, waitRole, waitTitle, worldTransform, zoomIn, zoomOut, zoomPct } = v;
+    var { actCount, actGuards, addCrumb, addEmpty, addFrom, addHasCrumb, addHasFrom, addOpen, addQ, addRoot, addSections, addShowTabs, addTabs, aiBanner, aiCount, autoLayout, backToList, bannerLeft, building, canRedoNot, canTest, canUndoNot, canvasCursor, canvasRef, cases, checkOpen, checkPos, closeAdd, collapseSide, ctxItems, ctxOpen, ctxX, ctxY, deleteProcess, deleteSel, desc, descLen, dirIcon, dirLabel, dismissBanner, draftSteps, edgeDel, edgesD, editors, errD, errMode, errRetry, expandLabel, expandSide, fit, guards, hasIssues, isGuardPage, isOtherTab, isVersionsPage, issueColor, issueCount, issueGroups, last, lastHas, moreOpen, name, nameBorder, nameHint, nameHintColor, nameInput, nameInvalid, nameLen, navItems, noIssues, noRunInputs, nodeTabs, notEmb, onAddKey, onAddQ, onBgDown, onDesc, onErrMode, onMove, onName, onNameBlur, onTitle, onUp, opOpts, openRun, openVersions, otherIcon, otherText, otherTitle, outVars, palClosed, palItems, palOpen, panelClose, panelOpen, panelReopen, panelTabs, panelW, pendingBanner, pendingText, pf, pmNode, pmProcess, pmRun, pubOpen, pubState, publish, publishDisabled, publishLabel, ranD, readOnly, readyChipFg, readyChipIcon, readyChipText, readyDone, readyItems, readyOpen, readyPct, readyTotal, redo, reopenCfg, rerun, roBanner, runBar, runBtnLabel, runDone, runHasOutput, runInputTitle, runInputs, runLocked, runLog, runOutput, runPaused, runResBg, runResBorder, runResText, runRunning, runShowInput, runShowResult, runShowTrace, runStatusColor, runStatusText, runStep, runTabs, sel, selD, share, showHeader, showReady, showReadyChip, sideRail, sideShow, startRun, statusBg, statusDot, statusFg, statusLabel, stepCount, tabCfg, tabLast, tmpD, toast, toastBg, toastText, toggleCheck, toggleDir, toggleExpand, toggleMore, togglePal, togglePub, toggleReady, toggleRetry, toolHint, toolHintColor, topTabs, triggerName, undo, varOpts, versionSub, versionTitle, viewNodes, waitActions, waitBody, waitExpire, waitRole, waitTitle, worldTransform, zoomIn, zoomOut, zoomPct } = v;
     backToList = function () { clearTimeout(self.timer); self.props.onBack(); };
     return (
       <div className="qt-root" style={S(emb ? 'flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; background: #fff' : 'height: 100vh; min-height: 640px; display: flex; flex-direction: column; overflow: hidden; position: relative; background: #fff')}>
@@ -1958,8 +1895,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
                 <button type="button" className={Q('ghost link')} onClick={c.addRow}>+ Thêm dòng</button>
               </div>
             </React.Fragment>))}
-            <button type="button" className={Q('btn')} onClick={addCase} style={S('width: 100%; justify-content: center; margin-top: 10px; height: 32px; font-size: 12.5px')}>+ Thêm nhánh</button>
-            <p style={S('font-size: 11.5px; color: #64748b; margin: 8px 0 0; line-height: 1.5')}>Nhánh "Còn lại" tự có, dùng khi không nhánh nào đúng. Xét từ trên xuống, mỗi lần chạy chỉ đi một nhánh.</p>
+            <p style={S('font-size: 11.5px; color: #64748b; margin: 8px 0 0; line-height: 1.5')}>Mọi dòng đều đúng (VÀ) hoặc một dòng đúng (HOẶC) thì đi nhánh Có, còn lại đi nhánh Không.</p>
           </>)}
 
           {/* Bộ sửa danh sách dùng chung */}
@@ -2027,23 +1963,6 @@ class ProcessBuilderInner extends React.Component<any, any> {
         <label className={Q('lbl')} htmlFor="qt-desc">Mô tả</label>
         <textarea id="qt-desc" className={Q('field')} rows="3" maxlength="500" value={desc} onChange={onDesc} placeholder="VD: Duyệt đề nghị mua sắm nhiều cấp, tạo PO và đối chiếu 3 chiều." style={S('height: auto; padding: 8px 10px; resize: vertical')}></textarea>
         <div style={S('display: flex; justify-content: flex-end; margin-top: 4px')}><span style={S('font-size: 11.5px; color: #686873')}>{descLen}/500</span></div>
-        <div className={Q('sec')}>ĐẦU RA</div>
-        <p style={S('font-size: 11.5px; color: #64748b; margin: 4px 0 0; line-height: 1.5')}>Bên gọi (Nhân sự số, API, MCP) nhận các giá trị này khi Quy trình tới bước End. Gọi xong bên gọi nhận ngay ma_lan_chay để tra kết quả.</p>
-        {(procOuts || []).map((po, _ipo) => (<React.Fragment key={_ipo}>
-          <div style={S('display: flex; gap: 6px; margin-top: 6px; align-items: center')}>
-            <span style={S('font-size: 10.5px; background: #f1f5f9; border-radius: 5px; padding: 3px 6px; white-space: nowrap; color: #334155')}>{po.t}</span>
-            <input className={Q('field')} aria-label={po.aria} value={po.name} placeholder="ten_dau_ra" onChange={po.onName} style={S('font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px')} />
-            <input className={Q('field')} aria-label="Mô tả đầu ra" value={po.desc} placeholder="Mô tả cho bên gọi" onChange={po.onDesc} style={S('font-size: 12.5px')} />
-            <button type="button" className={Q('ghost')} aria-label="Xoá đầu ra" onClick={po.remove} style={S('width: 26px; height: 26px; border-radius: 6px; flex-shrink: 0')}>✕</button>
-          </div>
-        </React.Fragment>))}
-        {(outPicking) && (<>
-          <div style={S('margin-top: 8px; border: 1px solid #e5e5e5; border-radius: 10px; padding: 10px')}>
-            <div style={S('font-size: 12px; color: #475569')}>Chọn kiểu dữ liệu</div>
-            <div style={S('display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px')}>{(outTypes || []).map((ty, _ity) => (<React.Fragment key={_ity}><button type="button" className={Q('pill')} onClick={ty.pick}>{ty.label}</button></React.Fragment>))}</div>
-          </div>
-        </>)}
-        <button type="button" className={Q('ghost link')} onClick={toggleOutPick}>+ Thêm đầu ra</button>
         <div style={S('display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 16px')}>
           <div style={S('background: #f8fafc; border-radius: 8px; padding: 10px')}><div style={S('font-size: 20px; font-weight: 600')}>{stepCount}</div><div style={S('font-size: 11.5px; color: #475569')}>bước</div></div>
           <div style={S('background: #f8fafc; border-radius: 8px; padding: 10px')}><div style={S(`font-size: 20px; font-weight: 600; color: ${issueColor}`)}>{issueCount}</div><div style={S('font-size: 11.5px; color: #475569')}>lỗi cần sửa</div></div>
