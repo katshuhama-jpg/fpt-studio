@@ -20,7 +20,7 @@ import InstructionsEditor from "@/components/configure/InstructionsEditor";
 import { RefChip } from "@/components/configure/refChip";
 import { parseToken } from "@/components/configure/instructionRefs";
 import {
-  MAX_STEPS, REMINDER_CHANNELS, channelLabel, emptyStep, fmtMinutes, generateTrigger, includes, reminderStore,
+  MAX_STEPS, REMINDER_CHANNELS, channelLabel, emptyStep, fmtMinutes, generateTrigger, reminderStore,
   stepMinutes, stepSkills, textFallbackChannels, totalMinutes, validateReminder,
   HOUR_OPTIONS, MINUTE_OPTIONS, type Reminder, type ReminderStep,
 } from "./reminderStore";
@@ -263,8 +263,6 @@ export default function ReminderSheet({ agentId, initial, mode, readOnly, onClos
     onSaved();
   };
 
-  const showMessenger = includes(draft.channels, "messenger");
-  const showApi = includes(draft.channels, "api");
   const nameErr = show("name") ? errors.fields.get("name") : undefined;
   const channelsErr = show("channels") ? errors.fields.get("channels") : undefined;
 
@@ -278,21 +276,6 @@ export default function ReminderSheet({ agentId, initial, mode, readOnly, onClos
           </SheetHeader>
 
           <div ref={bodyRef} className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-6">
-            {(showMessenger || showApi) && (
-              <div className="space-y-2">
-                {showMessenger && (
-                  <p className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2.5 text-sm">
-                    <Icon icon={Alert02Icon} className="mt-0.5 shrink-0 text-warning" /> Lời nhắc sau 24 giờ có thể không gửi được trên Messenger.
-                  </p>
-                )}
-                {showApi && (
-                  <p className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2.5 text-sm">
-                    <Icon icon={Alert02Icon} className="mt-0.5 shrink-0 text-warning" /> Kênh API sẽ không nhận lời nhắc cho đến khi đăng ký sự kiện <code className="font-mono text-xs">agent.reminder.sent</code>.
-                  </p>
-                )}
-              </div>
-            )}
-
             <section className="space-y-4">
               <h3 className="text-sm font-semibold">Thông tin chung</h3>
               <div>
