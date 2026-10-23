@@ -981,7 +981,7 @@ export default function AgentBuilder() {
               )}
               {tab === "evaluate" && <EvaluationTab agentId={id ?? "new"} agentName={agent.name} section={section as EvalSection} onRefineWithAI={() => setParams({ tab: "build", section: "instructions", buildMode: "ai" })} />}
               {tab === "channels" && <DeployTab agentId={id} onViewTriggers={() => setParams({ tab: "build", section: "triggers" })} onViewVersions={() => setParams({ tab: "build", section: "versions" })} onOpenPublish={() => canPublishAgent && requestPublish()} onOpenCapabilities={() => setParams({ tab: "build", section: "advanced", atab: "capabilities" })} />}
-              {tab === "insights" && ["performance", "usage", "feedback", "topics", "operations", "cost"].includes(section) && <AgentAnalytics agentId={id ?? "new"} section={section as AnalyticsSection} kind={isProcess ? "process" : kind === "automation" ? "automation" : "conversational"} published={published} onPublish={canPublishAgent ? () => requestPublish() : undefined} onOpenChannels={() => setParams({ tab: "channels" })} />}
+              {tab === "insights" && ["performance", "usage", "feedback", "topics", "operations", "cost"].includes(section) && <AgentAnalytics agentId={id ?? "new"} section={section as AnalyticsSection} kind={isProcess ? "process" : kind === "automation" ? "automation" : "conversational"} published={published} onPublish={canPublishAgent ? () => requestPublish() : undefined} onOpenChannels={() => setParams({ tab: "channels" })} canEdit={!viewOnly} />}
               {tab === "insights" && section === "history" && canSeeHistory && (
                 kind === "automation"
                   ? <div className="p-8"><TriggerRunsTab agentId={id ?? "new"} /></div>
