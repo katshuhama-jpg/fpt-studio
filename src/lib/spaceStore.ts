@@ -27,6 +27,7 @@ export const TENANTS: Tenant[] = [
   { id: "fpt-telecom",     name: "FPT Telecom",     plan: "Business",   initial: "FT" },
   { id: "fpt-software",    name: "FPT Software",    plan: "Enterprise", initial: "FW" },
   { id: "sandbox",         name: "Personal Sandbox",plan: "Free",       initial: "PS" },
+  { id: "bo-tai-chinh",    name: "Bộ Tài Chính",    plan: "Business",   initial: "BT" },
 ];
 
 /**

@@ -5,6 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Add01Icon, Search01Icon, FilterIcon, Chat01Icon,
   SparklesIcon, Cancel01Icon, BoltIcon, TimeScheduleIcon, UserMultipleIcon, FlowCircleIcon,
+  Shield01Icon, Image01Icon, Camera01Icon, BulbIcon, Book02Icon, Rocket01Icon, FlashIcon,
 } from "@hugeicons/core-free-icons";
 import { useCanShareAgent } from "@/components/configure/ShareAgentModal";
 import { useAgentShareVersion, agentShareStore } from "@/components/configure/agentShareStore";
@@ -25,6 +26,7 @@ import { recheckAgentGroupPublish } from "@/components/configure/collabGroupStor
 import { getChannelName } from "@/components/configure/channelCatalog";
 import { AgentVersionLines, agentGovState } from "@/components/governance/governanceUi";
 import { agentModelStore } from "@/components/configure/agentModelStore";
+import { getCurrentTenantId, subscribeTenantChange } from "@/lib/spaceStore";
 
 /* ─── Data ─────────────────────────────────────────────────────────────── */
 
@@ -33,19 +35,11 @@ const tabs = ["Tất cả Nhân sự số", "Published", "Draft", "Removed", "Ch
 const TAB_LABEL: Partial<Record<typeof tabs[number], string>> = { Published: "Đang live", Draft: "Bản nháp", Removed: "Đã gỡ", "Shared with me": "Được thêm vào" };
 const kindFilters = ["All", "Nhân sự số", "Quy trình", "Nhân sự số tự động"] as const;
 
-const SUGGESTIONS = [
-  { label: "Customer support", prompt: "A customer-support agent that answers FAQs, guides users through documentation, and escalates tickets when needed." },
-  { label: "Internal lookup", prompt: "An internal lookup assistant that answers employee questions using company policies and the internal knowledge base." },
-  { label: "Sales assistant", prompt: "A sales assistant that qualifies inbound leads, answers product questions, and books demo calls." },
-] as const;
-
 /** Gợi ý mô tả khi tạo Nhân sự số Quy trình (AI dựng sẵn các bước). */
 const PROCESS_SUGGESTIONS = [
-  { label: "Mua sắm FHO-FPD", prompt: "Nhân sự số gửi đề nghị mua sắm của FHO. Chuẩn bị hồ sơ và 3 báo giá, Trưởng phòng duyệt, phần mềm/cloud qua IT bảo mật, trên 50 triệu thêm Kế toán và Giám đốc. Duyệt xong tạo PO trên Odoo, kho nhận hàng, đối chiếu 3 chiều rồi Kế toán thanh toán." },
-  { label: "Rule bồi thường MB Life", prompt: "Nhân sự số gửi hồ sơ bồi thường đã đọc OCR và số hợp đồng MB Life. Lấy Policy, lịch sử bồi thường và bảng tham chiếu cùng lúc, chạy rule chứng từ, hiệu lực và thẩm định không dùng LLM, trả về PASS, WARN, NOT_EVALUATED cho từng rule." },
-  { label: "Duyệt đề nghị mua sắm", prompt: "Nhân sự số gửi đề nghị mua sắm kèm chứng từ. Trích xuất chứng từ, nếu vượt 50 triệu thì giám đốc duyệt, không thì tự duyệt. Duyệt xong tạo PO trên SAP ERP, từ chối thì soạn thư báo lại người đề nghị." },
-  { label: "Đối chiếu hoá đơn với PO", prompt: "Khi hệ thống kế toán gửi hoá đơn VAT qua HTTP, trích xuất số tiền, lấy PO tương ứng từ ERP để so khớp. Khớp thì ghi nhận công nợ, lệch thì chuyển kế toán xem lại." },
-  { label: "Tiếp nhận hồ sơ vay", prompt: "Nhận hồ sơ vay gồm CCCD và sao kê lương. Phân loại sản phẩm vay, tra chính sách tín dụng, chấm điều kiện cơ bản rồi chuyển chuyên viên thẩm định. Đạt thì tạo hồ sơ trên LOS, không đạt thì soạn thư từ chối." },
+  { label: "Đối chiếu hoá đơn với PO", prompt: "Khi hệ thống kế toán gửi hoá đơn VAT qua HTTP, đọc số tiền, lấy PO tương ứng từ ERP để so khớp. Khớp thì ghi nhận công nợ, lệch thì chuyển kế toán xem lại." },
+  { label: "Rule thẩm định MB Life", prompt: "Nhân sự số gửi hồ sơ bồi thường đã đọc OCR và số hợp đồng MB Life. Lấy Policy, lịch sử bồi thường và bảng tham chiếu cùng lúc, chạy rule qua API rule engine, trả PASS, WARN, NOT_EVALUATED cho Nhân sự số." },
+  { label: "Tiếp nhận hồ sơ vay", prompt: "Nhận hồ sơ vay gồm CCCD và sao kê lương. Đọc CCCD và sao kê, chấm điều kiện tín dụng trên LOS. Đạt thì tạo hồ sơ, cần thẩm định thì chuyển chuyên viên." },
 ] as const;
 
 
@@ -430,6 +424,149 @@ function GroupEmptyState({ message, onShowAll }: { message: string; onShowAll?: 
 
 /* ─── Main Page ─────────────────────────────────────────────────────────── */
 
+/** Gợi ý của production cho Nhân sự số Năng suất. */
+const SUGGESTIONS = [
+  { label: "Hỗ trợ khách hàng", prompt: "Trợ lý hỗ trợ khách hàng ngân hàng, trả lời thắc mắc về thẻ tín dụng, giọng trang trọng, tiếng Việt." },
+  { label: "Tra cứu nội bộ", prompt: "Trợ lý tra cứu quy định nhân sự và hướng dẫn IT cho nhân viên, trả lời ngắn gọn, dẫn nguồn tài liệu." },
+  { label: "Tư vấn bán hàng", prompt: "Trợ lý tư vấn gói dịch vụ, hỏi nhu cầu khách hàng và chấm điểm khách tiềm năng trước khi chuyển cho sales." },
+] as const;
+
+const BLANK_TIPS = {
+  productivity: [
+    { icon: BulbIcon, title: "Bắt đầu với mục tiêu rõ ràng", desc: "Mô tả điều bạn muốn nhân sự số làm bằng ngôn ngữ tự nhiên - trả lời câu hỏi nhân sự, review code hay tổng hợp báo cáo." },
+    { icon: Book02Icon, title: "Cung cấp kiến thức", desc: "Kết nối tài liệu, website hoặc công cụ để nhân sự số có đủ ngữ cảnh trả lời chính xác." },
+    { icon: Rocket01Icon, title: "Kiểm thử và triển khai", desc: "Chạy thử nhân sự số trong môi trường an toàn, tinh chỉnh câu trả lời rồi đưa vào phục vụ cả nhóm." },
+  ],
+  process: [
+    { icon: BulbIcon, title: "Mô tả các bước", desc: "Nêu thứ tự việc cần làm, điều kiện rẽ nhánh và ai duyệt - AI dựng sẵn các bước trên canvas." },
+    { icon: Book02Icon, title: "Kết nối hệ thống", desc: "Gọi hệ thống nội bộ qua Tool đã kết nối trong Space: Connector, API Tool hoặc MCP." },
+    { icon: Rocket01Icon, title: "Chạy thử và publish", desc: "Chạy thử với dữ liệu mẫu, xem đường đi qua từng bước rồi publish để Nhân sự số gọi như một tool." },
+  ],
+} as const;
+
+type CreateKind = "productivity" | "process";
+
+/** Ô tạo Nhân sự số của production ("Bắt đầu từ đâu?"), thêm nút chọn Năng suất | Quy trình.
+ * Dùng chung cho màn Space trống và modal Tạo nhân sự số. */
+function CreateBox({ kind, setKind, prompt, setPrompt, onBuild, onTemplates, canCreate }: {
+  kind: CreateKind; setKind: (k: CreateKind) => void; prompt: string; setPrompt: (v: string) => void;
+  onBuild: () => void; onTemplates: () => void; canCreate: boolean;
+}) {
+  const isProc = kind === "process";
+  const [plusOpen, setPlusOpen] = useState(false);
+  const [modeOpen, setModeOpen] = useState(false);
+  const [mode, setMode] = useState<"manual" | "auto">("manual");
+  const noPerm = !canCreate ? "Bạn không có quyền tạo Nhân sự số." : undefined;
+  useEffect(() => {
+    if (!plusOpen && !modeOpen) return;
+    const close = () => { setPlusOpen(false); setModeOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); close(); } };
+    const onDown = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest("[data-cb-pop]")) close(); };
+    window.addEventListener("keydown", onKey, true);
+    window.addEventListener("mousedown", onDown);
+    return () => { window.removeEventListener("keydown", onKey, true); window.removeEventListener("mousedown", onDown); };
+  }, [plusOpen, modeOpen]);
+  return (
+    <div className="relative w-full rounded-xl border border-border bg-surface p-3 shadow-sm focus-within:border-ring transition-colors">
+      <div role="radiogroup" aria-label="Loại Nhân sự số" className="flex gap-1 p-1 rounded-lg bg-surface-muted w-fit">
+        {([{ id: "productivity", label: "Năng suất" }, { id: "process", label: "Quy trình" }] as const).map(k => (
+          <button key={k.id} type="button" role="radio" aria-checked={kind === k.id}
+            onClick={() => { setKind(k.id); setPrompt(""); }}
+            className={`h-7 px-3 rounded-md text-xs font-medium transition-base ${kind === k.id ? "bg-surface text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+            {k.label}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground mt-2 px-0.5">
+        {isProc ? "Dựng các bước chạy cố định trên canvas: duyệt, gọi hệ thống, rẽ nhánh theo dữ liệu." : "Dựng bằng prompt, hỗ trợ việc hằng ngày."}
+      </p>
+      <textarea
+        aria-label="Mô tả nhân sự số"
+        className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none leading-relaxed min-h-[64px] mt-1 px-0.5"
+        placeholder={isProc ? "VD: Nhận hoá đơn qua HTTP, đọc số tiền, so với PO trên ERP, lệch thì chuyển kế toán xem lại." : "Trợ lý hỗ trợ khách hàng ngân hàng, trả lời thắc mắc về thẻ tín dụng, giọng trang trọng, tiếng Việt."}
+        rows={3}
+        value={prompt}
+        onChange={e => setPrompt(e.target.value)}
+        onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) onBuild(); }}
+      />
+      <div className="flex items-center gap-1 mt-1">
+        <div className="relative" data-cb-pop>
+          <button type="button" aria-label="Thêm tệp hoặc ảnh" aria-expanded={plusOpen} onClick={() => { setPlusOpen(v => !v); setModeOpen(false); }}
+            className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base">
+            <HugeiconsIcon icon={Add01Icon} size={16} />
+          </button>
+          {plusOpen && (
+            <div role="menu" className="absolute left-0 bottom-10 z-20 w-52 rounded-lg border border-border bg-surface shadow-elev p-1">
+              <button type="button" role="menuitem" onClick={() => setPlusOpen(false)} className="w-full h-8 px-2 rounded-md flex items-center gap-2 text-sm hover:bg-surface-muted"><HugeiconsIcon icon={Image01Icon} size={14} />Thêm tệp hoặc ảnh</button>
+              <button type="button" role="menuitem" onClick={() => setPlusOpen(false)} className="w-full h-8 px-2 rounded-md flex items-center gap-2 text-sm hover:bg-surface-muted"><HugeiconsIcon icon={Camera01Icon} size={14} />Chụp ảnh màn hình</button>
+            </div>
+          )}
+        </div>
+        <div className="relative" data-cb-pop>
+          <button type="button" aria-expanded={modeOpen} onClick={() => { setModeOpen(v => !v); setPlusOpen(false); }}
+            className="h-8 px-2 rounded-lg flex items-center gap-1.5 text-xs text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base">
+            <HugeiconsIcon icon={mode === "manual" ? Shield01Icon : FlashIcon} size={13} />
+            {mode === "manual" ? "Thủ công" : "Tự động"}
+          </button>
+          {modeOpen && (
+            <div role="menu" aria-label="Chế độ duyệt" className="absolute left-0 bottom-10 z-20 w-64 rounded-lg border border-border bg-surface shadow-elev p-2">
+              <div className="text-[10.5px] font-medium tracking-wide text-muted-foreground px-1.5 pb-1">CHẾ ĐỘ DUYỆT</div>
+              {([
+                { id: "manual", name: "Thủ công", desc: "Luôn cần xác nhận trước khi thay đổi cấu hình", icon: Shield01Icon, def: false },
+                { id: "auto", name: "Tự động", desc: "Tự duyệt thay đổi cấu hình. Công cụ kết nối ngoài vẫn hỏi.", icon: FlashIcon, def: true },
+              ] as const).map(m => (
+                <button key={m.id} type="button" role="menuitemradio" aria-checked={mode === m.id} onClick={() => { setMode(m.id); setModeOpen(false); }}
+                  className={`w-full text-left px-1.5 py-1.5 rounded-md flex gap-2 hover:bg-surface-muted ${mode === m.id ? "bg-primary-soft/50" : ""}`}>
+                  <HugeiconsIcon icon={m.icon} size={14} className="mt-0.5 shrink-0" />
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-1.5 text-sm font-medium">{m.name}{m.def && <span className="text-[10px] font-medium text-muted-foreground bg-surface-muted rounded px-1">MẶC ĐỊNH</span>}</span>
+                    <span className="block text-xs text-muted-foreground mt-0.5">{m.desc}</span>
+                  </span>
+                </button>
+              ))}
+              <div className="border-t border-border mt-1 pt-1.5 px-1.5 text-[11px] text-muted-foreground">Lựa chọn được lưu cho các phiên sau.</div>
+            </div>
+          )}
+        </div>
+        <div className="flex-1" />
+        {!isProc && (
+          <button type="button" onClick={() => canCreate && onTemplates()} disabled={!canCreate} title={noPerm}
+            className="h-8 px-2.5 text-sm text-muted-foreground hover:text-foreground transition-base disabled:opacity-40 disabled:cursor-not-allowed">
+            Dùng mẫu có sẵn
+          </button>
+        )}
+        <button type="button" onClick={onBuild} disabled={prompt.trim().length < 20 || !canCreate} title={noPerm ?? (prompt.trim().length < 20 ? "Mô tả tối thiểu 20 ký tự" : undefined)}
+          className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
+          <HugeiconsIcon icon={SparklesIcon} size={14} />
+          {isProc ? "Tạo bản nháp Quy trình" : "Tạo bản nháp"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CreateExtras({ kind, setPrompt, onBlank, canCreate }: { kind: CreateKind; setPrompt: (v: string) => void; onBlank: () => void; canCreate: boolean }) {
+  return (
+    <>
+      <div className="flex items-center justify-center flex-wrap gap-2 mt-4">
+        <span className="text-xs text-muted-foreground">Gợi ý</span>
+        {(kind === "process" ? PROCESS_SUGGESTIONS : SUGGESTIONS).map(s => (
+          <button key={s.label} type="button" onClick={() => canCreate && setPrompt(s.prompt)} disabled={!canCreate}
+            className="h-7 px-3 rounded-full border border-border text-xs font-medium text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base disabled:opacity-40 disabled:cursor-not-allowed">
+            {s.label}
+          </button>
+        ))}
+      </div>
+      <div className="flex justify-center">
+        <button type="button" onClick={() => canCreate && onBlank()} disabled={!canCreate} title={!canCreate ? "Bạn không có quyền tạo Nhân sự số." : undefined}
+          className="mt-3 h-9 px-4 rounded-lg bg-surface-muted text-sm font-medium hover:bg-surface-sunken transition-base disabled:opacity-40 disabled:cursor-not-allowed">
+          Tự dựng từ đầu
+        </button>
+      </div>
+    </>
+  );
+}
+
 export default function AgentsList() {
   const navigate = useNavigate();
   const { can } = useMyPermissions();
@@ -462,7 +599,16 @@ export default function AgentsList() {
   const [search, setSearch] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
   const [prompt, setPrompt] = useState("");
-  const [createKind, setCreateKind] = useState<"productivity" | "process">("productivity");
+  const [createKind, setCreateKind] = useState<CreateKind>("productivity");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [tenantId, setTenantId] = useState(getCurrentTenantId());
+  useEffect(() => subscribeTenantChange(() => setTenantId(getCurrentTenantId())), []);
+  useEffect(() => {
+    if (!createOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setCreateOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [createOpen]);
   const isProcessKind = createKind === "process";
 
   const tabCounts: Record<typeof tabs[number], number> = {
@@ -510,6 +656,15 @@ export default function AgentsList() {
     setActiveTab("Tất cả Nhân sự số");
   };
 
+  const isBlankSpace = tenantId === "bo-tai-chinh" || visibleAgents.length === 0;
+  const kpi = useMemo(() => {
+    const total = visibleAgents.length;
+    const active = visibleAgents.filter(a => agentTabStatus(a) === "Published").length;
+    const convs = visibleAgents.reduce((n, a) => n + (Number((a as any).convs) || 0), 0);
+    return { total, active, convs, users: Math.round(convs / 6) };
+  }, [visibleAgents]);
+  const handleBlank = () => navigate(isProcessKind ? "/process/new" : "/agents/new?tab=build&section=instructions");
+
   const handleBuild = () => {
     if (!prompt.trim() || !canCreateAgent) return;
     if (isProcessKind) {
@@ -532,105 +687,87 @@ export default function AgentsList() {
         <TemplateModal onClose={() => setShowTemplates(false)} />
       )}
 
-      {/* Page header */}
-      <div className="mb-6">
-        <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Nhân sự số</h1>
-        <p className="text-sm text-muted-foreground">
-          Quản lý mọi Nhân sự số trong Space - Tạo, kiểm thử, triển khai và theo dõi.
-        </p>
+      {/* Page header - như production: tiêu đề bên trái, nút Tạo nhân sự số bên phải */}
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Nhân sự số</h1>
+          <p className="text-sm text-muted-foreground">
+            Quản lý mọi nhân sự số trong workspace - dựng, kiểm thử, triển khai và giám sát.
+          </p>
+        </div>
+        {!isBlankSpace && (
+          <button type="button" onClick={() => canCreateAgent && setCreateOpen(true)} disabled={!canCreateAgent}
+            title={!canCreateAgent ? "Bạn không có quyền tạo Nhân sự số." : undefined}
+            className="btn-primary shrink-0 disabled:opacity-40 disabled:cursor-not-allowed">
+            <HugeiconsIcon icon={Add01Icon} size={14} />
+            Tạo nhân sự số
+          </button>
+        )}
       </div>
 
-      {/* ── Hero title + chat box ─────────────────────────────────────── */}
-      <div className="flex flex-col items-center mb-8">
-        <h2 className="font-display text-3xl font-semibold tracking-tight text-center mb-2">
-          Bạn muốn bắt đầu từ đâu?
-        </h2>
-        <p className="text-base text-muted-foreground text-center mb-6">
-          Chọn một điểm bắt đầu, rồi chỉnh tiếp trong trình dựng.
-        </p>
-        <div className="w-full max-w-[672px] rounded-2xl border border-border bg-surface p-4 shadow-sm focus-within:border-ring transition-colors">
-        <div role="radiogroup" aria-label="Loại Nhân sự số" className="flex gap-1 p-1 mb-3 rounded-lg bg-surface-muted w-fit">
-          {([
-            { id: "productivity", label: "Năng suất", hint: "Dựng bằng prompt, hỗ trợ việc hằng ngày" },
-            { id: "process", label: "Quy trình", hint: "Làm đúng theo quy trình, từng bước cố định" },
-          ] as const).map(k => (
-            <button
-              key={k.id}
-              role="radio"
-              aria-checked={createKind === k.id}
-              title={k.hint}
-              onClick={() => { setCreateKind(k.id); setPrompt(""); }}
-              className={`h-8 px-3 rounded-md text-xs font-medium transition-base ${createKind === k.id ? "bg-surface text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              {k.label}
-            </button>
-          ))}
-        </div>
-        <p className="text-xs text-muted-foreground mb-2">
-          {isProcessKind ? "Làm đúng theo quy trình, từng bước cố định. Mô tả các bước, AI dựng sẵn để bạn sửa." : "Dựng bằng prompt, hỗ trợ việc hằng ngày."}
-        </p>
-        <textarea
-          className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none leading-relaxed min-h-[56px]"
-          placeholder={isProcessKind ? "VD: Nhận hoá đơn, đọc số tiền, so với PO trên ERP, lệch thì chuyển kế toán xem lại." : 'VD: Trợ lý chăm sóc khách hàng ngân hàng, trả lời thắc mắc về thẻ tín dụng, giọng trang trọng.'}
-          rows={2}
-          value={prompt}
-          onChange={e => setPrompt(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleBuild();
-          }}
-        />
-        <div className="flex items-center justify-between mt-3">
-          <p className="text-xs text-muted-foreground">
-            {isProcessKind ? "Nêu các bước, ai duyệt, dùng hệ thống nào - Tối thiểu 20 ký tự." : "Mô tả càng cụ thể, bản nháp càng sát - Tối thiểu 20 ký tự."}
-          </p>
-
-          {/* Right actions */}
-          <div className="flex items-center gap-3 shrink-0">
-            {!isProcessKind && <button
-              onClick={() => canCreateAgent && setShowTemplates(true)}
-              disabled={!canCreateAgent}
-              title={!canCreateAgent ? "Bạn không có quyền tạo Nhân sự số." : undefined}
-              className="text-sm text-muted-foreground hover:text-foreground transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
-            >
-              Dùng mẫu
-            </button>}
-            <button
-              onClick={handleBuild}
-              disabled={prompt.trim().length < 20 || !canCreateAgent}
-              title={!canCreateAgent ? "Bạn không có quyền tạo Nhân sự số." : undefined}
-              className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <HugeiconsIcon icon={SparklesIcon} size={14} />
-              {isProcessKind ? "Dựng Quy trình" : "Tạo Nhân sự số"}
-            </button>
+      {isBlankSpace ? (
+        /* ── Space chưa có Nhân sự số: màn chào của production ───────────── */
+        <div className="flex flex-col items-center pt-10 pb-16">
+          <h2 className="font-display text-[32px] leading-tight font-semibold tracking-tight text-center max-w-[440px]">
+            Sẵn sàng xây dựng nhân sự số đầu tiên của bạn?
+          </h2>
+          <p className="text-[15px] text-muted-foreground text-center mt-3 mb-7">Mô tả nhân sự số bạn cần, mọi thứ đều chỉnh được sau.</p>
+          <div className="w-full max-w-[640px]">
+            <CreateBox kind={createKind} setKind={setCreateKind} prompt={prompt} setPrompt={setPrompt} onBuild={handleBuild} onTemplates={() => setShowTemplates(true)} canCreate={canCreateAgent} />
+            <CreateExtras kind={createKind} setPrompt={setPrompt} onBlank={handleBlank} canCreate={canCreateAgent} />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-7 mt-14">
+              {BLANK_TIPS[createKind].map(t => (
+                <div key={t.title}>
+                  <HugeiconsIcon icon={t.icon} size={18} className="text-primary" />
+                  <div className="text-sm font-semibold mt-2.5">{t.title}</div>
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-1.5">{t.desc}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
+      ) : (
+        /* ── Số liệu như production ─────────────────────────────────────── */
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          <div className="rounded-xl border border-border p-4">
+            <div className="text-xs text-muted-foreground">Nhân sự số đang hoạt động</div>
+            <div className="mt-2 text-xl font-semibold font-display">{kpi.active} <span className="text-sm font-normal text-muted-foreground">/ {kpi.total}</span></div>
+            <div className="mt-1.5 text-[11.5px] text-muted-foreground">{kpi.total - kpi.active} nhân sự số chưa xuất bản</div>
+          </div>
+          <div className="rounded-xl border border-border p-4">
+            <div className="text-xs text-muted-foreground">Hội thoại 7 ngày</div>
+            <div className="mt-2 text-xl font-semibold font-display">{kpi.convs.toLocaleString("vi-VN")}</div>
+            <div className="mt-1.5 text-[11.5px] text-muted-foreground">Tổng các Nhân sự số trong Space</div>
+          </div>
+          <div className="rounded-xl border border-border p-4">
+            <div className="text-xs text-muted-foreground">Người dùng 7 ngày</div>
+            <div className="mt-2 text-xl font-semibold font-display">{kpi.users.toLocaleString("vi-VN")}</div>
+            <div className="mt-1.5 text-[11.5px] text-muted-foreground">Người đã trò chuyện với Nhân sự số</div>
+          </div>
+          <div className="rounded-xl border border-border p-4">
+            <div className="text-xs text-muted-foreground">Đánh giá tích cực</div>
+            <div className="mt-2 text-base font-medium text-muted-foreground">Chưa có</div>
+            <div className="mt-1.5 text-[11.5px] text-muted-foreground">Chưa có lượt đánh giá nào</div>
+          </div>
         </div>
+      )}
 
-        <div className="flex items-center gap-2 mt-4">
-          <span className="text-xs text-muted-foreground">Gợi ý</span>
-          {(isProcessKind ? PROCESS_SUGGESTIONS : SUGGESTIONS).map(s => (
-            <button
-              key={s.label}
-              onClick={() => canCreateAgent && setPrompt(s.prompt)}
-              disabled={!canCreateAgent}
-              className="h-7 px-3 rounded-full border border-border text-xs font-medium text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {s.label}
+      {createOpen && createPortal(
+        <div className="fixed inset-0 z-50 bg-foreground/40 flex items-center justify-center p-4" onMouseDown={e => { if (e.target === e.currentTarget) setCreateOpen(false); }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="create-title" className="relative w-full max-w-[540px] rounded-xl bg-surface p-5 shadow-elev">
+            <button type="button" aria-label="Đóng" onClick={() => setCreateOpen(false)} className="absolute right-3 top-3 h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-surface-muted">
+              <HugeiconsIcon icon={Cancel01Icon} size={14} />
             </button>
-          ))}
-        </div>
+            <h2 id="create-title" className="text-lg font-semibold">Bắt đầu từ đâu?</h2>
+            <p className="text-sm text-muted-foreground mt-1 mb-4">Mô tả nhân sự số bạn cần, mọi thứ đều chỉnh được sau.</p>
+            <CreateBox kind={createKind} setKind={setCreateKind} prompt={prompt} setPrompt={setPrompt} onBuild={handleBuild} onTemplates={() => { setCreateOpen(false); setShowTemplates(true); }} canCreate={canCreateAgent} />
+            <CreateExtras kind={createKind} setPrompt={setPrompt} onBlank={handleBlank} canCreate={canCreateAgent} />
+          </div>
+        </div>,
+        document.body,
+      )}
 
-        <button
-          onClick={() => canCreateAgent && navigate(isProcessKind ? "/process/new" : "/agents/new?tab=build&section=instructions")}
-          disabled={!canCreateAgent}
-          title={!canCreateAgent ? "Bạn không có quyền tạo Nhân sự số." : undefined}
-          className="btn-secondary mt-4 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-surface"
-        >
-          Tạo từ đầu
-        </button>
-      </div>
-
+      {!isBlankSpace && (<>
       {/* ── Tabs + search toolbar ─────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3 border-b border-border pb-3">
         <div className="flex items-center gap-1 flex-wrap">
@@ -702,7 +839,7 @@ export default function AgentsList() {
           {conversationalAgents.length === 0 ? (
             <GroupEmptyState
               message={allConversationalCount === 0
-                ? "Chưa có Nhân sự số nào - Tạo ở trên và Nhân sự số sẽ hiện ở đây."
+                ? "Chưa có Nhân sự số nào - Bấm Tạo nhân sự số để tạo."
                 : "Không có Nhân sự số nào khớp với từ khóa"}
               onShowAll={allConversationalCount > 0 ? clearFilters : undefined}
             />
@@ -725,7 +862,7 @@ export default function AgentsList() {
           {processAgents.length === 0 ? (
             <GroupEmptyState
               message={allProcessCount === 0
-                ? "Chưa có Quy trình nào - Chọn Quy trình ở ô tạo phía trên để dựng Quy trình đầu tiên."
+                ? "Chưa có Quy trình nào - Bấm Tạo nhân sự số, chọn Quy trình để dựng Quy trình đầu tiên."
                 : "Không có Quy trình nào khớp với bộ lọc"}
               onShowAll={allProcessCount > 0 ? clearFilters : undefined}
             />
@@ -758,6 +895,7 @@ export default function AgentsList() {
           )}
         </div>
       )}
+      </>)}
     </div>
   );
 }
