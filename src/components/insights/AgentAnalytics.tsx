@@ -278,62 +278,70 @@ function versionLines(markers: { label: string; day: string }[]) {
 }
 
 /* ============ TỔNG QUAN ============ */
+/** Bảng điểm: mỗi thẻ trả lời một câu hỏi của chủ Nhân sự số và dẫn sang tab chi tiết tương ứng. */
 export function AnalyticsOverview({ agentId }: { agentId: string }) {
   const a = useAnalytics(agentId);
   const { cur, old } = a;
-  const chart = a.last.map(d => ({ day: d.day, "Tự xử lý": d.resolved, "Chưa tự xử lý": d.sessions - d.resolved }));
-  const byHour = Array.from({ length: 24 }, (_, h) => ({ hour: `${h}h`, h, sessions: a.heat.filter(x => x.hour === h).reduce((s, x) => s + x.sessions, 0) }));
-  const markers = a.markers.filter(m => chart.some(c => c.day === m.day));
+  const [, setParams] = useSearchParams();
+  const go = (section: AnalyticsSection) => setParams({ tab: "insights", section });
+  const abandonCur = pct(sum(a.last, "abandoned"), cur.sessions);
+  const topTopics = [...TOPICS].sort((x, y) => y.share - x.share).slice(0, 3);
+  const worstTool = [...TOOLS].sort((x, y) => x.ok - y.ok)[0];
+  const cards: {
+    q: string; section: AnalyticsSection; tabLabel: string; value: string; unit: string;
+    delta: React.ReactNode; viz: React.ReactNode; foot: string;
+  }[] = [
+    { q: "Có ai dùng không?", section: "usage", tabLabel: "Sử dụng", value: vn(cur.sessions), unit: "hội thoại",
+      delta: <DeltaPill diff={cur.sessions - old.sessions} prev={old.sessions} good={1} />,
+      viz: <MiniBars values={a.last.map(d => d.sessions)} />,
+      foot: `${vn(cur.users)} người dùng · ${CHANNELS[0].channel} chiếm ${vn(CHANNELS[0].share * 100)}%` },
+    { q: "Có tự xử lý được không?", section: "usage", tabLabel: "Sử dụng", value: `${vn(cur.resolvedPct, 1)}%`, unit: "tự xử lý",
+      delta: <DeltaPill diff={cur.resolvedPct - old.resolvedPct} prev={old.resolvedPct} good={1} unit="pp" />,
+      viz: <Spark values={a.last.map(d => pct(d.resolved, d.sessions))} />,
+      foot: `Bỏ dở ${vn(abandonCur, 1)}% hội thoại` },
+    { q: "Người dùng có hài lòng không?", section: "feedback", tabLabel: "Chất lượng", value: `${vn(cur.likePct, 1)}%`, unit: "Like",
+      delta: <DeltaPill diff={cur.likePct - old.likePct} prev={old.likePct} good={1} unit="pp" />,
+      viz: <Spark values={a.last.map(d => pct(d.likes, d.likes + d.dislikes))} color="hsl(var(--success))" />,
+      foot: `CSAT ${vn(cur.csat, 2)}/5` },
+    { q: "Có hay gặp lỗi không?", section: "operations", tabLabel: "Hoạt động", value: `${vn(cur.errorPct, 1)}%`, unit: "lỗi",
+      delta: <DeltaPill diff={cur.errorPct - old.errorPct} prev={old.errorPct} good={-1} unit="pp" />,
+      viz: <Spark values={a.last.map(d => pct(d.errors, d.runs))} color="hsl(var(--destructive))" />,
+      foot: `Tool lỗi nhiều nhất: ${worstTool.tool}` },
+    { q: "Người dùng hỏi gì?", section: "topics", tabLabel: "Người dùng hỏi gì", value: vn(TOPICS.length), unit: "chủ đề",
+      delta: <span className="chip chip-warning whitespace-nowrap">{TOPICS.filter(t => t.change >= 50).length} chủ đề tăng mạnh</span>,
+      viz: (
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          {topTopics.map(t => <span key={t.topic} className="chip">{t.topic} · {vn(t.share * 100)}%</span>)}
+        </div>
+      ),
+      foot: `${UNANSWERED.length} câu hỏi chưa trả lời được` },
+    { q: "Tốn bao nhiêu?", section: "cost", tabLabel: "Chi phí", value: compact(cur.tokens), unit: "token",
+      delta: <DeltaPill diff={cur.tokens - old.tokens} prev={old.tokens} good={-1} />,
+      viz: <MiniBars values={a.last.map(d => d.tokens)} />,
+      foot: `${vn(cur.tokPerSession)} token mỗi hội thoại` },
+  ];
   return (
     <div className="p-8 w-full space-y-5 animate-fade-up">
-      <Header title="Tổng quan" desc={`Trong 28 ngày qua, Nhân sự số đã nhận ${vn(cur.sessions)} hội thoại. ${vn(cur.resolvedPct, 1)}% được xử lý trọn vẹn mà không cần người.`} />
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Kpi label="Hội thoại" value={vn(cur.sessions)} cur={cur.sessions} prev={old.sessions} good={1} info="Số hội thoại, không tính kênh Chạy thử." />
-        <Kpi label="Người dùng" value={vn(cur.users)} cur={cur.users} prev={old.users} good={1} info="Số người khác nhau đã chat với Nhân sự số." />
-        <Kpi label="Tin nhắn nhận được" value={vn(cur.messages)} cur={cur.messages} prev={old.messages} good={1} info="Số tin nhắn người dùng gửi." />
-        <Kpi label="Tự xử lý" value={`${vn(cur.resolvedPct, 1)}%`} cur={cur.resolvedPct} prev={old.resolvedPct} good={1} unit="pp" info="Hội thoại Nhân sự số trả lời được và không bị Dislike." />
-        <Kpi label="Tỷ lệ Like" value={`${vn(cur.likePct, 1)}%`} cur={cur.likePct} prev={old.likePct} good={1} unit="pp" info="Số Like chia cho tổng số Like và Dislike." />
-        <Kpi label="Tỷ lệ lỗi" value={`${vn(cur.errorPct, 1)}%`} cur={cur.errorPct} prev={old.errorPct} good={-1} unit="pp" info="Số lượt trả lời bị lỗi chia cho tổng số lượt trả lời." />
-        <Kpi label="Token" value={compact(cur.tokens)} cur={cur.tokens} prev={old.tokens} good={-1} info="Tổng token đầu vào và đầu ra." />
-        <Kpi label="Token mỗi hội thoại" value={vn(cur.tokPerSession)} cur={cur.tokPerSession} prev={old.tokPerSession} good={-1} info="Tổng token chia cho số hội thoại." />
-      </div>
-
-      <Card title="Hội thoại mỗi ngày" note="Vạch đứt là ngày triển khai phiên bản mới">
-        <div className="h-60" role="img" aria-label="Hội thoại mỗi ngày trong 28 ngày, chia theo tự xử lý và chưa tự xử lý">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chart} margin={{ top: 16, right: 8, left: -16, bottom: 0 }}>
-              <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
-              <XAxis dataKey="day" tick={AXIS} tickLine={false} axisLine={false} interval={3} />
-              <YAxis tick={AXIS} tickLine={false} axisLine={false} />
-              <Tooltip contentStyle={TT} cursor={{ fill: "hsl(var(--surface-muted))" }} />
-              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, color: "hsl(var(--muted-foreground))", paddingTop: 8 }} />
-              {versionLines(markers)}
-              <Bar dataKey="Tự xử lý" stackId="a" fill="hsl(var(--primary))" isAnimationActive={false} />
-              <Bar dataKey="Chưa tự xử lý" stackId="a" fill="hsl(var(--border-strong))" radius={[4, 4, 0, 0]} isAnimationActive={false} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </Card>
-
-      <div className="grid lg:grid-cols-2 gap-4">
-        <Card title="Hội thoại theo kênh" note="28 ngày">
-          <HBars rows={CHANNELS.map((c, i) => ({ label: c.channel, value: c.share * 100, text: `${vn(c.share * 100)}% · ${vn(Math.round(a.total * c.share))}`, highlight: i === 0 }))} />
-        </Card>
-        <Card title="Hội thoại theo giờ trong ngày" note="Cột nhạt là ngoài giờ hành chính">
-          <div className="h-44" role="img" aria-label="Số hội thoại theo giờ trong ngày">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={byHour} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="hour" tick={AXIS} tickLine={false} axisLine={false} interval={5} />
-                <YAxis tick={AXIS} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={TT} formatter={(v: number) => [vn(v), "Hội thoại"]} cursor={{ fill: "hsl(var(--surface-muted))" }} />
-                <Bar dataKey="sessions" radius={[3, 3, 0, 0]} isAnimationActive={false}
-                  shape={(p: any) => <rect x={p.x} y={p.y} width={p.width} height={p.height} rx={3}
-                    fill={p.payload.h < 8 || p.payload.h >= 17 ? "hsl(var(--primary) / 0.35)" : "hsl(var(--primary))"} />} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
+      <Header title="Tổng quan" desc="28 ngày gần nhất, so với 28 ngày trước đó. Bấm vào thẻ để xem chi tiết." />
+      <div className="grid md:grid-cols-2 gap-3">
+        {cards.map(c => (
+          <button key={c.q} type="button" onClick={() => go(c.section)}
+            className="surface-card p-5 text-left group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="font-display text-sm font-semibold">{c.q}</h3>
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground group-hover:text-primary transition-base whitespace-nowrap">
+                {c.tabLabel} <HugeiconsIcon icon={ArrowRight01Icon} size={13} />
+              </span>
+            </div>
+            <div className="flex items-baseline gap-2 mt-3 flex-wrap">
+              <span className="font-display text-3xl font-semibold tracking-tight tabular-nums">{c.value}</span>
+              <span className="text-sm text-muted-foreground">{c.unit}</span>
+              <span className="ml-auto">{c.delta}</span>
+            </div>
+            <div className="mt-3 h-11">{c.viz}</div>
+            <div className="text-xs text-muted-foreground mt-2 truncate">{c.foot}</div>
+          </button>
+        ))}
       </div>
     </div>
   );
