@@ -24,6 +24,7 @@ import { EmptyState } from "@/components/evaluation/shared";
  *   (tối đa 30 ngày, chỉ chọn trong 90 ngày gần nhất). So với kỳ liền trước cùng độ dài.
  * - Số liệu cập nhật mỗi giờ; số của hôm nay là số tạm.
  * - Nhân sự số chạy bằng trigger hoặc Quy trình: "hội thoại" đổi thành "lượt chạy".
+ * - Người chỉ có quyền Xem không thấy nút Tạo test case.
  * ===================================================================================== */
 
 export type AnalyticsSection = "performance" | "usage" | "feedback" | "topics" | "operations" | "cost";
@@ -703,7 +704,7 @@ function AddCaseDialog({ agentId, question, onClose }: { agentId: string; questi
   );
 }
 
-export function AnalyticsTopics({ a, agentId }: { a: A; agentId: string }) {
+export function AnalyticsTopics({ a, agentId, canEdit = true }: { a: A; agentId: string; canEdit?: boolean }) {
   const noun = useNoun();
   const [caseQ, setCaseQ] = useState<string | null>(null);
   const unanswered = UNANSWERED.map(u => ({ ...u, times: Math.round(u.times * a.factor) })).filter(u => u.times > 0);
@@ -749,7 +750,7 @@ export function AnalyticsTopics({ a, agentId }: { a: A; agentId: string }) {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="text-xs text-muted-foreground border-b border-border">
-                <th className="text-left font-medium px-5 py-2">Câu hỏi</th><th className="text-left font-medium px-3">Chủ đề</th><th className="text-right font-medium px-3">Số lần</th><th className="text-left font-medium px-3">Lý do</th><th className="text-left font-medium px-3">Lần gần nhất</th><th className="px-5" />
+                <th className="text-left font-medium px-5 py-2">Câu hỏi</th><th className="text-left font-medium px-3">Chủ đề</th><th className="text-right font-medium px-3">Số lần</th><th className="text-left font-medium px-3">Lý do</th><th className="text-left font-medium px-3">Lần gần nhất</th>{canEdit && <th className="px-5" />}
               </tr></thead>
               <tbody className="divide-y divide-border">
                 {unanswered.map(u => (
@@ -759,9 +760,11 @@ export function AnalyticsTopics({ a, agentId }: { a: A; agentId: string }) {
                     <td className="text-right tabular-nums px-3">{u.times}</td>
                     <td className="px-3"><span className={`chip whitespace-nowrap ${u.reason === "Trả lời sai" ? "bg-[hsl(var(--destructive-soft))] text-destructive border-[hsl(var(--destructive)/0.2)]" : "chip-warning"}`}>{u.reason}</span></td>
                     <td className="px-3 text-muted-foreground whitespace-nowrap">{u.last}</td>
-                    <td className="px-5 text-right">
-                      <button className="btn-secondary h-8 text-xs whitespace-nowrap" onClick={() => setCaseQ(u.q)}>Tạo test case</button>
-                    </td>
+                    {canEdit && (
+                      <td className="px-5 text-right">
+                        <button className="btn-secondary h-8 text-xs whitespace-nowrap" onClick={() => setCaseQ(u.q)}>Tạo test case</button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -769,7 +772,7 @@ export function AnalyticsTopics({ a, agentId }: { a: A; agentId: string }) {
           </div>
         )}
       </div>
-      <AddCaseDialog agentId={agentId} question={caseQ} onClose={() => setCaseQ(null)} />
+      {canEdit && <AddCaseDialog agentId={agentId} question={caseQ} onClose={() => setCaseQ(null)} />}
     </Page>
   );
 }
@@ -924,8 +927,8 @@ function Empty({ a, title, desc, published, isChat, onPublish, onOpenChannels }:
 }
 
 /** Router used by AgentBuilder → Insights. */
-export function AgentAnalytics({ agentId, section, kind = "conversational", published = true, onPublish, onOpenChannels }: {
-  agentId: string; section: AnalyticsSection; kind?: AnalyticsAgentKind; published?: boolean;
+export function AgentAnalytics({ agentId, section, kind = "conversational", published = true, onPublish, onOpenChannels, canEdit = true }: {
+  agentId: string; section: AnalyticsSection; kind?: AnalyticsAgentKind; published?: boolean; canEdit?: boolean;
   onPublish?: () => void; onOpenChannels?: () => void;
 }) {
   const a = useAnalytics(agentId);
@@ -944,7 +947,7 @@ export function AgentAnalytics({ agentId, section, kind = "conversational", publ
     switch (section) {
       case "usage": body = <AnalyticsUsage a={a} />; break;
       case "feedback": body = <AnalyticsFeedback a={a} />; break;
-      case "topics": body = <AnalyticsTopics a={a} agentId={agentId} />; break;
+      case "topics": body = <AnalyticsTopics a={a} agentId={agentId} canEdit={canEdit} />; break;
       case "operations": body = <AnalyticsOperations a={a} />; break;
       case "cost": body = <AnalyticsCost a={a} />; break;
       default: body = <AnalyticsOverview a={a} />;
