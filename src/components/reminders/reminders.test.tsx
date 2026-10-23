@@ -29,10 +29,13 @@ describe("reminderStore", () => {
     const s = r.steps[0];
     expect(e.fields.get(`step.${s.id}.duration`)).toBe("Vui lòng nhập Duration.");
     expect(e.fields.get(`step.${s.id}.trigger`)).toBe("Vui lòng nhập Trigger hoặc dùng Tạo tự động.");
-    const a = { ...emptyStep(), amount: 20 as number, unit: "hour" as const, instruction: "Nhắc", trigger: "Khách im lặng" };
-    const b = { ...a, id: "b", amount: 5 };
+    const a = { ...emptyStep(), hours: 20, minutes: 0, instruction: "Nhắc", trigger: "Khách im lặng" };
+    const b = { ...a, id: "b", hours: 5 };
     e = validateReminder("x", { ...r, name: "Dup", steps: [a, b] }, [{ ...r, id: "o", name: "dup" }]);
     expect(e.fields.get("name")).toBe("Tên reminder đã tồn tại.");
+    expect(e.fields.get("step.b.duration")).toBeUndefined();
+    const odd = validateReminder("x", { ...r, name: "Z", steps: [{ ...a, hours: 0, minutes: 7 }] }, []);
+    expect(odd.fields.get(`step.${a.id}.duration`)).toBe("Thời gian chờ phải từ 5 phút đến 23 giờ.");
     expect(e.total).toBe("Tổng thời gian không được vượt quá 23 giờ.");
     expect(textFallbackChannels(["web", "zalo"])).toEqual(["Zalo"].map(x => expect.stringContaining(x)));
   });

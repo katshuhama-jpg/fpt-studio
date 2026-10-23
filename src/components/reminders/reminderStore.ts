@@ -5,11 +5,11 @@ import { loadMap, saveMap } from "@/lib/sessionPersist";
 import { CHANNEL_CATALOG } from "@/components/configure/channelCatalog";
 import { listLevel, parseToken, resolveRef, splitByRefs } from "@/components/configure/instructionRefs";
 
-export type DurationUnit = "minute" | "hour";
 export interface ReminderStep {
   id: string;
-  amount: number | "";
-  unit: DurationUnit;
+  /** Wait = hours + minutes; minutes are a multiple of 5 (0–55). */
+  hours: number;
+  minutes: number;
   /** Text with {{ref:skill:…}} tokens for the skills it may use. */
   instruction: string;
   trigger: string;
@@ -31,6 +31,9 @@ export interface ReminderSettings {
 
 export const MAX_STEPS = 3;
 export const MAX_TOTAL_MIN = 23 * 60;
+export const MINUTE_STEP = 5;
+export const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => i);
+export const MINUTE_OPTIONS = Array.from({ length: 60 / MINUTE_STEP }, (_, i) => i * MINUTE_STEP);
 export const REMINDER_CHANNELS = CHANNEL_CATALOG.map(c => ({ id: c.id, name: c.name }));
 /** Channels that can't show rating buttons — CSAT falls back to plain text there. */
 const NO_RATING_BUTTONS = new Set(["api", "slack", "zalo", "whatsapp"]);
@@ -38,8 +41,7 @@ const NO_RATING_BUTTONS = new Set(["api", "slack", "zalo", "whatsapp"]);
 let seq = 0;
 export const uid = (p: string) => `${p}-${Date.now().toString(36)}-${(seq++).toString(36)}`;
 
-export const stepMinutes = (s: Pick<ReminderStep, "amount" | "unit">) =>
-  typeof s.amount === "number" && s.amount > 0 ? s.amount * (s.unit === "hour" ? 60 : 1) : 0;
+export const stepMinutes = (s: Pick<ReminderStep, "hours" | "minutes">) => (s.hours || 0) * 60 + (s.minutes || 0);
 export const totalMinutes = (steps: ReminderStep[]) => steps.reduce((t, s) => t + stepMinutes(s), 0);
 export function fmtMinutes(min: number): string {
   const h = Math.floor(min / 60), m = min % 60;
@@ -61,7 +63,7 @@ export function stepSkills(agentId: string, instruction: string) {
 export const needsUpdate = (agentId: string, r: Reminder) =>
   r.steps.some(s => stepSkills(agentId, s.instruction).some(x => x.status !== "ok"));
 
-export const emptyStep = (): ReminderStep => ({ id: uid("step"), amount: "", unit: "minute", instruction: "", trigger: "", csat: false });
+export const emptyStep = (): ReminderStep => ({ id: uid("step"), hours: 0, minutes: 0, instruction: "", trigger: "", csat: false });
 export const emptyReminder = (): Reminder => ({ id: uid("rem"), name: "", channels: "all", steps: [emptyStep()], enabled: true, updatedAt: Date.now() });
 
 /* ───────────── persistence ───────────── */
@@ -82,33 +84,45 @@ function seed(agentId: string) {
   if (agentId !== "cskh" && agentId !== "slash-demo") return;
   const skill = listLevel(agentId, { cat: "skills" })[0];
   const skillTok = skill ? skill.token : "";
-  const step = (amount: number, unit: DurationUnit, instruction: string, trigger: string, csat = false): ReminderStep =>
-    ({ id: uid("step"), amount, unit, instruction, trigger, csat });
+  const step = (hours: number, minutes: number, instruction: string, trigger: string, csat = false): ReminderStep =>
+    ({ id: uid("step"), hours, minutes, instruction, trigger, csat });
   lists.set(agentId, [
     {
       id: uid("rem"), name: "Nhắc xin số điện thoại", channels: ["web", "zalo"], enabled: true, updatedAt: Date.now() - 86_400_000,
       steps: [
-        step(30, "minute", `Nhắc khách để lại số điện thoại để nhân viên gọi lại ${skillTok}`.trim(), "Khách chưa để lại số điện thoại sau khi được hỏi."),
-        step(3, "hour", "Nhắc lần hai, nói rõ ưu đãi chỉ giữ trong hôm nay.", "Khách vẫn chưa để lại số điện thoại."),
+        step(0, 30, `Nhắc khách để lại số điện thoại để nhân viên gọi lại ${skillTok}`.trim(), "Khách chưa để lại số điện thoại sau khi được hỏi."),
+        step(3, 0, "Nhắc lần hai, nói rõ ưu đãi chỉ giữ trong hôm nay.", "Khách vẫn chưa để lại số điện thoại."),
       ],
     },
     {
       id: uid("rem"), name: "Hỏi lại khi khách bỏ dở đăng ký", channels: "all", enabled: true, updatedAt: Date.now() - 3 * 86_400_000,
       steps: [
-        step(1, "hour", "Hỏi khách có cần hỗ trợ hoàn tất đăng ký không.", "Khách đã bắt đầu đăng ký nhưng chưa hoàn tất."),
-        step(4, "hour", "Gửi link tiếp tục đăng ký và xin đánh giá trải nghiệm.", "Khách vẫn chưa hoàn tất đăng ký.", true),
+        step(1, 0, "Hỏi khách có cần hỗ trợ hoàn tất đăng ký không.", "Khách đã bắt đầu đăng ký nhưng chưa hoàn tất."),
+        step(4, 0, "Gửi link tiếp tục đăng ký và xin đánh giá trải nghiệm.", "Khách vẫn chưa hoàn tất đăng ký.", true),
       ],
     },
     {
       id: uid("rem"), name: "Nhắc tra cứu khoản vay", channels: ["web"], enabled: false, updatedAt: Date.now() - 7 * 86_400_000,
-      steps: [step(45, "minute", "Dùng {{ref:skill:legacy-loan-lookup|tra-cuu-khoan-vay-cu}} để nhắc khách số tiền còn nợ.", "Khách hỏi về khoản vay nhưng chưa xác nhận số hợp đồng.")],
+      steps: [step(0, 45, "Dùng {{ref:skill:legacy-loan-lookup|tra-cuu-khoan-vay-cu}} để nhắc khách số tiền còn nợ.", "Khách hỏi về khoản vay nhưng chưa xác nhận số hợp đồng.")],
     },
   ]);
   persist();
 }
 
+/** Steps saved before the hours/minutes split stored { amount, unit }. */
+function migrate(r: Reminder): Reminder {
+  if (r.steps.every(s => typeof s.hours === "number")) return r;
+  return { ...r, steps: r.steps.map(s => {
+    if (typeof s.hours === "number") return s;
+    const o = s as unknown as { amount?: number | ""; unit?: string };
+    const total = typeof o.amount === "number" ? o.amount * (o.unit === "hour" ? 60 : 1) : 0;
+    const mins = Math.round((total % 60) / MINUTE_STEP) * MINUTE_STEP;
+    return { ...s, hours: Math.min(23, Math.floor(total / 60)), minutes: mins === 60 ? 55 : mins };
+  }) };
+}
+
 export const reminderStore = {
-  list(agentId: string): Reminder[] { seed(agentId); return lists.get(agentId) ?? []; },
+  list(agentId: string): Reminder[] { seed(agentId); return (lists.get(agentId) ?? []).map(migrate); },
   settings(agentId: string): ReminderSettings { return settings.get(agentId) ?? DEFAULT_SETTINGS; },
   setSettings(agentId: string, s: ReminderSettings) { settings.set(agentId, s); saveMap(SETTINGS_KEY, settings); },
   save(agentId: string, r: Reminder) {
@@ -140,8 +154,9 @@ export function validateReminder(agentId: string, r: Reminder, others: Reminder[
   if (r.channels !== "all" && r.channels.length === 0) fields.set("channels", "Vui lòng nhập Channels.");
   for (const s of r.steps) {
     const k = (f: string) => `step.${s.id}.${f}`;
-    if (s.amount === "") fields.set(k("duration"), "Vui lòng nhập Duration.");
-    else { const m = stepMinutes(s); if (m < 1 || m > MAX_TOTAL_MIN || !Number.isInteger(s.amount)) fields.set(k("duration"), "Thời gian chờ phải từ 1 phút đến 23 giờ."); }
+    const m = stepMinutes(s);
+    if (m === 0) fields.set(k("duration"), "Vui lòng nhập Duration.");
+    else if (m < MINUTE_STEP || m > MAX_TOTAL_MIN || s.minutes % MINUTE_STEP !== 0) fields.set(k("duration"), "Thời gian chờ phải từ 5 phút đến 23 giờ.");
     if (!s.instruction.replace(/\{\{ref:[^}]*\}\}/g, "x").trim()) fields.set(k("instruction"), "Vui lòng nhập Instruction.");
     else if (stepSkills(agentId, s.instruction).some(x => x.status !== "ok")) fields.set(k("instruction"), "Skill không còn tồn tại, vui lòng gỡ hoặc thay thế.");
     if (!s.trigger.trim()) fields.set(k("trigger"), "Vui lòng nhập Trigger hoặc dùng Tạo tự động.");

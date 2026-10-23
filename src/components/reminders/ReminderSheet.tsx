@@ -22,7 +22,7 @@ import { parseToken } from "@/components/configure/instructionRefs";
 import {
   MAX_STEPS, REMINDER_CHANNELS, channelLabel, emptyStep, fmtMinutes, generateTrigger, includes, reminderStore,
   stepMinutes, stepSkills, textFallbackChannels, totalMinutes, validateReminder,
-  type DurationUnit, type Reminder, type ReminderStep,
+  HOUR_OPTIONS, MINUTE_OPTIONS, type Reminder, type ReminderStep,
 } from "./reminderStore";
 
 type IconData = Parameters<typeof HugeiconsIcon>[0]["icon"];
@@ -113,15 +113,18 @@ function StepCard({ agentId, step, index, open, onToggle, onChange, onRemove, re
         <div className="space-y-5 border-t px-4 py-4">
           {/* 1. Duration */}
           <div>
-            <label htmlFor={`${step.id}-amount`} className="text-sm font-medium">Duration <span className="text-destructive">*</span></label>
-            <div className="mt-1.5 flex gap-2">
-              <Input id={`${step.id}-amount`} type="number" min={1} inputMode="numeric" value={step.amount} disabled={readOnly} data-field={k("duration")}
-                onChange={e => onChange({ ...step, amount: e.target.value === "" ? "" : Number(e.target.value) })} onBlur={() => touch(k("duration"))}
-                className="w-28 tabular-nums" aria-invalid={!!err("duration")} />
-              <Select value={step.unit} onValueChange={v => onChange({ ...step, unit: v as DurationUnit })} disabled={readOnly}>
-                <SelectTrigger className="w-28" aria-label="Đơn vị"><SelectValue /></SelectTrigger>
-                <SelectContent ><SelectItem value="minute">phút</SelectItem><SelectItem value="hour">giờ</SelectItem></SelectContent>
+            <p id={`${step.id}-dur`} className="text-sm font-medium">Duration <span className="text-destructive">*</span></p>
+            <div className="mt-1.5 flex items-center gap-2" role="group" aria-labelledby={`${step.id}-dur`} data-field={k("duration")}>
+              <Select value={String(step.hours)} onValueChange={v => { onChange({ ...step, hours: Number(v), minutes: Number(v) === 23 ? 0 : step.minutes }); touch(k("duration")); }} disabled={readOnly}>
+                <SelectTrigger className="w-24 tabular-nums" aria-label="Giờ" aria-invalid={!!err("duration")}><SelectValue /></SelectTrigger>
+                <SelectContent className="max-h-64">{HOUR_OPTIONS.map(h => <SelectItem key={h} value={String(h)}>{h}</SelectItem>)}</SelectContent>
               </Select>
+              <span className="text-sm text-muted-foreground">giờ</span>
+              <Select value={String(step.minutes)} onValueChange={v => { onChange({ ...step, minutes: Number(v) }); touch(k("duration")); }} disabled={readOnly || step.hours === 23}>
+                <SelectTrigger className="w-24 tabular-nums ml-2" aria-label="Phút" aria-invalid={!!err("duration")}><SelectValue /></SelectTrigger>
+                <SelectContent className="max-h-64">{MINUTE_OPTIONS.map(m => <SelectItem key={m} value={String(m)}>{String(m).padStart(2, "0")}</SelectItem>)}</SelectContent>
+              </Select>
+              <span className="text-sm text-muted-foreground">phút</span>
             </div>
             <Helper>{index === 0 ? "Tính từ tin nhắn cuối của Agent đang chờ người dùng phản hồi." : "Tính từ lần nhắc trước."}</Helper>
             <Err>{err("duration")}</Err>
