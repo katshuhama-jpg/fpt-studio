@@ -839,7 +839,7 @@ export default function AgentsList() {
           {conversationalAgents.length === 0 ? (
             <GroupEmptyState
               message={allConversationalCount === 0
-                ? "Chưa có Nhân sự số nào - Bấm Tạo nhân sự số để tạo."
+                ? (canCreateAgent ? "Chưa có Nhân sự số nào - Bấm Tạo nhân sự số để tạo." : "Chưa có Nhân sự số nào được chia sẻ với bạn.")
                 : "Không có Nhân sự số nào khớp với từ khóa"}
               onShowAll={allConversationalCount > 0 ? clearFilters : undefined}
             />
@@ -862,7 +862,7 @@ export default function AgentsList() {
           {processAgents.length === 0 ? (
             <GroupEmptyState
               message={allProcessCount === 0
-                ? "Chưa có Quy trình nào - Bấm Tạo nhân sự số, chọn Quy trình để dựng Quy trình đầu tiên."
+                ? (canCreateAgent ? "Chưa có Quy trình nào - Bấm Tạo nhân sự số, chọn Quy trình để dựng Quy trình đầu tiên." : "Chưa có Quy trình nào được chia sẻ với bạn.")
                 : "Không có Quy trình nào khớp với bộ lọc"}
               onShowAll={allProcessCount > 0 ? clearFilters : undefined}
             />

@@ -217,7 +217,7 @@ function defaultCfg(type) {
     case 'agent': return { doc: '', instructions: '', model: 'DeepSeek V4 Flash', output: 'text', outVars: [], retry: false, err: 'stop' };
     case 'classify': return { input: '', model: 'DeepSeek V4 Flash', cats: [{ name: 'Nhóm 1', desc: '' }, { name: 'Nhóm 2', desc: '' }] };
     case 'extract': return { doc: '', fields: [] };
-    case 'human': return { assignee: '', title: '', message: '', fields: [{ name: 'quyet_dinh', desc: 'Duyệt / Từ chối' }, { name: 'y_kien', desc: 'Ý kiến' }], timeout: '3', tunit: 'ngày', onTimeout: 'branch' };
+    case 'human': return { assignee: '', title: '', message: '', fields: [{ name: 'quyet_dinh', desc: 'Duyệt / Từ chối' }, { name: 'y_kien', desc: 'Ý kiến' }], timeout: '3', tunit: 'ngày', onTimeout: 'branch', approveMode: 'first' };
     case 'wait': return { mode: 'delay', amount: '1', aunit: 'ngày', at: '' };
     case 'decision': return { hit: 'first', outCols: [{ name: '', desc: '' }], rows: [{ when: '', then: '' }] };
     case 'parallel': return { branches: [{ name: 'Nhánh 1', desc: '', inner: [] }, { name: 'Nhánh 2', desc: '', inner: [] }] };
@@ -288,7 +288,7 @@ function subOf(n) {
     case 'code': return c.lang;
     case 'decision': return c.rows.length + ' quy tắc · ' + (c.hit === 'collect' ? 'Gom tất cả' : 'Quy tắc đầu tiên');
     case 'join': return c.mode === 'all' ? 'Chờ tất cả nhánh' : 'Nhánh đầu tiên xong';
-    case 'human': return (c.assignee ? c.assignee + ' · ' : '') + c.timeout + ' ' + c.tunit;
+    case 'human': return (c.assignee ? c.assignee + ' · ' : '') + c.timeout + ' ' + c.tunit + (c.approveMode === 'all' ? ' · tất cả duyệt' : '');
   }
   return '';
 }
@@ -319,10 +319,21 @@ function issuesOf(n, s) {
     case 'parallel': if (c.branches.length < 2) m.push('Cần ít nhất hai nhánh'); if (c.branches.some(function (b) { return !(b.inner || []).length; })) m.push('Mỗi nhánh cần ít nhất một bước'); break;
     case 'join': if (s.edges.filter(function (e) { return e.to === n.id; }).length < 2) m.push('Nối ít nhất hai nhánh vào bước này'); break;
     case 'code': if (!c.code.trim()) m.push('Cần viết code'); if (!c.outVars.filter(Boolean).length) m.push('Cần khai báo ít nhất một kết quả trả ra'); break;
-    case 'respond': if (!c.outs.length) m.push('Cần ít nhất một dữ liệu trả về'); if (c.outs.some(function (o) { return !o.name.trim(); })) m.push('Cần đặt tên cho mỗi dữ liệu trả về'); if (c.outs.some(function (o) { return o.name.trim() && !String(o.desc || '').trim(); })) m.push('Cần điền giá trị cho mỗi dữ liệu trả về'); break;
+    case 'respond':
+      var st0 = startNode0(s);
+      if (st0 && st0.cfg.trigger !== 'agent') m.push('Chỉ dùng khi kích hoạt là Khi Nhân sự số gọi - đổi kiểu kích hoạt ở bước Start hoặc xoá bước này');
+      else if (st0) { var slow = slowBefore(n.id, s); if (slow.length) m.push(slow.join(', ') + ' phải đặt sau bước này: Nhân sự số chỉ chờ kết quả 100 giây'); }
+      if (!c.outs.length) m.push('Cần ít nhất một dữ liệu trả về'); if (c.outs.some(function (o) { return !o.name.trim(); })) m.push('Cần đặt tên cho mỗi dữ liệu trả về'); if (c.outs.some(function (o) { return o.name.trim() && !String(o.desc || '').trim(); })) m.push('Cần điền giá trị cho mỗi dữ liệu trả về'); break;
   }
   if (n.type !== 'start' && n.type !== 'note' && !n.parent && !s.edges.some(function (e) { return e.to === n.id; })) m.push('Bước này chưa được nối vào luồng');
   return m;
+}
+function slowBefore(id, s) {
+  var byId = {}; s.nodes.forEach(function (n) { byId[n.id] = n; });
+  var seen = {}, stack = [id], out = [];
+  while (stack.length) { var cur = stack.pop(); s.edges.forEach(function (e) { if (e.to === cur && !seen[e.from]) { seen[e.from] = 1; stack.push(e.from); } }); }
+  s.nodes.forEach(function (n) { if ((seen[n.id] || (n.parent && seen[n.parent])) && (n.type === 'human' || n.type === 'wait')) out.push('"' + n.title + '"'); });
+  return out;
 }
 function startNode0(s) { return s.nodes.filter(function (n) { return n.type === 'start'; })[0]; }
 function upstreamOf(id, s) {
@@ -759,7 +770,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     if (answer === '__timeout') {
       out = 1; ms = 8010; note = 'Quá hạn ' + c.timeout + ' ' + c.tunit + ', đi nhánh Quá hạn'; st = 'Quá hạn';
     } else if (answer !== undefined) {
-      vars[c.fields[0] ? c.fields[0].name : 'quyet_dinh'] = answer; vars.nguoi_duyet = 'Bạn (chạy thử)'; ms = 8010; note = 'Bạn trả lời "' + answer + '" thay ' + (c.assignee || 'người duyệt');
+      vars[c.fields[0] ? c.fields[0].name : 'quyet_dinh'] = answer; vars.nguoi_duyet = 'Bạn (chạy thử)'; ms = 8010; note = 'Bạn trả lời "' + answer + '" thay ' + (c.assignee || 'người duyệt') + (c.approveMode === 'all' ? ' (chạy thử tính như cả nhóm cùng trả lời)' : '');
     } else if (n.type === 'wait') {
       if (issues.length) stop = issues[0]; else { ms = 8010; note = (c.mode === 'until' ? 'Chờ tới ' + fill(c.at, vars) : 'Chờ ' + c.amount + ' ' + c.aunit) + ' rồi chạy tiếp (chạy thử không chờ thật)'; }
     } else if (n.type === 'human') {
@@ -1015,7 +1026,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
           pf.push(P('instructions', 'Prompt', 'text', { ph: 'VD: Đọc hoá đơn {{tep_hoa_don}}, lấy số hoá đơn, số tiền, mã số thuế.', canVar: true }));
           var afiles = up.filter(function (o) { return /^tep/.test(o.v) || (startNode && startNode.cfg.inputs.some(function (f) { return f.name === o.v && f.t === 'Tệp'; })); });
           pf.push(P('doc', 'Tệp đầu vào (không bắt buộc)', 'select', { options: [{ v: '', l: afiles.length ? 'Không dùng tệp' : 'Chưa có tệp nào ở các bước trước' }].concat(afiles), hint: 'AI đọc tệp này: hoá đơn, CCCD, hợp đồng... Dùng với đầu ra có cấu trúc để lấy các trường.' }));
-          pf.push(P('output', 'Đầu ra', 'select', { options: [{ v: 'text', l: 'Văn bản' }, { v: 'json', l: 'Có cấu trúc (các trường)' }], hint: c.output === 'json' ? '' : 'Muốn phân loại hoặc trích xuất, chọn Có cấu trúc rồi dùng bước Condition để rẽ nhánh theo kết quả.' }));
+          pf.push(P('output', 'Đầu ra', 'select', { options: [{ v: 'text', l: 'Văn bản' }, { v: 'json', l: 'Có cấu trúc (các trường)' }], hint: c.output === 'json' ? '' : 'Muốn phân loại hoặc trích xuất, chọn Có cấu trúc rồi dùng Condition (hai nhánh) hoặc Switch (nhiều nhóm) để rẽ nhánh theo kết quả.' }));
           if (c.output === 'json') editors.push({ title: 'TRƯỜNG ĐẦU RA', hasB: false, addLabel: '+ Thêm trường', hasNote: true, note: 'Chọn mẫu như Hoá đơn VAT, CCCD để có sẵn các trường hay dùng.', hasExtra: true, extraLabel: 'Dùng mẫu có sẵn', extra: function () { self.setState({ picking: s.picking === n.id ? null : n.id }); }, picking: s.picking === n.id,
             types: DOCS.map(function (dd) { return { label: dd.label, pick: function () { self.updateCfg({ outVars: dd.out.slice(), output: 'json' }); self.setState({ picking: null }); } }; }),
             items: c.outVars.map(function (v, i) { return { a: v, aPh: 'ten_truong', aAria: 'Trường ' + (i + 1), aFont: 'ui-monospace, monospace', hasTag: false, lock: false, onA: function (ev) { var a2 = c.outVars.slice(); a2[i] = ev.target.value.replace(/\s+/g, '_'); self.updateCfg({ outVars: a2 }); }, remove: function () { self.updateCfg({ outVars: c.outVars.filter(function (_, j) { return j !== i; }) }); } }; }),
@@ -1039,6 +1050,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
           pf.push(P('assignee', 'Gửi cho', 'select', { options: opt(PEOPLE), hint: 'Người nhận thấy yêu cầu trong Omni Inbox và email.' }));
           pf.push(P('title', 'Tiêu đề', 'input', { ph: 'VD: Duyệt đề nghị mua sắm' }));
           pf.push(P('message', 'Nội dung', 'text', { ph: 'VD: {{nguoi_de_nghi}} đề nghị mua hàng, số tiền {{so_tien}}.', canVar: true }));
+          pf.push(P('approveMode', 'Kiểu duyệt', 'select', { options: [{ v: 'first', l: 'Người trả lời đầu tiên' }, { v: 'all', l: 'Tất cả phải duyệt' }], hint: c.approveMode === 'all' ? 'Mọi người trong nhóm phải trả lời; một người từ chối là kết quả Từ chối.' : 'Khi Gửi cho là một nhóm, câu trả lời đầu tiên được tính.' }));
           pf.push(P('timeout', 'Hạn trả lời', 'input', { ph: 'VD: 3' }));
           pf.push(P('tunit', 'Đơn vị', 'select', { options: opt(['giờ', 'ngày']), hint: 'Tối đa 30 ngày, bằng thời gian tối đa của một lần chạy.' }));
           pf.push(P('onTimeout', 'Khi quá hạn', 'select', { options: [{ v: 'branch', l: 'Đi nhánh Quá hạn' }, { v: 'stop', l: 'Dừng Quy trình' }] }));
@@ -1462,7 +1474,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
         <div role="dialog" aria-label="Publish" style={S('position: absolute; right: 0; top: 44px; width: 300px; background: #fff; border: 1px solid #e3e1dc; border-radius: 12px; box-shadow: 0 12px 28px rgba(15,23,42,.14); padding: 14px')}>
           <div style={S('font-size: 12px; color: #686873')}>● {pubState}</div>
           <button type="button" className={Q('btn btn-primary')} onClick={publish} disabled={publishDisabled} style={S('width: 100%; justify-content: center; margin-top: 10px')}>{publishLabel}</button>
-          {(hasIssues) && (<><p style={S('font-size: 11.5px; color: #b91c1c; margin: 6px 0 0')}>Còn {issueCount} lỗi. Bấm chip lỗi ở thanh zoom dưới canvas để xem.</p></>)}
+          {(hasIssues) && (<><p style={S('font-size: 11.5px; color: #b91c1c; margin: 6px 0 0')}>Còn {issueCount} lỗi. Xem mục Sẵn sàng publish bên trái.</p></>)}
           <p style={S(`font-size: 12px; color: ${toolHintColor}; margin: 12px 0 0; line-height: 1.5; border-top: 1px solid #f1f5f9; padding-top: 10px`)}>{toolHint}</p>
         </div>
       </>)}
@@ -1669,7 +1681,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
 
     {(aiBanner) && (<>
       <div data-ui="1" role="status" style={S(`position: absolute; left: ${bannerLeft}; top: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; background: #f3f5fe; border: 1px solid #c7d2fe; border-radius: 10px; padding: 7px 8px 7px 12px; font-size: 12.5px; color: #1e3a8a; max-width: 520px; z-index: 5`)}>
-        <span>AI dựng {draftSteps} bước từ mô tả của bạn. Bấm Kiểm tra để xem chỗ còn thiếu.</span>
+        <span>AI dựng {draftSteps} bước từ mô tả của bạn. Bấm chip số lỗi ở thanh dưới để xem chỗ còn thiếu.</span>
         <button type="button" className={Q('ghost')} onClick={dismissBanner} style={S('height: 28px; padding: 0 8px; border-radius: 6px; font-size: 12px; color: #1e3a8a; font-weight: 500; white-space: nowrap; flex-shrink: 0')}>Đã hiểu</button>
       </div>
     </>)}
