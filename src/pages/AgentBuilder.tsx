@@ -2,7 +2,7 @@ import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { createPortal } from "react-dom";
 
 import { HugeiconsIcon } from "@hugeicons/react"
-import { SquareLock01Icon, Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, Attachment01Icon, BlockedIcon, BookOpen01Icon, Cancel01Icon, BoltIcon, PauseIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, InformationCircleIcon, MinusSignIcon, CircleArrowReload01Icon, Wrench01Icon, UserGroupIcon, ArrowLeftDoubleIcon, Notification01Icon } from "@hugeicons/core-free-icons";
+import { SquareLock01Icon, Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, Attachment01Icon, BlockedIcon, BookOpen01Icon, Cancel01Icon, BoltIcon, PauseIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, InformationCircleIcon, MinusSignIcon, CircleArrowReload01Icon, Wrench01Icon, UserGroupIcon, ArrowLeftDoubleIcon, Notification01Icon } from "@hugeicons/core-free-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import { ProcessCanvas } from "@/pages/ProcessBuilder";
@@ -83,7 +83,6 @@ import BusinessProcessTree from "@/components/general/BusinessProcessTree";
 import { toast } from "sonner";
 import EvaluationTab, { EVAL_SUBTABS, evaluationStore, type EvalSection } from "@/components/evaluation/EvaluationTab";
 import { PublishEvalCheck } from "@/components/evaluation/PublishGateSection";
-import { MonitorSection } from "@/components/evaluation/MonitorSection";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -181,7 +180,6 @@ const INSIGHTS_SUBTABS = [
   { id: "topics", label: "Người dùng hỏi gì", icon: FileQuestionMarkIcon },
   { id: "operations", label: "Hoạt động", icon: Activity01Icon },
   { id: "cost", label: "Chi phí", icon: CpuIcon },
-  { id: "quality", label: "Monitor", icon: MonitorDotIcon },
   { id: "history", label: "History", icon: HistoryIcon },
 ];
 
@@ -231,7 +229,7 @@ export default function AgentBuilder() {
   // ?tab=test (old "Test" tab, now "Evaluate") still lands on the new tab.
   const rawTab = params.get("tab") === "test" ? "evaluate" : params.get("tab");
   const rawSection = params.get("section");
-  // Monitor moved from Evaluate to Insights → Quality; old links still land there.
+  // Monitor đã bỏ; link cũ (Evaluate → Monitor, Insights → quality) về Tổng quan.
   const isLegacyBuildSection = (rawTab === "build" && rawSection != null && rawSection in LEGACY_BUILD_TO_INSIGHTS)
     || (rawTab === "evaluate" && rawSection === "monitor");
 
@@ -239,7 +237,7 @@ export default function AgentBuilder() {
     ? "insights"
     : VALID_TABS.includes(rawTab as Tab) ? (rawTab as Tab) : "build";
   const section0 = isLegacyBuildSection
-    ? (rawSection === "monitor" ? "quality" : LEGACY_BUILD_TO_INSIGHTS[rawSection!])
+    ? (rawSection === "monitor" ? "performance" : LEGACY_BUILD_TO_INSIGHTS[rawSection!])
     : tab === "insights"
       ? (INSIGHTS_SECTIONS.includes(rawSection ?? "") ? rawSection! : "performance")
       : tab === "evaluate"
@@ -254,7 +252,7 @@ export default function AgentBuilder() {
     if (!isLegacyBuildSection) return;
     const next = new URLSearchParams(params);
     next.set("tab", "insights");
-    next.set("section", rawSection === "monitor" ? "quality" : LEGACY_BUILD_TO_INSIGHTS[rawSection!]);
+    next.set("section", rawSection === "monitor" ? "performance" : LEGACY_BUILD_TO_INSIGHTS[rawSection!]);
     setParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLegacyBuildSection]);
@@ -336,7 +334,10 @@ export default function AgentBuilder() {
   };
 
   const setTab = (t: Tab) => setParams({ tab: t, section: t === "insights" ? "performance" : t === "evaluate" ? "test-sets" : "instructions" });
-  const setSection = (s: string) => setParams({ tab, section: s });
+  // Insights giữ khoảng thời gian đang chọn khi chuyển giữa các mục.
+  const setSection = (s: string) => setParams(tab === "insights"
+    ? { tab, section: s, ...Object.fromEntries(["range", "from", "to"].filter(k => params.get(k)).map(k => [k, params.get(k)!])) }
+    : { tab, section: s });
 
   const nav = isProcess ? processNav : developNav.filter((it: any) => !it.hidden);
   // Quy trình canvas state reported up by ProcessCanvas: the "Sẵn sàng publish" checklist, the
@@ -980,8 +981,7 @@ export default function AgentBuilder() {
               )}
               {tab === "evaluate" && <EvaluationTab agentId={id ?? "new"} agentName={agent.name} section={section as EvalSection} onRefineWithAI={() => setParams({ tab: "build", section: "instructions", buildMode: "ai" })} />}
               {tab === "channels" && <DeployTab agentId={id} onViewTriggers={() => setParams({ tab: "build", section: "triggers" })} onViewVersions={() => setParams({ tab: "build", section: "versions" })} onOpenPublish={() => canPublishAgent && requestPublish()} onOpenCapabilities={() => setParams({ tab: "build", section: "advanced", atab: "capabilities" })} />}
-              {tab === "insights" && ["performance", "usage", "feedback", "topics", "operations", "cost"].includes(section) && <AgentAnalytics agentId={id ?? "new"} section={section as AnalyticsSection} />}
-              {tab === "insights" && section === "quality" && <MonitorSection agentId={id ?? "new"} />}
+              {tab === "insights" && ["performance", "usage", "feedback", "topics", "operations", "cost"].includes(section) && <AgentAnalytics agentId={id ?? "new"} section={section as AnalyticsSection} kind={isProcess ? "process" : kind === "automation" ? "automation" : "conversational"} published={published} onPublish={canPublishAgent ? () => requestPublish() : undefined} onOpenChannels={() => setParams({ tab: "channels" })} />}
               {tab === "insights" && section === "history" && canSeeHistory && (
                 kind === "automation"
                   ? <div className="p-8"><TriggerRunsTab agentId={id ?? "new"} /></div>
