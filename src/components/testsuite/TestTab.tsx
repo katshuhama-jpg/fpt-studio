@@ -1,0 +1,30 @@
+import { testStore, useTestStore, type CaseKind } from "./testSuiteStore";
+import { useTestNav } from "./parts";
+import SuiteList from "./SuiteList";
+import SuiteDetail from "./SuiteDetail";
+import AiGenerate from "./AiGenerate";
+import RunView from "./RunView";
+import RunHistory, { RunCompare } from "./RunHistory";
+
+/** Evaluate › Test Suites (section "test-sets") and Lịch sử chạy (section "runs"). */
+export default function TestTab({ agentId, section, readOnly }: { agentId: string; section: "test-sets" | "runs"; readOnly?: boolean }) {
+  useTestStore();
+  const { get } = useTestNav();
+  testStore.ensure(agentId);
+  const item = get("item");
+  if (section === "runs") {
+    const cmp = get("compare")?.split(",").map(id => testStore.run(id));
+    if (cmp?.length === 2 && cmp[0] && cmp[1]) return <RunCompare a={cmp[0]} b={cmp[1]} />;
+    const run = testStore.run(item);
+    if (run && run.agentId === agentId) return <RunView run={run} readOnly={readOnly} />;
+    return <RunHistory agentId={agentId} />;
+  }
+  const suite = testStore.suite(item);
+  if (suite && suite.agentId === agentId) {
+    if (get("view") === "ai" && !readOnly) return <AiGenerate key={suite.id} suite={suite} initialKind={(get("kind") as CaseKind) === "scenario" ? "scenario" : "qna"} />;
+    return <SuiteDetail agentId={agentId} suite={suite} readOnly={readOnly} />;
+  }
+  return <SuiteList agentId={agentId} readOnly={readOnly} />;
+}
+
+export { testStore };

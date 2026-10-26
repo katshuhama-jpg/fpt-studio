@@ -6,8 +6,8 @@ import type { CellStatus } from "./evaluationStore";
 export type EvalSection = "test-sets" | "runs" | "metrics" | "publish";
 
 export const EVAL_SUBTABS: { id: EvalSection; label: string; desc: string }[] = [
-  { id: "test-sets", label: "Bộ test", desc: "Test case theo nghiệp vụ" },
-  { id: "runs", label: "Lượt chạy", desc: "Kết quả các lần chạy test" },
+  { id: "test-sets", label: "Test Suites", desc: "Bộ testcase Q&A và kịch bản" },
+  { id: "runs", label: "Lịch sử chạy", desc: "Kết quả và xác nhận các lần chạy test" },
   { id: "metrics", label: "Chỉ số đánh giá", desc: "Tiêu chí chấm dùng lại được" },
   { id: "publish", label: "Điều kiện publish", desc: "Bộ test phải đạt để publish" },
 ];
