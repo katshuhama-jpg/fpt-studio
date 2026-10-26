@@ -65,20 +65,30 @@ export function ProgressRing({ pct, size = 36 }: { pct: number; size?: number })
   );
 }
 
-/** "Test Suites › Suite › Page" + ← Quay lại. */
+/** ← (icon-only back) │ Test Suites › Suite › Page — current page is the last, non-link item. */
 export function Crumbs({ items, onBack }: { items: { label: string; onClick?: () => void }[]; onBack?: () => void }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 text-sm">
-      {onBack && <Button type="button" variant="ghost" size="sm" className="-ml-2 h-8" onClick={onBack}><Icon icon={ArrowLeft01Icon} /> Quay lại</Button>}
-      <nav aria-label="Breadcrumb" className="flex min-w-0 flex-wrap items-center gap-1.5 text-muted-foreground">
-        {items.map((it, i) => (
-          <span key={i} className="inline-flex min-w-0 items-center gap-1.5">
-            {i > 0 && <Icon icon={ArrowRight01Icon} size={14} />}
-            {it.onClick
-              ? <button type="button" onClick={it.onClick} className="truncate max-w-[240px] hover:text-foreground hover:underline rounded-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">{it.label}</button>
-              : <span className="truncate max-w-[320px] text-foreground font-medium" aria-current="page">{it.label}</span>}
-          </span>
-        ))}
+    <div className="flex min-w-0 items-center gap-2">
+      {onBack && (
+        <>
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 -ml-1.5" aria-label="Quay lại" title="Quay lại" onClick={onBack}><Icon icon={ArrowLeft01Icon} /></Button>
+          <span className="h-4 w-px shrink-0 bg-border" aria-hidden="true" />
+        </>
+      )}
+      <nav aria-label="Breadcrumb" className="min-w-0">
+        <ol className="flex min-w-0 flex-wrap items-center gap-1 text-sm">
+          {items.map((it, i) => {
+            const last = i === items.length - 1;
+            return (
+              <li key={i} className="inline-flex min-w-0 items-center gap-1">
+                {i > 0 && <Icon icon={ArrowRight01Icon} size={14} className="shrink-0 text-muted-foreground/60" />}
+                {last
+                  ? <span className="truncate max-w-[320px] font-medium text-foreground" aria-current="page">{it.label}</span>
+                  : <button type="button" onClick={it.onClick} disabled={!it.onClick} className="truncate max-w-[220px] rounded-sm px-1 py-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:hover:bg-transparent focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">{it.label}</button>}
+              </li>
+            );
+          })}
+        </ol>
       </nav>
     </div>
   );
