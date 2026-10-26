@@ -366,6 +366,8 @@ export default function AgentBuilder() {
     : accessLevel === null && !access.canAct("manage", isOwnedOrShared(existingAgent, access.userId)));
   // A Quy trình canvas handles view-only itself (pan, open a step to read it, nothing editable).
   useTestStore();
+  // Creating testcases (AI / Nhập tay / Upload) takes the whole content area - no left nav.
+  const testCreating = tab === "evaluate" && section === "test-sets" && !!params.get("item") && ["ai", "manual", "upload"].includes(params.get("view") ?? "");
   const testRunPending = tab === "evaluate" ? testSuiteStore.pendingCount(id ?? "new") : 0;
   const lockContent = viewOnly && tab !== "insights" && !(isProcess && tab === "build" && section === "flow");
   /** In Evaluate, a view-only person may still run tests and read results - those controls carry
@@ -819,8 +821,8 @@ export default function AgentBuilder() {
           className="border-r border-border overflow-hidden shrink-0 flex flex-col h-full"
           style={{
             background:"hsl(var(--card))",
-            width: (((isProcess ? false : buildMode === "manual") && tab === "build") || tab === "insights" || tab === "evaluate") ? "240px" : "0px",
-            opacity: (((isProcess ? false : buildMode === "manual") && tab === "build") || tab === "insights" || tab === "evaluate") ? 1 : 0,
+            width: (((isProcess ? false : buildMode === "manual") && tab === "build") || tab === "insights" || (tab === "evaluate" && !testCreating)) ? "240px" : "0px",
+            opacity: (((isProcess ? false : buildMode === "manual") && tab === "build") || tab === "insights" || (tab === "evaluate" && !testCreating)) ? 1 : 0,
             transition: "width 320ms cubic-bezier(0.4,0,0.2,1), opacity 280ms ease",
             minWidth: 0,
           }}

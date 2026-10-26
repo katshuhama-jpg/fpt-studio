@@ -3,11 +3,14 @@ import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { SparklesIcon, PencilEdit01Icon, FileUploadIcon, Add01Icon, Delete02Icon, Download04Icon, CheckmarkCircle02Icon, CancelCircleIcon } from "@hugeicons/core-free-icons";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { newQna, newScenario, testStore, uid, type CaseKind, type QnaCase, type ScenarioCase, type TestCase } from "./testSuiteStore";
+import { newQna, newScenario, testStore, uid, type CaseKind, type QnaCase, type ScenarioCase, type Suite, type TestCase } from "./testSuiteStore";
 import { QnaEditor, ScenarioEditor, qnaErrors, scenarioValid } from "./CaseEditors";
-import { Icon, KindToggle } from "./parts";
+import { Crumbs, Icon, KindToggle, useTestNav } from "./parts";
 
 export type AddMethod = "ai" | "manual" | "upload";
 
@@ -55,12 +58,55 @@ export function ChooseMethodDialog({ onClose, onPick }: { onClose: () => void; o
   );
 }
 
-/** Màn 3B — Nhập tay. */
-export function ManualDialog({ suiteId, initialKind, onClose }: { suiteId: string; initialKind: CaseKind; onClose: () => void }) {
+/** Full-screen frame for the create pages: breadcrumb bar, scrolling body, sticky footer. */
+function CreateFrame({ suite, title, toolbar, footer, children, onBack }: {
+  suite: Suite; title: string; toolbar?: React.ReactNode; footer: React.ReactNode; children: React.ReactNode; onBack: () => void;
+}) {
+  const { go } = useTestNav();
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex flex-wrap items-center gap-3 border-b px-6 py-3">
+        <Crumbs onBack={onBack} items={[{ label: "Test Suites", onClick: () => go("test-sets") }, { label: suite.name, onClick: onBack }, { label: title }]} />
+        {toolbar}
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-[880px] px-6 py-6">{children}</div>
+      </div>
+      <div className="flex items-center justify-end gap-2 border-t bg-background px-6 py-3">{footer}</div>
+    </div>
+  );
+}
+
+function LeaveDialog({ open, onOpenChange, onLeave, what }: { open: boolean; onOpenChange: (o: boolean) => void; onLeave: () => void; what: string }) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Bỏ thay đổi chưa lưu?</AlertDialogTitle>
+          <AlertDialogDescription>{what} sẽ không được thêm vào Test Suite.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Ở lại</AlertDialogCancel>
+          <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={onLeave}>Bỏ thay đổi</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+/** Màn 3B — Nhập tay (full screen). */
+export function ManualPage({ suite, initialKind }: { suite: Suite; initialKind: CaseKind }) {
+  const { go } = useTestNav();
   const [kind, setKind] = useState<CaseKind>(initialKind);
   const [qnas, setQnas] = useState<QnaCase[]>([newQna()]);
   const [scenario, setScenario] = useState<ScenarioCase>(newScenario());
   const [submitted, setSubmitted] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const toSuite = () => go("test-sets", { item: suite.id });
+  const dirty = kind === "qna"
+    ? qnas.some(c => c.question.trim() || c.expected.trim() || c.topic.trim() || c.reference.trim())
+    : !!scenario.name.trim() || scenario.turns.some(t => t.question.trim() || t.expected.trim());
+  const cancel = () => (dirty ? setLeaving(true) : toSuite());
   const save = () => {
     setSubmitted(true);
     let cases: TestCase[];
@@ -71,42 +117,36 @@ export function ManualDialog({ suiteId, initialKind, onClose }: { suiteId: strin
       if (!scenarioValid(scenario)) return;
       cases = [{ ...scenario, name: scenario.name.trim() || "Kịch bản không tên" }];
     }
-    testStore.addCases(suiteId, cases);
+    testStore.addCases(suite.id, cases);
     toast.success(`Đã thêm ${cases.length} testcase.`);
-    onClose();
+    toSuite();
   };
   return (
-    <Dialog open onOpenChange={o => { if (!o) onClose(); }}>
-      <DialogContent className="flex max-h-[90vh] flex-col gap-0 p-0 sm:max-w-[680px]">
-        <DialogHeader className="space-y-3 border-b px-6 pb-4 pt-6">
-          <DialogTitle>Nhập tay testcase</DialogTitle>
-          <DialogDescription className="sr-only">Viết testcase Q&A hoặc kịch bản nhiều lượt.</DialogDescription>
-          <KindToggle value={kind} onChange={k => { setKind(k); setSubmitted(false); }} />
-        </DialogHeader>
-        <div className="flex-1 space-y-3 overflow-y-auto px-6 py-5">
-          {kind === "qna" ? (
-            <>
-              {qnas.map((c, i) => (
-                <div key={c.id} className="rounded-lg border p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="text-sm font-semibold">Testcase {i + 1}</span>
-                    {qnas.length > 1 && <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" aria-label={`Xoá testcase ${i + 1}`} onClick={() => setQnas(qnas.filter(x => x.id !== c.id))}><Icon icon={Delete02Icon} /></Button>}
-                  </div>
-                  <QnaEditor c={c} onChange={n => setQnas(qnas.map(x => (x.id === c.id ? n : x)))} errors={submitted ? qnaErrors(c) : undefined} />
+    <CreateFrame suite={suite} title="Nhập tay" onBack={cancel}
+      toolbar={<KindToggle value={kind} onChange={k => { setKind(k); setSubmitted(false); }} />}
+      footer={<><Button type="button" variant="outline" onClick={cancel}>Huỷ</Button><Button type="button" onClick={save}>Lưu & đóng</Button></>}>
+      <h1 className="mb-1 text-xl font-semibold">Nhập tay testcase</h1>
+      <p className="mb-5 text-sm text-muted-foreground">{kind === "qna" ? "Mỗi testcase gồm 1 câu hỏi và câu trả lời mong đợi." : "Chuỗi nhiều lượt hỏi-đáp liên tiếp, Agent phải giữ ngữ cảnh qua các lượt."}</p>
+      <div className="space-y-3">
+        {kind === "qna" ? (
+          <>
+            {qnas.map((c, i) => (
+              <div key={c.id} className="rounded-lg border bg-card p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-sm font-semibold">Testcase {i + 1}</span>
+                  {qnas.length > 1 && <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" aria-label={`Xoá testcase ${i + 1}`} onClick={() => setQnas(qnas.filter(x => x.id !== c.id))}><Icon icon={Delete02Icon} /></Button>}
                 </div>
-              ))}
-              <Button type="button" variant="outline" className="w-full border-dashed" onClick={() => setQnas([...qnas, newQna()])}><Icon icon={Add01Icon} /> Thêm testcase khác</Button>
-            </>
-          ) : (
-            <div className="rounded-lg border p-4"><ScenarioEditor c={scenario} onChange={setScenario} showErrors={submitted} /></div>
-          )}
-        </div>
-        <DialogFooter className="border-t px-6 py-4">
-          <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-          <Button type="button" onClick={save}>Lưu & đóng</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+                <QnaEditor c={c} onChange={n => setQnas(qnas.map(x => (x.id === c.id ? n : x)))} errors={submitted ? qnaErrors(c) : undefined} />
+              </div>
+            ))}
+            <Button type="button" variant="outline" className="w-full border-dashed" onClick={() => setQnas([...qnas, newQna()])}><Icon icon={Add01Icon} /> Thêm testcase khác</Button>
+          </>
+        ) : (
+          <div className="rounded-lg border bg-card p-4"><ScenarioEditor c={scenario} onChange={setScenario} showErrors={submitted} /></div>
+        )}
+      </div>
+      <LeaveDialog open={leaving} onOpenChange={setLeaving} onLeave={toSuite} what="Testcase đang nhập" />
+    </CreateFrame>
   );
 }
 
@@ -190,7 +230,10 @@ const SAMPLE: Record<CaseKind, Row[]> = {
   ],
 };
 
-export function UploadDialog({ suiteId, onClose }: { suiteId: string; onClose: () => void }) {
+/** Màn 3C — Upload file có sẵn (full screen). */
+export function UploadPage({ suite }: { suite: Suite }) {
+  const { go } = useTestNav();
+  const toSuite = () => go("test-sets", { item: suite.id });
   const [kind, setKind] = useState<CaseKind>("qna");
   const [file, setFile] = useState<string | null>(null);
   const [result, setResult] = useState<ReturnType<typeof validateRows> | null>(null);
@@ -214,18 +257,18 @@ export function UploadDialog({ suiteId, onClose }: { suiteId: string; onClose: (
   const reset = () => { setFile(null); setResult(null); setReadError(""); };
 
   return (
-    <Dialog open onOpenChange={o => { if (!o) onClose(); }}>
-      <DialogContent className="flex max-h-[90vh] flex-col gap-0 p-0 sm:max-w-[680px]">
-        <DialogHeader className="space-y-3 border-b px-6 pb-4 pt-6">
-          <DialogTitle>Upload file có sẵn</DialogTitle>
-          <DialogDescription className="sr-only">Import testcase từ file theo mẫu.</DialogDescription>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <KindToggle value={kind} onChange={k => { setKind(k); reset(); }} />
-            <Button type="button" variant="outline" size="sm" onClick={() => downloadTemplate(kind)}><Icon icon={Download04Icon} /> Tải file mẫu (.xlsx)</Button>
-          </div>
-          {kind === "scenario" && <p className="text-xs text-muted-foreground">{GUIDE}</p>}
-        </DialogHeader>
-        <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+    <CreateFrame suite={suite} title="Upload file" onBack={toSuite}
+      toolbar={<KindToggle value={kind} onChange={k => { setKind(k); reset(); }} />}
+      footer={<><Button type="button" variant="outline" onClick={toSuite}>Huỷ</Button>
+        <Button type="button" disabled={!result || !ok} onClick={() => { testStore.addCases(suite.id, result!.cases); toast.success(`Đã import ${result!.cases.length} testcase.`); toSuite(); }}>Import vào Test Suite</Button></>}>
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold">Upload file có sẵn</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">{kind === "scenario" ? GUIDE : "Mỗi dòng là 1 testcase Q&A. Bắt buộc: Câu hỏi, Câu trả lời mong đợi."}</p>
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={() => downloadTemplate(kind)}><Icon icon={Download04Icon} /> Tải file mẫu (.xlsx)</Button>
+      </div>
+      <div className="space-y-4">
           {!result ? (
             <>
               <div
@@ -277,11 +320,6 @@ export function UploadDialog({ suiteId, onClose }: { suiteId: string; onClose: (
             </>
           )}
         </div>
-        <DialogFooter className="border-t px-6 py-4">
-          <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-          <Button type="button" disabled={!result || !ok} onClick={() => { testStore.addCases(suiteId, result!.cases); toast.success(`Đã import ${result!.cases.length} testcase.`); onClose(); }}>Import vào Test Suite</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </CreateFrame>
   );
 }

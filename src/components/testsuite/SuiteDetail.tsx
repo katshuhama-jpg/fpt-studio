@@ -2,9 +2,9 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Add01Icon, PencilEdit01Icon, Clock01Icon, PlayIcon, Delete02Icon, TestTube01Icon, InformationCircleIcon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
-import { caseSummary, countKinds, testStore, useTestStore, type CaseKind, type Suite } from "./testSuiteStore";
+import { caseSummary, countKinds, testStore, useTestStore, type Suite } from "./testSuiteStore";
 import { RunConfirmDialog, SuiteFormDialog } from "./dialogs";
-import { ChooseMethodDialog, ManualDialog, UploadDialog } from "./AddCaseDialogs";
+import { ChooseMethodDialog } from "./AddCaseDialogs";
 import { Crumbs, EmptyBox, Icon, KindChip, VerdictBadge, useTestNav } from "./parts";
 
 /** Màn 2 — one Test Suite. */
@@ -13,8 +13,6 @@ export default function SuiteDetail({ agentId, suite, readOnly }: { agentId: str
   const { go } = useTestNav();
   const [renaming, setRenaming] = useState(false);
   const [choosing, setChoosing] = useState(false);
-  const [manual, setManual] = useState<CaseKind | null>(null);
-  const [upload, setUpload] = useState(false);
   const [runOpen, setRunOpen] = useState(false);
   const active = testStore.activeRun(suite.id);
   const k = countKinds(suite.cases);
@@ -92,13 +90,9 @@ export default function SuiteDetail({ agentId, suite, readOnly }: { agentId: str
       {choosing && (
         <ChooseMethodDialog onClose={() => setChoosing(false)} onPick={(m, kind) => {
           setChoosing(false);
-          if (m === "ai") go("test-sets", { item: suite.id, view: "ai", kind });
-          else if (m === "manual") setManual(kind);
-          else setUpload(true);
+          go("test-sets", { item: suite.id, view: m, kind: m === "upload" ? undefined : kind });
         }} />
       )}
-      {manual && <ManualDialog suiteId={suite.id} initialKind={manual} onClose={() => setManual(null)} />}
-      {upload && <UploadDialog suiteId={suite.id} onClose={() => setUpload(false)} />}
       {runOpen && <RunConfirmDialog suite={suite} onClose={() => setRunOpen(false)} onStarted={id => go("runs", { item: id })} />}
     </div>
   );

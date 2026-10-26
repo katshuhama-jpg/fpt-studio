@@ -3,6 +3,7 @@ import { useTestNav } from "./parts";
 import SuiteList from "./SuiteList";
 import SuiteDetail from "./SuiteDetail";
 import AiGenerate from "./AiGenerate";
+import { ManualPage, UploadPage } from "./AddCaseDialogs";
 import RunView from "./RunView";
 import RunHistory, { RunCompare } from "./RunHistory";
 
@@ -21,7 +22,11 @@ export default function TestTab({ agentId, section, readOnly }: { agentId: strin
   }
   const suite = testStore.suite(item);
   if (suite && suite.agentId === agentId) {
-    if (get("view") === "ai" && !readOnly) return <AiGenerate key={suite.id} suite={suite} initialKind={(get("kind") as CaseKind) === "scenario" ? "scenario" : "qna"} />;
+    const kind: CaseKind = get("kind") === "scenario" ? "scenario" : "qna";
+    const view = readOnly ? null : get("view");
+    if (view === "ai") return <AiGenerate key={suite.id} suite={suite} initialKind={kind} />;
+    if (view === "manual") return <ManualPage key={suite.id} suite={suite} initialKind={kind} />;
+    if (view === "upload") return <UploadPage key={suite.id} suite={suite} />;
     return <SuiteDetail agentId={agentId} suite={suite} readOnly={readOnly} />;
   }
   return <SuiteList agentId={agentId} readOnly={readOnly} />;

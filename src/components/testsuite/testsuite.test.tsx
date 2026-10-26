@@ -91,19 +91,21 @@ describe("TestTab UI", () => {
     fireEvent.change(screen.getByLabelText("Tìm Test Suite theo tên"), { target: { value: "zzz" } });
     expect(screen.getByText(/Không tìm thấy Test Suite nào/)).toBeTruthy();
   });
-  it("Màn 2 → 3B: add a Q&A case manually with validation", () => {
+  it("Màn 2 → 3B: full-screen Nhập tay, validation, back to the suite", () => {
     const s = testStore.suites(A).find(x => x.name === "Ngoài phạm vi")!;
     wrap("test-sets", `&item=${s.id}`);
     fireEvent.click(screen.getByRole("button", { name: /Thêm testcase/ }));
     fireEvent.click(screen.getByRole("radio", { name: /Nhập tay/ }));
     fireEvent.click(screen.getByRole("button", { name: "Tiếp tục" }));
-    const dlg = screen.getByRole("dialog");
+    expect(screen.getByRole("heading", { name: "Nhập tay testcase" })).toBeTruthy();
+    const dlg = document.body;
     fireEvent.click(within(dlg).getByRole("button", { name: "Lưu & đóng" }));
     expect(within(dlg).getByText("Vui lòng nhập Câu hỏi.")).toBeTruthy();
     fireEvent.change(within(dlg).getByLabelText(/Câu hỏi/), { target: { value: "Thời tiết hôm nay?" } });
     fireEvent.change(within(dlg).getByLabelText(/Câu trả lời mong đợi/), { target: { value: "Từ chối lịch sự." } });
     fireEvent.click(within(dlg).getByRole("button", { name: "Lưu & đóng" }));
     expect(testStore.suite(s.id)!.cases).toHaveLength(3);
+    expect(screen.getByRole("heading", { name: "Ngoài phạm vi" })).toBeTruthy();
   });
   it("Màn 6: history select max 2, compare", () => {
     wrap("runs");
