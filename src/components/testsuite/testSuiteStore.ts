@@ -290,15 +290,43 @@ export const testStore = {
     }
     return undefined;
   },
+  /** Copy placed right after the original; new ids so results don't carry over. */
+  duplicateCase(suiteId: string, caseId: string): TestCase | undefined {
+    const s = this.suite(suiteId);
+    const c = s?.cases.find(x => x.id === caseId);
+    if (!s || !c) return undefined;
+    const copy: TestCase = c.kind === "qna"
+      ? { ...c, id: uid("tc"), createdAt: Date.now() }
+      : { ...c, id: uid("tc"), createdAt: Date.now(), name: `${c.name || "Kịch bản"} (bản sao)`, turns: c.turns.map(t => ({ ...t, id: uid("turn") })) };
+    const i = s.cases.findIndex(x => x.id === caseId);
+    const cases = [...s.cases.slice(0, i + 1), copy, ...s.cases.slice(i + 1)];
+    commit({ ...state, suites: state.suites.map(x => (x.id === suiteId ? { ...x, cases } : x)) });
+    return copy;
+  },
+  moveCases(fromId: string, ids: string[], toId: string) {
+    const from = this.suite(fromId);
+    if (!from || fromId === toId) return;
+    const moving = from.cases.filter(c => ids.includes(c.id));
+    commit({ ...state, suites: state.suites.map(x =>
+      x.id === fromId ? { ...x, cases: x.cases.filter(c => !ids.includes(c.id)) }
+      : x.id === toId ? { ...x, cases: [...x.cases, ...moving] } : x) });
+  },
+  removeCases(suiteId: string, ids: string[]) {
+    commit({ ...state, suites: state.suites.map(s => (s.id === suiteId ? { ...s, cases: s.cases.filter(c => !ids.includes(c.id)) } : s)) });
+  },
+  /** Running right now for this testcase (any run of the suite). */
+  caseRunning(suiteId: string, caseId: string): boolean {
+    return state.runs.some(r => r.suiteId === suiteId && r.status === "running" && !!r.results[caseId] && ["queued", "running"].includes(r.results[caseId].state));
+  },
   removeCase(suiteId: string, caseId: string) {
     commit({ ...state, suites: state.suites.map(s => (s.id === suiteId ? { ...s, cases: s.cases.filter(c => c.id !== caseId) } : s)) });
   },
 
   /** onlyFailed: re-run just the Fail/Error cases of the latest finished run. */
-  startRun(suiteId: string, by: string, onlyFailed = false): Run | undefined {
+  startRun(suiteId: string, by: string, onlyFailed = false, caseIds?: string[]): Run | undefined {
     const s = this.suite(suiteId);
     if (!s || !s.cases.length) return undefined;
-    let cases = s.cases;
+    let cases = caseIds ? s.cases.filter(c => caseIds.includes(c.id)) : s.cases;
     if (onlyFailed) {
       const last = this.lastRun(suiteId);
       if (last) cases = s.cases.filter(c => { const v = caseVerdict(last.results[c.id]); return v === "fail" || v === "error"; });

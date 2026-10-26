@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { toast } from "sonner";
-import { Add01Icon, PencilEdit01Icon, Clock01Icon, PlayIcon, Delete02Icon, TestTube01Icon, InformationCircleIcon } from "@hugeicons/core-free-icons";
+import { Add01Icon, PencilEdit01Icon, Clock01Icon, PlayIcon, TestTube01Icon, InformationCircleIcon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
-import { caseSummary, countKinds, testStore, useTestStore, type Suite } from "./testSuiteStore";
+import { countKinds, testStore, useTestStore, type Suite } from "./testSuiteStore";
 import { RunConfirmDialog, SuiteFormDialog } from "./dialogs";
 import CaseDetailSheet from "./CaseDetailSheet";
+import CasesTable from "./CasesTable";
 import { ChooseMethodDialog } from "./AddCaseDialogs";
-import { Crumbs, EmptyBox, Icon, KindChip, VerdictBadge, useTestNav } from "./parts";
+import { Crumbs, EmptyBox, Icon, useTestNav } from "./parts";
 
 /** Màn 2 — one Test Suite. */
 export default function SuiteDetail({ agentId, suite, readOnly }: { agentId: string; suite: Suite; readOnly?: boolean }) {
@@ -21,7 +21,7 @@ export default function SuiteDetail({ agentId, suite, readOnly }: { agentId: str
   const back = () => go("test-sets");
 
   return (
-    <div data-viewonly-allow className="mx-auto max-w-[960px] px-8 py-6">
+    <div data-viewonly-allow className="mx-auto max-w-[1200px] px-8 py-6">
       <Crumbs onBack={back} items={[{ label: "Test Suites", onClick: back }, { label: suite.name }]} />
       <div className="mt-4 mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
@@ -57,35 +57,7 @@ export default function SuiteDetail({ agentId, suite, readOnly }: { agentId: str
           {!readOnly && <Button type="button" className="mt-4" onClick={() => setChoosing(true)}><Icon icon={Add01Icon} /> Thêm testcase</Button>}
         </EmptyBox>
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-xs text-muted-foreground">
-              <tr>
-                <th scope="col" className="w-24 px-4 py-2.5 text-left font-medium">Loại</th>
-                <th scope="col" className="px-4 py-2.5 text-left font-medium">Nội dung</th>
-                <th scope="col" className="w-36 px-4 py-2.5 text-left font-medium">Topic</th>
-                <th scope="col" className="w-36 px-4 py-2.5 text-left font-medium">Lần chạy gần nhất</th>
-                {!readOnly && <th scope="col" className="w-12 px-2 py-2.5"><span className="sr-only">Thao tác</span></th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {suite.cases.map(c => (
-                <tr key={c.id} className="cursor-pointer hover:bg-muted/30" onClick={e => { if (!(e.target as HTMLElement).closest("button")) setOpenCase(c.id); }}>
-                  <td className="px-4 py-3"><KindChip kind={c.kind} /></td>
-                  <td className="max-w-0 px-4 py-3"><button type="button" onClick={() => setOpenCase(c.id)} className="block max-w-full truncate text-left hover:underline rounded-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50" title={caseSummary(c)}>{caseSummary(c)}</button></td>
-                  <td className="px-4 py-3 text-muted-foreground">{c.topic || "—"}</td>
-                  <td className="px-4 py-3"><VerdictBadge v={testStore.lastVerdict(suite.id, c.id)} /></td>
-                  {!readOnly && (
-                    <td className="px-2 py-3 text-right">
-                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" aria-label="Xoá testcase"
-                        onClick={() => { testStore.removeCase(suite.id, c.id); toast.success("Đã xoá testcase."); }}><Icon icon={Delete02Icon} /></Button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <CasesTable suite={suite} readOnly={readOnly} onOpen={setOpenCase} />
       )}
 
       {renaming && <SuiteFormDialog agentId={agentId} suite={suite} open onOpenChange={setRenaming} />}

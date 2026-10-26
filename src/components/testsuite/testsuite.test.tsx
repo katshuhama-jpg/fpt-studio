@@ -119,6 +119,22 @@ describe("TestTab UI", () => {
     fireEvent.click(within(sheet).getByRole("button", { name: "Lưu" }));
     expect(testStore.suite(s.id)!.cases[0]).toMatchObject({ expected: "Mới" });
   });
+  it("Màn 2 table: columns, run one testcase, duplicate, move, delete", () => {
+    const suites = testStore.suites(A);
+    const s = suites.find(x => x.name === "Ngoài phạm vi")!;
+    const other = suites.find(x => x.name === "Đăng ký tài khoản")!;
+    wrap("test-sets", `&item=${s.id}`);
+    for (const h of ["Câu hỏi", "Câu trả lời mong muốn", "Topic", "Nguồn tài liệu", "Run"]) expect(screen.getByRole("columnheader", { name: h })).toBeTruthy();
+    fireEvent.click(screen.getAllByRole("button", { name: "Run testcase" })[0]);
+    expect(testStore.runs(A, s.id)[0].cases).toHaveLength(1);
+    testStore.duplicateCase(s.id, s.cases[0].id);
+    expect(testStore.suite(s.id)!.cases).toHaveLength(3);
+    testStore.moveCases(s.id, [s.cases[1].id], other.id);
+    expect(testStore.suite(s.id)!.cases).toHaveLength(2);
+    expect(testStore.suite(other.id)!.cases).toHaveLength(7);
+    testStore.removeCases(s.id, testStore.suite(s.id)!.cases.map(c => c.id));
+    expect(testStore.suite(s.id)!.cases).toHaveLength(0);
+  });
   it("Màn 6: history select max 2, compare", () => {
     wrap("runs");
     const boxes = screen.getAllByRole("checkbox", { name: /Chọn lần chạy/ });
