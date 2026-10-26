@@ -3,6 +3,7 @@ import { useTestNav } from "./parts";
 import SuiteList from "./SuiteList";
 import SuiteDetail from "./SuiteDetail";
 import AiGenerate from "./AiGenerate";
+import RefinePage from "./RefinePage";
 import { ManualPage, UploadPage } from "./AddCaseDialogs";
 import CreateLanding, { CreateSuitePage } from "./CreateLanding";
 import RunView from "./RunView";
@@ -26,6 +27,7 @@ export default function TestTab({ agentId, section, readOnly }: { agentId: strin
     const kind: CaseKind = get("kind") === "scenario" ? "scenario" : "qna";
     const view = readOnly ? null : get("view");
     if (view === "new") return <CreateLanding key={suite.id} agentId={agentId} suite={suite} />;
+    if (view === "refine") return <RefinePage key={suite.id} suite={suite} />;
     if (view === "ai") return <AiGenerate key={suite.id} suite={suite} initialKind={kind} />;
     if (view === "manual") return <ManualPage key={suite.id} suite={suite} initialKind={kind} />;
     if (view === "upload") return <UploadPage key={suite.id} suite={suite} />;

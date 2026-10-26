@@ -111,12 +111,31 @@ describe("TestTab UI", () => {
     expect(screen.getByRole("status")).toBeTruthy();
     vi.useRealTimers();
   });
-  it("Màn 2 → 3B: full-screen Nhập tay, validation, back to the suite", () => {
+  it("Màn 2: + Thêm testcase adds one testcase by hand in a sheet", () => {
     const s = testStore.suites(A).find(x => x.name === "Ngoài phạm vi")!;
     wrap("test-sets", `&item=${s.id}`);
     fireEvent.click(screen.getByRole("button", { name: /Thêm testcase/ }));
-    expect(screen.getByRole("heading", { name: "Thêm testcase" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /Nhập tay/ }));
+    const sheet = screen.getByRole("dialog");
+    fireEvent.click(within(sheet).getByRole("button", { name: "Lưu" }));
+    expect(within(sheet).getByText("Vui lòng nhập Câu hỏi.")).toBeTruthy();
+    fireEvent.change(within(sheet).getByLabelText(/Câu hỏi/), { target: { value: "Giá vàng hôm nay?" } });
+    fireEvent.change(within(sheet).getByLabelText(/Câu trả lời mong đợi/), { target: { value: "Từ chối, ngoài phạm vi." } });
+    fireEvent.click(within(sheet).getByRole("button", { name: "Lưu" }));
+    expect(testStore.suite(s.id)!.cases).toHaveLength(3);
+  });
+  it("Refine with AI: duplicate/delete in draft, saved only on Lưu thay đổi", () => {
+    const s = testStore.suites(A).find(x => x.name === "Ngoài phạm vi")!;
+    wrap("test-sets", `&item=${s.id}&view=refine`);
+    const save = screen.getAllByRole("button", { name: "Lưu thay đổi" })[0] as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    fireEvent.click(screen.getAllByRole("button", { name: "Duplicate" })[0]);
+    expect(testStore.suite(s.id)!.cases).toHaveLength(2);
+    fireEvent.click(screen.getAllByRole("button", { name: "Lưu thay đổi" })[0]);
+    expect(testStore.suite(s.id)!.cases).toHaveLength(3);
+  });
+  it("Màn 3B: full-screen Nhập tay, validation, back to the suite", () => {
+    const s = testStore.suites(A).find(x => x.name === "Ngoài phạm vi")!;
+    wrap("test-sets", `&item=${s.id}&view=manual`);
     expect(screen.getByRole("heading", { name: "Nhập tay testcase" })).toBeTruthy();
     const dlg = document.body;
     fireEvent.click(within(dlg).getByRole("button", { name: "Lưu & đóng" }));

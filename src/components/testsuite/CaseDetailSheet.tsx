@@ -18,7 +18,7 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
 export default function CaseDetailSheet({ suite, caseId, readOnly, onClose }: { suite: Suite; caseId: string; readOnly?: boolean; onClose: () => void }) {
   useTestStore();
   const { go } = useTestNav();
-  const c = testStore.suite(suite.id)?.cases.find(x => x.id === caseId);
+  const c = suite.cases.find(x => x.id === caseId) ?? testStore.suite(suite.id)?.cases.find(x => x.id === caseId);
   const [draft, setDraft] = useState<TestCase | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);

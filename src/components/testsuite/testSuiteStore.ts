@@ -302,6 +302,9 @@ export const testStore = {
     }
     return undefined;
   },
+  setCases(suiteId: string, cases: TestCase[]) {
+    commit({ ...state, suites: state.suites.map(s => (s.id === suiteId ? { ...s, cases } : s)) });
+  },
   /** Copy placed right after the original; new ids so results don't carry over. */
   duplicateCase(suiteId: string, caseId: string): TestCase | undefined {
     const s = this.suite(suiteId);
