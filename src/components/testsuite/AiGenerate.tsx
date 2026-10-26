@@ -224,11 +224,11 @@ export default function AiGenerate({ suite, initialKind }: { suite: Suite; initi
                 <button type="button" aria-label="Bỏ tệp đính kèm" onClick={() => setAttached(null)} className="text-muted-foreground hover:text-foreground"><Icon icon={Cancel01Icon} size={12} /></button>
               </div>
             )}
-            <div className="rounded-lg border focus-within:ring-[3px] focus-within:ring-ring/50">
+            <div className="overflow-hidden rounded-lg border bg-background transition-shadow focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/30">
               <Textarea ref={inputRef} rows={2} value={input} onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
                 placeholder={refining ? "Muốn chỉnh testcase thế nào? VD: thêm số hotline vào câu trả lời" : "Mô tả testcase bạn muốn tạo, hoặc đính kèm tài liệu..."}
-                aria-label="Nội dung gửi AI" className="resize-none border-0 shadow-none focus-visible:ring-0" />
+                aria-label="Nội dung gửi AI" className="resize-none rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0" />
               <div className="flex items-center gap-1.5 px-2 pb-2">
                 <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label="Đính kèm file" onClick={() => fileRef.current?.click()}><Icon icon={Add01Icon} /></Button>
                 <input ref={fileRef} type="file" className="hidden" accept=".pdf,.doc,.docx,.txt,.md,.xlsx" aria-label="Chọn tài liệu" onChange={e => { const f = e.target.files?.[0]; if (f) setAttached(f.name); e.target.value = ""; }} />

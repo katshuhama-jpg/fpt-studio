@@ -30,7 +30,7 @@ export function CreateHero({ agentId, suite, title }: { agentId: string; suite?:
       <h1 className="text-2xl font-semibold tracking-tight">{title ?? "Tạo bộ testcase đầu tiên"}</h1>
       <p className="mt-2 max-w-[520px] text-sm text-muted-foreground">Mô tả điều bạn muốn kiểm thử, hoặc đính kèm tài liệu như SRS, BRD. AI sẽ đề xuất testcase để bạn tinh chỉnh trước khi lưu.</p>
 
-      <div className="mt-7 w-full rounded-xl border bg-card text-left shadow-sm focus-within:ring-[3px] focus-within:ring-ring/50">
+      <div className="mt-7 w-full overflow-hidden rounded-xl border bg-card text-left shadow-sm transition-shadow focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/30">
         {file && (
           <div className="mx-4 mt-3 flex w-fit items-center gap-1.5 rounded-md border bg-muted/50 px-2 py-1 text-xs">
             <Icon icon={FileAttachmentIcon} size={12} />{file}
@@ -40,7 +40,7 @@ export function CreateHero({ agentId, suite, title }: { agentId: string; suite?:
         <Textarea autoFocus rows={3} value={text} onChange={e => setText(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); start(); } }}
           placeholder="Mô tả testcase bạn cần, hoặc đính kèm tài liệu (SRS, BRD)..." aria-label="Mô tả testcase cần tạo"
-          className="min-h-[88px] resize-none border-0 px-4 pt-3 shadow-none focus-visible:ring-0" />
+          className="min-h-[88px] resize-none rounded-none border-0 bg-transparent px-4 pt-3 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0" />
         <div className="flex items-center gap-2 border-t px-3 py-2.5">
           <Button type="button" variant="outline" size="icon" className="h-8 w-8" aria-label="Đính kèm tài liệu" onClick={() => fileRef.current?.click()}><Icon icon={Attachment01Icon} /></Button>
           <input ref={fileRef} type="file" className="hidden" accept=".pdf,.doc,.docx,.txt,.md,.xlsx" aria-label="Chọn tài liệu" onChange={e => { const f = e.target.files?.[0]; if (f) setFile(f.name); e.target.value = ""; }} />
