@@ -5,7 +5,7 @@ import { countKinds, testStore, useTestStore, type Suite } from "./testSuiteStor
 import { RunConfirmDialog, SuiteFormDialog } from "./dialogs";
 import CaseDetailSheet from "./CaseDetailSheet";
 import CasesTable from "./CasesTable";
-import { ChooseMethodDialog } from "./AddCaseDialogs";
+import { CreateHero } from "./CreateLanding";
 import { Crumbs, EmptyBox, Icon, useTestNav } from "./parts";
 
 /** Màn 2 — one Test Suite. */
@@ -13,7 +13,6 @@ export default function SuiteDetail({ agentId, suite, readOnly }: { agentId: str
   useTestStore();
   const { go } = useTestNav();
   const [renaming, setRenaming] = useState(false);
-  const [choosing, setChoosing] = useState(false);
   const [runOpen, setRunOpen] = useState(false);
   const [openCase, setOpenCase] = useState<string | null>(null);
   const active = testStore.activeRun(suite.id);
@@ -48,25 +47,18 @@ export default function SuiteDetail({ agentId, suite, readOnly }: { agentId: str
 
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold">Testcase <span className="font-normal text-muted-foreground tabular-nums">({suite.cases.length})</span></h2>
-        {!readOnly && suite.cases.length > 0 && <Button type="button" variant="outline" size="sm" onClick={() => setChoosing(true)}><Icon icon={Add01Icon} /> Thêm testcase</Button>}
+        {!readOnly && suite.cases.length > 0 && <Button type="button" variant="outline" size="sm" onClick={() => go("test-sets", { item: suite.id, view: "new" })}><Icon icon={Add01Icon} /> Thêm testcase</Button>}
       </div>
 
       {suite.cases.length === 0 ? (
-        <EmptyBox icon={TestTube01Icon} title="Test Suite chưa có testcase">
-          <p className="mt-1 max-w-sm text-sm text-muted-foreground">Thêm testcase bằng AI, nhập tay hoặc upload file có sẵn.</p>
-          {!readOnly && <Button type="button" className="mt-4" onClick={() => setChoosing(true)}><Icon icon={Add01Icon} /> Thêm testcase</Button>}
-        </EmptyBox>
+        readOnly
+          ? <EmptyBox icon={TestTube01Icon} title="Test Suite chưa có testcase" />
+          : <div className="rounded-lg border border-dashed"><CreateHero agentId={agentId} suite={suite} title="Thêm testcase đầu tiên" /></div>
       ) : (
         <CasesTable suite={suite} readOnly={readOnly} onOpen={setOpenCase} />
       )}
 
       {renaming && <SuiteFormDialog agentId={agentId} suite={suite} open onOpenChange={setRenaming} />}
-      {choosing && (
-        <ChooseMethodDialog onClose={() => setChoosing(false)} onPick={(m, kind) => {
-          setChoosing(false);
-          go("test-sets", { item: suite.id, view: m, kind: m === "upload" ? undefined : kind });
-        }} />
-      )}
       {openCase && <CaseDetailSheet suite={suite} caseId={openCase} readOnly={readOnly} onClose={() => setOpenCase(null)} />}
       {runOpen && <RunConfirmDialog suite={suite} onClose={() => setRunOpen(false)} onStarted={id => go("runs", { item: id })} />}
     </div>

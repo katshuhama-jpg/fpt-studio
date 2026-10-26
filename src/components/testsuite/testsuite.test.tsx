@@ -91,12 +91,26 @@ describe("TestTab UI", () => {
     fireEvent.change(screen.getByLabelText("Tìm Test Suite theo tên"), { target: { value: "zzz" } });
     expect(screen.getByText(/Không tìm thấy Test Suite nào/)).toBeTruthy();
   });
+  it("landing: AI prompt creates 'Test Suite mới' and hands the prompt to the AI page", () => {
+    testStore.ensure(A);
+    for (const s of testStore.suites(A)) testStore.deleteSuite(s.id);
+    vi.useFakeTimers();
+    wrap("test-sets");
+    act(() => { vi.advanceTimersByTime(400); });
+    expect(screen.getByRole("heading", { name: "Tạo bộ testcase đầu tiên" })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Mô tả testcase cần tạo"), { target: { value: "Testcase về đổi trả" } });
+    fireEvent.click(screen.getByRole("button", { name: "Tạo bằng AI" }));
+    expect(testStore.suites(A)[0].name).toBe("Test Suite mới");
+    expect(screen.getByText("Testcase về đổi trả")).toBeTruthy();
+    expect(screen.getByRole("status")).toBeTruthy();
+    vi.useRealTimers();
+  });
   it("Màn 2 → 3B: full-screen Nhập tay, validation, back to the suite", () => {
     const s = testStore.suites(A).find(x => x.name === "Ngoài phạm vi")!;
     wrap("test-sets", `&item=${s.id}`);
     fireEvent.click(screen.getByRole("button", { name: /Thêm testcase/ }));
-    fireEvent.click(screen.getByRole("radio", { name: /Nhập tay/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Tiếp tục" }));
+    expect(screen.getByRole("heading", { name: "Thêm testcase" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Nhập tay/ }));
     expect(screen.getByRole("heading", { name: "Nhập tay testcase" })).toBeTruthy();
     const dlg = document.body;
     fireEvent.click(within(dlg).getByRole("button", { name: "Lưu & đóng" }));

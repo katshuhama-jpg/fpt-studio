@@ -438,3 +438,20 @@ export function toMarkdown(cases: TestCase[]): string {
 export const newQna = (): QnaCase => qna("", "", "");
 export const newScenario = (): ScenarioCase => scenario("", "", [["", ""], ["", ""]]);
 export const newTurn = (): Turn => ({ id: uid("turn"), question: "", expected: "" });
+
+/* ───────────── landing → AI hand-off ───────────── */
+
+export interface PendingPrompt { text: string; file: string | null; count: "auto" | "5" | "10" | "20" }
+const pendingPrompts = new Map<string, PendingPrompt>();
+export const setPendingPrompt = (suiteId: string, p: PendingPrompt) => { pendingPrompts.set(suiteId, p); };
+export function takePendingPrompt(suiteId: string): PendingPrompt | undefined {
+  const p = pendingPrompts.get(suiteId);
+  pendingPrompts.delete(suiteId);
+  return p;
+}
+/** "Test Suite mới", "Test Suite mới 2", … */
+export function nextSuiteName(agentId: string) {
+  let name = "Test Suite mới";
+  for (let i = 2; testStore.nameTaken(agentId, name); i++) name = `Test Suite mới ${i}`;
+  return name;
+}

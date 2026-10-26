@@ -7,6 +7,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { countKinds, fmtTime, runStats, testStore, useTestStore, type Suite } from "./testSuiteStore";
 import { DeleteSuiteDialog, RunConfirmDialog, SuiteFormDialog } from "./dialogs";
 import { EmptyBox, Icon, ProgressRing, useTestNav } from "./parts";
+import { CreateHero } from "./CreateLanding";
 
 function LastRun({ suite }: { suite: Suite }) {
   const run = testStore.lastRun(suite.id);
@@ -51,6 +52,7 @@ export default function SuiteList({ agentId, readOnly }: { agentId: string; read
 
   return (
     <div data-viewonly-allow className="mx-auto max-w-[960px] px-8 py-8">
+      {!(phase === "ready" && suites.length === 0 && !readOnly) && (
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold">Test Suite</h1>
@@ -64,6 +66,7 @@ export default function SuiteList({ agentId, readOnly }: { agentId: string; read
           {!readOnly && <Button type="button" onClick={() => setCreateOpen(true)}><Icon icon={Add01Icon} /> Tạo Test Suite</Button>}
         </div>
       </div>
+      )}
 
       {phase === "loading" && (
         <div className="space-y-2.5" aria-busy="true" aria-label="Đang tải">
@@ -83,12 +86,9 @@ export default function SuiteList({ agentId, readOnly }: { agentId: string; read
         </EmptyBox>
       )}
 
-      {phase === "ready" && suites.length === 0 && (
-        <EmptyBox icon={TestTube01Icon} title="Chưa có bộ testcase nào">
-          <p className="mt-1 max-w-sm text-sm text-muted-foreground">Tạo Test Suite rồi thêm testcase bằng AI, nhập tay hoặc upload file.</p>
-          {!readOnly && <Button type="button" className="mt-4" onClick={() => setCreateOpen(true)}><Icon icon={Add01Icon} /> Tạo Test Suite</Button>}
-        </EmptyBox>
-      )}
+      {phase === "ready" && suites.length === 0 && (readOnly
+        ? <EmptyBox icon={TestTube01Icon} title="Chưa có bộ testcase nào" />
+        : <CreateHero agentId={agentId} />)}
 
       {phase === "ready" && suites.length > 0 && filtered.length === 0 && (
         <EmptyBox icon={Search01Icon} title={`Không tìm thấy Test Suite nào khớp "${q.trim()}".`}>

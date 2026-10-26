@@ -367,7 +367,7 @@ export default function AgentBuilder() {
   // A Quy trình canvas handles view-only itself (pan, open a step to read it, nothing editable).
   useTestStore();
   // Creating testcases (AI / Nhập tay / Upload) takes the whole content area - no left nav.
-  const testCreating = tab === "evaluate" && section === "test-sets" && !!params.get("item") && ["ai", "manual", "upload"].includes(params.get("view") ?? "");
+  const testCreating = tab === "evaluate" && section === "test-sets" && !!params.get("item") && ["new", "ai", "manual", "upload"].includes(params.get("view") ?? "");
   const testRunPending = tab === "evaluate" ? testSuiteStore.pendingCount(id ?? "new") : 0;
   const lockContent = viewOnly && tab !== "insights" && !(isProcess && tab === "build" && section === "flow");
   /** In Evaluate, a view-only person may still run tests and read results - those controls carry

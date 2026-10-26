@@ -12,12 +12,12 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { aiGenerate, aiRefine, toMarkdown, testStore, uid, KIND_LABEL, type CaseKind, type DraftCase, type QnaCase, type ScenarioCase, type Suite, type TestCase } from "./testSuiteStore";
+import { aiGenerate, aiRefine, takePendingPrompt, toMarkdown, testStore, uid, KIND_LABEL, type CaseKind, type DraftCase, type QnaCase, type ScenarioCase, type Suite, type TestCase } from "./testSuiteStore";
 import { QnaEditor } from "./CaseEditors";
 import { Crumbs, Icon, KindToggle, SEG_LIST, SEG_TRIGGER, useTestNav } from "./parts";
 
 interface Msg { id: string; role: "system" | "user" | "ai" | "loading"; text: string; file?: string; snapshot?: DraftCase[]; undone?: boolean }
-type Count = "auto" | "5" | "10" | "20";
+export type Count = "auto" | "5" | "10" | "20";
 
 function UpdatedTag() {
   return <span className="inline-flex items-center gap-1 rounded-sm bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary"><Icon icon={SparklesIcon} size={12} />Vừa cập nhật</span>;
@@ -97,8 +97,8 @@ export default function AiGenerate({ suite, initialKind }: { suite: Suite; initi
   const [draft, setDraft] = useState<DraftCase[]>([]);
   const [msgs, setMsgs] = useState<Msg[]>([{ id: "sys", role: "system", text: "Đưa tài liệu (SRS/BRD) hoặc mô tả yêu cầu, AI sẽ đề xuất testcase ở khung bên phải." }]);
   const [input, setInput] = useState("");
-  const [file, setFile] = useState<string | null>(null);
-  const [count, setCount] = useState<Count>("auto");
+  const [attached, setAttached] = useState<string | null>(null);
+  const [countSel, setCountSel] = useState<Count>("auto");
   const [busy, setBusy] = useState(false);
   const [lastAction, setLastAction] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -111,6 +111,12 @@ export default function AiGenerate({ suite, initialKind }: { suite: Suite; initi
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => { endRef.current?.scrollIntoView?.({ block: "end" }); }, [msgs.length]);
+  // Prompt typed on the "Tạo bộ testcase" landing is sent straight away.
+  useEffect(() => {
+    const p = takePendingPrompt(suite.id);
+    if (p) { setCountSel(p.count); send({ text: p.text, file: p.file, count: p.count }); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toSuite = () => go("test-sets", { item: suite.id });
   const included = draft.filter(d => d.accepted !== false);
@@ -118,8 +124,10 @@ export default function AiGenerate({ suite, initialKind }: { suite: Suite; initi
   const rejected = draft.length - included.length;
   const targets = refining ? (selected.size ? draft.filter(d => selected.has(d.case.id)) : included) : [];
 
-  const send = async () => {
-    const text = input.trim();
+  const send = async (override?: { text: string; file: string | null; count: Count }) => {
+    const text = (override?.text ?? input).trim();
+    const file = override ? override.file : attached;
+    const count = override?.count ?? countSel;
     if ((!text && !file) || busy) return;
     const snapshot = draft;
     const userMsg: Msg = { id: uid("m"), role: "user", text: text || "(Đính kèm tài liệu)", file: file ?? undefined };
@@ -142,7 +150,7 @@ export default function AiGenerate({ suite, initialKind }: { suite: Suite; initi
         setMsgs(m => [...m.filter(x => x.id !== loading.id), { id: uid("m"), role: "ai", text: `Đã thêm ${cases.length} testcase ${KIND_LABEL[kind]}${file ? ` từ "${file}"` : ""}. Xem và duyệt ở khung bên phải.`, snapshot }]);
       }
       setLastAction(stamp);
-      setFile(null);
+      setAttached(null);
     } catch {
       setMsgs(m => [...m.filter(x => x.id !== loading.id), { id: uid("m"), role: "ai", text: "Chưa tạo được testcase. Vui lòng thử lại." }]);
     } finally { setBusy(false); }
@@ -210,10 +218,10 @@ export default function AiGenerate({ suite, initialKind }: { suite: Suite; initi
                 <button type="button" className="font-medium hover:underline" onClick={() => setRefining(false)}>Huỷ</button>
               </div>
             )}
-            {file && (
+            {attached && (
               <div className="mb-2 flex w-fit items-center gap-1.5 rounded-md border px-2 py-1 text-xs">
-                <Icon icon={FileAttachmentIcon} size={12} />{file}
-                <button type="button" aria-label="Bỏ tệp đính kèm" onClick={() => setFile(null)} className="text-muted-foreground hover:text-foreground"><Icon icon={Cancel01Icon} size={12} /></button>
+                <Icon icon={FileAttachmentIcon} size={12} />{attached}
+                <button type="button" aria-label="Bỏ tệp đính kèm" onClick={() => setAttached(null)} className="text-muted-foreground hover:text-foreground"><Icon icon={Cancel01Icon} size={12} /></button>
               </div>
             )}
             <div className="rounded-lg border focus-within:ring-[3px] focus-within:ring-ring/50">
@@ -223,9 +231,9 @@ export default function AiGenerate({ suite, initialKind }: { suite: Suite; initi
                 aria-label="Nội dung gửi AI" className="resize-none border-0 shadow-none focus-visible:ring-0" />
               <div className="flex items-center gap-1.5 px-2 pb-2">
                 <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label="Đính kèm file" onClick={() => fileRef.current?.click()}><Icon icon={Add01Icon} /></Button>
-                <input ref={fileRef} type="file" className="hidden" accept=".pdf,.doc,.docx,.txt,.md,.xlsx" aria-label="Chọn tài liệu" onChange={e => { const f = e.target.files?.[0]; if (f) setFile(f.name); e.target.value = ""; }} />
+                <input ref={fileRef} type="file" className="hidden" accept=".pdf,.doc,.docx,.txt,.md,.xlsx" aria-label="Chọn tài liệu" onChange={e => { const f = e.target.files?.[0]; if (f) setAttached(f.name); e.target.value = ""; }} />
                 {!refining && (
-                  <Select value={count} onValueChange={v => setCount(v as Count)}>
+                  <Select value={countSel} onValueChange={v => setCountSel(v as Count)}>
                     <SelectTrigger className="h-8 w-auto gap-1 text-xs" aria-label="Số lượng testcase"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="auto">Số lượng: Tự động</SelectItem>
@@ -235,7 +243,7 @@ export default function AiGenerate({ suite, initialKind }: { suite: Suite; initi
                     </SelectContent>
                   </Select>
                 )}
-                <Button type="button" size="icon" className="ml-auto h-8 w-8" aria-label="Gửi" disabled={busy || (!input.trim() && !file) || (refining && !targets.length)} onClick={send}><Icon icon={SentIcon} /></Button>
+                <Button type="button" size="icon" className="ml-auto h-8 w-8" aria-label="Gửi" disabled={busy || (!input.trim() && !attached) || (refining && !targets.length)} onClick={() => send()}><Icon icon={SentIcon} /></Button>
               </div>
             </div>
           </div>
