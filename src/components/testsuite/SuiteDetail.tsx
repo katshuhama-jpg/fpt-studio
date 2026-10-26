@@ -4,6 +4,7 @@ import { Add01Icon, PencilEdit01Icon, Clock01Icon, PlayIcon, Delete02Icon, TestT
 import { Button } from "@/components/ui/button";
 import { caseSummary, countKinds, testStore, useTestStore, type Suite } from "./testSuiteStore";
 import { RunConfirmDialog, SuiteFormDialog } from "./dialogs";
+import CaseDetailSheet from "./CaseDetailSheet";
 import { ChooseMethodDialog } from "./AddCaseDialogs";
 import { Crumbs, EmptyBox, Icon, KindChip, VerdictBadge, useTestNav } from "./parts";
 
@@ -14,6 +15,7 @@ export default function SuiteDetail({ agentId, suite, readOnly }: { agentId: str
   const [renaming, setRenaming] = useState(false);
   const [choosing, setChoosing] = useState(false);
   const [runOpen, setRunOpen] = useState(false);
+  const [openCase, setOpenCase] = useState<string | null>(null);
   const active = testStore.activeRun(suite.id);
   const k = countKinds(suite.cases);
   const back = () => go("test-sets");
@@ -68,9 +70,9 @@ export default function SuiteDetail({ agentId, suite, readOnly }: { agentId: str
             </thead>
             <tbody className="divide-y">
               {suite.cases.map(c => (
-                <tr key={c.id} className="hover:bg-muted/30">
+                <tr key={c.id} className="cursor-pointer hover:bg-muted/30" onClick={e => { if (!(e.target as HTMLElement).closest("button")) setOpenCase(c.id); }}>
                   <td className="px-4 py-3"><KindChip kind={c.kind} /></td>
-                  <td className="max-w-0 px-4 py-3"><p className="truncate" title={caseSummary(c)}>{caseSummary(c)}</p></td>
+                  <td className="max-w-0 px-4 py-3"><button type="button" onClick={() => setOpenCase(c.id)} className="block max-w-full truncate text-left hover:underline rounded-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50" title={caseSummary(c)}>{caseSummary(c)}</button></td>
                   <td className="px-4 py-3 text-muted-foreground">{c.topic || "—"}</td>
                   <td className="px-4 py-3"><VerdictBadge v={testStore.lastVerdict(suite.id, c.id)} /></td>
                   {!readOnly && (
@@ -93,6 +95,7 @@ export default function SuiteDetail({ agentId, suite, readOnly }: { agentId: str
           go("test-sets", { item: suite.id, view: m, kind: m === "upload" ? undefined : kind });
         }} />
       )}
+      {openCase && <CaseDetailSheet suite={suite} caseId={openCase} readOnly={readOnly} onClose={() => setOpenCase(null)} />}
       {runOpen && <RunConfirmDialog suite={suite} onClose={() => setRunOpen(false)} onStarted={id => go("runs", { item: id })} />}
     </div>
   );

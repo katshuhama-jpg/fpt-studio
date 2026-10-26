@@ -279,6 +279,17 @@ export const testStore = {
   addCases(suiteId: string, cases: TestCase[]) {
     commit({ ...state, suites: state.suites.map(s => (s.id === suiteId ? { ...s, cases: [...s.cases, ...cases] } : s)) });
   },
+  updateCase(suiteId: string, c: TestCase) {
+    commit({ ...state, suites: state.suites.map(s => (s.id === suiteId ? { ...s, cases: s.cases.map(x => (x.id === c.id ? c : x)) } : s)) });
+  },
+  /** Latest finished run that has a result for this testcase. */
+  lastResult(suiteId: string, caseId: string): { run: Run; result: CaseResult } | undefined {
+    for (const r of state.runs.filter(x => x.suiteId === suiteId && x.status !== "running").sort((a, b) => b.startedAt - a.startedAt)) {
+      const result = r.results[caseId];
+      if (result && (result.state === "done" || result.state === "error")) return { run: r, result };
+    }
+    return undefined;
+  },
   removeCase(suiteId: string, caseId: string) {
     commit({ ...state, suites: state.suites.map(s => (s.id === suiteId ? { ...s, cases: s.cases.filter(c => c.id !== caseId) } : s)) });
   },

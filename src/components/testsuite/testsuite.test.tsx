@@ -107,6 +107,18 @@ describe("TestTab UI", () => {
     expect(testStore.suite(s.id)!.cases).toHaveLength(3);
     expect(screen.getByRole("heading", { name: "Ngoài phạm vi" })).toBeTruthy();
   });
+  it("Màn 2: clicking a testcase opens its detail with the latest result", () => {
+    const s = testStore.suites(A).find(x => x.name === "CSKH – Câu hỏi thường gặp")!;
+    wrap("test-sets", `&item=${s.id}`);
+    fireEvent.click(screen.getByRole("button", { name: s.cases[0].kind === "qna" ? s.cases[0].question : "" }));
+    const sheet = screen.getByRole("dialog");
+    expect(within(sheet).getByText("Câu trả lời mong đợi")).toBeTruthy();
+    expect(within(sheet).getByText("Kết quả gần nhất")).toBeTruthy();
+    fireEvent.click(within(sheet).getByRole("button", { name: /Chỉnh sửa/ }));
+    fireEvent.change(within(sheet).getByLabelText(/Câu trả lời mong đợi/), { target: { value: "Mới" } });
+    fireEvent.click(within(sheet).getByRole("button", { name: "Lưu" }));
+    expect(testStore.suite(s.id)!.cases[0]).toMatchObject({ expected: "Mới" });
+  });
   it("Màn 6: history select max 2, compare", () => {
     wrap("runs");
     const boxes = screen.getAllByRole("checkbox", { name: /Chọn lần chạy/ });
