@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Clock01Icon, GitCompareIcon, ArrowUp01Icon, ArrowDown01Icon } from "@hugeicons/core-free-icons";
+import { Cancel01Icon, Clock01Icon, GitCompareIcon, ArrowUp01Icon, ArrowDown01Icon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,7 +13,8 @@ export default function RunHistory({ agentId }: { agentId: string }) {
   const { go, get } = useTestNav();
   const suiteId = get("suite") ?? "all";
   const suites = testStore.suites(agentId);
-  const runs = testStore.runs(agentId, suiteId === "all" ? undefined : suiteId);
+  const onlyPending = get("status") === "pending";
+  const runs = testStore.runs(agentId, suiteId === "all" ? undefined : suiteId).filter(r => !onlyPending || r.status === "pending");
   const [picked, setPicked] = useState<string[]>([]);
   const pickedSuite = picked[0] ? testStore.run(picked[0])?.suiteId : undefined;
   const pending = runs.filter(r => r.status === "pending").length;
@@ -27,7 +28,8 @@ export default function RunHistory({ agentId }: { agentId: string }) {
           <p className="mt-0.5 text-sm text-muted-foreground">{pending ? `${pending} lần chạy đang chờ xác nhận. ` : ""}Chọn 2 lần chạy cùng Test Suite để so sánh.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Select value={suiteId} onValueChange={v => { setPicked([]); go("runs", { suite: v === "all" ? undefined : v }); }}>
+          {onlyPending && <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => go("runs", { suite: suiteId === "all" ? undefined : suiteId })}>Chờ xác nhận <Icon icon={Cancel01Icon} size={14} /></Button>}
+          <Select value={suiteId} onValueChange={v => { setPicked([]); go("runs", { suite: v === "all" ? undefined : v, status: onlyPending ? "pending" : undefined }); }}>
             <SelectTrigger className="h-9 w-56" aria-label="Lọc theo Test Suite"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tất cả Test Suite</SelectItem>

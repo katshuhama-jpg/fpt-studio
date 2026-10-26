@@ -4,7 +4,7 @@ import SuiteList from "./SuiteList";
 import SuiteDetail from "./SuiteDetail";
 import AiGenerate from "./AiGenerate";
 import { ManualPage, UploadPage } from "./AddCaseDialogs";
-import CreateLanding from "./CreateLanding";
+import CreateLanding, { CreateSuitePage } from "./CreateLanding";
 import RunView from "./RunView";
 import RunHistory, { RunCompare } from "./RunHistory";
 
@@ -31,6 +31,7 @@ export default function TestTab({ agentId, section, readOnly }: { agentId: strin
     if (view === "upload") return <UploadPage key={suite.id} suite={suite} />;
     return <SuiteDetail agentId={agentId} suite={suite} readOnly={readOnly} />;
   }
+  if (get("view") === "new" && !readOnly) return <CreateSuitePage agentId={agentId} />;
   return <SuiteList agentId={agentId} readOnly={readOnly} />;
 }
 

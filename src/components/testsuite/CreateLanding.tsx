@@ -80,3 +80,17 @@ export default function CreateLanding({ agentId, suite }: { agentId: string; sui
     </div>
   );
 }
+
+/** Full-screen "+ Tạo Test Suite" (view=new, no suite yet) — the suite is created on the first action. */
+export function CreateSuitePage({ agentId }: { agentId: string }) {
+  const { go } = useTestNav();
+  const back = () => go("test-sets");
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex items-center gap-3 border-b px-6 py-3">
+        <Crumbs onBack={back} items={[{ label: "Test Suites", onClick: back }, { label: "Tạo Test Suite" }]} />
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto"><CreateHero agentId={agentId} title="Tạo bộ testcase mới" /></div>
+    </div>
+  );
+}

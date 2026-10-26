@@ -88,6 +88,12 @@ describe("TestTab UI", () => {
     vi.useRealTimers();
     expect(screen.getByText("CSKH – Câu hỏi thường gặp")).toBeTruthy();
     expect(screen.getByText("Chưa chạy lần nào")).toBeTruthy();
+    expect(screen.getByText(/lần chạy đang chờ bạn xác nhận/)).toBeTruthy();
+    const names = screen.getAllByRole("row").slice(1).map(r => r.querySelector("td button")?.textContent);
+    expect(names[names.length - 1]).toBe("Ngoài phạm vi");
+    fireEvent.click(screen.getByRole("tab", { name: /Chưa chạy/ }));
+    expect(screen.getAllByRole("row")).toHaveLength(2);
+    fireEvent.click(screen.getByRole("tab", { name: /Tất cả/ }));
     fireEvent.change(screen.getByLabelText("Tìm Test Suite theo tên"), { target: { value: "zzz" } });
     expect(screen.getByText(/Không tìm thấy Test Suite nào/)).toBeTruthy();
   });

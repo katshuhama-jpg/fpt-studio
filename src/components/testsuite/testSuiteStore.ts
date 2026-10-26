@@ -77,6 +77,16 @@ export type Tone = "good" | "mid" | "bad";
 /** Fixed thresholds: ≥ 80 xanh, 50–79 vàng, < 50 đỏ. */
 export const toneOf = (pct: number): Tone => (pct >= 80 ? "good" : pct >= 50 ? "mid" : "bad");
 
+/** "3 giờ trước", "Hôm qua", "4 ngày trước". */
+export function fmtAgo(t: number, now = Date.now()) {
+  const m = Math.floor((now - t) / 60_000);
+  if (m < 1) return "Vừa xong";
+  if (m < 60) return `${m} phút trước`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} giờ trước`;
+  const d = Math.floor(h / 24);
+  return d === 1 ? "Hôm qua" : `${d} ngày trước`;
+}
 export function fmtTime(t: number) {
   return new Date(t).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric" });
 }
@@ -250,6 +260,8 @@ export const testStore = {
   },
   run(id: string | null | undefined): Run | undefined { return id ? state.runs.find(r => r.id === id) : undefined; },
   lastRun(suiteId: string): Run | undefined { return state.runs.filter(r => r.suiteId === suiteId && r.status !== "running").sort((a, b) => b.startedAt - a.startedAt)[0]; },
+  /** The finished run before lastRun (for the ↑/↓ trend). */
+  previousRun(suiteId: string): Run | undefined { return state.runs.filter(r => r.suiteId === suiteId && r.status !== "running").sort((a, b) => b.startedAt - a.startedAt)[1]; },
   activeRun(suiteId: string): Run | undefined { return state.runs.find(r => r.suiteId === suiteId && r.status === "running"); },
   pendingCount(agentId: string): number { return this.runs(agentId).filter(r => r.status === "pending").length; },
   /** Latest finished verdict per testcase (for the suite detail table). */
