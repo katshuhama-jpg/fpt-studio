@@ -25,6 +25,8 @@ import {
 import { notificationStore } from "@/components/notifications/notificationStore";
 import { currentPersona } from "@/lib/demoPersona";
 
+const PERM_SHORT: Record<AgentPerm, string> = { view: "Xem", history: "Lịch sử hội thoại", build: "Build", publish: "Publish", delete: "Xóa" };
+
 /** Only the owner or a Space Admin opens the popup - people added to a Nhân sự số never grant others. */
 export function useCanShareAgent(agentId: string) {
   const access = useGroupAccess("agents");
@@ -171,7 +173,7 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
   const [addPerms, setAddPerms] = useState<AgentPerm[]>([]);
   const [addOpen, setAddOpen] = useState(false);
   const [notify, setNotify] = useState(true);
-  const [confirm, setConfirm] = useState<{ title: string; body: string; action: string; cancel?: string; destructive?: boolean; onOk: () => void } | null>(null);
+  const [confirm, setConfirm] = useState<{ title: string; body: string; details?: React.ReactNode; action: string; cancel?: string; destructive?: boolean; onOk: () => void } | null>(null);
 
   const draftGeneral = { generalMode, generalPerms: generalMode === "custom" ? generalPerms : undefined };
   /** Permissions one member gets from the Cả Space access of a share. */
@@ -239,6 +241,55 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
   const next = toShare(scope, people);
   const dirty = adding.length > 0 || norm(next) !== norm(saved);
 
+  /** Confirm-dialog summary: general access before → after, counts, and who changes how. */
+  const ChangeSummary = ({ sh, openEdit }: { sh: AgentShare; openEdit: boolean }) => {
+    const label = (ps: AgentPerm[]) => (ps.length ? ALL_AGENT_PERMS.filter(p => ps.includes(p)).map(p => PERM_SHORT[p]).join(", ") : "Không có quyền");
+    const generalText = (g: AgentShare) => g.general !== "space" ? "Chỉ người được chọn"
+      : g.generalMode === "role" ? "Cả Space · Theo Vai trò" : `Cả Space · ${label(g.generalPerms ?? [])}`;
+    const generalChanged = generalText(saved) !== generalText(sh);
+    const changes = others.map(m => ({ m, before: effective(m.id, saved), after: effective(m.id, sh) }))
+      .filter(x => lost(x.m.id, sh) || gained(x.m.id, sh));
+    const revoked = changes.filter(x => x.before.length && !x.after.length);
+    const reduced = changes.filter(x => x.after.length && lost(x.m.id, sh));
+    const raised = changes.filter(x => !lost(x.m.id, sh));
+    const rows: [string, number, string][] = [
+      ["Mất quyền truy cập", revoked.length, "text-destructive"],
+      ["Bị giảm quyền", reduced.length, "text-warning"],
+      ["Được thêm quyền", raised.length, "text-success"],
+    ];
+    const LIMIT = 5;
+    return (
+      <div className="space-y-3 text-sm">
+        {generalChanged && (
+          <div className="rounded-md border px-3 py-2">
+            <p className="text-xs text-muted-foreground">Quyền chung cho cả Space</p>
+            <p className="font-medium">{generalText(saved)} <span className="text-muted-foreground">→</span> {generalText(sh)}</p>
+          </div>
+        )}
+        <ul className="grid grid-cols-3 gap-2">
+          {rows.map(([t, n, cls]) => (
+            <li key={t} className="rounded-md bg-muted/60 px-3 py-2">
+              <p className="text-xs text-muted-foreground">{t}</p>
+              <p className={`text-base font-semibold tabular-nums ${n ? cls : "text-muted-foreground"}`}>{n} người</p>
+            </li>
+          ))}
+        </ul>
+        {changes.length > 0 && (
+          <ul className="divide-y rounded-md border">
+            {changes.slice(0, LIMIT).map(({ m, before, after }) => (
+              <li key={m.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                <span className="truncate font-medium">{m.name}</span>
+                <span className="shrink-0 text-right text-xs text-muted-foreground">{label(before)} → <span className="text-foreground">{label(after)}</span></span>
+              </li>
+            ))}
+            {changes.length > LIMIT && <li className="px-3 py-2 text-xs text-muted-foreground">và {changes.length - LIMIT} người khác</li>}
+          </ul>
+        )}
+        {openEdit && <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs">Mọi thành viên Space sẽ sửa được Nhân sự số này.</p>}
+      </div>
+    );
+  };
+
   /** Saves `sh`, asking first when someone loses a permission or the whole Space gets Build. */
   const commit = (sh: AgentShare, grantedIds: string[], message: string) => {
     const raisedIds = sh.people.filter(p => !grantedIds.includes(p.userId) && p.mode !== "none" && gained(p.userId, sh)).map(p => p.userId);
@@ -246,14 +297,11 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
     const lowered = loweredIn(sh);
     const openEdit = opensEditToSpace(sh);
     if (!lowered && !openEdit) { go(); return; }
-    const parts = [
-      lowered ? `${lowered} người sẽ mất quyền hoặc bị giảm quyền trên Nhân sự số này.` : "",
-      openEdit ? "Mọi thành viên Space sẽ sửa được Nhân sự số này." : "",
-    ].filter(Boolean);
     setConfirm({
-      title: lowered ? "Giảm quyền trên Nhân sự số?" : "Cho cả Space sửa Nhân sự số?",
-      body: parts.join(" "),
-      action: lowered && openEdit ? "Lưu thay đổi" : lowered ? "Giảm quyền" : "Cho phép",
+      title: "Thay đổi quyền trên Nhân sự số?",
+      body: "Kiểm tra lại các thay đổi trước khi lưu.",
+      details: <ChangeSummary sh={sh} openEdit={openEdit} />,
+      action: "Lưu thay đổi",
       destructive: !!lowered,
       onOk: go,
     });
@@ -545,6 +593,7 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
             <AlertDialogTitle>{confirm?.title}</AlertDialogTitle>
             <AlertDialogDescription>{confirm?.body}</AlertDialogDescription>
           </AlertDialogHeader>
+          {confirm?.details}
           <AlertDialogFooter>
             <AlertDialogCancel>{confirm?.cancel ?? "Hủy bỏ"}</AlertDialogCancel>
             <AlertDialogAction className={confirm?.destructive ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""} onClick={() => { const ok = confirm?.onOk; setConfirm(null); ok?.(); }}>{confirm?.action}</AlertDialogAction>
