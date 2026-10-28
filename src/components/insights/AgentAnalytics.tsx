@@ -24,7 +24,7 @@ import { EmptyState } from "@/components/evaluation/shared";
  *   (tối đa 30 ngày, chỉ chọn trong 90 ngày gần nhất). So với kỳ liền trước cùng độ dài.
  * - Số liệu cập nhật mỗi giờ; số của hôm nay là số tạm.
  * - Tên số liệu theo chuẩn ngành (GA4 tiếng Việt, Copilot Studio, Dify): Số người dùng đang hoạt động, Phiên,
- *   Tỷ lệ giải quyết, Tỷ lệ bỏ dở, DAU / WAU / MAU… Nhân sự số chạy bằng trigger hoặc Quy trình: "phiên" đổi thành "lượt chạy".
+ *   Tỷ lệ giải quyết, Tỷ lệ bỏ dở… Nhân sự số chạy bằng trigger hoặc Quy trình: "phiên" đổi thành "lượt chạy".
  * - Người chỉ có quyền Xem không thấy nút Tạo test case.
  * ===================================================================================== */
 
@@ -274,18 +274,7 @@ function useAnalytics(agentId: string) {
       w.forEach((x, h) => { heat[di * 24 + h].sessions += Math.round((d.sessions * x) / W); });
     });
     const allTime = sum(data.days, "sessions");
-    // Người dùng đang hoạt động trong 1 / 7 / 30 ngày tính đến từng ngày (GA4: DAU, WAU, MAU).
-    const activeAt = (e: number, n: number) => { const from = Math.max(0, e - n + 1); return uniq(sum(data.days.slice(from, e + 1), "users"), e - from + 1); };
-    const activeSeries = today ? [] : Array.from({ length: period.len }, (_, i) => {
-      const e = period.start + i;
-      return { day: data.days[e].day, DAU: activeAt(e, 1), WAU: activeAt(e, 7), MAU: activeAt(e, 30) };
-    });
-    const endIdx = period.end;
-    const wau = activeAt(endIdx, 7), mau = activeAt(endIdx, 30);
-    const stick = { dauMau: pct(cur.dauAvg, mau), dauWau: pct(cur.dauAvg, wau), wau, mau };
-    const prevEnd = today ? endIdx - 1 : period.start - 1;
-    const oldStick = prev && prevEnd >= 0 ? { dauMau: pct(old!.dauAvg, activeAt(prevEnd, 30)), wau: activeAt(prevEnd, 7), mau: activeAt(prevEnd, 30) } : null;
-    return { rows, prev, cur, old, markers, factor, heat, today, step: today ? "giờ" : "ngày", period, allTime, activeSeries, stick, oldStick };
+    return { rows, prev, cur, old, markers, factor, heat, today, step: today ? "giờ" : "ngày", period, allTime };
   }, [data, period.kind, period.start, period.end]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 type A = ReturnType<typeof useAnalytics>;
@@ -513,7 +502,7 @@ export function AnalyticsOverview({ a }: { a: A }) {
   const cards: { title: string; info: string; section: AnalyticsSection; tabLabel: string; value: string; unit?: string; delta: React.ReactNode; viz: React.ReactNode; foot: string }[] = [
     { title: "Số người dùng đang hoạt động", info: "Số người dùng khác nhau có ít nhất 1 phiên trong khoảng thời gian đang xem (Active users).", section: "usage", tabLabel: "Sử dụng", value: vn(cur.users),
       delta: <Delta a={a} k="users" good={1} />, viz: <MiniBars values={rows.map(d => d.users)} />,
-      foot: `DAU trung bình ${vn(cur.dauAvg)} · Người dùng mới ${vn(cur.newUsers)}` },
+      foot: `Người dùng mới ${vn(cur.newUsers)} · Người dùng cũ ${vn(cur.returningUsers)}` },
     { title: cap(noun), info: `Số ${noun} trong khoảng thời gian đang xem (Sessions).`, section: "usage", tabLabel: "Sử dụng", value: vn(cur.sessions),
       delta: <Delta a={a} k="sessions" good={1} />, viz: <MiniBars values={rows.map(d => d.sessions)} />,
       foot: `${vn(cur.sessionsPerUser, 2)} ${noun} mỗi người dùng` },
@@ -583,42 +572,11 @@ export function AnalyticsUsage({ a }: { a: A }) {
   return (
     <Page>
       <Header a={a} title="Sử dụng" desc="Người dùng, phiên, kênh và giờ cao điểm." />
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl">
         <Kpi a={a} label="Số người dùng đang hoạt động" value={vn(a.cur.users)} k="users" good={1} info="Số người dùng khác nhau có ít nhất 1 phiên trong khoảng thời gian đang xem (Active users)." />
         <Kpi a={a} label="Người dùng mới" value={vn(a.cur.newUsers)} k="newUsers" good={1} info="Người dùng có phiên đầu tiên với Nhân sự số rơi vào khoảng thời gian đang xem (New users)." />
         <Kpi a={a} label="Người dùng cũ" value={vn(a.cur.returningUsers)} k="returningUsers" good={1} info="Người dùng đã có phiên trước khoảng thời gian đang xem và quay lại (Returning users)." />
-        <Kpi a={a} label="DAU trung bình" value={vn(a.cur.dauAvg)} k="dauAvg" good={1} info="Daily active users: số người dùng đang hoạt động trung bình mỗi ngày trong khoảng thời gian đang xem." />
-        <div className="surface-card p-4">
-          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground"><span>WAU / MAU</span><InfoTip label="WAU / MAU" text="WAU: số người dùng đang hoạt động trong 7 ngày tính đến ngày cuối của khoảng đang xem. MAU: trong 30 ngày." /></div>
-          <div className="font-display text-2xl font-semibold tracking-tight tabular-nums mt-1.5">{vn(a.stick.wau)} <span className="text-muted-foreground font-normal text-lg">/</span> {vn(a.stick.mau)}</div>
-        </div>
-        <div className="surface-card p-4">
-          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground"><span>DAU/MAU</span><InfoTip label="DAU/MAU" text="Độ gắn bó (stickiness): DAU trung bình chia cho MAU. Càng cao thì người dùng quay lại càng thường xuyên." /></div>
-          <div className="flex items-baseline justify-between gap-2 mt-1.5 flex-wrap">
-            <span className="font-display text-2xl font-semibold tracking-tight tabular-nums">{vn(a.stick.dauMau, 1)}%</span>
-            {a.oldStick ? <DeltaPill diff={a.stick.dauMau - a.oldStick.dauMau} prev={a.oldStick.dauMau} good={1} unit="pp" /> : <span className="text-xs text-muted-foreground">Chưa có kỳ trước</span>}
-          </div>
-        </div>
       </div>
-      {!a.today && (
-        <Card title="Người dùng đang hoạt động" note="DAU, WAU, MAU tính đến từng ngày">
-          <div className="h-56" role="img" aria-label="DAU, WAU, MAU theo ngày">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={a.activeSeries} margin={{ top: 16, right: 8, left: -8, bottom: 0 }}>
-                <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="day" tick={AXIS} tickLine={false} axisLine={false} interval={tickEvery(a.activeSeries.length)} />
-                <YAxis tick={AXIS} tickLine={false} axisLine={false} tickFormatter={compact} />
-                <Tooltip contentStyle={TT} formatter={(v: number, n: string) => [vn(v), n]} />
-                <Legend iconType="circle" iconSize={8} wrapperStyle={LEGEND} />
-                {versionLines(a.markers)}
-                <Line type="linear" dataKey="MAU" name="MAU (30 ngày)" stroke="hsl(var(--primary) / 0.35)" strokeWidth={2} dot={false} isAnimationActive={false} />
-                <Line type="linear" dataKey="WAU" name="WAU (7 ngày)" stroke="hsl(var(--primary) / 0.65)" strokeWidth={2} dot={false} isAnimationActive={false} />
-                <Line type="linear" dataKey="DAU" name="DAU (1 ngày)" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} isAnimationActive={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      )}
       <div className="grid lg:grid-cols-2 gap-4">
         <Card title={`Người dùng mới và người dùng cũ theo ${a.step}`} note="New users và returning users">
           <div className="h-56" role="img" aria-label={`Người dùng mới và người dùng cũ theo ${a.step}`}>
