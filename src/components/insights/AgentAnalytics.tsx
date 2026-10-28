@@ -18,6 +18,8 @@ import { EmptyState } from "@/components/evaluation/shared";
 /* =====================================================================================
  * Agent details → Insights: số liệu tổng hợp cho chủ Nhân sự số.
  * Sub-tab: Tổng quan / Sử dụng / Chất lượng / Người dùng hỏi gì / Hoạt động / Chi phí.
+ * - Tổng quan (Tyler 28/10): Người dùng đang hoạt động, Phiên, Tỷ lệ Like, Tỷ lệ Dislike, Token.
+ * - Sử dụng: người dùng (tổng, mới, cũ), phiên, mới/cũ theo ngày, lỗi, token, kênh, giờ cao điểm.
  * Dữ liệu mẫu, sinh cố định theo agentId (cùng một Nhân sự số luôn ra cùng số liệu).
  * - Chỉ tính hội thoại thật: bỏ kênh Chạy thử (builder và người dùng cuối đều tính).
  * - Khoảng thời gian: Hôm nay (theo giờ) / 7 ngày / 30 ngày (mặc định) / Tùy chọn
@@ -496,9 +498,6 @@ export function AnalyticsOverview({ a }: { a: A }) {
   const { cur, rows } = a;
   const [, setParams] = useSearchParams();
   const go = (section: AnalyticsSection) => setParams(p => { const n = new URLSearchParams(p); n.set("tab", "insights"); n.set("section", section); return n; });
-  const topTopics = [...TOPICS].sort((x, y) => y.share - x.share).slice(0, 3);
-  const worstTool = [...TOOLS].sort((x, y) => x.ok - y.ok)[0];
-  const hot = TOPICS.filter(t => t.change === null || t.change >= 50).length;
   const cards: { title: string; info: string; section: AnalyticsSection; tabLabel: string; value: string; unit?: string; delta: React.ReactNode; viz: React.ReactNode; foot: string }[] = [
     { title: "Số người dùng đang hoạt động", info: "Số người dùng khác nhau có ít nhất 1 phiên trong khoảng thời gian đang xem (Active users).", section: "usage", tabLabel: "Sử dụng", value: vn(cur.users),
       delta: <Delta a={a} k="users" good={1} />, viz: <MiniBars values={rows.map(d => d.users)} />,
@@ -506,15 +505,12 @@ export function AnalyticsOverview({ a }: { a: A }) {
     { title: cap(noun), info: `Số ${noun} trong khoảng thời gian đang xem (Sessions).`, section: "usage", tabLabel: "Sử dụng", value: vn(cur.sessions),
       delta: <Delta a={a} k="sessions" good={1} />, viz: <MiniBars values={rows.map(d => d.sessions)} />,
       foot: `${vn(cur.sessionsPerUser, 2)} ${noun} mỗi người dùng` },
-    { title: "Tỷ lệ giải quyết", info: `Số ${noun} được giải quyết chia cho tổng số ${noun} (Resolution rate).`, section: "usage", tabLabel: "Sử dụng", value: `${vn(cur.resolvedPct, 1)}%`,
-      delta: <Delta a={a} k="resolvedPct" good={1} unit="pp" />, viz: <Spark values={rows.map(d => pct(d.resolved, d.sessions))} />,
-      foot: `Tỷ lệ bỏ dở ${vn(cur.abandonedPct, 1)}%` },
     { title: "Tỷ lệ Like", info: "Số Like chia cho tổng số Like và Dislike.", section: "feedback", tabLabel: "Chất lượng", value: `${vn(cur.likePct, 1)}%`,
       delta: <Delta a={a} k="likePct" good={1} unit="pp" />, viz: <Spark values={rows.map(d => pct(d.likes, d.likes + d.dislikes))} color="hsl(var(--success))" />,
-      foot: `${vn(cur.feedbacks)} lượt Like/Dislike · CSAT ${vn(cur.csat, 2)}/5` },
-    { title: "Tỷ lệ lỗi", info: "Số câu trả lời bị lỗi chia cho tổng số câu trả lời (Error rate).", section: "operations", tabLabel: "Hiệu năng", value: `${vn(cur.errorPct, 1)}%`,
-      delta: <Delta a={a} k="errorPct" good={-1} unit="pp" />, viz: <Spark values={rows.map(d => pct(d.errors, d.runs))} color="hsl(var(--destructive))" />,
-      foot: `Tool có tỷ lệ thành công thấp nhất: ${worstTool.tool}` },
+      foot: `${vn(cur.feedbacks)} lượt Like/Dislike` },
+    { title: "Tỷ lệ Dislike", info: "Số Dislike chia cho tổng số Like và Dislike.", section: "feedback", tabLabel: "Chất lượng", value: `${vn(cur.dislikePct, 1)}%`,
+      delta: <Delta a={a} k="dislikePct" good={-1} unit="pp" />, viz: <Spark values={rows.map(d => pct(d.dislikes, d.likes + d.dislikes))} color="hsl(var(--destructive))" />,
+      foot: `${vn(Math.round(cur.feedbacks * cur.dislikePct / 100))} lượt Dislike` },
     { title: "Token sử dụng", info: "Tổng token đầu vào và đầu ra (Token usage).", section: "cost", tabLabel: "Chi phí", value: compact(cur.tokens),
       delta: <Delta a={a} k="tokens" good={-1} />, viz: <MiniBars values={rows.map(d => d.tokens)} />,
       foot: `${vn(cur.tokPerSession)} token mỗi ${noun}` },
@@ -522,7 +518,7 @@ export function AnalyticsOverview({ a }: { a: A }) {
   return (
     <Page>
       <Header a={a} title="Tổng quan" desc="Bấm vào thẻ để xem chi tiết." />
-      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-3">
         {cards.map(c => (
           <div key={c.title} role="button" tabIndex={0} onClick={() => go(c.section)} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(c.section); } }}
             className="surface-card p-5 text-left group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -542,18 +538,6 @@ export function AnalyticsOverview({ a }: { a: A }) {
           </div>
         ))}
       </div>
-      <div role="button" tabIndex={0} onClick={() => go("topics")} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go("topics"); } }}
-        className="surface-card p-5 cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">Chủ đề hàng đầu <InfoTip text="AI gom các câu hỏi giống nhau thành chủ đề. Hiện 3 chủ đề có nhiều phiên nhất." label="Chủ đề hàng đầu" /></h3>
-          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground group-hover:text-primary transition-base whitespace-nowrap">Chủ đề <HugeiconsIcon icon={ArrowRight01Icon} size={13} /></span>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 mt-3">
-          {topTopics.map(t => <span key={t.topic} className="chip">{t.topic} · {vn(t.share * 100)}%</span>)}
-          {hot > 0 && <span className="chip chip-warning">{hot} chủ đề mới hoặc tăng mạnh</span>}
-          <span className="text-xs text-muted-foreground ml-auto">{UNANSWERED.length} câu hỏi chưa trả lời được</span>
-        </div>
-      </div>
     </Page>
   );
 }
@@ -562,7 +546,8 @@ export function AnalyticsOverview({ a }: { a: A }) {
 export function AnalyticsUsage({ a }: { a: A }) {
   const noun = useNoun();
   const users = a.rows.map(d => ({ day: d.day, "Người dùng mới": d.newUsers, "Người dùng cũ": d.users - d.newUsers }));
-  const rates = a.rows.map(d => d.sessions ? { day: d.day, "Tỷ lệ giải quyết": pct(d.resolved, d.sessions), "Tỷ lệ bỏ dở": pct(d.abandoned, d.sessions) } : { day: d.day });
+  const errors = a.rows.map(d => d.runs ? { day: d.day, "Tỷ lệ lỗi": pct(d.errors, d.runs), "Số lỗi": d.errors } : { day: d.day });
+  const tokens = a.rows.map(d => ({ day: d.day, "Đầu vào": d.tokensIn, "Đầu ra": d.tokens - d.tokensIn }));
   const heatDows = a.today ? [dowOf(a.rows[0].date)] : DOW;
   const cells = a.heat.filter(h => heatDows.includes(h.dow));
   const maxHeat = Math.max(1, ...cells.map(h => h.sessions));
@@ -571,11 +556,12 @@ export function AnalyticsUsage({ a }: { a: A }) {
   const iv = tickEvery(a.rows.length);
   return (
     <Page>
-      <Header a={a} title="Sử dụng" desc="Người dùng, phiên, kênh và giờ cao điểm." />
+      <Header a={a} title="Sử dụng" desc={`Người dùng, ${noun}, lỗi, token, kênh và giờ cao điểm.`} />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Kpi a={a} label="Số người dùng đang hoạt động" value={vn(a.cur.users)} k="users" good={1} info="Số người dùng khác nhau có ít nhất 1 phiên trong khoảng thời gian đang xem (Active users)." />
         <Kpi a={a} label="Người dùng mới" value={vn(a.cur.newUsers)} k="newUsers" good={1} info="Người dùng có phiên đầu tiên với Nhân sự số rơi vào khoảng thời gian đang xem (New users)." />
         <Kpi a={a} label="Người dùng cũ" value={vn(a.cur.returningUsers)} k="returningUsers" good={1} info="Người dùng đã có phiên trước khoảng thời gian đang xem và quay lại (Returning users)." />
+        <Kpi a={a} label={cap(noun)} value={vn(a.cur.sessions)} k="sessions" good={1} sub={`${vn(a.cur.sessionsPerUser, 2)} ${noun} mỗi người dùng`} info={`Tổng số ${noun} trong khoảng thời gian đang xem (Sessions).`} />
       </div>
       <div className="grid lg:grid-cols-2 gap-4">
         <Card title={`Người dùng mới và người dùng cũ theo ${a.step}`} note="New users và returning users">
@@ -593,18 +579,16 @@ export function AnalyticsUsage({ a }: { a: A }) {
             </ResponsiveContainer>
           </div>
         </Card>
-        <Card title={`Kết quả ${noun}`} note={`Tỷ lệ giải quyết và tỷ lệ bỏ dở theo ${a.step}${a.today ? ". Giờ không có " + noun + " thì để trống" : ""}`}>
-          <div className="h-56" role="img" aria-label={`Tỷ lệ giải quyết và tỷ lệ bỏ dở theo ${a.step}`}>
+        <Card title={`Lỗi theo ${a.step}`} note={`Tỷ lệ lỗi = số câu trả lời bị lỗi / tổng số câu trả lời · ${vn(a.cur.errorPct, 1)}% trong kỳ`}>
+          <div className="h-56" role="img" aria-label={`Tỷ lệ lỗi theo ${a.step}`}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={rates} margin={{ top: 16, right: 8, left: -16, bottom: 0 }}>
+              <LineChart data={errors} margin={{ top: 16, right: 8, left: -16, bottom: 0 }}>
                 <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
                 <XAxis dataKey="day" tick={AXIS} tickLine={false} axisLine={false} interval={iv} />
-                <YAxis tick={AXIS} tickLine={false} axisLine={false} unit="%" domain={[0, 100]} />
-                <Tooltip contentStyle={TT} formatter={(v: number, n: string) => [`${vn(v, 1)}%`, n]} />
-                <Legend iconType="circle" iconSize={8} wrapperStyle={LEGEND} />
+                <YAxis tick={AXIS} tickLine={false} axisLine={false} unit="%" />
+                <Tooltip contentStyle={TT} formatter={(v: number, n: string) => n === "Số lỗi" ? [vn(v), n] : [`${vn(v, 1)}%`, n]} />
                 {versionLines(a.markers)}
-                <Line type="linear" dataKey="Tỷ lệ giải quyết" stroke="hsl(var(--primary))" strokeWidth={2} dot={a.rows.length < 3} isAnimationActive={false} />
-                <Line type="linear" dataKey="Tỷ lệ bỏ dở" stroke="hsl(var(--warning))" strokeWidth={2} dot={a.rows.length < 3} isAnimationActive={false} />
+                <Line type="linear" dataKey="Tỷ lệ lỗi" stroke="hsl(var(--destructive))" strokeWidth={2} dot={a.rows.length < 3} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -612,6 +596,21 @@ export function AnalyticsUsage({ a }: { a: A }) {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-4">
+        <Card title={`Token theo ${a.step}`} note={`Đầu vào và đầu ra · ${compact(a.cur.tokens)} token trong kỳ`}>
+          <div className="h-56" role="img" aria-label={`Token đầu vào và đầu ra theo ${a.step}`}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={tokens} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
+                <XAxis dataKey="day" tick={AXIS} tickLine={false} axisLine={false} interval={iv} />
+                <YAxis tick={AXIS} tickLine={false} axisLine={false} tickFormatter={compact} />
+                <Tooltip contentStyle={TT} formatter={(v: number, n: string) => [vn(v), n]} cursor={{ fill: "hsl(var(--surface-muted))" }} />
+                <Legend iconType="circle" iconSize={8} wrapperStyle={LEGEND} />
+                <Bar dataKey="Đầu vào" stackId="t" fill="hsl(var(--primary))" maxBarSize={16} isAnimationActive={false} />
+                <Bar dataKey="Đầu ra" stackId="t" fill="hsl(var(--primary) / 0.4)" radius={[4, 4, 0, 0]} maxBarSize={16} isAnimationActive={false} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
         <Card title="Kênh" note={periodText(a)}>
           <table className="w-full text-sm">
             <thead><tr className="text-xs text-muted-foreground border-b border-border">
@@ -625,6 +624,8 @@ export function AnalyticsUsage({ a }: { a: A }) {
             </tbody>
           </table>
         </Card>
+      </div>
+      <div>
         <Card title="Giờ cao điểm" note={`${cap(noun)} theo giờ và thứ · ${vn(offPct, 1)}% ngoài giờ hành chính`}>
           <div className="overflow-x-auto">
             <div className="grid gap-[2px] min-w-[420px]" style={{ gridTemplateColumns: "28px repeat(24, minmax(0, 1fr))" }} role="img" aria-label={`Bản đồ nhiệt ${noun} theo giờ và thứ`}>
