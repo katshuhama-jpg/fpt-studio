@@ -4526,14 +4526,9 @@ function OrgReachNotice({ count, summary, reviewers }: { count: number; summary:
       <div className="min-w-0 text-xs leading-relaxed">
         <p className="text-foreground"><b>Cần Admin duyệt</b> · Nhân sự số sẽ hiển thị cho khoảng {count} người.</p>
         <p className="text-muted-foreground truncate" title={summary}>{summary}</p>
-        {reviewers && (
-          <p className="text-foreground mt-0.5">
-            <span className="text-muted-foreground">Người duyệt: </span>
-            {reviewers.mode === "single"
-              ? <>Admin <b>{reviewers.units[0]?.name}</b> ({Math.round((reviewers.share ?? 0) * 100)}% người được chọn)</>
-              : <>Admin của <b>{reviewers.units.map(u => u.name).join(", ")}</b> - Chỉ cần 1 người duyệt</>}
-          </p>
-        )}
+        <p className="text-foreground mt-0.5">
+          <span className="text-muted-foreground">Người duyệt: </span><b>Space Admin</b>
+        </p>
       </div>
     </div>
   );
@@ -4773,7 +4768,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
       return;
     }
 
-    if (effectiveAudience === "quick_share" && !publishToOpen && current.placement !== null) {
+    if ((effectiveAudience as PublishAudience) === "quick_share" && !publishToOpen && current.placement !== null) {
       // Keep the same hand-picked people (G9) — new version, same scope.
       withdrawPendingForDirect();
 
@@ -4784,7 +4779,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
       onClose();
       return;
     }
-    if (effectiveAudience === "quick_share") {
+    if ((effectiveAudience as PublishAudience) === "quick_share") {
       if (quickShareSelection.size === 0) {
         toast.error("Chọn ít nhất 1 người để Chia sẻ nhanh.");
         return;
@@ -4831,9 +4826,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
         groupId: group.id, groupMemberIds: [...group.memberIds],
         reviewUnits: reviewers.units, reviewMode: reviewers.mode,
       });
-      toast.success(reviewers.mode === "single"
-        ? `Đã gửi yêu cầu duyệt ${versionName} tới Admin ${reviewers.units[0].name}.`
-        : `Đã gửi yêu cầu duyệt ${versionName} tới Admin của ${reviewers.units.length} phòng ban - Chỉ cần 1 người duyệt.`);
+      toast.success(`Đã gửi yêu cầu duyệt ${versionName} tới Space Admin.`);
       onPublished?.();
       onClose();
       return;
@@ -5242,9 +5235,7 @@ function GroupReviewersNotice({ reviewers }: { reviewers: GroupReviewers }) {
   return (
     <p className="text-xs leading-relaxed text-muted-foreground">
       <span className="font-medium text-foreground">Người duyệt: </span>
-      {reviewers.mode === "single"
-        ? <>Admin <b className="text-foreground">{reviewers.units[0]?.name}</b> - {Math.round((reviewers.share ?? 0) * 100)}% thành viên nhóm thuộc đơn vị này.</>
-        : <>Không đơn vị nào chiếm từ 80% thành viên - Admin của <b className="text-foreground">{reviewers.units.map(u => u.name).join(", ")}</b> đều duyệt được, chỉ cần 1 người duyệt.</>}
+      {void reviewers}<b className="text-foreground">Space Admin</b>
     </p>
   );
 }

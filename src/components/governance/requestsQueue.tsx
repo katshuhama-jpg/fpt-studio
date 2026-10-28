@@ -166,7 +166,7 @@ export function RequestsQueuePage({ scope, title, intro, note }: { scope: Scope;
   // Agent queue: only requests this viewer may decide — Space Admin sees all, a Unit Admin only
   // those published to their unit or a unit below it (agentReviewScope.ts). Out-of-scope requests
   // are hidden, not shown read-only.
-  const { inScope } = useAgentReviewScope();
+  const { inScope, canOpenQueue } = useAgentReviewScope();
   const scopedAll = useMemo(
     () => all.filter(r => scope === "agent" ? inScope(r) : r.resourceType !== "agent"),
     [all, scope, inScope],
@@ -214,6 +214,18 @@ export function RequestsQueuePage({ scope, title, intro, note }: { scope: Scope;
 
   const openRequest = (id: string) => navigate(`${scope === "agent" ? "/governance/requests" : "/governance/library-requests"}/${id}`);
 
+  // Phiên bản đầu chỉ Space Admin duyệt (28/10): người khác mở thẳng URL thấy trang không có quyền.
+  if (scope === "agent" && !canOpenQueue) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-10">
+        <div className="max-w-sm text-center">
+          <p className="text-base font-semibold text-foreground">Bạn không có quyền xem trang này</p>
+          <p className="text-sm text-muted-foreground mt-1.5">Chỉ Space Admin duyệt yêu cầu publish Nhân sự số. Cần duyệt gấp, hãy liên hệ Space Admin của bạn.</p>
+          <button onClick={() => navigate("/agents")} className="mt-4 h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">Về Nhân sự số</button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="p-6 md:p-8 max-w-[1200px] mx-auto">
       <div className="mb-6">
@@ -280,7 +292,7 @@ export function RequestsQueuePage({ scope, title, intro, note }: { scope: Scope;
         actionList.length === 0 && resolvedList.length === 0 ? (
           <EmptyState
             title={scope === "agent" ? "Chưa có Nhân sự số nào chờ duyệt publish" : "Chưa có Resource nào chờ duyệt dùng chung"}
-            hint={scope === "agent" ? "Yêu cầu publish Nhân sự số tới đơn vị bạn quản lý sẽ xuất hiện ở đây." : "Yêu cầu đưa Knowledge/Skill/Guardrails/Connector vào Thư viện Space sẽ xuất hiện ở đây."}
+            hint={scope === "agent" ? "Yêu cầu publish Nhân sự số của Space sẽ xuất hiện ở đây." : "Yêu cầu đưa Knowledge/Skill/Guardrails/Connector vào Thư viện Space sẽ xuất hiện ở đây."}
           />
         ) : (
           <div className="space-y-6">

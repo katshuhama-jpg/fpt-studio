@@ -218,9 +218,7 @@ export function AgentStatusCluster({ agentId, publishState, isAutomation, pendin
               <Row icon={<Clock size={13} />} label="Gửi lúc"><span className="tabular-nums">{formatDateTime(pending.submittedAt)}</span></Row>
               <Row icon={<User size={13} />} label="Người gửi">{pending.requesterName}</Row>
               <Row icon={<Users size={13} />} label="Workspace">{scopeText(pending)}</Row>
-              {pending.reviewUnits?.length ? (
-                <Row icon={<User size={13} />} label="Người duyệt">{pending.reviewMode === "single" ? `Admin ${pending.reviewUnits[0].name}` : `Admin của ${pending.reviewUnits.map(u => u.name).join(", ")} (1 người là đủ)`}</Row>
-              ) : null}
+              <Row icon={<User size={13} />} label="Người duyệt">Space Admin</Row>
               <Row icon={<Globe size={13} />} label="Kênh ngoài"><ChannelChips ids={pending.channels ?? []} /></Row>
             </dl>
             <div className="px-4 py-3 border-t border-border bg-surface-muted/40 flex items-center justify-between gap-2">

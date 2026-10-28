@@ -51,12 +51,16 @@ export function unitsAdminedBy(tree: OrgUnit, userId: string): OrgUnit[] {
   return [tree, ...collectUnits(tree)].filter(u => (u.unitAdmins ?? []).some(a => a.memberId === userId));
 }
 
+/** Phiên bản đầu (Tyler 28/10): chỉ Space Admin duyệt Nhân sự số. Luật Unit Admin (duyệt theo
+ * đơn vị, kế thừa xuống) là LATER - logic sẽ được thiết kế lại, nên tắt ở đây chứ không xoá. */
+export const UNIT_ADMIN_REVIEW_ENABLED = false;
+
 export function useAgentReviewScope() {
   const { tree } = useOrg();
   const { can, userId } = useMyPermissions();
   const isSpaceAdmin = can("requests.review-agents");
   const adminedUnits = useMemo(() => unitsAdminedBy(tree, userId), [tree, userId]);
-  const isUnitAdmin = adminedUnits.length > 0;
+  const isUnitAdmin = UNIT_ADMIN_REVIEW_ENABLED && adminedUnits.length > 0;
 
   /** Whether this viewer may see and decide this Agent request. */
   const inScope = useCallback((req: GovRequest): boolean => {
