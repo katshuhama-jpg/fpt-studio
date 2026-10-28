@@ -177,8 +177,8 @@ const INSIGHTS_SUBTABS = [
   { id: "performance", label: "Tổng quan", icon: Analytics01Icon },
   { id: "usage", label: "Sử dụng", icon: UserMultipleIcon },
   { id: "feedback", label: "Chất lượng", icon: StarIcon },
-  { id: "topics", label: "Người dùng hỏi gì", icon: FileQuestionMarkIcon },
-  { id: "operations", label: "Hoạt động", icon: Activity01Icon },
+  { id: "topics", label: "Chủ đề", icon: FileQuestionMarkIcon },
+  { id: "operations", label: "Hiệu năng", icon: Activity01Icon },
   { id: "cost", label: "Chi phí", icon: CpuIcon },
   { id: "history", label: "History", icon: HistoryIcon },
 ];

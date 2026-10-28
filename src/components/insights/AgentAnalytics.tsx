@@ -23,7 +23,8 @@ import { EmptyState } from "@/components/evaluation/shared";
  * - Khoảng thời gian: Hôm nay (theo giờ) / 7 ngày / 30 ngày (mặc định) / Tùy chọn
  *   (tối đa 30 ngày, chỉ chọn trong 90 ngày gần nhất). So với kỳ liền trước cùng độ dài.
  * - Số liệu cập nhật mỗi giờ; số của hôm nay là số tạm.
- * - Nhân sự số chạy bằng trigger hoặc Quy trình: "hội thoại" đổi thành "lượt chạy".
+ * - Tên số liệu theo chuẩn ngành (GA4 tiếng Việt, Copilot Studio, Dify): Số người dùng đang hoạt động, Phiên,
+ *   Tỷ lệ giải quyết, Tỷ lệ bỏ dở, DAU / WAU / MAU… Nhân sự số chạy bằng trigger hoặc Quy trình: "phiên" đổi thành "lượt chạy".
  * - Người chỉ có quyền Xem không thấy nút Tạo test case.
  * ===================================================================================== */
 
@@ -34,7 +35,7 @@ const LOOKBACK = 90;   // chỉ chọn được trong 90 ngày gần nhất
 const MAX_CUSTOM = 30; // Tùy chọn dài tối đa 30 ngày
 
 /* ---------- ngữ cảnh: tên đơn vị đếm ---------- */
-const NounCtx = createContext("hội thoại");
+const NounCtx = createContext("phiên");
 const useNoun = () => useContext(NounCtx);
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -224,11 +225,20 @@ const TT = { borderRadius: 8, border: "1px solid hsl(var(--border))", fontSize: 
 const LEGEND = { fontSize: 12, color: "hsl(var(--muted-foreground))", paddingTop: 8 };
 const tickEvery = (n: number) => Math.max(0, Math.ceil(n / 8) - 1);
 
+/** Người dùng không trùng trong nhiều ngày ≈ tổng người dùng từng ngày × hệ số trùng (dữ liệu mẫu). */
+function uniq(sumUsers: number, days: number) {
+  const f = days <= 1 ? 1 : days <= 7 ? 1 - 0.45 * (days - 1) / 6 : Math.max(0.3, 0.55 - 0.2 * (days - 7) / 23);
+  return Math.round(sumUsers * f);
+}
+
 function metricsFor(rows: Day[]) {
   const s = sum(rows, "sessions");
+  const days = rows[0]?.hour !== undefined ? 1 : rows.length;
+  const active = uniq(sum(rows, "users"), days);
+  const newU = Math.min(active, sum(rows, "newUsers"));
   const fb = sum(rows, "likes") + sum(rows, "dislikes");
   return {
-    sessions: s, users: sum(rows, "users"), messages: sum(rows, "messages"), tokens: sum(rows, "tokens"), tokensIn: sum(rows, "tokensIn"),
+    sessions: s, users: active, newUsers: newU, returningUsers: active - newU, dauAvg: Math.round(sum(rows, "users") / Math.max(1, days)), sessionsPerUser: Math.round((s / Math.max(1, active)) * 100) / 100, messages: sum(rows, "messages"), tokens: sum(rows, "tokens"), tokensIn: sum(rows, "tokensIn"),
     feedbacks: fb,
     resolvedPct: pct(sum(rows, "resolved"), s),
     abandonedPct: pct(sum(rows, "abandoned"), s),
@@ -264,7 +274,18 @@ function useAnalytics(agentId: string) {
       w.forEach((x, h) => { heat[di * 24 + h].sessions += Math.round((d.sessions * x) / W); });
     });
     const allTime = sum(data.days, "sessions");
-    return { rows, prev, cur, old, markers, factor, heat, today, step: today ? "giờ" : "ngày", period, allTime };
+    // Người dùng đang hoạt động trong 1 / 7 / 30 ngày tính đến từng ngày (GA4: DAU, WAU, MAU).
+    const activeAt = (e: number, n: number) => { const from = Math.max(0, e - n + 1); return uniq(sum(data.days.slice(from, e + 1), "users"), e - from + 1); };
+    const activeSeries = today ? [] : Array.from({ length: period.len }, (_, i) => {
+      const e = period.start + i;
+      return { day: data.days[e].day, DAU: activeAt(e, 1), WAU: activeAt(e, 7), MAU: activeAt(e, 30) };
+    });
+    const endIdx = period.end;
+    const wau = activeAt(endIdx, 7), mau = activeAt(endIdx, 30);
+    const stick = { dauMau: pct(cur.dauAvg, mau), dauWau: pct(cur.dauAvg, wau), wau, mau };
+    const prevEnd = today ? endIdx - 1 : period.start - 1;
+    const oldStick = prev && prevEnd >= 0 ? { dauMau: pct(old!.dauAvg, activeAt(prevEnd, 30)), wau: activeAt(prevEnd, 7), mau: activeAt(prevEnd, 30) } : null;
+    return { rows, prev, cur, old, markers, factor, heat, today, step: today ? "giờ" : "ngày", period, allTime, activeSeries, stick, oldStick };
   }, [data, period.kind, period.start, period.end]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 type A = ReturnType<typeof useAnalytics>;
@@ -480,7 +501,7 @@ function versionLines(markers: { label: string; day: string }[]) {
 const Page = ({ children }: { children: React.ReactNode }) => <div className="p-8 w-full space-y-5 animate-fade-up">{children}</div>;
 
 /* ============ TỔNG QUAN ============ */
-/** Bảng điểm: mỗi thẻ trả lời một câu hỏi của chủ Nhân sự số và dẫn sang tab chi tiết tương ứng. */
+/** Thẻ số liệu chính, mỗi thẻ dẫn sang mục chi tiết tương ứng. Tên theo chuẩn ngành (GA4, Copilot Studio, Dify). */
 export function AnalyticsOverview({ a }: { a: A }) {
   const noun = useNoun();
   const { cur, rows } = a;
@@ -489,49 +510,60 @@ export function AnalyticsOverview({ a }: { a: A }) {
   const topTopics = [...TOPICS].sort((x, y) => y.share - x.share).slice(0, 3);
   const worstTool = [...TOOLS].sort((x, y) => x.ok - y.ok)[0];
   const hot = TOPICS.filter(t => t.change === null || t.change >= 50).length;
-  const cards: { q: string; section: AnalyticsSection; tabLabel: string; value: string; unit: string; delta: React.ReactNode; viz: React.ReactNode; foot: string }[] = [
-    { q: "Có ai dùng không?", section: "usage", tabLabel: "Sử dụng", value: vn(cur.sessions), unit: noun,
+  const cards: { title: string; info: string; section: AnalyticsSection; tabLabel: string; value: string; unit?: string; delta: React.ReactNode; viz: React.ReactNode; foot: string }[] = [
+    { title: "Số người dùng đang hoạt động", info: "Số người dùng khác nhau có ít nhất 1 phiên trong khoảng thời gian đang xem (Active users).", section: "usage", tabLabel: "Sử dụng", value: vn(cur.users),
+      delta: <Delta a={a} k="users" good={1} />, viz: <MiniBars values={rows.map(d => d.users)} />,
+      foot: `DAU trung bình ${vn(cur.dauAvg)} · Người dùng mới ${vn(cur.newUsers)}` },
+    { title: cap(noun), info: `Số ${noun} trong khoảng thời gian đang xem (Sessions).`, section: "usage", tabLabel: "Sử dụng", value: vn(cur.sessions),
       delta: <Delta a={a} k="sessions" good={1} />, viz: <MiniBars values={rows.map(d => d.sessions)} />,
-      foot: `${vn(cur.users)} người dùng · ${CHANNELS[0].channel} chiếm ${vn(CHANNELS[0].share * 100)}%` },
-    { q: "Có tự xử lý được không?", section: "usage", tabLabel: "Sử dụng", value: `${vn(cur.resolvedPct, 1)}%`, unit: "tự xử lý",
+      foot: `${vn(cur.sessionsPerUser, 2)} ${noun} mỗi người dùng` },
+    { title: "Tỷ lệ giải quyết", info: `Số ${noun} được giải quyết chia cho tổng số ${noun} (Resolution rate).`, section: "usage", tabLabel: "Sử dụng", value: `${vn(cur.resolvedPct, 1)}%`,
       delta: <Delta a={a} k="resolvedPct" good={1} unit="pp" />, viz: <Spark values={rows.map(d => pct(d.resolved, d.sessions))} />,
-      foot: `Bỏ dở ${vn(cur.abandonedPct, 1)}% ${noun}` },
-    { q: "Người dùng có hài lòng không?", section: "feedback", tabLabel: "Chất lượng", value: `${vn(cur.likePct, 1)}%`, unit: "Like",
+      foot: `Tỷ lệ bỏ dở ${vn(cur.abandonedPct, 1)}%` },
+    { title: "Tỷ lệ Like", info: "Số Like chia cho tổng số Like và Dislike.", section: "feedback", tabLabel: "Chất lượng", value: `${vn(cur.likePct, 1)}%`,
       delta: <Delta a={a} k="likePct" good={1} unit="pp" />, viz: <Spark values={rows.map(d => pct(d.likes, d.likes + d.dislikes))} color="hsl(var(--success))" />,
-      foot: `Trên ${vn(cur.feedbacks)} lượt bấm Like/Dislike · CSAT ${vn(cur.csat, 2)}/5` },
-    { q: "Có hay gặp lỗi không?", section: "operations", tabLabel: "Hoạt động", value: `${vn(cur.errorPct, 1)}%`, unit: "lỗi",
+      foot: `${vn(cur.feedbacks)} lượt Like/Dislike · CSAT ${vn(cur.csat, 2)}/5` },
+    { title: "Tỷ lệ lỗi", info: "Số câu trả lời bị lỗi chia cho tổng số câu trả lời (Error rate).", section: "operations", tabLabel: "Hiệu năng", value: `${vn(cur.errorPct, 1)}%`,
       delta: <Delta a={a} k="errorPct" good={-1} unit="pp" />, viz: <Spark values={rows.map(d => pct(d.errors, d.runs))} color="hsl(var(--destructive))" />,
-      foot: `Tool lỗi nhiều nhất: ${worstTool.tool}` },
-    { q: "Người dùng hỏi gì?", section: "topics", tabLabel: "Người dùng hỏi gì", value: vn(TOPICS.length), unit: "chủ đề",
-      delta: hot ? <span className="chip chip-warning whitespace-nowrap">{hot} chủ đề mới hoặc tăng mạnh</span> : null,
-      viz: <div className="flex flex-wrap gap-1.5 pt-1">{topTopics.map(t => <span key={t.topic} className="chip">{t.topic} · {vn(t.share * 100)}%</span>)}</div>,
-      foot: `${UNANSWERED.length} câu hỏi chưa trả lời được` },
-    { q: "Tốn bao nhiêu?", section: "cost", tabLabel: "Chi phí", value: compact(cur.tokens), unit: "token",
+      foot: `Tool có tỷ lệ thành công thấp nhất: ${worstTool.tool}` },
+    { title: "Token sử dụng", info: "Tổng token đầu vào và đầu ra (Token usage).", section: "cost", tabLabel: "Chi phí", value: compact(cur.tokens),
       delta: <Delta a={a} k="tokens" good={-1} />, viz: <MiniBars values={rows.map(d => d.tokens)} />,
       foot: `${vn(cur.tokPerSession)} token mỗi ${noun}` },
   ];
   return (
     <Page>
-      <Header a={a} title="Tổng quan" desc="Bấm vào từng thẻ để xem chi tiết." />
-      <div className="grid md:grid-cols-2 gap-3">
+      <Header a={a} title="Tổng quan" desc="Bấm vào thẻ để xem chi tiết." />
+      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
         {cards.map(c => (
-          <button key={c.q} type="button" onClick={() => go(c.section)}
+          <div key={c.title} role="button" tabIndex={0} onClick={() => go(c.section)} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(c.section); } }}
             className="surface-card p-5 text-left group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <div className="flex items-center justify-between gap-3">
-              <h3 className="font-display text-sm font-semibold">{c.q}</h3>
+              <h3 className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">{c.title} <InfoTip text={c.info} label={c.title} /></h3>
               <span className="inline-flex items-center gap-1 text-xs text-muted-foreground group-hover:text-primary transition-base whitespace-nowrap">
                 {c.tabLabel} <HugeiconsIcon icon={ArrowRight01Icon} size={13} />
               </span>
             </div>
-            <div className="flex items-baseline gap-2 mt-3 flex-wrap">
+            <div className="flex items-baseline gap-2 mt-2 flex-wrap">
               <span className="font-display text-3xl font-semibold tracking-tight tabular-nums">{c.value}</span>
-              <span className="text-sm text-muted-foreground">{c.unit}</span>
+              {c.unit && <span className="text-sm text-muted-foreground">{c.unit}</span>}
               <span className="ml-auto">{c.delta}</span>
             </div>
             <div className="mt-3 h-11">{c.viz}</div>
             <div className="text-xs text-muted-foreground mt-2 truncate">{c.foot}</div>
-          </button>
+          </div>
         ))}
+      </div>
+      <div role="button" tabIndex={0} onClick={() => go("topics")} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go("topics"); } }}
+        className="surface-card p-5 cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">Chủ đề hàng đầu <InfoTip text="AI gom các câu hỏi giống nhau thành chủ đề. Hiện 3 chủ đề có nhiều phiên nhất." label="Chủ đề hàng đầu" /></h3>
+          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground group-hover:text-primary transition-base whitespace-nowrap">Chủ đề <HugeiconsIcon icon={ArrowRight01Icon} size={13} /></span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 mt-3">
+          {topTopics.map(t => <span key={t.topic} className="chip">{t.topic} · {vn(t.share * 100)}%</span>)}
+          {hot > 0 && <span className="chip chip-warning">{hot} chủ đề mới hoặc tăng mạnh</span>}
+          <span className="text-xs text-muted-foreground ml-auto">{UNANSWERED.length} câu hỏi chưa trả lời được</span>
+        </div>
       </div>
     </Page>
   );
@@ -540,8 +572,8 @@ export function AnalyticsOverview({ a }: { a: A }) {
 /* ============ SỬ DỤNG ============ */
 export function AnalyticsUsage({ a }: { a: A }) {
   const noun = useNoun();
-  const users = a.rows.map(d => ({ day: d.day, "Lần đầu": d.newUsers, "Quay lại": d.users - d.newUsers }));
-  const rates = a.rows.map(d => d.sessions ? { day: d.day, "Tự xử lý": pct(d.resolved, d.sessions), "Bỏ dở": pct(d.abandoned, d.sessions) } : { day: d.day });
+  const users = a.rows.map(d => ({ day: d.day, "Người dùng mới": d.newUsers, "Người dùng cũ": d.users - d.newUsers }));
+  const rates = a.rows.map(d => d.sessions ? { day: d.day, "Tỷ lệ giải quyết": pct(d.resolved, d.sessions), "Tỷ lệ bỏ dở": pct(d.abandoned, d.sessions) } : { day: d.day });
   const heatDows = a.today ? [dowOf(a.rows[0].date)] : DOW;
   const cells = a.heat.filter(h => heatDows.includes(h.dow));
   const maxHeat = Math.max(1, ...cells.map(h => h.sessions));
@@ -550,10 +582,46 @@ export function AnalyticsUsage({ a }: { a: A }) {
   const iv = tickEvery(a.rows.length);
   return (
     <Page>
-      <Header a={a} title="Sử dụng" desc={`Ai đang dùng Nhân sự số, qua kênh nào, vào lúc nào và kết quả ${noun} ra sao.`} />
+      <Header a={a} title="Sử dụng" desc="Người dùng, phiên, kênh và giờ cao điểm." />
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+        <Kpi a={a} label="Số người dùng đang hoạt động" value={vn(a.cur.users)} k="users" good={1} info="Số người dùng khác nhau có ít nhất 1 phiên trong khoảng thời gian đang xem (Active users)." />
+        <Kpi a={a} label="Người dùng mới" value={vn(a.cur.newUsers)} k="newUsers" good={1} info="Người dùng có phiên đầu tiên với Nhân sự số rơi vào khoảng thời gian đang xem (New users)." />
+        <Kpi a={a} label="Người dùng cũ" value={vn(a.cur.returningUsers)} k="returningUsers" good={1} info="Người dùng đã có phiên trước khoảng thời gian đang xem và quay lại (Returning users)." />
+        <Kpi a={a} label="DAU trung bình" value={vn(a.cur.dauAvg)} k="dauAvg" good={1} info="Daily active users: số người dùng đang hoạt động trung bình mỗi ngày trong khoảng thời gian đang xem." />
+        <div className="surface-card p-4">
+          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground"><span>WAU / MAU</span><InfoTip label="WAU / MAU" text="WAU: số người dùng đang hoạt động trong 7 ngày tính đến ngày cuối của khoảng đang xem. MAU: trong 30 ngày." /></div>
+          <div className="font-display text-2xl font-semibold tracking-tight tabular-nums mt-1.5">{vn(a.stick.wau)} <span className="text-muted-foreground font-normal text-lg">/</span> {vn(a.stick.mau)}</div>
+        </div>
+        <div className="surface-card p-4">
+          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground"><span>DAU/MAU</span><InfoTip label="DAU/MAU" text="Độ gắn bó (stickiness): DAU trung bình chia cho MAU. Càng cao thì người dùng quay lại càng thường xuyên." /></div>
+          <div className="flex items-baseline justify-between gap-2 mt-1.5 flex-wrap">
+            <span className="font-display text-2xl font-semibold tracking-tight tabular-nums">{vn(a.stick.dauMau, 1)}%</span>
+            {a.oldStick ? <DeltaPill diff={a.stick.dauMau - a.oldStick.dauMau} prev={a.oldStick.dauMau} good={1} unit="pp" /> : <span className="text-xs text-muted-foreground">Chưa có kỳ trước</span>}
+          </div>
+        </div>
+      </div>
+      {!a.today && (
+        <Card title="Người dùng đang hoạt động" note="DAU, WAU, MAU tính đến từng ngày">
+          <div className="h-56" role="img" aria-label="DAU, WAU, MAU theo ngày">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={a.activeSeries} margin={{ top: 16, right: 8, left: -8, bottom: 0 }}>
+                <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
+                <XAxis dataKey="day" tick={AXIS} tickLine={false} axisLine={false} interval={tickEvery(a.activeSeries.length)} />
+                <YAxis tick={AXIS} tickLine={false} axisLine={false} tickFormatter={compact} />
+                <Tooltip contentStyle={TT} formatter={(v: number, n: string) => [vn(v), n]} />
+                <Legend iconType="circle" iconSize={8} wrapperStyle={LEGEND} />
+                {versionLines(a.markers)}
+                <Line type="linear" dataKey="MAU" name="MAU (30 ngày)" stroke="hsl(var(--primary) / 0.35)" strokeWidth={2} dot={false} isAnimationActive={false} />
+                <Line type="linear" dataKey="WAU" name="WAU (7 ngày)" stroke="hsl(var(--primary) / 0.65)" strokeWidth={2} dot={false} isAnimationActive={false} />
+                <Line type="linear" dataKey="DAU" name="DAU (1 ngày)" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} isAnimationActive={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      )}
       <div className="grid lg:grid-cols-2 gap-4">
-        <Card title={`Người dùng theo ${a.step}`} note="Người dùng lần đầu và người quay lại">
-          <div className="h-56" role="img" aria-label={`Người dùng lần đầu và quay lại theo ${a.step}`}>
+        <Card title={`Người dùng mới và người dùng cũ theo ${a.step}`} note="New users và returning users">
+          <div className="h-56" role="img" aria-label={`Người dùng mới và người dùng cũ theo ${a.step}`}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={users} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
                 <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
@@ -561,14 +629,14 @@ export function AnalyticsUsage({ a }: { a: A }) {
                 <YAxis tick={AXIS} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip contentStyle={TT} cursor={{ fill: "hsl(var(--surface-muted))" }} />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={LEGEND} />
-                <Bar dataKey="Lần đầu" stackId="u" fill="hsl(var(--primary) / 0.35)" maxBarSize={18} isAnimationActive={false} />
-                <Bar dataKey="Quay lại" stackId="u" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} maxBarSize={18} isAnimationActive={false} />
+                <Bar dataKey="Người dùng mới" stackId="u" fill="hsl(var(--primary) / 0.35)" maxBarSize={18} isAnimationActive={false} />
+                <Bar dataKey="Người dùng cũ" stackId="u" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} maxBarSize={18} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </Card>
-        <Card title={`Kết quả ${noun} (%)`} note={`Tự xử lý: Nhân sự số trả lời được và không bị Dislike${a.today ? ". Giờ không có " + noun + " thì để trống" : ""}`}>
-          <div className="h-56" role="img" aria-label={`Tỷ lệ tự xử lý và bỏ dở theo ${a.step}`}>
+        <Card title={`Kết quả ${noun}`} note={`Tỷ lệ giải quyết và tỷ lệ bỏ dở theo ${a.step}${a.today ? ". Giờ không có " + noun + " thì để trống" : ""}`}>
+          <div className="h-56" role="img" aria-label={`Tỷ lệ giải quyết và tỷ lệ bỏ dở theo ${a.step}`}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={rates} margin={{ top: 16, right: 8, left: -16, bottom: 0 }}>
                 <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
@@ -577,8 +645,8 @@ export function AnalyticsUsage({ a }: { a: A }) {
                 <Tooltip contentStyle={TT} formatter={(v: number, n: string) => [`${vn(v, 1)}%`, n]} />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={LEGEND} />
                 {versionLines(a.markers)}
-                <Line type="linear" dataKey="Tự xử lý" stroke="hsl(var(--primary))" strokeWidth={2} dot={a.rows.length < 3} isAnimationActive={false} />
-                <Line type="linear" dataKey="Bỏ dở" stroke="hsl(var(--warning))" strokeWidth={2} dot={a.rows.length < 3} isAnimationActive={false} />
+                <Line type="linear" dataKey="Tỷ lệ giải quyết" stroke="hsl(var(--primary))" strokeWidth={2} dot={a.rows.length < 3} isAnimationActive={false} />
+                <Line type="linear" dataKey="Tỷ lệ bỏ dở" stroke="hsl(var(--warning))" strokeWidth={2} dot={a.rows.length < 3} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -586,10 +654,10 @@ export function AnalyticsUsage({ a }: { a: A }) {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-4">
-        <Card title="Theo kênh" note={periodText(a)}>
+        <Card title="Kênh" note={periodText(a)}>
           <table className="w-full text-sm">
             <thead><tr className="text-xs text-muted-foreground border-b border-border">
-              <th className="text-left font-medium py-2">Kênh</th><th className="text-right font-medium">{cap(noun)}</th><th className="text-right font-medium">Người dùng</th><th className="text-right font-medium">Tin nhắn mỗi người</th>
+              <th className="text-left font-medium py-2">Kênh</th><th className="text-right font-medium">{cap(noun)}</th><th className="text-right font-medium">Người dùng</th><th className="text-right font-medium">Tin nhắn mỗi người dùng</th>
             </tr></thead>
             <tbody className="divide-y divide-border">
               {CHANNELS.map(c => {
@@ -599,7 +667,7 @@ export function AnalyticsUsage({ a }: { a: A }) {
             </tbody>
           </table>
         </Card>
-        <Card title="Giờ cao điểm" note={`${cap(noun)} theo giờ và thứ · ${vn(offPct, 1)}% rơi vào ngoài giờ hành chính`}>
+        <Card title="Giờ cao điểm" note={`${cap(noun)} theo giờ và thứ · ${vn(offPct, 1)}% ngoài giờ hành chính`}>
           <div className="overflow-x-auto">
             <div className="grid gap-[2px] min-w-[420px]" style={{ gridTemplateColumns: "28px repeat(24, minmax(0, 1fr))" }} role="img" aria-label={`Bản đồ nhiệt ${noun} theo giờ và thứ`}>
               {heatDows.map(dow => (
@@ -629,15 +697,15 @@ export function AnalyticsFeedback({ a }: { a: A }) {
   const maxG = Math.max(1, ...g.map(x => x.count));
   return (
     <Page>
-      <Header a={a} title="Chất lượng" desc="Người dùng đánh giá câu trả lời của Nhân sự số thế nào." />
+      <Header a={a} title="Chất lượng" desc="Đánh giá của người dùng, trích dẫn nguồn và Guardrail." />
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <Kpi a={a} label="Tỷ lệ Like" value={`${vn(cur.likePct, 1)}%`} k="likePct" good={1} unit="pp" sub={`Trên ${vn(cur.feedbacks)} lượt bấm`} info="Số Like chia cho tổng số Like và Dislike." />
-        <Kpi a={a} label="Tỷ lệ Dislike" value={`${vn(cur.dislikePct, 1)}%`} k="dislikePct" good={-1} unit="pp" sub={`Trên ${vn(cur.feedbacks)} lượt bấm`} info="Số Dislike chia cho tổng số Like và Dislike." />
-        <Kpi a={a} label="CSAT" value={`${vn(cur.csat, 2)}/5`} k="csat" good={1} info="Điểm trung bình người dùng chấm cuối cuộc trò chuyện, từ 1 đến 5 sao." />
-        <Kpi a={a} label="Có dẫn nguồn" value={`${vn(cur.citedPct, 1)}%`} k="citedPct" good={1} unit="pp" info="Số câu trả lời có ghi rõ lấy từ tài liệu nào, chia cho tổng số câu trả lời." />
-        <Kpi a={a} label="Tỷ lệ bấm Like/Dislike" value={`${vn(cur.coveragePct, 1)}%`} k="coveragePct" good={1} unit="pp" info="Số câu trả lời được người dùng bấm Like hoặc Dislike, chia cho tổng số câu trả lời. Tỷ lệ này thấp thì tỷ lệ Like chưa đại diện cho nhiều người." />
+        <Kpi a={a} label="Tỷ lệ Like" value={`${vn(cur.likePct, 1)}%`} k="likePct" good={1} unit="pp" sub={`${vn(cur.feedbacks)} lượt Like/Dislike`} info="Số Like chia cho tổng số Like và Dislike." />
+        <Kpi a={a} label="Tỷ lệ Dislike" value={`${vn(cur.dislikePct, 1)}%`} k="dislikePct" good={-1} unit="pp" sub={`${vn(cur.feedbacks)} lượt Like/Dislike`} info="Số Dislike chia cho tổng số Like và Dislike." />
+        <Kpi a={a} label="CSAT" value={`${vn(cur.csat, 2)}/5`} k="csat" good={1} info="Customer satisfaction score: điểm trung bình người dùng chấm cuối phiên, thang 1 - 5." />
+        <Kpi a={a} label="Tỷ lệ trích dẫn nguồn" value={`${vn(cur.citedPct, 1)}%`} k="citedPct" good={1} unit="pp" info="Số câu trả lời có trích dẫn tài liệu nguồn chia cho tổng số câu trả lời (Citation rate)." />
+        <Kpi a={a} label="Tỷ lệ phản hồi" value={`${vn(cur.coveragePct, 1)}%`} k="coveragePct" good={1} unit="pp" info="Số câu trả lời được bấm Like hoặc Dislike chia cho tổng số câu trả lời (Feedback rate). Tỷ lệ thấp thì tỷ lệ Like chưa đại diện cho nhiều người dùng." />
       </div>
-      <Card title={`Tỷ lệ Like / Dislike theo ${a.step}`} note="% trên tổng số câu trả lời được bấm Like hoặc Dislike">
+      <Card title={`Tỷ lệ Like và tỷ lệ Dislike theo ${a.step}`}>
         <div className="h-56" role="img" aria-label={`Tỷ lệ Like và Dislike theo ${a.step}`}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={series} margin={{ top: 16, right: 8, left: -16, bottom: 0 }}>
@@ -653,7 +721,7 @@ export function AnalyticsFeedback({ a }: { a: A }) {
           </ResponsiveContainer>
         </div>
       </Card>
-      <Card title="Câu bị Guardrail chặn" note={`Theo loại quy tắc · ${periodText(a)}`}>
+      <Card title="Số lần Guardrail chặn" note={`Theo quy tắc · ${periodText(a)}`}>
         <HBars max={maxG} rows={g.map((x, i) => ({ label: x.rule, value: x.count, text: vn(x.count), highlight: i === 0 }))} />
       </Card>
     </Page>
@@ -710,16 +778,16 @@ export function AnalyticsTopics({ a, agentId, canEdit = true }: { a: A; agentId:
   const unanswered = UNANSWERED.map(u => ({ ...u, times: Math.round(u.times * a.factor) })).filter(u => u.times > 0);
   return (
     <Page>
-      <Header a={a} title="Người dùng hỏi gì" desc="AI gom các câu hỏi giống nhau thành chủ đề, và chỉ ra câu Nhân sự số chưa trả lời được." />
+      <Header a={a} title="Chủ đề" desc="AI gom các câu hỏi giống nhau thành chủ đề. Kèm danh sách câu hỏi chưa trả lời được." />
       <div className="surface-card overflow-hidden">
         <div className="px-5 py-3 border-b border-border">
           <h3 className="font-display text-sm font-semibold">Chủ đề</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">{periodText(a)} · Cột Thay đổi so với kỳ trước, "Mới" là chủ đề kỳ trước chưa có</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{periodText(a)} · Thay đổi so với kỳ trước, "Mới" là chủ đề kỳ trước chưa có</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead><tr className="text-xs text-muted-foreground border-b border-border">
-              <th className="text-left font-medium px-5 py-2">Chủ đề</th><th className="text-right font-medium px-3">{cap(noun)}</th><th className="text-right font-medium px-3">Thay đổi</th><th className="text-right font-medium px-3">Trả lời được</th><th className="text-right font-medium px-5">Like</th>
+              <th className="text-left font-medium px-5 py-2">Chủ đề</th><th className="text-right font-medium px-3">{cap(noun)}</th><th className="text-right font-medium px-3">Thay đổi</th><th className="text-right font-medium px-3">Tỷ lệ trả lời</th><th className="text-right font-medium px-5">Tỷ lệ Like</th>
             </tr></thead>
             <tbody className="divide-y divide-border">
               {TOPICS.map(t => (
@@ -742,7 +810,7 @@ export function AnalyticsTopics({ a, agentId, canEdit = true }: { a: A; agentId:
       <div className="surface-card overflow-hidden">
         <div className="px-5 py-3 border-b border-border">
           <h3 className="font-display text-sm font-semibold">Câu hỏi chưa trả lời được</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">Nhân sự số không trả lời được hoặc bị Dislike. Câu bị hỏi nhiều nhất nằm trên cùng · {periodText(a)}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Câu Nhân sự số không trả lời được hoặc bị Dislike, xếp theo số lần hỏi · {periodText(a)}</p>
         </div>
         {unanswered.length === 0 ? (
           <p className="px-5 py-6 text-sm text-muted-foreground">Không có câu hỏi nào chưa trả lời được trong khoảng thời gian này.</p>
@@ -779,15 +847,15 @@ export function AnalyticsTopics({ a, agentId, canEdit = true }: { a: A; agentId:
 
 /* ============ HOẠT ĐỘNG ============ */
 export function AnalyticsOperations({ a }: { a: A }) {
-  const lat = a.rows.map(d => d.sessions ? { day: d.day, "Lúc chậm": Math.round(d.p95 * 10) / 10, "Thông thường": Math.round(d.p50 * 10) / 10 } : { day: d.day });
-  const err = a.rows.map(d => d.sessions ? { day: d.day, "Không trả lời được": pct(d.fallbacks, d.sessions), "Lỗi": pct(d.errors, d.runs) } : { day: d.day });
+  const lat = a.rows.map(d => d.sessions ? { day: d.day, "P95": Math.round(d.p95 * 10) / 10, "Trung vị (P50)": Math.round(d.p50 * 10) / 10 } : { day: d.day });
+  const err = a.rows.map(d => d.sessions ? { day: d.day, "Tỷ lệ không trả lời được": pct(d.fallbacks, d.sessions), "Tỷ lệ lỗi": pct(d.errors, d.runs) } : { day: d.day });
   const iv = tickEvery(a.rows.length);
   const dots = a.rows.length < 3;
   return (
     <Page>
-      <Header a={a} title="Hoạt động" desc="Nhân sự số phản hồi nhanh hay chậm, gặp lỗi ở đâu, Tool và Knowledge nào đang được dùng." />
+      <Header a={a} title="Hiệu năng" desc="Thời gian phản hồi, tỷ lệ lỗi, Tool và Knowledge." />
       <div className="grid lg:grid-cols-2 gap-4">
-        <Card title="Thời gian phản hồi" note="Tính bằng giây. Thông thường là mức giữa, lúc chậm là 5% câu chậm nhất">
+        <Card title="Thời gian phản hồi" note="Giây. Trung vị (P50) và P95: 95% câu trả lời nhanh hơn mức này">
           <div className="h-52" role="img" aria-label={`Thời gian phản hồi theo ${a.step}`}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={lat} margin={{ top: 16, right: 8, left: -16, bottom: 0 }}>
@@ -797,13 +865,13 @@ export function AnalyticsOperations({ a }: { a: A }) {
                 <Tooltip contentStyle={TT} formatter={(v: number, n: string) => [`${vn(v, 1)} giây`, n]} />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={LEGEND} />
                 {versionLines(a.markers)}
-                <Line type="linear" dataKey="Lúc chậm" stroke="hsl(var(--warning))" strokeWidth={2} dot={dots} isAnimationActive={false} />
-                <Line type="linear" dataKey="Thông thường" stroke="hsl(var(--primary))" strokeWidth={2} dot={dots} isAnimationActive={false} />
+                <Line type="linear" dataKey="P95" stroke="hsl(var(--warning))" strokeWidth={2} dot={dots} isAnimationActive={false} />
+                <Line type="linear" dataKey="Trung vị (P50)" stroke="hsl(var(--primary))" strokeWidth={2} dot={dots} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </Card>
-        <Card title="Lỗi và câu không trả lời được" note="% trên tổng số lượt trả lời">
+        <Card title="Tỷ lệ lỗi và tỷ lệ không trả lời được" note="% trên tổng số câu trả lời">
           <div className="h-52" role="img" aria-label={`Tỷ lệ lỗi và câu không trả lời được theo ${a.step}`}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={err} margin={{ top: 16, right: 8, left: -16, bottom: 0 }}>
@@ -813,8 +881,8 @@ export function AnalyticsOperations({ a }: { a: A }) {
                 <Tooltip contentStyle={TT} formatter={(v: number, n: string) => [`${vn(v, 1)}%`, n]} />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={LEGEND} />
                 {versionLines(a.markers)}
-                <Line type="linear" dataKey="Không trả lời được" stroke="hsl(var(--warning))" strokeWidth={2} dot={dots} isAnimationActive={false} />
-                <Line type="linear" dataKey="Lỗi" stroke="hsl(var(--destructive))" strokeWidth={2} dot={dots} isAnimationActive={false} />
+                <Line type="linear" dataKey="Tỷ lệ không trả lời được" stroke="hsl(var(--warning))" strokeWidth={2} dot={dots} isAnimationActive={false} />
+                <Line type="linear" dataKey="Tỷ lệ lỗi" stroke="hsl(var(--destructive))" strokeWidth={2} dot={dots} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -823,12 +891,12 @@ export function AnalyticsOperations({ a }: { a: A }) {
       <div className="surface-card overflow-hidden">
         <div className="px-5 py-3 border-b border-border">
           <h3 className="font-display text-sm font-semibold">Tool và Connector</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">Nhân sự số gọi tới hệ thống khác thành công hay thất bại · {periodText(a)}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Số lần gọi và tỷ lệ thành công · {periodText(a)}</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead><tr className="text-xs text-muted-foreground border-b border-border">
-              <th className="text-left font-medium px-5 py-2">Tool</th><th className="text-right font-medium px-3">Số lần gọi</th><th className="text-right font-medium px-3">Thành công</th><th className="text-left font-medium px-3">Lỗi hay gặp</th><th className="text-right font-medium px-5">Lúc chậm</th>
+              <th className="text-left font-medium px-5 py-2">Tool</th><th className="text-right font-medium px-3">Số lần gọi</th><th className="text-right font-medium px-3">Tỷ lệ thành công</th><th className="text-left font-medium px-3">Lỗi thường gặp</th><th className="text-right font-medium px-5">P95</th>
             </tr></thead>
             <tbody className="divide-y divide-border">
               {TOOLS.map(t => (
@@ -847,19 +915,19 @@ export function AnalyticsOperations({ a }: { a: A }) {
       <div className="surface-card overflow-hidden">
         <div className="px-5 py-3 border-b border-border">
           <h3 className="font-display text-sm font-semibold">Knowledge</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">Tài liệu nào được dùng nhiều, tài liệu nào không ai dùng · {periodText(a)}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Số lần truy xuất và tỷ lệ lỗi đọc tài liệu · {periodText(a)}</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead><tr className="text-xs text-muted-foreground border-b border-border">
-              <th className="text-left font-medium px-5 py-2">Tài liệu</th><th className="text-right font-medium px-3">Số lần dùng</th><th className="text-right font-medium px-5">Lỗi khi đọc</th>
+              <th className="text-left font-medium px-5 py-2">Tài liệu</th><th className="text-right font-medium px-3">Số lần truy xuất</th><th className="text-right font-medium px-5">Tỷ lệ lỗi đọc</th>
             </tr></thead>
             <tbody className="divide-y divide-border">
               {KNOWLEDGE.map(k => {
                 const uses = Math.round(k.uses * a.factor);
                 return (
                   <tr key={k.source}>
-                    <td className="px-5 py-2.5">{k.source}{uses === 0 && <span className="chip chip-warning ml-2">Không ai dùng</span>}</td>
+                    <td className="px-5 py-2.5">{k.source}{uses === 0 && <span className="chip chip-warning ml-2">Chưa được truy xuất</span>}</td>
                     <td className="text-right tabular-nums px-3">{vn(uses)}</td>
                     <td className={`text-right tabular-nums px-5 ${k.err >= 2 ? "text-destructive font-medium" : ""}`}>{vn(k.err, 1)}%</td>
                   </tr>
@@ -880,10 +948,10 @@ export function AnalyticsCost({ a }: { a: A }) {
   const series = a.rows.map(d => ({ day: d.day, "Đầu vào": d.tokensIn, "Đầu ra": d.tokens - d.tokensIn }));
   return (
     <Page>
-      <Header a={a} title="Chi phí" desc="Nhân sự số tiêu bao nhiêu token và dùng model nào." />
+      <Header a={a} title="Chi phí" desc="Token sử dụng theo ngày và theo model." />
       <div className="grid grid-cols-2 gap-3 max-w-xl">
-        <Kpi a={a} label="Tổng token" value={compact(cur.tokens)} k="tokens" good={-1} sub={`Đầu vào ${vn(pct(cur.tokensIn, cur.tokens), 0)}% · Đầu ra ${vn(100 - pct(cur.tokensIn, cur.tokens), 0)}%`} info="Tổng token đầu vào (câu hỏi, Instructions, tài liệu đọc được) và đầu ra (câu trả lời) trong khoảng thời gian đang xem." />
-        <Kpi a={a} label={`Token mỗi ${noun}`} value={vn(cur.tokPerSession)} k="tokPerSession" good={-1} info={`Tổng token chia cho số ${noun}.`} />
+        <Kpi a={a} label="Token sử dụng" value={compact(cur.tokens)} k="tokens" good={-1} sub={`Đầu vào ${vn(pct(cur.tokensIn, cur.tokens), 0)}% · Đầu ra ${vn(100 - pct(cur.tokensIn, cur.tokens), 0)}%`} info="Tổng token đầu vào (câu hỏi, Instructions, tài liệu đọc được) và đầu ra (câu trả lời) trong khoảng thời gian đang xem." />
+        <Kpi a={a} label={`Token trung bình mỗi ${noun}`} value={vn(cur.tokPerSession)} k="tokPerSession" good={-1} info={`Tổng token chia cho số ${noun}.`} />
       </div>
       <div className="grid lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-4">
         <Card title={`Token theo ${a.step}`} note="Đầu vào và đầu ra">
@@ -933,7 +1001,7 @@ export function AgentAnalytics({ agentId, section, kind = "conversational", publ
 }) {
   const a = useAnalytics(agentId);
   const isChat = kind === "conversational";
-  const noun = isChat ? "hội thoại" : "lượt chạy";
+  const noun = isChat ? "phiên" : "lượt chạy";
   let body: React.ReactNode;
   if (!published) {
     body = <Empty title="Chưa có số liệu" published={false} isChat={isChat} onPublish={onPublish} onOpenChannels={onOpenChannels}
