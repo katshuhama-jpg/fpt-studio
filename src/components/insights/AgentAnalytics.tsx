@@ -576,7 +576,6 @@ export function AnalyticsUsage({ a }: { a: A }) {
         <Kpi a={a} label="Số người dùng đang hoạt động" value={vn(a.cur.users)} k="users" good={1} info="Số người dùng khác nhau có ít nhất 1 phiên trong khoảng thời gian đang xem (Active users)." />
         <Kpi a={a} label="Người dùng mới" value={vn(a.cur.newUsers)} k="newUsers" good={1} info="Người dùng có phiên đầu tiên với Nhân sự số rơi vào khoảng thời gian đang xem (New users)." />
         <Kpi a={a} label="Người dùng cũ" value={vn(a.cur.returningUsers)} k="returningUsers" good={1} info="Người dùng đã có phiên trước khoảng thời gian đang xem và quay lại (Returning users)." />
-        <Kpi a={a} label={cap(noun)} value={vn(a.cur.sessions)} k="sessions" good={1} sub={`${vn(a.cur.sessionsPerUser, 2)} ${noun} mỗi người dùng`} info={`Số ${noun} trong khoảng thời gian đang xem (Sessions).`} />
       </div>
       <div className="grid lg:grid-cols-2 gap-4">
         <Card title={`Người dùng mới và người dùng cũ theo ${a.step}`} note="New users và returning users">
