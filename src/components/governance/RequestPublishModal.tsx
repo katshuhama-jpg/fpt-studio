@@ -100,7 +100,7 @@ export default function RequestPublishModal({ resourceType, resourceId, resource
                   />
                   <AudienceOption
                     icon={Globe2} title={AUDIENCE_LABEL.community}
-                    description="Publish cho toàn bộ người dùng FPT AI Agent, kể cả ngoài công ty."
+                    description="Publish cho toàn bộ người dùng FPT AI EOS, kể cả ngoài công ty."
                     selected={audience === "community"} onClick={() => setAudience("community")}
                   />
                 </div>

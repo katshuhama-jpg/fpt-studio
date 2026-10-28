@@ -52,7 +52,7 @@ const AUDIENCE_SHORT: Record<PublishAudience, string> = {
   quick_share: "Chia sẻ nhanh",
   group: "Nhóm cộng tác",
   org: "Công ty / phòng ban",
-  community: "Cộng đồng FPT AI Agent",
+  community: "Cộng đồng FPT AI EOS",
 };
 
 export interface VersionRow {
@@ -91,7 +91,7 @@ export function agentVersionRows(agentId: string): VersionRow[] {
     const decided = r.history.filter(h => h.action !== "submitted").slice(-1)[0];
     rows.set(v, {
       version: v, status, at: r.updatedAt, request: r,
-      scope: r.scopeSummary ?? (r.audience === "community" ? "Cộng đồng FPT AI Agent" : undefined),
+      scope: r.scopeSummary ?? (r.audience === "community" ? "Cộng đồng FPT AI EOS" : undefined),
       channels: r.channels,
       byline: decided ? `${decided.actorName} ${decided.action === "approved" ? "duyệt" : decided.action === "rejected" ? "từ chối" : decided.action === "revoked" ? "thu hồi" : "rút"}` : `${r.requesterName} gửi`,
       reason: r.status === "rejected" ? r.reviewNote : r.status === "revoked" ? r.revokeReason : r.status === "withdrawn" ? r.history.find(h => h.action === "withdrawn")?.note : undefined,
@@ -151,7 +151,9 @@ export function AgentVersionsPanel({ agentId, agentName, onPublish, onChanged }:
 
   // Taken down by an Admin ("Gỡ publish" by Admin, UC13): no version goes back live on the
   // Builder's word alone - Khôi phục sends the chosen version for review instead (19/10).
-  const removedByAdmin = pub.placement === null ? pub.removedByAdmin : undefined;
+  // Tyler 28/10: khôi phục một bản đã từng được duyệt thì không cần duyệt lại, kể cả khi Nhân sự
+  // số đã bị Admin gỡ publish - áp dụng ngay như mọi lần khôi phục.
+  const removedByAdmin = undefined as typeof pub.removedByAdmin;
   const sendRestoreForReview = () => {
     const rel = rollback?.release;
     if (!rollback || !rel) return;

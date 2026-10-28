@@ -100,7 +100,7 @@ export const RESOURCE_TYPE_LABEL: Record<GovResourceType, string> = {
 
 export const AUDIENCE_LABEL: Record<GovAudience, string> = {
   org: "Công ty / phòng ban",
-  community: "Cộng đồng FPT AI Agent",
+  community: "Cộng đồng FPT AI EOS",
   group: "Nhóm cộng tác",
 };
 
@@ -410,7 +410,7 @@ export function resourceShareStatus(type: Exclude<GovResourceType, "agent">, id:
  * single entry derived from the older `audience` + `scopeSummary` fields. */
 export function workspaceTargetsOf(req: GovRequest): WorkspaceTarget[] {
   if (req.workspaceTargets && req.workspaceTargets.length > 0) return req.workspaceTargets;
-  if (req.audience === "community") return [{ kind: "community", name: "Cộng đồng FPT AI Agent" }];
+  if (req.audience === "community") return [{ kind: "community", name: "Cộng đồng FPT AI EOS" }];
   return [{ kind: req.audience === "group" ? "group" : "department", name: req.scopeSummary ?? AUDIENCE_LABEL[req.audience] }];
 }
 
@@ -486,7 +486,7 @@ function seed() {
     {
       id: "req-1003", changeStateAtSubmit: "new", resourceType: "skill", resourceId: "email-drafter", resourceName: "email-drafter",
       requesterId: "m-fsoft-vn-1", requesterName: "Duy Nguyen",
-      audience: "community", note: "Skill soạn email đã dùng ổn định 2 tuần trong team - Đề xuất mở cho toàn bộ Cộng đồng FPT AI Agent.",
+      audience: "community", note: "Skill soạn email đã dùng ổn định 2 tuần trong team - Đề xuất mở cho toàn bộ Cộng đồng FPT AI EOS.",
       status: "approved", submittedAt: t - 3 * DAY, updatedAt: t - 2 * DAY,
       reviewerId: "m-fsoft-ceo", reviewerName: "Tran Nam", reviewNote: "Đã test thử - Hoạt động tốt, duyệt.",
     },
@@ -631,11 +631,11 @@ function seed() {
       id: "req-2004", resourceType: "agent", resourceId: "ops", resourceName: "IT Helpdesk",
       resourceIcon: "🛠️", requesterId: "m-fsoft-vn-1", requesterName: "Duy Nguyen",
       audience: "community", channels: ["web", "api"],
-      workspaceTargets: [{ kind: "community", name: "Cộng đồng FPT AI Agent" }],
+      workspaceTargets: [{ kind: "community", name: "Cộng đồng FPT AI EOS" }],
       connections: [conn("Slack", "slack", "shared")],
       subAgents: [{ name: "vpn-helper", description: "Hướng dẫn cài đặt và xử lý lỗi VPN từng bước.", model: "DeepSeek V4 Flash", status: "active" }],
       starterPrompts: ["Tôi quên mật khẩu", "Hướng dẫn cài VPN trên macOS", "Tạo ticket hỗ trợ"],
-      note: "Nhân sự số đã chạy ổn định 1 tháng nội bộ - Đề xuất chia sẻ cho Cộng đồng FPT AI Agent làm mẫu Helpdesk L1.",
+      note: "Nhân sự số đã chạy ổn định 1 tháng nội bộ - Đề xuất chia sẻ cho Cộng đồng FPT AI EOS làm mẫu Helpdesk L1.",
       version: "v1.4.0", status: "pending", submittedAt: t - 2 * DAY, updatedAt: t - 2 * DAY,
       resourceRefs: [
         { type: "knowledge", resourceId: "kb-3", name: "Tài liệu vận hành nội bộ" },
@@ -670,7 +670,7 @@ function seed() {
       id: "req-2006", changeStateAtSubmit: "new", resourceType: "agent", resourceId: "sales", resourceName: "Sales Lead Qualifier",
       resourceIcon: "🎯", requesterId: "m-fsoft-vn-1", requesterName: "Duy Nguyen",
       audience: "community", channels: [],
-      workspaceTargets: [{ kind: "community", name: "Cộng đồng FPT AI Agent" }],
+      workspaceTargets: [{ kind: "community", name: "Cộng đồng FPT AI EOS" }],
       note: "Chia sẻ Nhân sự số chấm điểm lead cho community.",
       version: "v1.0.2", status: "rejected", submittedAt: t - 6 * DAY, updatedAt: t - 5 * DAY,
       resourceRefs: [{ type: "connector", resourceId: "cc-1", name: "internal-crm-mcp" }],
@@ -1106,6 +1106,8 @@ export const governanceStore = {
     model?: string; privateKnowledge?: { name: string; kind: "doc" | "url" | "faq" }[];
     kind?: GovRequestKind; channelsAdded?: string[]; channelsPurpose?: "review"; externalSnap?: ExternalAgentSnap;
     groupId?: string; groupMemberIds?: string[]; reviewUnits?: { id: string; name: string }[]; reviewMode?: "single" | "any"; addedMemberNames?: string[];
+    /** Người gửi là Space Admin (có toàn quyền, Tyler 28/10): yêu cầu được duyệt ngay khi gửi. */
+    selfApprove?: boolean;
   }): GovRequest {
     seed();
     const kind = input.kind ?? "publish";
@@ -1174,6 +1176,9 @@ export const governanceStore = {
       resourceType: input.resourceType, resourceId: input.resourceId, resourceName: input.resourceName,
       requestId: id, at: t, detail: auditDetail(req),
     });
+    if (input.selfApprove && input.resourceType === "agent") {
+      return this.approve(id, input.requesterId, input.requesterName, "Space Admin publish - tự duyệt khi gửi.") ?? req;
+    }
     notify(req, "submitted", input.requesterId, input.requesterName);
     return req;
   },
@@ -1238,7 +1243,7 @@ export const governanceStore = {
     if (r.resourceType === "agent") {
       const current = agentPublishStore.get(r.resourceId);
       agentPublishStore.publish(r.resourceId, "workspace", current.channels, r.version ?? current.version, r.audience === "group" ? "group" : r.audience === "community" ? "community" : "org",
-        { scopeSummary: r.scopeSummary ?? (r.audience === "community" ? "Cộng đồng FPT AI Agent" : current.scopeSummary),
+        { scopeSummary: r.scopeSummary ?? (r.audience === "community" ? "Cộng đồng FPT AI EOS" : current.scopeSummary),
           groupId: r.groupId ?? (r.audience === "group" ? current.groupId : undefined),
           groupMemberIds: r.groupMemberIds ?? (r.audience === "group" ? current.groupMemberIds : undefined), via: "approved" });
       agentPublishStore.clearRegovernanceFlag(r.resourceId);

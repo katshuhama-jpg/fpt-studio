@@ -16,6 +16,9 @@ import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { useOrg } from "@/pages/organization/orgStore";
 import { collectUnits, findPath, type OrgUnit } from "@/pages/organization/orgData";
 import { requestKind, workspaceTargetsOf, type GovRequest } from "./governanceStore";
+import { AGENTS } from "@/components/configure/agentStore";
+import { isOwnedOrShared } from "@/pages/organization/scopeAccess";
+import { useAgentShareVersion } from "@/components/configure/agentShareStore";
 
 /** Seeded requests name their target departments in Vietnamese; the synced org tree names its
  * units in English. Maps those seed names to the org unit they stand for. Requests created in the
@@ -72,7 +75,16 @@ export function useAgentReviewScope() {
     return reviewUnitIdsOf(req, tree).some(id => isUnitAdminOf(tree, id, userId));
   }, [isSpaceAdmin, isUnitAdmin, tree, userId]);
 
-  return { isSpaceAdmin, isUnitAdmin, canOpenQueue: isSpaceAdmin || isUnitAdmin, inScope };
+  useAgentShareVersion();
+  /** Whether this viewer may open (read) the request: reviewers, the requester, and anyone who
+   * owns or was added to the Nhân sự số (Tyler 28/10) - the last two read-only. */
+  const canView = useCallback((req: GovRequest): boolean => {
+    if (inScope(req) || req.requesterId === userId) return true;
+    return isOwnedOrShared(AGENTS.find(a => a.id === req.resourceId), userId);
+  }, [inScope, userId]);
+  // Everyone with a Nhân sự số of their own or shared with them sees "Yêu cầu duyệt".
+  const hasAgents = AGENTS.some(a => isOwnedOrShared(a, userId));
+  return { isSpaceAdmin, isUnitAdmin, canOpenQueue: isSpaceAdmin || isUnitAdmin || hasAgents, inScope, canView };
 }
 
 /** Who may take a live Nhân sự số down as an Admin ("Gỡ publish" by Admin) - any live version,

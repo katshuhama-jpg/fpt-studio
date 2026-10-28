@@ -109,7 +109,7 @@ import { PendingRequestPill } from "@/components/governance/agentRequestPill";
 import { agentModelStore, modelName } from "@/components/configure/agentModelStore";
 import type { WorkspaceTarget } from "@/components/governance/governanceStore";
 import { formatDateTime as formatGovDateTime } from "@/components/governance/governanceUi";
-import { useCanAdminUnpublish } from "@/components/governance/agentReviewScope";
+import { useCanAdminUnpublish, useAgentReviewScope } from "@/components/governance/agentReviewScope";
 import { notificationStore } from "@/components/notifications/notificationStore";
 import { currentPersona } from "@/lib/demoPersona";
 import { collabGroupStore, groupReviewers, recheckAgentGroupPublish, QUICK_SHARE_MAX, ORG_SHARE_REVIEW_MIN, type CollabGroup, type GroupReviewers } from "@/components/configure/collabGroupStore";
@@ -3291,13 +3291,17 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish, onO
         .find(r => (r.kind ?? "publish") === "publish" && r.status === "approved" && r.version === servingVersion)?.workspaceTargets,
       note: input.note,
       resourceRefs: listAgentResourceRefs(agentId),
+      selfApprove: channelSelfApprove,
     });
     refresh();
   };
+  // Tyler 28/10: kênh ngoài cấu hình trước được; chỉ khi bật (publish lên kênh) mới cần duyệt.
+  // Chưa có bản được duyệt thì yêu cầu bật kênh mang theo bản đang phục vụ để Space Admin duyệt luôn.
+  const { isSpaceAdmin: channelSelfApprove } = useAgentReviewScope();
   const requestChannelOn = (id: string) => {
-    if (!onVersion) return;
-    submitChannelRequest({ channelsAdded: [id], version: onVersion, note: `Bật kênh ${getChannelName(id)} với ${onVersion}.` });
-    toast.success(`Đã gửi yêu cầu bật ${getChannelName(id)}. Kênh hoạt động khi Space Admin duyệt.`);
+    const v = onVersion ?? servingVersion;
+    submitChannelRequest({ channelsAdded: [id], version: v, note: `Bật kênh ${getChannelName(id)} với ${v}.` });
+    toast.success(channelSelfApprove ? `Đã bật ${getChannelName(id)} với ${v}.` : `Đã gửi yêu cầu bật ${getChannelName(id)}. Kênh hoạt động khi Space Admin duyệt.`);
   };
   const requestReview = () => {
     submitChannelRequest({ version: servingVersion, purpose: "review", note: `Duyệt ${servingVersion} để chạy trên kênh ngoài.` });
@@ -3503,34 +3507,11 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish, onO
             <button onClick={() => setChannelAsk("update")} className="ml-auto btn-secondary h-8 text-sm">Cập nhật kênh ngoài lên {latestApproved}</button>
           ) : null)}
         </div>
-        {!latestApproved && (
-          <div className="mb-4 rounded-xl border border-warning/40 bg-warning/10 px-4 py-3.5 flex items-start gap-3">
-            <HugeiconsIcon icon={Alert01Icon} size={16} className="text-warning shrink-0 mt-0.5" />
-            <div className="min-w-0 flex-1">
-              {reviewPending ? (
-                <>
-                  <p className="text-sm font-semibold">Đang chờ Space Admin duyệt {channelRequest!.version}</p>
-                  <p className="text-sm text-muted-foreground mt-0.5">Duyệt xong bạn bật được kênh ngoài. Mỗi kênh bật vẫn cần Space Admin duyệt.</p>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm font-semibold">Kênh ngoài cần một bản đã được duyệt</p>
-                  <p className="text-sm text-muted-foreground mt-0.5">Nhân sự số chưa có bản nào được duyệt. Gửi {servingVersion} để Space Admin duyệt - Phạm vi Workspace giữ nguyên.</p>
-                </>
-              )}
-            </div>
-            {reviewPending ? (
-              <Link to={`/governance/requests/${channelRequest!.id}`} target="_blank" rel="noopener noreferrer" className="btn-secondary h-8 text-sm shrink-0">Xem yêu cầu</Link>
-            ) : canPublishAgent ? (
-              <button onClick={() => setChannelAsk("review")} className="btn-primary h-8 text-sm shrink-0">Gửi duyệt {servingVersion}</button>
-            ) : null}
-          </div>
-        )}
         <div className="grid grid-cols-3 gap-3">
           {CHANNEL_CATALOG.map(c => {
             const live = publishState.channels.includes(c.id);
             const pending = !live && pendingChannels.has(c.id);
-            const unavailable = (!latestApproved && !live) || c.available === false;
+            const unavailable = c.available === false;
             return (
               <div
                 key={c.id}
@@ -3544,7 +3525,7 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish, onO
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">{c.name}</p>
                   <p className={`text-xs truncate ${live ? "text-success" : pending ? "text-warning" : "text-muted-foreground"}`}>
-                    {c.available === false ? "Sắp có" : live ? `Live · ${channelVersion}` : !latestApproved ? "Cần một bản đã được duyệt" : pending ? "Chờ Space Admin duyệt" : "Chưa bật"}
+                    {c.available === false ? "Sắp có" : live ? `Live · ${channelVersion}` : pending ? "Chờ Space Admin duyệt" : "Chưa bật · Cấu hình trước được"}
                   </p>
                 </div>
                 {!unavailable && (
@@ -3558,7 +3539,12 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish, onO
                   ) : pending ? (
                     <Link to={`/governance/requests/${channelRequest!.id}`} target="_blank" rel="noopener noreferrer" className="h-7 px-2 rounded-md text-xs font-medium text-primary hover:bg-primary-soft flex items-center shrink-0">Xem yêu cầu</Link>
                   ) : (
-                    canPublishAgent && <button onClick={() => setChannelConfirm({ id: c.id, mode: "on" })} className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 shrink-0">Bật</button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {c.id === "web" && (
+                        <button onClick={() => setShowWebWidgetConfig(true)} className="h-7 px-2 rounded-md text-xs font-medium text-muted-foreground hover:bg-surface-muted">Cấu hình</button>
+                      )}
+                      {canPublishAgent && <button onClick={() => setChannelConfirm({ id: c.id, mode: "on" })} className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">Bật</button>}
+                    </div>
                   )
                 )}
               </div>
@@ -3576,11 +3562,11 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish, onO
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {channelConfirm?.mode === "on" ? `Gửi yêu cầu bật ${channelConfirm ? getChannelName(channelConfirm.id) : ""}?` : `Tắt ${channelConfirm ? getChannelName(channelConfirm.id) : ""}?`}
+              {channelConfirm?.mode === "on" ? `${channelSelfApprove ? "Bật" : "Gửi yêu cầu bật"} ${channelConfirm ? getChannelName(channelConfirm.id) : ""}?` : `Tắt ${channelConfirm ? getChannelName(channelConfirm.id) : ""}?`}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {channelConfirm?.mode === "on"
-                ? `Kênh ngoài đưa Nhân sự số ra ngoài tổ chức nên cần Space Admin duyệt trước khi hoạt động. Kênh sẽ chạy ${onVersion} - Bản đã được duyệt. Workspace giữ nguyên.`
+                ? (channelSelfApprove ? `Bạn là Space Admin nên kênh hoạt động ngay với ${onVersion ?? servingVersion}. Workspace giữ nguyên.` : `Kênh ngoài đưa Nhân sự số ra ngoài tổ chức nên cần Space Admin duyệt trước khi hoạt động. Kênh sẽ chạy ${onVersion ?? servingVersion}${onVersion ? " - Bản đã được duyệt" : " - Space Admin duyệt bản này cùng lúc"}. Workspace giữ nguyên.`)
                 : `Nhân sự số sẽ ngừng nhận tin nhắn từ kênh này ngay. Muốn bật lại sẽ cần Space Admin duyệt.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -3590,7 +3576,7 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish, onO
               onClick={() => { if (!channelConfirm) return; channelConfirm.mode === "on" ? requestChannelOn(channelConfirm.id) : turnChannelOff(channelConfirm.id); setChannelConfirm(null); }}
               className={channelConfirm?.mode === "off" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : undefined}
             >
-              {channelConfirm?.mode === "on" ? "Gửi yêu cầu" : "Tắt kênh"}
+              {channelConfirm?.mode === "on" ? (channelSelfApprove ? "Bật kênh" : "Gửi yêu cầu") : "Tắt kênh"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -4394,7 +4380,7 @@ const AUDIENCE_LABEL: Record<PublishAudience, string> = {
   quick_share: "Chia sẻ nhanh",
   group: "Nhóm cộng tác",
   org: "Công ty / phòng ban",
-  community: "Cộng đồng FPT AI Agent",
+  community: "Cộng đồng FPT AI EOS",
 };
 
 /** The muted pill next to the "Publish to" checkbox — reflects the currently live audience
@@ -4512,9 +4498,20 @@ function orgSelectionMemberIds(tree: OrgUnit, selection: Set<string>): string[] 
 
 /** Live status under the Company / department picker: how many people will see the Agent, and
  * whether that publishes now (< ORG_SHARE_REVIEW_MIN) or needs an Admin — and which one. */
-function OrgReachNotice({ count, summary, reviewers }: { count: number; summary: string; reviewers?: GroupReviewers }) {
+function OrgReachNotice({ count, summary, reviewers, selfApprove }: { count: number; summary: string; reviewers?: GroupReviewers; selfApprove?: boolean }) {
   if (count === 0) {
     return <p className="mt-2 text-xs text-muted-foreground">Chọn công ty, phòng ban hoặc tìm người theo tên, email.</p>;
+  }
+  if (selfApprove) {
+    return (
+      <div role="status" className="mt-2 flex items-start gap-2 rounded-lg border border-success/25 bg-success/5 px-3 py-2">
+        <HugeiconsIcon icon={CheckmarkCircle01Icon} size={14} className="text-success shrink-0 mt-0.5" />
+        <div className="min-w-0 text-xs leading-relaxed">
+          <p className="text-foreground"><b>Publish ngay cho {count} người</b> · Bạn là Space Admin nên không cần chờ duyệt.</p>
+          <p className="text-muted-foreground truncate" title={summary}>{summary}</p>
+        </div>
+      </div>
+    );
   }
   if (count < ORG_SHARE_REVIEW_MIN) {
     return (
@@ -4567,6 +4564,8 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
    * list) for the External Agent's connection snapshot, and keeps its own status in sync. */
   external?: ExternalAgent;
 }) {
+  // Space Admin có toàn quyền (Tyler 28/10): publish ra mọi phạm vi là lên live ngay.
+  const { isSpaceAdmin: selfApprove } = useAgentReviewScope();
   const agentTriggers = triggerStore.list(agentId);
   const triggerCount = agentTriggers.length;
   const hasTrigger = triggerCount > 0;
@@ -4889,10 +4888,12 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
         ? (keptTargets ?? [{ kind: "company", name: current.scopeSummary ?? "Phạm vi đang live" }])
         : effectiveAudience === "org"
         ? orgSelectionTargets(orgTree, orgSelection)
-        : [{ kind: "community", name: "Cộng đồng FPT AI Agent" }],
+        : [{ kind: "community", name: "Cộng đồng FPT AI EOS" }],
       ...(!keepScope && effectiveAudience === "org" && orgReviewers ? { reviewUnits: orgReviewers.units, reviewMode: orgReviewers.mode } : {}),
+      selfApprove,
     });
-    toast.success(`Đã gửi yêu cầu duyệt ${versionName}. Nhân sự số sẽ được publish khi Admin duyệt - Theo dõi trạng thái ngay trên trang này.`);
+    if (selfApprove) { syncExternalLive(); toast.success(`Đã publish ${versionName}.`); }
+    else toast.success(`Đã gửi yêu cầu duyệt ${versionName}. Nhân sự số sẽ được publish khi Admin duyệt - Theo dõi trạng thái ngay trên trang này.`);
     onPublished?.();
     onClose();
   };
@@ -4908,7 +4909,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
           <div>
             <h2 className="font-display text-lg font-semibold">Publish "{agentName}"</h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {requiresReview
+              {requiresReview && !selfApprove
                 ? `Gửi yêu cầu duyệt ${versionName} tới Admin trước khi publish.`
                 : current.placement === null
                   ? `Publish sẽ tạo ${versionName}.`
@@ -5117,7 +5118,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
                         icon={Building02Icon}
                         title="Công ty / phòng ban"
                         description="Chia sẻ cho cả công ty, phòng ban hoặc từng người - Tìm theo tên, email."
-                        review="required"
+                        review={selfApprove ? "instant" : "required"}
                         selected={audience === "org"}
                         liveNow={current.placement !== null && currentAudience === "org"}
                         liveLabel="Đang live"
@@ -5126,7 +5127,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
                         {audience === "org" && (
                           <div className="mt-2 pl-11">
                             <OrgSharePicker tree={orgTree} selection={orgSelection} onToggleUnit={toggleOrgUnit} onToggleMember={toggleOrgMember} />
-                            <OrgReachNotice count={orgReachCount} summary={orgReachSummary} reviewers={orgReviewers} />
+                            <OrgReachNotice count={orgReachCount} summary={orgReachSummary} reviewers={orgReviewers} selfApprove={selfApprove} />
                           </div>
                         )}
                       </AudienceRadioRow>
@@ -5137,9 +5138,9 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
                         second line was flagged as redundant during review. */}
                     <AudienceRadioRow
                       icon={Globe02Icon}
-                      title="Cộng đồng FPT AI Agent"
-                      description="Mọi người dùng FPT AI Agent, kể cả người ngoài công ty bạn."
-                      review="required"
+                      title="Cộng đồng FPT AI EOS"
+                      description="Mọi người dùng FPT AI EOS, kể cả người ngoài công ty bạn."
+                      review={selfApprove ? "instant" : "required"}
                       selected={audience === "community"}
                       liveNow={current.placement !== null && currentAudience === "community"}
                       liveLabel="Đang live"
@@ -5188,7 +5189,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
             }
           >
             <HugeiconsIcon icon={Rocket01Icon} size={14} />
-            {requiresReview ? `Gửi yêu cầu duyệt ${versionName}` : `Publish ${versionName}`}
+            {requiresReview && !selfApprove ? `Gửi yêu cầu duyệt ${versionName}` : `Publish ${versionName}`}
           </button>
         </div>
       </div>

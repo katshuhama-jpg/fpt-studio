@@ -43,7 +43,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const { can } = useMyPermissions();
-  const { inScope } = useAgentReviewScope();
+  const { inScope, canView, isSpaceAdmin } = useAgentReviewScope();
   const [tick, setTick] = useState(0);
   void tick;
   const refresh = () => setTick(t => t + 1);
@@ -73,7 +73,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
 
   // An Agent request outside the viewer's review scope is hidden from them (same as the queue) —
   // except for whoever sent it, who can still open it from their own Agent.
-  if (!req || (req.resourceType === "agent" && !inScope(req) && req.requesterId !== CURRENT_USER.id)) {
+  if (!req || (req.resourceType === "agent" && !canView(req))) {
     return (
       <div className="p-8 max-w-[1200px] mx-auto text-center">
         <p className="text-sm text-muted-foreground mb-3">Không tìm thấy yêu cầu này.</p>
@@ -99,7 +99,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
     closeDialog(); refresh();
   };
   const doWithdraw = () => {
-    governanceStore.withdraw(req.id, CURRENT_USER.id, CURRENT_USER.name, "Người gửi đã rút yêu cầu.");
+    governanceStore.withdraw(req.id, CURRENT_USER.id, CURRENT_USER.name, req.requesterId === CURRENT_USER.id ? "Người gửi đã rút yêu cầu." : `${CURRENT_USER.name} (Space Admin) đã rút yêu cầu.`);
     toast.success(`Đã rút yêu cầu "${req.resourceName}".`);
     closeDialog(); refresh();
   };
@@ -122,7 +122,8 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
   const canReview = req.status === "pending" && hasReviewPerm;
   const canRevoke = req.status === "approved" && hasReviewPerm;
   const readOnlyNote = !hasReviewPerm && !isRequester && (req.status === "pending" || req.status === "approved");
-  const canWithdraw = req.status === "pending" && isRequester;
+  // Space Admin có toàn quyền (28/10): rút được cả yêu cầu của người khác.
+  const canWithdraw = req.status === "pending" && (isRequester || (isAgent && isSpaceAdmin));
   const resourceType = req.resourceType as ResourceReqType;
   const drift = checkDrift(req);
   const changeState = mainChangeState(req);
@@ -338,7 +339,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
           {canWithdraw && (
             <div className="rounded-xl border border-border bg-surface p-3.5">
               <p className="text-xs text-muted-foreground leading-relaxed mb-2.5">
-                Bạn là người gửi yêu cầu này. Bạn có thể rút lại khi yêu cầu còn chờ duyệt.
+                {isRequester ? "Bạn là người gửi yêu cầu này. Bạn có thể rút lại khi yêu cầu còn chờ duyệt." : `Bạn là Space Admin nên rút được yêu cầu của ${req.requesterName}. Người gửi có thể gửi lại bất cứ lúc nào.`}
               </p>
               <button
                 onClick={() => setDialog("withdraw")}

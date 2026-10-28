@@ -166,10 +166,10 @@ export function RequestsQueuePage({ scope, title, intro, note }: { scope: Scope;
   // Agent queue: only requests this viewer may decide — Space Admin sees all, a Unit Admin only
   // those published to their unit or a unit below it (agentReviewScope.ts). Out-of-scope requests
   // are hidden, not shown read-only.
-  const { inScope, canOpenQueue } = useAgentReviewScope();
+  const { canView, canOpenQueue, isSpaceAdmin } = useAgentReviewScope();
   const scopedAll = useMemo(
-    () => all.filter(r => scope === "agent" ? inScope(r) : r.resourceType !== "agent"),
-    [all, scope, inScope],
+    () => all.filter(r => scope === "agent" ? canView(r) : r.resourceType !== "agent"),
+    [all, scope, canView],
   );
 
   const counts = useMemo(() => ({
@@ -220,7 +220,7 @@ export function RequestsQueuePage({ scope, title, intro, note }: { scope: Scope;
       <div className="flex-1 flex items-center justify-center p-10">
         <div className="max-w-sm text-center">
           <p className="text-base font-semibold text-foreground">Bạn không có quyền xem trang này</p>
-          <p className="text-sm text-muted-foreground mt-1.5">Chỉ Space Admin duyệt yêu cầu publish Nhân sự số. Cần duyệt gấp, hãy liên hệ Space Admin của bạn.</p>
+          <p className="text-sm text-muted-foreground mt-1.5">Trang này hiện yêu cầu duyệt của Nhân sự số bạn sở hữu hoặc được cấp quyền. Bạn chưa có Nhân sự số nào.</p>
           <button onClick={() => navigate("/agents")} className="mt-4 h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">Về Nhân sự số</button>
         </div>
       </div>
@@ -298,7 +298,7 @@ export function RequestsQueuePage({ scope, title, intro, note }: { scope: Scope;
           <div className="space-y-6">
             {actionList.length > 0 && (
               <div>
-                <SectionLabel count={actionList.length} tone="action">Chờ bạn duyệt</SectionLabel>
+                <SectionLabel count={actionList.length} tone="action">{scope === "agent" && !isSpaceAdmin ? "Chờ duyệt" : "Chờ bạn duyệt"}</SectionLabel>
                 <RequestTable rows={actionList} scope={scope} onOpen={openRequest} />
               </div>
             )}
