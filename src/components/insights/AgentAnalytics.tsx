@@ -235,7 +235,7 @@ function metricsFor(rows: Day[]) {
   const s = sum(rows, "sessions");
   const days = rows[0]?.hour !== undefined ? 1 : rows.length;
   const active = uniq(sum(rows, "users"), days);
-  const newU = Math.min(active, sum(rows, "newUsers"));
+  const newU = Math.round(active * (sum(rows, "newUsers") / Math.max(1, sum(rows, "users"))));
   const fb = sum(rows, "likes") + sum(rows, "dislikes");
   return {
     sessions: s, users: active, newUsers: newU, returningUsers: active - newU, dauAvg: Math.round(sum(rows, "users") / Math.max(1, days)), sessionsPerUser: Math.round((s / Math.max(1, active)) * 100) / 100, messages: sum(rows, "messages"), tokens: sum(rows, "tokens"), tokensIn: sum(rows, "tokensIn"),
