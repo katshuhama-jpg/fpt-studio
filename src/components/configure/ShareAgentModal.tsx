@@ -25,6 +25,8 @@ import {
 import { notificationStore } from "@/components/notifications/notificationStore";
 import { currentPersona } from "@/lib/demoPersona";
 
+const PERM_SHORT: Record<AgentPerm, string> = { view: "Xem", history: "Lịch sử hội thoại", build: "Build", publish: "Publish", delete: "Xóa" };
+
 /** Only the owner or a Space Admin opens the popup - people added to a Nhân sự số never grant others. */
 export function useCanShareAgent(agentId: string) {
   const access = useGroupAccess("agents");
@@ -239,6 +241,24 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
   const next = toShare(scope, people);
   const dirty = adding.length > 0 || norm(next) !== norm(saved);
 
+  /** One-line-per-change text for the confirm dialog (counts only, no per-person list). */
+  const changeText = (sh: AgentShare, openEdit: boolean): string => {
+    const label = (ps: AgentPerm[]) => (ps.length ? ALL_AGENT_PERMS.filter(p => ps.includes(p)).map(p => PERM_SHORT[p]).join(", ") : "Không có quyền");
+    const generalText = (g: AgentShare) => g.general !== "space" ? "Chỉ người được chọn"
+      : g.generalMode === "role" ? "Cả Space, theo Vai trò" : `Cả Space, ${label(g.generalPerms ?? [])}`;
+    const changed = others.filter(m => lost(m.id, sh) || gained(m.id, sh));
+    const revoked = changed.filter(m => effective(m.id, saved).length && !effective(m.id, sh).length).length;
+    const reduced = changed.filter(m => effective(m.id, sh).length && lost(m.id, sh)).length;
+    const raised = changed.filter(m => !lost(m.id, sh)).length;
+    return [
+      generalText(saved) !== generalText(sh) ? `Quyền chung cho cả Space: ${generalText(saved)} → ${generalText(sh)}.` : "",
+      revoked ? `${revoked} người sẽ mất quyền truy cập.` : "",
+      reduced ? `${reduced} người sẽ bị giảm quyền.` : "",
+      raised ? `${raised} người được thêm quyền.` : "",
+      openEdit ? "Mọi thành viên Space sẽ sửa được Nhân sự số này." : "",
+    ].filter(Boolean).join(" ");
+  };
+
   /** Saves `sh`, asking first when someone loses a permission or the whole Space gets Build. */
   const commit = (sh: AgentShare, grantedIds: string[], message: string) => {
     const raisedIds = sh.people.filter(p => !grantedIds.includes(p.userId) && p.mode !== "none" && gained(p.userId, sh)).map(p => p.userId);
@@ -246,14 +266,10 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
     const lowered = loweredIn(sh);
     const openEdit = opensEditToSpace(sh);
     if (!lowered && !openEdit) { go(); return; }
-    const parts = [
-      lowered ? `${lowered} người sẽ mất quyền hoặc bị giảm quyền trên Nhân sự số này.` : "",
-      openEdit ? "Mọi thành viên Space sẽ sửa được Nhân sự số này." : "",
-    ].filter(Boolean);
     setConfirm({
-      title: lowered ? "Giảm quyền trên Nhân sự số?" : "Cho cả Space sửa Nhân sự số?",
-      body: parts.join(" "),
-      action: lowered && openEdit ? "Lưu thay đổi" : lowered ? "Giảm quyền" : "Cho phép",
+      title: "Thay đổi quyền trên Nhân sự số?",
+      body: changeText(sh, openEdit),
+      action: "Lưu thay đổi",
       destructive: !!lowered,
       onOk: go,
     });

@@ -81,6 +81,7 @@ import { updateUser } from "@/lib/onboarding";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import BusinessProcessTree from "@/components/general/BusinessProcessTree";
 import { toast } from "sonner";
+import { testStore as testSuiteStore, useTestStore } from "@/components/testsuite/testSuiteStore";
 import EvaluationTab, { EVAL_SUBTABS, evaluationStore, type EvalSection } from "@/components/evaluation/EvaluationTab";
 import { PublishEvalCheck } from "@/components/evaluation/PublishGateSection";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -371,6 +372,10 @@ export default function AgentBuilder() {
   const viewOnly = !!existingAgent && canAccessAgent && (sharedPerms ? !sharedPerms.has("build")
     : accessLevel === null && !access.canAct("manage", isOwnedOrShared(existingAgent, access.userId)));
   // A Quy trình canvas handles view-only itself (pan, open a step to read it, nothing editable).
+  useTestStore();
+  // Creating testcases (AI / Nhập tay / Upload) takes the whole content area - no left nav.
+  const testCreating = tab === "evaluate" && section === "test-sets" && (params.get("view") === "new" || (!!params.get("item") && ["ai", "manual", "upload", "refine"].includes(params.get("view") ?? "")));
+  const testRunPending = tab === "evaluate" ? testSuiteStore.pendingCount(id ?? "new") : 0;
   const lockContent = viewOnly && tab !== "insights" && !(isProcess && tab === "build" && section === "flow");
   /** In Evaluate, a view-only person may still run tests and read results - those controls carry
    * data-viewonly-allow. */
@@ -823,8 +828,8 @@ export default function AgentBuilder() {
           className="border-r border-border overflow-hidden shrink-0 flex flex-col h-full"
           style={{
             background:"hsl(var(--card))",
-            width: (((isProcess ? false : buildMode === "manual") && tab === "build") || tab === "insights" || tab === "evaluate") ? "240px" : "0px",
-            opacity: (((isProcess ? false : buildMode === "manual") && tab === "build") || tab === "insights" || tab === "evaluate") ? 1 : 0,
+            width: (((isProcess ? false : buildMode === "manual") && tab === "build") || tab === "insights" || (tab === "evaluate" && !testCreating)) ? "240px" : "0px",
+            opacity: (((isProcess ? false : buildMode === "manual") && tab === "build") || tab === "insights" || (tab === "evaluate" && !testCreating)) ? 1 : 0,
             transition: "width 320ms cubic-bezier(0.4,0,0.2,1), opacity 280ms ease",
             minWidth: 0,
           }}
@@ -868,6 +873,9 @@ export default function AgentBuilder() {
               >
                 <HugeiconsIcon icon={EVAL_ICONS[s.id]} size={18} className="shrink-0" />
                 <span className="flex-1 text-left truncate ml-2.5">{s.label}</span>
+                {s.id === "runs" && testRunPending > 0 && (
+                  <span className="ml-1.5 min-w-5 rounded-full bg-warning/15 px-1.5 text-center text-[11px] font-semibold tabular-nums text-warning" title={`${testRunPending} lần chạy chờ xác nhận`}>{testRunPending}</span>
+                )}
               </button>
             ))}
             {tab === "insights" && INSIGHTS_SUBTABS.filter(s => s.id !== "history" || canSeeHistory).map(s => (
@@ -979,7 +987,7 @@ export default function AgentBuilder() {
               {tab === "build" && section === "triggers" && (
                 <TriggersTab agentId={id ?? "new"} onChange={() => setTriggerTick(t => t + 1)} />
               )}
-              {tab === "evaluate" && <EvaluationTab agentId={id ?? "new"} agentName={agent.name} section={section as EvalSection} onRefineWithAI={() => setParams({ tab: "build", section: "instructions", buildMode: "ai" })} />}
+              {tab === "evaluate" && <EvaluationTab agentId={id ?? "new"} agentName={agent.name} section={section as EvalSection} readOnly={viewOnly} onRefineWithAI={() => setParams({ tab: "build", section: "instructions", buildMode: "ai" })} />}
               {tab === "channels" && <DeployTab agentId={id} onViewTriggers={() => setParams({ tab: "build", section: "triggers" })} onViewVersions={() => setParams({ tab: "build", section: "versions" })} onOpenPublish={() => canPublishAgent && requestPublish()} onOpenCapabilities={() => setParams({ tab: "build", section: "advanced", atab: "capabilities" })} />}
               {tab === "insights" && ["performance", "usage", "feedback", "topics", "operations", "cost"].includes(section) && <AgentAnalytics agentId={id ?? "new"} section={section as AnalyticsSection} kind={isProcess ? "process" : kind === "automation" ? "automation" : "conversational"} published={published} onPublish={canPublishAgent ? () => requestPublish() : undefined} onOpenChannels={() => setParams({ tab: "channels" })} canEdit={!viewOnly} />}
               {tab === "insights" && section === "history" && canSeeHistory && (
