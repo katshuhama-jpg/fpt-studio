@@ -661,7 +661,7 @@ export function AnalyticsUsage({ a }: { a: A }) {
             </tr></thead>
             <tbody className="divide-y divide-border">
               {CHANNELS.map(c => {
-                const s = Math.round(a.cur.sessions * c.share); const u = Math.round(s * 0.76);
+                const s = Math.round(a.cur.sessions * c.share); const u = Math.round(a.cur.users * c.share);
                 return <tr key={c.channel}><td className="py-2">{c.channel}</td><td className="text-right tabular-nums">{vn(s)}</td><td className="text-right tabular-nums">{vn(u)}</td><td className="text-right tabular-nums">{u ? vn((s * 4.1) / u, 1) : "-"}</td></tr>;
               })}
             </tbody>
