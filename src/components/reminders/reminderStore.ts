@@ -83,15 +83,26 @@ export function resolvedChannels(agentId: string, channels: Reminder["channels"]
   return channels === "all" ? published : channels.filter(id => published.includes(id));
 }
 
-/** Channels the reminder targets that are no longer published — it gets switched off. */
+/** Channels the reminder targets that are no longer published. */
 export function missingChannels(agentId: string, r: Reminder): string[] {
   if (r.channels === "all") return [];
   const published = publishedChannelIds(agentId);
   return r.channels.filter(id => !published.includes(id));
 }
-/** True when nothing the reminder targets is live any more. */
+/**
+ * No live channel right now, so nothing can be sent. Covers both shapes:
+ * an explicit list whose channels were all unpublished, and "Tất cả kênh"
+ * on an agent that has no published channel at all.
+ */
+export const noLiveChannel = (agentId: string, r: Reminder) =>
+  (r.channels === "all" || r.channels.length > 0) && resolvedChannels(agentId, r.channels).length === 0;
+/**
+ * The reminder is switched off for good: it names specific channels and every one
+ * of them is gone, so only re-picking a channel brings it back. A "Tất cả kênh"
+ * reminder is never switched off — it is paused and resumes on the next publish.
+ */
 export const lostAllChannels = (agentId: string, r: Reminder) =>
-  r.channels !== "all" && r.channels.length > 0 && resolvedChannels(agentId, r.channels).length === 0;
+  r.channels !== "all" && noLiveChannel(agentId, r);
 
 /* ───────────── skills ───────────── */
 

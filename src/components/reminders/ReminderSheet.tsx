@@ -22,7 +22,7 @@ import { parseToken } from "@/components/configure/instructionRefs";
 import {
   MAX_STEPS, MAX_TOTAL_MIN, MAX_REPLIES_PER_WAIT, GENERATE_TIMEOUT_MS, channelLabel, emptyStep, fmtMinutes,
   findOverlaps, generateTrigger, publishedChannels, reminderStore, apiNotSubscribed, windowWarnings,
-  stepMinutes, stepSkills, totalMinutes, validateReminder,
+  missingChannels, noLiveChannel, stepMinutes, stepSkills, totalMinutes, validateReminder,
   HOUR_OPTIONS, MINUTE_OPTIONS, type OverlapHit, type Reminder, type ReminderStep,
 } from "./reminderStore";
 
@@ -43,6 +43,7 @@ const plain = (t: string) => t.replace(/\{\{ref:[^|}]*\|?([^}]*)\}\}/g, "$1").re
 
 function ChannelsSelect({ agentId, value, onChange, disabled }: { agentId: string; value: Reminder["channels"]; onChange: (v: Reminder["channels"]) => void; disabled?: boolean }) {
   const options = publishedChannels(agentId);
+  const live = new Set(options.map(c => c.id));
   const selected = value === "all" ? [] : value;
   const toggle = (id: string) => onChange(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id]);
   return (
@@ -51,7 +52,13 @@ function ChannelsSelect({ agentId, value, onChange, disabled }: { agentId: strin
         <button type="button" id="rem-channels" data-field="channels" className="flex min-h-9 w-full flex-wrap items-center gap-1.5 rounded-md border bg-transparent px-2 py-1.5 text-left text-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-60">
           {value === "all"
             ? <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs font-medium">Tất cả kênh</span>
-            : selected.length ? selected.map(id => <span key={id} className="rounded-sm bg-muted px-1.5 py-0.5 text-xs font-medium">{channelLabel(id)}</span>)
+            : selected.length ? selected.map(id => (
+                <span key={id} className={live.has(id)
+                  ? "rounded-sm bg-muted px-1.5 py-0.5 text-xs font-medium"
+                  : "rounded-sm border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-xs font-medium text-warning line-through"}>
+                  {channelLabel(id)}
+                </span>
+              ))
             : <span className="px-1 text-muted-foreground">Chọn kênh</span>}
           <Icon icon={ArrowDown01Icon} className="ml-auto shrink-0 text-muted-foreground" />
         </button>
@@ -70,6 +77,14 @@ function ChannelsSelect({ agentId, value, onChange, disabled }: { agentId: strin
               {c.name}
             </label>
           ))}
+        {/* Kênh đã chọn trước đó nhưng giờ không còn publish — vẫn cho bỏ chọn. */}
+        {selected.filter(id => !live.has(id)).map(id => (
+          <label key={id} className="flex cursor-pointer items-center gap-2.5 rounded-sm px-2 py-1.5 text-sm hover:bg-muted">
+            <Checkbox checked onCheckedChange={() => toggle(id)} />
+            <span className="text-warning line-through">{channelLabel(id)}</span>
+            <span className="ml-auto text-[11px] text-muted-foreground">không còn publish</span>
+          </label>
+        ))}
       </PopoverContent>
     </Popover>
   );
@@ -298,6 +313,9 @@ export default function ReminderSheet({ agentId, initial, mode, readOnly, onClos
   const overlaps = useMemo(() => findOverlaps(agentId, draft, others), [agentId, draft, others]);
   const windows = windowWarnings(agentId, draft);
   const apiWarn = apiNotSubscribed(agentId, draft);
+  /** Không còn kênh nào đang publish để gửi — chỉ cảnh báo, không chặn lưu. */
+  const noChannel = noLiveChannel(agentId, draft);
+  const gone = missingChannels(agentId, draft);
 
   const setStep = (s: ReminderStep) => setDraft(d => ({ ...d, steps: d.steps.map(x => (x.id === s.id ? s : x)) }));
   const addStep = () => { const s = emptyStep(); setDraft(d => ({ ...d, steps: [...d.steps, s] })); setOpenStep(s.id); };
@@ -357,6 +375,16 @@ export default function ReminderSheet({ agentId, initial, mode, readOnly, onClos
                 <div className="mt-1.5"><ChannelsSelect agentId={agentId} value={draft.channels} disabled={readOnly} onChange={v => { setDraft(d => ({ ...d, channels: v })); touch("channels"); }} /></div>
                 <Helper>Tên và kênh áp dụng cho tất cả lần nhắc của reminder này.</Helper>
                 <Err>{channelsErr}</Err>
+                {noChannel && (
+                  <Note>
+                    {draft.channels === "all"
+                      ? "Agent chưa publish kênh nào. Reminder vẫn lưu được và sẽ chạy ngay khi có kênh được publish."
+                      : "Các kênh đã chọn không còn được publish nên reminder không gửi được lời nhắc. Chọn lại kênh đang publish."}
+                  </Note>
+                )}
+                {!noChannel && gone.length > 0 && (
+                  <Note>Kênh {gone.map(channelLabel).join(", ")} không còn được publish nên sẽ không nhận lời nhắc.</Note>
+                )}
                 {apiWarn && <Note>Kênh API chưa đăng ký sự kiện tin nhắc nên sẽ không nhận được lời nhắc.</Note>}
               </div>
             </section>

@@ -6,7 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import InactiveReminderTab from "./InactiveReminderTab";
 import {
   apiNotSubscribed, emptyReminder, emptyStep, findOverlaps, fmtMinutes, hasPublishedChannels, lostAllChannels,
-  needsUpdate, publishedChannelIds, reminderStore, validateReminder, windowWarnings,
+  needsUpdate, noLiveChannel, publishedChannelIds, reminderStore, validateReminder, windowWarnings,
 } from "./reminderStore";
 
 beforeAll(() => {
@@ -36,8 +36,19 @@ describe("reminderStore", () => {
   it("switches off a reminder whose channels are all gone", () => {
     const lost = reminderStore.list("cskh").find(r => r.name === "Nhắc chọn sản phẩm")!;
     expect(lostAllChannels("cskh", lost)).toBe(true);
+    expect(noLiveChannel("cskh", lost)).toBe(true);
     const live = reminderStore.list("cskh").find(r => r.name === "Chốt đơn")!;
     expect(lostAllChannels("cskh", live)).toBe(false);
+    expect(noLiveChannel("cskh", live)).toBe(false);
+  });
+
+  it("pauses — never switches off — an all-channels reminder on an agent with no published channel", () => {
+    const all = emptyReminder(); // channels: "all"
+    // "sales-quote" is published but to no channel at all.
+    expect(noLiveChannel("sales-quote", all)).toBe(true);
+    expect(lostAllChannels("sales-quote", all)).toBe(false);
+    // With a live channel it is neither paused nor lost.
+    expect(noLiveChannel("cskh", all)).toBe(false);
   });
 
   it("validates required fields, duplicates and the 23h59 total — Trigger stays optional", () => {
@@ -112,6 +123,21 @@ describe("InactiveReminderTab", () => {
   it("blocks creating a reminder when no channel is published", () => {
     wrap(<InactiveReminderTab agentId="sales-quote" />);
     expect(screen.getByText(/Cần publish ít nhất 1 kênh/)).toBeTruthy();
+  });
+
+  it("warns once and pauses the rows when the agent has no published channel left", () => {
+    // Seed an agent that has reminders but no live channel: "all" + an explicit list.
+    reminderStore.save("sales-quote", { ...emptyReminder(), name: "Nhắc tất cả kênh", steps: [{ ...emptyStep(), instruction: "Nhắc khách" }] });
+    reminderStore.save("sales-quote", { ...emptyReminder(), name: "Nhắc kênh web", channels: ["web"], steps: [{ ...emptyStep(), instruction: "Nhắc khách" }] });
+    wrap(<InactiveReminderTab agentId="sales-quote" />);
+    expect(screen.getByText(/Agent chưa publish kênh nào nên mọi reminder đang tạm dừng/)).toBeTruthy();
+    // One banner, not one note per row.
+    expect(screen.queryByText(/Chọn lại kênh để bật lại/)).toBeNull();
+    // "Tất cả kênh" stays on but is flagged as paused; its switch can't be toggled.
+    expect(screen.getByText("Tạm dừng")).toBeTruthy();
+    expect(screen.getByLabelText("Trạng thái Nhắc tất cả kênh").hasAttribute("disabled")).toBe(true);
+    reminderStore.remove("sales-quote", reminderStore.list("sales-quote").find(r => r.name === "Nhắc tất cả kênh")!.id);
+    reminderStore.remove("sales-quote", reminderStore.list("sales-quote").find(r => r.name === "Nhắc kênh web")!.id);
   });
 
   it("read-only hides add/save", () => {

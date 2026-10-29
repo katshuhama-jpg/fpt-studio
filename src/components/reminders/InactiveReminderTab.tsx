@@ -16,7 +16,7 @@ import ReminderSheet from "./ReminderSheet";
 import ReminderPreviewDialog from "./ReminderPreviewDialog";
 import {
   MAX_REPLIES_PER_WAIT, channelLabel, emptyReminder, findOverlaps, fmtMinutes, hasPublishedChannels, lostAllChannels,
-  needsUpdate, reminderStore, stepMinutes, type Reminder,
+  missingChannels, needsUpdate, noLiveChannel, reminderStore, stepMinutes, type Reminder,
 } from "./reminderStore";
 
 type IconData = Parameters<typeof HugeiconsIcon>[0]["icon"];
@@ -50,11 +50,26 @@ function StepsSummary({ r, overlapNote }: { r: Reminder; overlapNote?: string })
   );
 }
 
-function Channels({ r }: { r: Reminder }) {
-  if (r.channels === "all") return <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs font-medium">Tất cả kênh</span>;
+function Channels({ agentId, r }: { agentId: string; r: Reminder }) {
+  if (r.channels === "all") return (
+    <span className="flex flex-wrap items-center gap-1">
+      <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs font-medium">Tất cả kênh</span>
+      {!hasPublishedChannels(agentId) && <span className="text-[11px] text-warning">chưa có kênh nào</span>}
+    </span>
+  );
+  const missing = missingChannels(agentId, r);
   return (
     <span className="flex flex-wrap gap-1">
-      {r.channels.map(id => <span key={id} className="rounded-sm bg-muted px-1.5 py-0.5 text-xs font-medium">{channelLabel(id)}</span>)}
+      {r.channels.map(id => missing.includes(id)
+        ? (
+          <Tooltip key={id}>
+            <TooltipTrigger asChild>
+              <span tabIndex={0} className="rounded-sm border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-xs font-medium text-warning line-through">{channelLabel(id)}</span>
+            </TooltipTrigger>
+            <TooltipContent>Kênh này không còn được publish.</TooltipContent>
+          </Tooltip>
+        )
+        : <span key={id} className="rounded-sm bg-muted px-1.5 py-0.5 text-xs font-medium">{channelLabel(id)}</span>)}
     </span>
   );
 }
@@ -134,6 +149,15 @@ export default function InactiveReminderTab({ agentId, readOnly }: { agentId: st
         </span>
       </p>
 
+      {!canPublish && list.length > 0 && (
+        <div role="status" className="mb-4 flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5 text-sm">
+          <Icon icon={Alert02Icon} size={16} className="mt-0.5 shrink-0 text-warning" />
+          <span>
+            Agent chưa publish kênh nào nên mọi reminder đang tạm dừng. Publish lại ít nhất 1 kênh để reminder tiếp tục chạy.
+          </span>
+        </div>
+      )}
+
       {!masterOn && list.length > 0 && (
         <div role="status" className="mb-4 flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5 text-sm">
           <Icon icon={Alert02Icon} size={16} className="mt-0.5 shrink-0 text-warning" />
@@ -162,7 +186,7 @@ export default function InactiveReminderTab({ agentId, readOnly }: { agentId: st
                   <th scope="col" className="text-left font-medium px-4 py-2.5">Tên reminder</th>
                   <th scope="col" className="text-left font-medium px-4 py-2.5">Kênh áp dụng</th>
                   <th scope="col" className="text-left font-medium px-4 py-2.5">Thời gian áp dụng</th>
-                  <th scope="col" className="text-left font-medium px-4 py-2.5 w-24">Trạng thái</th>
+                  <th scope="col" className="text-left font-medium px-4 py-2.5 w-36">Trạng thái</th>
                   <th scope="col" className="px-4 py-2.5 w-12"><span className="sr-only">Thao tác</span></th>
                 </tr>
               </thead>
@@ -170,6 +194,8 @@ export default function InactiveReminderTab({ agentId, readOnly }: { agentId: st
                 {list.map(r => {
                   const stale = needsUpdate(agentId, r);
                   const lost = lostAllChannels(agentId, r);
+                  // "Tất cả kênh" khi Agent không còn kênh nào: chỉ tạm dừng, không tự tắt.
+                  const paused = noLiveChannel(agentId, r);
                   return (
                     <tr key={r.id} className="align-middle hover:bg-muted/30">
                       <td className="px-4 py-3 tabular-nums text-muted-foreground">{fmtDate(r.createdAt)}</td>
@@ -180,18 +206,33 @@ export default function InactiveReminderTab({ agentId, readOnly }: { agentId: st
                             <Icon icon={Alert02Icon} size={12} /> Cần cập nhật
                           </span>
                         )}
-                        {lost && (
+                        {/* Khi Agent mất hết kênh thì banner phía trên đã nói, không lặp lại từng dòng. */}
+                        {lost && canPublish && (
                           <p className="mt-1 flex items-start gap-1.5 text-[11px] text-warning">
                             <Icon icon={Alert02Icon} size={12} className="mt-0.5 shrink-0" />
                             <span>Reminder đã tắt vì không còn kênh áp dụng. Chọn lại kênh để bật lại.</span>
                           </p>
                         )}
                       </td>
-                      <td className="px-4 py-3"><Channels r={r} /></td>
+                      <td className="px-4 py-3"><Channels agentId={agentId} r={r} /></td>
                       <td className="px-4 py-3"><StepsSummary r={r} overlapNote={overlapNoteFor(r)} /></td>
                       <td className="px-4 py-3">
-                        <Switch checked={r.enabled} disabled={readOnly || !masterOn || lost} aria-label={`Trạng thái ${r.name}`}
-                          onCheckedChange={v => { reminderStore.setEnabled(agentId, r.id, v); refresh(); toast.success(v ? `Đã bật "${r.name}".` : `Đã tắt "${r.name}".`); }} />
+                        <span className="flex items-center gap-2">
+                          <Switch checked={r.enabled} disabled={readOnly || !masterOn || paused} aria-label={`Trạng thái ${r.name}`}
+                            onCheckedChange={v => { reminderStore.setEnabled(agentId, r.id, v); refresh(); toast.success(v ? `Đã bật "${r.name}".` : `Đã tắt "${r.name}".`); }} />
+                          {paused && r.enabled && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span tabIndex={0} className="whitespace-nowrap rounded-sm border border-warning/50 bg-warning/10 px-1.5 py-0.5 text-[11px] font-medium text-warning">Tạm dừng</span>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                {r.channels === "all"
+                                  ? "Agent chưa publish kênh nào. Reminder sẽ chạy lại ngay khi có kênh được publish."
+                                  : "Các kênh áp dụng không còn được publish nên reminder không gửi được lời nhắc."}
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </span>
                       </td>
                       <td className="px-2 py-3 text-right">
                         <DropdownMenu>
