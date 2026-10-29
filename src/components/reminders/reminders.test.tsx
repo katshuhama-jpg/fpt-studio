@@ -94,9 +94,9 @@ describe("reminderStore", () => {
 });
 
 describe("InactiveReminderTab", () => {
-  it("shows the master switch, usage note, created-at column and the needs-update badge", () => {
+  it("shows the usage note, created-at column and the needs-update badge — and no feature-level switch", () => {
     wrap(<InactiveReminderTab agentId="cskh" />);
-    expect(screen.getByLabelText("Bật Inactive reminder")).toBeTruthy();
+    expect(screen.queryByLabelText("Bật Inactive reminder")).toBeNull();
     expect(screen.getByText(/tính vào usage/)).toBeTruthy();
     expect(screen.getByText("Thời điểm tạo")).toBeTruthy();
     expect(screen.getByText("Cần cập nhật")).toBeTruthy();

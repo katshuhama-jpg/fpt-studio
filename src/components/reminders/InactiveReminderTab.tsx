@@ -91,14 +91,12 @@ export default function InactiveReminderTab({ agentId, readOnly }: { agentId: st
   }, [agentId]);
 
   const list = reminderStore.list(agentId);
-  const settings = reminderStore.settings(agentId);
-  const masterOn = settings.enabled;
   const canPublish = hasPublishedChannels(agentId);
 
   const openCreate = () => setSheet({ mode: "create", reminder: emptyReminder() });
 
   const overlapNoteFor = (r: Reminder) => {
-    if (!r.enabled || !masterOn) return undefined;
+    if (!r.enabled) return undefined;
     const hits = findOverlaps(agentId, r, list);
     if (!hits.length) return undefined;
     const h = hits[0];
@@ -119,19 +117,6 @@ export default function InactiveReminderTab({ agentId, readOnly }: { agentId: st
           <p className="text-sm text-muted-foreground mt-0.5">Tự động nhắc người dùng khi họ ngừng phản hồi trong lúc Agent đang chờ.</p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
-          <label className="flex items-center gap-2 text-sm">
-            <Switch
-              checked={masterOn}
-              disabled={readOnly}
-              aria-label="Bật Inactive reminder"
-              onCheckedChange={v => {
-                reminderStore.setSettings(agentId, { enabled: v });
-                refresh();
-                toast.success(v ? "Đã bật Inactive reminder." : "Đã tắt Inactive reminder.");
-              }}
-            />
-            <span className="text-muted-foreground">{masterOn ? "Đang bật" : "Đang tắt"}</span>
-          </label>
           {!readOnly && (canPublish ? addButton : (
             <Tooltip>
               <TooltipTrigger asChild><span tabIndex={0}>{addButton}</span></TooltipTrigger>
@@ -158,15 +143,8 @@ export default function InactiveReminderTab({ agentId, readOnly }: { agentId: st
         </div>
       )}
 
-      {!masterOn && list.length > 0 && (
-        <div role="status" className="mb-4 flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5 text-sm">
-          <Icon icon={Alert02Icon} size={16} className="mt-0.5 shrink-0 text-warning" />
-          <span>Inactive reminder đang tắt. Mọi lời nhắc đang chờ đã dừng.</span>
-        </div>
-      )}
-
       {/* List */}
-      <div className={!masterOn && list.length > 0 ? "opacity-60" : ""}>
+      <div>
         {list.length === 0 ? (
           <div className="flex flex-col items-center rounded-lg border border-dashed px-6 py-12 text-center">
             <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground mb-3"><Icon icon={Notification01Icon} size={20} /></div>
@@ -218,7 +196,7 @@ export default function InactiveReminderTab({ agentId, readOnly }: { agentId: st
                       <td className="px-4 py-3"><StepsSummary r={r} overlapNote={overlapNoteFor(r)} /></td>
                       <td className="px-4 py-3">
                         <span className="flex items-center gap-2">
-                          <Switch checked={r.enabled} disabled={readOnly || !masterOn || paused} aria-label={`Trạng thái ${r.name}`}
+                          <Switch checked={r.enabled} disabled={readOnly || paused} aria-label={`Trạng thái ${r.name}`}
                             onCheckedChange={v => { reminderStore.setEnabled(agentId, r.id, v); refresh(); toast.success(v ? `Đã bật "${r.name}".` : `Đã tắt "${r.name}".`); }} />
                           {paused && r.enabled && (
                             <Tooltip>

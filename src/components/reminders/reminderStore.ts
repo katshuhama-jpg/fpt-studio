@@ -1,6 +1,6 @@
 // "Inactive reminder" — nudges a user who stopped replying while the Nhân sự số is waiting on them.
-// Per agent: a master on/off switch + a list of reminders, each with up to 3 steps.
-// sessionStorage-backed, no backend.
+// Per agent: a list of reminders, each with up to 3 steps. A reminder is on as soon as it is
+// created; there is no feature-level on/off switch. sessionStorage-backed, no backend.
 import { loadMap, saveMap } from "@/lib/sessionPersist";
 import { CHANNEL_CATALOG } from "@/components/configure/channelCatalog";
 import { agentPublishStore } from "@/components/configure/agentPublishStore";
@@ -26,10 +26,6 @@ export interface Reminder {
   enabled: boolean;
   createdAt: number;
   updatedAt: number;
-}
-export interface ReminderSettings {
-  /** Master switch — off stops every pending nudge for this agent. */
-  enabled: boolean;
 }
 
 export const MAX_STEPS = 3;
@@ -179,12 +175,9 @@ export const apiNotSubscribed = (agentId: string, r: Reminder) =>
 /* ───────────── persistence ───────────── */
 
 const LIST_KEY = "inactive_reminders_v2";
-const SETTINGS_KEY = "inactive_reminder_settings_v2";
 const SEEDED_KEY = "inactive_reminders_seeded_v2";
 const lists = loadMap<string, Reminder[]>(LIST_KEY);
-const settings = loadMap<string, ReminderSettings>(SETTINGS_KEY);
 const persist = () => saveMap(LIST_KEY, lists);
-const DEFAULT_SETTINGS: ReminderSettings = { enabled: true };
 const DAY = 86_400_000;
 
 /** Demo data for two agents; every other agent starts empty (shows the empty state). */
@@ -242,8 +235,6 @@ function migrate(r: Reminder): Reminder {
 
 export const reminderStore = {
   list(agentId: string): Reminder[] { seed(agentId); return (lists.get(agentId) ?? []).map(migrate); },
-  settings(agentId: string): ReminderSettings { return settings.get(agentId) ?? DEFAULT_SETTINGS; },
-  setSettings(agentId: string, s: ReminderSettings) { settings.set(agentId, s); saveMap(SETTINGS_KEY, settings); },
   save(agentId: string, r: Reminder) {
     const cur = this.list(agentId);
     const exists = cur.some(x => x.id === r.id);
