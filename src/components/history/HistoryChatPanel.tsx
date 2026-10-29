@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { X, Copy, Check, Waypoints, ClipboardList, ThumbsUp, ThumbsDown, ChevronUp, ChevronDown } from "lucide-react";
+import { X, Copy, Check, Waypoints, ClipboardList, ThumbsUp, ThumbsDown, ChevronUp, ChevronDown, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { historyStore, type ConversationMessage } from "./historyStore";
 import { buildMessageAudit } from "./traceStore";
@@ -146,6 +146,18 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
                 Customer messages have nothing to audit, same as the real product. */}
             <div className="flex-1 overflow-y-auto p-3 space-y-3">
               {record.messages.map(m => (
+                m.reminder?.failed || m.reminder?.stopped ? (
+                  // Builder-only timeline log — the end user saw nothing for these.
+                  <div key={m.id} id={`hist-msg-${m.id}`} className="flex items-start gap-1.5 px-2 py-1 text-[11px] leading-relaxed text-muted-foreground">
+                    <AlertTriangle size={12} className="mt-0.5 shrink-0 text-warning" aria-hidden />
+                    <span>
+                      {m.reminder.stopped
+                        ? "Lượt chờ đã dừng do 3 lần nhắc liên tiếp bị lỗi."
+                        : `Lần nhắc ${m.reminder.step} của “${m.reminder.name}” không gửi được sau 3 lần thử – ${m.reminder.failed}.`}
+                      <span className="ml-1 opacity-70">{format(new Date(m.at), "HH:mm")}</span>
+                    </span>
+                  </div>
+                ) : (
                 <div
                   key={m.id}
                   id={`hist-msg-${m.id}`}
@@ -157,6 +169,11 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
                     <div className="w-6 h-6 rounded-full bg-primary-soft flex items-center justify-center text-sm mr-2 shrink-0 mt-0.5">🏦</div>
                   )}
                   <div className="max-w-[82%]">
+                    {m.reminder && (
+                      <span className="mb-1 inline-flex items-center gap-1 rounded-sm bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                        Reminder · {m.reminder.name} · Lần {m.reminder.step}
+                      </span>
+                    )}
                     <div
                       className={`text-xs leading-relaxed rounded-2xl px-3 py-2 ${
                         m.role === "customer"
@@ -212,6 +229,7 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
                     )}
                   </div>
                 </div>
+                )
               ))}
             </div>
 

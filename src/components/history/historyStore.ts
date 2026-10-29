@@ -128,6 +128,21 @@ export interface ConversationMessage {
   /** Per-turn latency override for demo data — same idea as ConversationRecord.demoSlowMs, but
    * for just the turn this message belongs to instead of every turn in the conversation. */
   demoLatencyMs?: number;
+  /**
+   * Set when this entry belongs to an Inactive reminder nudge rather than a normal reply.
+   * A delivered nudge is an ordinary agent bubble carrying a small "Reminder · {name} · Lần n"
+   * badge; `failed` / `stopped` instead render a Builder-only log line in the timeline, since
+   * the end user never saw anything in those two cases.
+   */
+  reminder?: {
+    name: string;
+    /** 1-based step within the reminder. */
+    step: number;
+    /** Why the nudge never reached the user. */
+    failed?: string;
+    /** The whole wait was abandoned after 3 failed nudges in a row. */
+    stopped?: boolean;
+  };
 }
 
 export interface ConversationRecord {
@@ -213,6 +228,7 @@ function buildMessages(
     hitl?: ConversationMessage["hitl"];
     failure?: ConversationMessage["failure"];
     demoLatencyMs?: number;
+    reminder?: ConversationMessage["reminder"];
   }[],
 ): ConversationMessage[] {
   const startAt = endedAt - turns.length * 2 * MIN;
@@ -227,6 +243,7 @@ function buildMessages(
     hitl: t.hitl,
     failure: t.failure,
     demoLatencyMs: t.demoLatencyMs,
+    reminder: t.reminder,
     toolCalls: t.toolCalls?.map((tc, j) => ({ ...tc, callId: `call_${pseudoUlid(`${seedKey}-tool${i + 1}-${j + 1}`).slice(0, 18)}` })),
   }));
 }
@@ -286,6 +303,41 @@ function seedAgent(agentId: string) {
 /** Banking ABC — Customer Care: card locks, account balances, loan schedules, wire transfers. */
 function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
   return [
+    {
+      // Inactive reminder in the wild: one nudge delivered, the next two failed on a skill
+      // timeout, so the wait was abandoned. The two failures are Builder-only log lines.
+      id: pseudoUlid("CV-1061"),
+      channel: "web",
+      username: "Tran Quoc Dat",
+      email: "tran.quoc.dat@gmail.com",
+      startedAt: now - 2 * DAY - 70 * MIN,
+      endedAt: now - 2 * DAY,
+      error: "Skill tra_gia timeout sau 3 lần thử",
+      messages: buildMessages("CV-1061", now - 2 * DAY, [
+        { role: "customer", content: "Bên mình còn gói cước doanh nghiệp nào rẻ hơn không?" },
+        { role: "agent", content: "Dạ còn ạ. Anh/chị để lại số điện thoại để bên em gọi lại tư vấn chi tiết nhé?" },
+        {
+          role: "agent",
+          content: "Anh/chị ơi, mình để lại số điện thoại giúp em nhé, ưu đãi gói doanh nghiệp chỉ giữ trong hôm nay ạ.",
+          reminder: { name: "Nhắc xin số điện thoại", step: 1 },
+        },
+        {
+          role: "agent",
+          content: "",
+          reminder: { name: "Chốt đơn", step: 1, failed: "Skill @tra_gia timeout" },
+        },
+        {
+          role: "agent",
+          content: "",
+          reminder: { name: "Chốt đơn", step: 2, failed: "Skill @tra_gia timeout" },
+        },
+        {
+          role: "agent",
+          content: "",
+          reminder: { name: "Chốt đơn", step: 3, failed: "Skill @tra_gia timeout", stopped: true },
+        },
+      ]),
+    },
     {
       id: pseudoUlid("CV-1042"),
       channel: "messenger",
