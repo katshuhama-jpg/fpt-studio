@@ -412,7 +412,7 @@ export default function AgentBuilder() {
           <button onClick={() => navigate(isProcess ? "/processes" : "/agents")} className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
             <HugeiconsIcon icon={ChevronLeftIcon} size={16} />
           </button>
-          <Link to={isProcess ? "/processes" : "/agents"} className="text-sm text-muted-foreground hover:text-foreground transition-base">{isProcess ? "Quy trình" : "Nhân sự số"}</Link>
+          <Link to={isProcess ? "/processes" : "/agents"} className="text-sm text-muted-foreground hover:text-foreground transition-base">{isProcess ? "Nhân sự số Quy trình" : "Nhân sự số Năng suất"}</Link>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
           <p className="text-sm text-muted-foreground max-w-md mb-4">Bạn không có quyền trên Nhân sự số này. Liên hệ chủ sở hữu Nhân sự số để được cấp quyền.</p>
@@ -431,7 +431,7 @@ export default function AgentBuilder() {
         <button onClick={() => navigate(isProcess ? "/processes" : "/agents")} className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
           <HugeiconsIcon icon={ChevronLeftIcon} size={16} />
         </button>
-        <Link to={isProcess ? "/processes" : "/agents"} className={`hidden ${isProcess ? "2xl:inline" : "xl:inline"} text-xs text-muted-foreground hover:text-foreground transition-base shrink-0`}>{isProcess ? "Quy trình" : "Nhân sự số"}</Link>
+        <Link to={isProcess ? "/processes" : "/agents"} className={`hidden ${isProcess ? "2xl:inline" : "xl:inline"} text-xs text-muted-foreground hover:text-foreground transition-base shrink-0`}>{isProcess ? "Nhân sự số Quy trình" : "Nhân sự số Năng suất"}</Link>
         <span className={`hidden ${isProcess ? "2xl:inline" : "xl:inline"} text-xs text-muted-foreground/50 shrink-0`}>/</span>
         {/* Name keeps a minimum width so it never gets squeezed out by the tabs/status on narrow screens (G12). */}
         <div className={`flex items-center gap-2 ${isProcess ? "min-w-[180px]" : "min-w-[140px]"} max-w-[260px] shrink`}>

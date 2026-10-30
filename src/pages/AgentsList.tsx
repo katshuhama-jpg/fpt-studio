@@ -691,7 +691,7 @@ export default function AgentsList({ mode = "agents" }: { mode?: "agents" | "pro
       {/* Page header - như production: tiêu đề bên trái, nút Tạo nhân sự số bên phải */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-xl font-semibold tracking-tight mb-1">{isProcPage ? "Nhân sự số Quy trình" : "Nhân sự số"}</h1>
+          <h1 className="font-display text-xl font-semibold tracking-tight mb-1">{isProcPage ? "Nhân sự số Quy trình" : "Nhân sự số Năng suất"}</h1>
           <p className="text-sm text-muted-foreground">
             {isProcPage ? "Dựng quy trình theo node: giao bước cho Nhân sự số, người duyệt và hệ thống, rẽ nhánh theo luật. Mỗi lần chạy là một hồ sơ." : "Quản lý mọi nhân sự số trong workspace - dựng, kiểm thử, triển khai và giám sát."}
           </p>
