@@ -20,6 +20,7 @@ import { agentOnlyForIn, saveSharingInAgent } from "@/components/governance/spac
 import DeleteTriggerDialog from "@/components/configure/DeleteTriggerDialog";
 import HistoryTab from "@/components/history/HistoryTab";
 import AgentAnalytics, { type AnalyticsSection } from "@/components/insights/AgentAnalytics";
+import ProcessCasesTab from "@/components/process/ProcessCasesTab";
 import { AgentVersionsPanel } from "@/components/governance/agentVersionsPanel";
 import { AgentStatusCluster } from "@/components/governance/agentStatusCluster";
 import HistoryChatPanel from "@/components/history/HistoryChatPanel";
@@ -991,7 +992,9 @@ export default function AgentBuilder() {
               {tab === "channels" && <DeployTab agentId={id} onViewTriggers={() => setParams({ tab: "build", section: "triggers" })} onViewVersions={() => setParams({ tab: "build", section: "versions" })} onOpenPublish={() => canPublishAgent && requestPublish()} onOpenCapabilities={() => setParams({ tab: "build", section: "advanced", atab: "capabilities" })} />}
               {tab === "insights" && ["performance", "usage", "feedback", "topics", "operations", "cost"].includes(section) && <AgentAnalytics agentId={id ?? "new"} section={section as AnalyticsSection} kind={isProcess ? "process" : kind === "automation" ? "automation" : "conversational"} published={published} onPublish={canPublishAgent ? () => requestPublish() : undefined} onOpenChannels={() => setParams({ tab: "channels" })} canEdit={!viewOnly} />}
               {tab === "insights" && section === "history" && canSeeHistory && (
-                kind === "automation"
+                isProcess
+                  ? <div className="p-8"><ProcessCasesTab agentId={id ?? "new"} readOnly={viewOnly} /></div>
+                  : kind === "automation"
                   ? <div className="p-8"><TriggerRunsTab agentId={id ?? "new"} /></div>
                   : <HistoryTab agentId={id ?? "new"} />
               )}
@@ -999,7 +1002,7 @@ export default function AgentBuilder() {
           </div>
 
           {tab === "build" && section === "instructions" && !previewCollapsed && <PreviewPanel agentId={id ?? "new"} view={previewView} onViewChange={setPreviewView} onConnectionsChange={() => setConnectionTick(t => t + 1)} onClose={() => setPreviewCollapsed(true)} />}
-          {tab === "insights" && section === "history" && canSeeHistory && kind === "conversational" && <HistoryChatPanel agentId={id ?? "new"} />}
+          {tab === "insights" && section === "history" && canSeeHistory && kind === "conversational" && !isProcess && <HistoryChatPanel agentId={id ?? "new"} />}
         </div>
       </div>
     </div>

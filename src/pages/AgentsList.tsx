@@ -37,9 +37,9 @@ const kindFilters = ["All", "Nhân sự số", "Quy trình", "Nhân sự số t�
 
 /** Gợi ý mô tả khi tạo Nhân sự số Quy trình (AI dựng sẵn các bước). */
 const PROCESS_SUGGESTIONS = [
-  { label: "Đối chiếu hoá đơn với PO", prompt: "Khi hệ thống kế toán gửi hoá đơn VAT qua HTTP, đọc số tiền, lấy PO tương ứng từ ERP để so khớp. Khớp thì ghi nhận công nợ, lệch thì chuyển kế toán xem lại." },
-  { label: "Rule thẩm định MB Life", prompt: "Nhân sự số gửi hồ sơ bồi thường đã đọc OCR và số hợp đồng MB Life. Lấy Policy, lịch sử bồi thường và bảng tham chiếu cùng lúc, chạy rule qua API rule engine, trả PASS, WARN, NOT_EVALUATED cho Nhân sự số." },
-  { label: "Tiếp nhận hồ sơ vay", prompt: "Nhận hồ sơ vay gồm CCCD và sao kê lương. Đọc CCCD và sao kê, chấm điều kiện tín dụng trên LOS. Đạt thì tạo hồ sơ, cần thẩm định thì chuyển chuyên viên." },
+  { label: "Đề nghị mua sắm", prompt: "Người đề nghị gõ /Đề nghị mua sắm trong chat. Kiểm ngân sách, thiếu thì người đề nghị sửa lại. Nhân sự số lấy và so sánh báo giá 3 nhà cung cấp. Trưởng phòng duyệt, trên 50 triệu thì Kế toán trưởng và Giám đốc khối cùng duyệt. Tạo PO, Ban Mua sắm xác nhận rồi gửi nhà cung cấp, chờ phiếu nhập kho và chứng từ, đối chiếu rồi báo kế toán thanh toán." },
+  { label: "Đối chiếu hoá đơn với PO", prompt: "Kế toán gõ /Đối chiếu hoá đơn và đính kèm hoá đơn VAT. Đọc số tiền, lấy PO tương ứng từ ERP để so khớp. Khớp thì ghi nhận công nợ, lệch thì chuyển kế toán xem lại." },
+  { label: "Rule thẩm định MB Life", prompt: "Thẩm định viên gõ /Thẩm định bồi thường với hồ sơ đã đọc OCR và số hợp đồng MB Life. Lấy Policy, lịch sử bồi thường và bảng tham chiếu cùng lúc, chạy rule chứng từ, hiệu lực và thẩm định không dùng LLM. Có WARN thì thẩm định viên xem lại." },
 ] as const;
 
 
@@ -293,7 +293,7 @@ function ConversationalCard({ a }: { a: typeof agents[number] }) {
  * updated line) so a Nhân sự số Quy trình reads as the same kind of thing in the list. */
 function ProcessCard({ p }: { p: typeof agents[number] }) {
   const g = processStore.getGraph(p.id);
-  const steps = g ? g.nodes.filter((n: any) => n.type !== "note").length : ({ invoice: 11, "mbl-rules": 12 } as Record<string, number>)[p.processId ?? ""] ?? 1;
+  const steps = g ? g.nodes.filter((n: any) => n.type !== "note").length : ({ pr: 27, invoice: 10, "mbl-rules": 12 } as Record<string, number>)[p.processId ?? ""] ?? 1;
   return (
     <Link
       to={`/agents/${p.id}`}
@@ -438,9 +438,9 @@ const BLANK_TIPS = {
     { icon: Rocket01Icon, title: "Kiểm thử và triển khai", desc: "Chạy thử nhân sự số trong môi trường an toàn, tinh chỉnh câu trả lời rồi đưa vào phục vụ cả nhóm." },
   ],
   process: [
-    { icon: BulbIcon, title: "Mô tả các bước", desc: "Nêu thứ tự việc cần làm, điều kiện rẽ nhánh và ai duyệt - AI dựng sẵn các bước trên canvas." },
-    { icon: Book02Icon, title: "Kết nối hệ thống", desc: "Gọi hệ thống nội bộ qua Tool đã kết nối trong Space: Connector, API Tool hoặc MCP." },
-    { icon: Rocket01Icon, title: "Chạy thử và publish", desc: "Chạy thử với dữ liệu mẫu, xem đường đi qua từng bước rồi publish để Nhân sự số gọi như một tool." },
+    { icon: BulbIcon, title: "Mô tả các bước", desc: "Nêu thứ tự việc, ai duyệt, bước nào giao cho Nhân sự số Năng suất - AI dựng sẵn các bước trên canvas." },
+    { icon: Book02Icon, title: "Kết nối hệ thống", desc: "Gọi hệ thống nội bộ bằng node Connector: Connector, API Tool hoặc MCP đã kết nối trong Space." },
+    { icon: Rocket01Icon, title: "Chạy thử và publish", desc: "Chạy thử với dữ liệu mẫu, xem đường đi qua từng bước rồi publish để người dùng gõ / mở hồ sơ trong Workspace." },
   ],
 } as const;
 
@@ -478,12 +478,12 @@ function CreateBox({ kind, setKind, prompt, setPrompt, onBuild, onTemplates, can
         ))}
       </div>
       <p className="text-xs text-muted-foreground mt-2 px-0.5">
-        {isProc ? "Dựng các bước chạy cố định trên canvas: duyệt, gọi hệ thống, rẽ nhánh theo dữ liệu." : "Dựng bằng prompt, hỗ trợ việc hằng ngày."}
+        {isProc ? "Dựng quy trình theo node: giao bước cho Nhân sự số, người duyệt, hệ thống, rẽ nhánh theo luật." : "Dựng bằng prompt, hỗ trợ việc hằng ngày."}
       </p>
       <textarea
         aria-label="Mô tả nhân sự số"
         className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none leading-relaxed min-h-[64px] mt-1 px-0.5"
-        placeholder={isProc ? "VD: Nhận hoá đơn qua HTTP, đọc số tiền, so với PO trên ERP, lệch thì chuyển kế toán xem lại." : "Trợ lý hỗ trợ khách hàng ngân hàng, trả lời thắc mắc về thẻ tín dụng, giọng trang trọng, tiếng Việt."}
+        placeholder={isProc ? "VD: Người đề nghị gõ /Đề nghị mua sắm. Trưởng phòng duyệt, trên 50 triệu thì Giám đốc khối cùng duyệt, rồi tạo PO." : "Trợ lý hỗ trợ khách hàng ngân hàng, trả lời thắc mắc về thẻ tín dụng, giọng trang trọng, tiếng Việt."}
         rows={3}
         value={prompt}
         onChange={e => setPrompt(e.target.value)}

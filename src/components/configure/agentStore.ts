@@ -303,15 +303,22 @@ Mỗi chứng từ bắt buộc trả trạng thái Received / Not received. Kh�
 IP và IP-Sur không bắt buộc bảng kê: ghi chú để bước dự toán lấy số ngày từ giấy ra viện.`,
   },
   {
+    id: "qt-procure", name: "Đề nghị mua sắm", emoji: "🔀", bg: "bg-primary-soft", accent: "bg-gradient-brand",
+    status: "Draft", desc: "Kiểm ngân sách, Nhân sự số lấy báo giá NCC, duyệt theo phân cấp, tạo và gửi PO, đối chiếu chứng từ (PR-0142).",
+    ownerId: "m-fsoft-ceo", kind: "process", processId: "pr",
+    model: "Quy trình", convs: 0, success: 0, channels: ["Workspace"], updated: "Just now",
+    instructions: `Nhân sự số Quy trình - mở để xem các bước.`,
+  },
+  {
     id: "qt-invoice", name: "Đối chiếu hoá đơn với PO", emoji: "🔀", bg: "bg-primary-soft", accent: "bg-gradient-brand",
-    status: "Draft", desc: "Nhận hoá đơn qua HTTP, so khớp với PO trên ERP, lệch thì chuyển kế toán xem lại.",
+    status: "Draft", desc: "Kế toán gõ /Đối chiếu hoá đơn, AI đọc hoá đơn, so khớp với PO trên ERP, lệch thì chuyển kế toán xem lại.",
     ownerId: "m-fsoft-ceo", kind: "process", processId: "invoice",
     model: "Quy trình", convs: 0, success: 0, channels: ["Workspace"], updated: "1h ago",
     instructions: `Nhân sự số Quy trình - mở để xem các bước.`,
   },
   {
     id: "claim-rules-process", name: "Rule thẩm định MB Life", emoji: "🔀", bg: "bg-primary-soft", accent: "bg-gradient-brand",
-    status: "Published", desc: "Nhân sự số Quy trình: tra Policy, lịch sử bồi thường, bảng tham chiếu cùng lúc, chạy rule D/E/A qua API rule engine, trả PASS / WARN / NOT_EVALUATED cho Nhân sự số gọi nó.",
+    status: "Published", desc: "Tra Policy, lịch sử bồi thường, bảng tham chiếu song song, chạy rule D/E/A bằng Code, có WARN thì thẩm định viên xem lại.",
     ownerId: "m-fsoft-ceo", kind: "process", processId: "mbl-rules",
     model: "Quy trình", convs: 0, success: 0, channels: ["Workspace"], updated: "Just now",
     outputs: [
