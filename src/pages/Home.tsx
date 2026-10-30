@@ -56,7 +56,8 @@ const recent = [
   { id: "hr",    name: "HR Agent",          emoji: "🤝", bg: "bg-blue-50",   status: "Active",  desc: "Answers employee questions about policies, benefits, and leave on Slack &…", editor: "Nguyen Minh", edited: "12 minutes ago" },
   { id: "ba",    name: "BA Agent",          emoji: "📋", bg: "bg-purple-50", status: "Active",  desc: "Helps Business Analysts draft user stories, BRDs, and analyze requirements from…", editor: "Pham Thu Ha", edited: "5 minutes ago" },
   { id: "onboarding", name: "Onboarding Agent", emoji: "🎓", bg: "bg-green-50", status: "Draft", desc: "Guides new employees through a 30/60/90-day roadmap with documents…", editor: "Tran Van Khoa", edited: "45 minutes ago" },
-];
+  { id: "qt-procure", kind: "process", name: "Đề nghị mua sắm", emoji: "🔀", bg: "bg-primary-soft", status: "Draft", desc: "Kiểm ngân sách, Nhân sự số lấy báo giá NCC, duyệt theo phân cấp, tạo và gửi PO (PR-0142).", editor: "Tran Nam", edited: "Vừa xong" },
+] as { id: string; kind?: "process"; name: string; emoji: string; bg: string; status: string; desc: string; editor: string; edited: string }[];
 
 const getStarted = [
   { label: "Video guide", title: "Tạo Nhân sự số đầu tiên trong 5 phút",      kind: "video", bg: "bg-blue-500",   href: "https://www.youtube.com/results?search_query=fpt+ai+agent+studio+tutorial" },
@@ -142,6 +143,7 @@ function RecentAgentCard({ a }: { a: typeof recent[number] }) {
           <span className={`chip ${a.status === "Active" ? "chip-success" : ""} w-fit`}>
             <span className="w-1.5 h-1.5 rounded-full bg-current" /> {a.status === "Active" ? "Live" : a.status}
           </span>
+          {a.kind === "process" && <span className="ml-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-primary-soft text-primary">Quy trình</span>}
         </div>
       </div>
       <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 flex-1 mb-4">{a.desc}</p>
@@ -282,9 +284,12 @@ function CreateAgentModal({ onClose }: { onClose: () => void }) {
   const canCreateAgent = can("agents.create");
   const [prompt, setPrompt] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
+  const [kind, setKind] = useState<"productivity" | "process">("productivity");
+  const isProc = kind === "process";
 
   const handleBuild = () => {
     if (!prompt.trim()) return;
+    if (isProc) { navigate(`/process/new?${new URLSearchParams({ prompt: prompt.trim() }).toString()}`); onClose(); return; }
     const params = new URLSearchParams();
     params.set("tab", "build");
     params.set("section", "instructions");
@@ -296,7 +301,7 @@ function CreateAgentModal({ onClose }: { onClose: () => void }) {
   const handleBlank = () => {
     if (!canCreateAgent) return;
     onClose();
-    navigate("/agents/new?tab=build&section=instructions");
+    navigate(isProc ? "/process/new" : "/agents/new?tab=build&section=instructions");
   };
 
   if (showTemplates) return <TemplateModal onClose={onClose} />;
@@ -306,14 +311,27 @@ function CreateAgentModal({ onClose }: { onClose: () => void }) {
       <DialogContent className="max-w-lg">
         <DialogHeader className="text-left">
           <DialogTitle>Bắt đầu tạo Nhân sự số ngay hôm nay</DialogTitle>
-          <DialogDescription>Describe what you need and we'll build it for you</DialogDescription>
+          <DialogDescription>Mô tả việc bạn cần, AI dựng bản nháp để bạn chỉnh tiếp.</DialogDescription>
         </DialogHeader>
+
+        <div role="radiogroup" aria-label="Loại Nhân sự số" className="grid grid-cols-2 gap-2">
+          {([
+            { id: "productivity", label: "Nhân sự số Năng suất", desc: "Giao việc bằng lời, Nhân sự số tự làm tới khi xong." },
+            { id: "process", label: "Nhân sự số Quy trình", desc: "Đi đúng các bước đã định: người duyệt, hệ thống, rẽ nhánh." },
+          ] as const).map(k => (
+            <button key={k.id} type="button" role="radio" aria-checked={kind === k.id} onClick={() => { setKind(k.id); setPrompt(""); }}
+              className={`text-left rounded-lg border p-3 transition-base ${kind === k.id ? "border-primary bg-primary-soft/60" : "border-border hover:bg-surface-muted"}`}>
+              <span className={`block text-sm font-semibold ${kind === k.id ? "text-primary" : "text-foreground"}`}>{k.label}</span>
+              <span className="block text-xs text-muted-foreground mt-1 leading-relaxed">{k.desc}</span>
+            </button>
+          ))}
+        </div>
 
         <div className="rounded-[8px] border border-border bg-surface p-3 transition-base focus-within:border-ring">
           <textarea
             autoFocus
             className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none leading-relaxed min-h-[80px] border-0 p-0"
-            placeholder="Ví dụ: Nhân sự số chăm sóc khách hàng ngân hàng 24/7, khóa thẻ, tra lãi suất vay và đặt lịch tư vấn…"
+            placeholder={isProc ? "Ví dụ: Người đề nghị gõ /Đề nghị mua sắm. Trưởng phòng duyệt, trên 50 triệu thì Giám đốc khối cùng duyệt, rồi tạo PO." : "Ví dụ: Nhân sự số chăm sóc khách hàng ngân hàng 24/7, khóa thẻ, tra lãi suất vay và đặt lịch tư vấn…"}
             rows={3}
             value={prompt}
             onChange={e => setPrompt(e.target.value)}
@@ -325,9 +343,9 @@ function CreateAgentModal({ onClose }: { onClose: () => void }) {
               <button type="button" className="w-8 h-8 rounded-[8px] hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base" title="Mention knowledge"><AtSign size={16} /></button>
             </div>
             <div className="flex items-center gap-3">
-              <button type="button" onClick={() => setShowTemplates(true)} className="text-sm text-muted-foreground hover:text-foreground transition-base">Use a template</button>
+              {!isProc && <button type="button" onClick={() => setShowTemplates(true)} className="text-sm text-muted-foreground hover:text-foreground transition-base">Dùng mẫu</button>}
               <button type="button" onClick={handleBuild} disabled={!prompt.trim()} className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
-                <Sparkles size={14} /> Tạo Nhân sự số
+                <Sparkles size={14} /> {isProc ? "Tạo bản nháp Quy trình" : "Tạo Nhân sự số"}
               </button>
             </div>
           </div>
@@ -335,7 +353,7 @@ function CreateAgentModal({ onClose }: { onClose: () => void }) {
 
         <DialogFooter className="sm:justify-center">
           <button type="button" onClick={handleBlank} className="btn-secondary">
-            Create from blank
+            Tự dựng từ đầu
           </button>
         </DialogFooter>
       </DialogContent>
@@ -386,8 +404,8 @@ export default function Home() {
             <h2 className="font-display text-3xl font-bold text-foreground mb-2 tracking-tight">
               Chào mừng bạn đến với FPT AI EOS Console
             </h2>
-            <p className="text-sm text-muted-foreground mb-7 max-w-sm leading-relaxed">
-              Xây dựng, kết nối và vận hành nhân sự số AI của doanh nghiệp bạn.
+            <p className="text-sm text-muted-foreground mb-7 max-w-md leading-relaxed">
+              Dựng Nhân sự số Năng suất cho việc hằng ngày và Nhân sự số Quy trình cho quy trình nhiều bước, rồi vận hành chúng ở một nơi.
             </p>
             <div className="flex items-center gap-3">
               <button
@@ -463,9 +481,14 @@ export default function Home() {
         <section>
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-display text-lg font-semibold">Recent</h2>
-            <Link to="/agents" className="text-xs text-primary flex items-center gap-1 hover:text-primary-glow transition-base">
-              Tất cả Nhân sự số <ArrowRight size={12} />
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link to="/agents" className="text-xs text-primary flex items-center gap-1 hover:text-primary-glow transition-base">
+                Nhân sự số Năng suất <ArrowRight size={12} />
+              </Link>
+              <Link to="/processes" className="text-xs text-primary flex items-center gap-1 hover:text-primary-glow transition-base">
+                Nhân sự số Quy trình <ArrowRight size={12} />
+              </Link>
+            </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {recent.map(a => (
