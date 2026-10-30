@@ -117,7 +117,7 @@ var ICON = {
   data: 'M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3z M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6 M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6'
 };
 // màu: [chữ/icon, nền]
-var COL = { start: ['#15803D', '#dcfce7'], agent: ['#7C3AED', '#ede9fe'], logic: ['#475569', '#f1f5f9'], ai: ['#4F46E5', '#ede9fe'], human: ['#9333EA', '#f3e8ff'], integ: ['#7C3AED', '#ede9fe'], fx: ['#0369A1', '#e0f2fe'], var: ['#0369A1', '#e0f2fe'], end: ['#B91C1C', '#fee2e2'], note: ['#A16207', '#fef9c3'] };
+var COL = { start: ['#15803D', '#e8f6ec'], agent: ['#203BDC', '#eef1fd'], logic: ['#475569', '#f1f5f9'], ai: ['#203BDC', '#eef1fd'], human: ['#0F766E', '#e6f4f2'], integ: ['#0369A1', '#e8f3fb'], fx: ['#475569', '#f1f5f9'], var: ['#475569', '#f1f5f9'], end: ['#B91C1C', '#fdecec'], note: ['#A16207', '#fef9c3'] };
 var TYPES = {
   start: { c: 'start', name: 'Start', icon: ICON.bolt },
   end: { c: 'end', name: 'End', desc: 'Đóng hồ sơ: Completed, Rejected, Cancelled hoặc Failed', icon: ICON.end, kw: 'end ket thuc dong ho so' },
@@ -908,11 +908,11 @@ class ProcessBuilderInner extends React.Component<any, any> {
         });
       }
       var ip = inPt(n);
-      return { id: n.id, x: n.x, y: n.y, w: z.w, h: z.h, title: n.title, icon: t.icon, tile: col[0],
+      return { id: n.id, x: n.x, y: n.y, w: z.w, h: z.h, title: n.title, icon: t.icon, tile: col[0], tileBg: col[1],
         isNote: n.type === 'note', isCard: n.type !== 'note', noteText: n.cfg.text || '', isLoop: false, loopEmpty: false, isPar: false,
         lanes: false ? n.cfg.branches.map(function (b, li) { var p0 = innerPos(n, 0, li); return { label: b.name || ('Nhánh ' + (li + 1)), lx: DIR === 'h' ? 16 : p0.x, ly: DIR === 'h' ? p0.y + H / 2 - 9 : 66, lw: DIR === 'h' ? 100 : W, empty: !(b.inner || []).length && !ro, px: p0.x + W / 2 - 11, py: p0.y + H / 2 - 11, aria: 'Thêm bước vào nhánh ' + (b.name || li + 1), add: function (e) { e.stopPropagation(); self.setState({ sel: n.id }); self.openAdd({ mode: 'inner', loopId: n.id, lane: li }); } }; }) : [],
         addInner: function (e) { e.stopPropagation(); self.setState({ sel: n.id }); self.openAdd({ mode: 'inner', loopId: n.id }); },
-        pills: br ? o.map(function (l, pi) { var lab = l || 'Next', warn = l === 'Failed' || l === 'Timeout' || l === 'Max reached' || l === 'Reject'; return { label: lab, flex: DIR === 'v' ? '1' : 'none', fg: warn ? '#b45309' : '#5b5b66', dot: warn ? '#f59e0b' : '#9ca3af', justify: DIR === 'v' ? 'center' : 'flex-end', line: DIR === 'v' ? 'none' : (pi ? '1px solid #f1f1f4' : 'none') }; }) : [],
+        pills: br ? o.map(function (l, pi) { var lab = l || 'Next', warn = l === 'Failed' || l === 'Timeout' || l === 'Max reached' || l === 'Reject'; return { label: lab, flex: DIR === 'v' ? '1' : 'none', fg: warn ? '#b45309' : '#3f3f46', bg: warn ? '#fff8eb' : '#f6f6f8', arrow: warn ? '#d6a35c' : '#a1a1aa' }; }) : [],
         pillDir: DIR === 'v' ? 'row' : 'column', pillPad: br ? '8px 12px 10px' : '0', headLine: br ? '1px solid #ececef' : 'none',
         hasSub: !badge && !!sub, sub: sub,
         bg: n.type === 'note' ? '#fff8c5' : (isBox(n) ? 'rgba(255,255,255,.45)' : '#fff'),
@@ -1591,8 +1591,8 @@ class ProcessBuilderInner extends React.Component<any, any> {
             <div style={S('padding: 10px 12px; font-size: 12.5px; line-height: 1.5; color: #3f3f46; white-space: pre-wrap')}>{n.noteText}</div>
           </>)}
           {(n.isCard) && (<>
-            <div style={S(`height: 56px; display: flex; align-items: center; gap: 12px; padding: 0 16px; border-bottom: ${n.headLine}`)}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={n.tile} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={S('flex-shrink: 0')}><path d={n.icon}></path></svg>
+            <div style={S(`height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: ${n.headLine}`)}>
+              <span style={S(`width: 28px; height: 28px; border-radius: 8px; background: ${n.tileBg}; display: grid; place-items: center; flex-shrink: 0`)}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={n.tile} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={n.icon}></path></svg></span>
               <span style={S('flex: 1; min-width: 0')}>
                 <span style={S('display: block; font-size: 14px; font-weight: 600; color: #121216; white-space: nowrap; overflow: hidden; text-overflow: ellipsis')}>{n.title}</span>
                 {(n.badge) && (<><span style={S(`display: inline-flex; align-items: center; gap: 3px; margin-top: 3px; font-size: 10.5px; font-weight: 500; color: ${n.badgeFg}; background: ${n.badgeBg}; border: 1px solid ${n.badgeLine}; border-radius: 999px; padding: 0 7px; line-height: 16px; white-space: nowrap`)}>{n.badgeText}</span></>)}
@@ -1601,7 +1601,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
             </div>
             <div style={S(`display: flex; flex-direction: ${n.pillDir}; gap: 8px; padding: ${n.pillPad}`)}>
               {(n.pills || []).map((b, _ib) => (<React.Fragment key={_ib}>
-                <div style={S(`flex: ${b.flex}; height: 32px; border-top: ${b.line}; color: ${b.fg}; font-size: 12px; font-weight: 500; display: flex; align-items: center; justify-content: ${b.justify}; gap: 6px; padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0`)}><span style={S('overflow: hidden; text-overflow: ellipsis')}>{b.label}</span></div>
+                <div style={S(`flex: ${b.flex}; height: 32px; border-radius: 10px; background: ${b.bg}; color: ${b.fg}; font-size: 12px; font-weight: 500; display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 0 10px; white-space: nowrap; min-width: 0`)}><span style={S('overflow: hidden; text-overflow: ellipsis')}>{b.label}</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={b.arrow} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={S('flex-shrink: 0')}><path d="M5 12h14 M13 6l6 6-6 6"></path></svg></div>
               </React.Fragment>))}
             </div>
             {(n.isPar) && (<>
