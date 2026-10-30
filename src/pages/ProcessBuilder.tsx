@@ -621,6 +621,73 @@ function explainFlow(s) {
   return { summary: summary, steps: steps };
 }
 
+
+// Đường chính: đường ngắn nhất từ Start tới End Completed, ngoại lệ ghi nhỏ dưới từng bước.
+var EXC_VI = { Return: 'Trả lại', Reject: 'Từ chối', Cancel: 'Không xác nhận', Timeout: 'Quá hạn', Failed: 'Không ra kết quả', 'Max reached': 'Hết số vòng', Else: 'Còn lại' };
+function roleOf(p) { var x = String(p || '').split(' · '); return x[1] || x[0]; }
+function mainFlow(s) {
+  var byId = {}; s.nodes.forEach(function (n) { byId[n.id] = n; });
+  var st = s.nodes.filter(function (n) { return n.type === 'start'; })[0]; if (!st) return { summary: [], steps: [] };
+  var outE = function (n, i) { return s.edges.filter(function (e) { return e.from === n.id && e.out === i; }); };
+  var bodyOf = {}; s.nodes.forEach(function (L) { if (L.type === 'loop') bodyOf[L.id] = loopBody(L, s); });
+  var happy = function (n, lb) { if (n.type === 'loop') return lb === 'Xong'; if (n.type === 'worker') return lb === 'Next'; return ['Return', 'Reject', 'Cancel', 'Timeout', 'Failed', 'Max reached'].indexOf(lb) < 0; };
+  var nexts = function (n) {
+    var res = [];
+    var ports = outsOf(n).map(function (lb, i) { return [lb, i]; }); if (n.type === 'condition') ports.reverse();
+    ports.forEach(function (pp) { var lb = pp[0], i = pp[1]; if (!happy(n, lb)) return; var es = outE(n, i);
+      if (es.length > 1) { var j = s.nodes.filter(function (x) { return x.type === 'join' && es.every(function (e) { return reachable(e.to, s.edges)[x.id]; }); })[0]; if (j) { res.push(j.id); return; } }
+      es.forEach(function (e) { res.push(e.to); }); });
+    return res;
+  };
+  var prev = {}, seen = {}, q = [st.id], goal = null; seen[st.id] = 1;
+  while (q.length && !goal) { var id = q.shift(), n = byId[id]; if (n.type === 'end' && n.cfg.status === 'completed') { goal = id; break; } nexts(n).forEach(function (t) { if (!seen[t] && byId[t] && !Object.keys(bodyOf).some(function (L) { return bodyOf[L][t] && !bodyOf[L][id] && id !== L; })) { seen[t] = 1; prev[t] = id; q.push(t); } }); }
+  var path = []; if (goal) { for (var c = goal; c; c = prev[c]) path.unshift(c); } else path = [st.id];
+  var num = {}; path.forEach(function (id, i) { num[id] = i + 1; });
+  var tgt = function (id, back) { var n = byId[id]; if (!n) return [SG('chưa nối bước tiếp', 'warn')];
+    if (n.type === 'end') { var ev = END_VI[n.cfg.status] || ['Kết thúc', 'b']; return [SG('kết thúc ', ''), SG(ev[0], ev[1])]; }
+    if (num[id]) return [SG((num[id] < back ? 'quay về bước ' : 'sang bước ') + num[id], '')];
+    var w = n.type === 'human' ? whoShort(n.cfg) : ''; return [SG(n.title + (w ? ' (' + w + ')' : ''), '')]; };
+  var excOf = function (n, k) {
+    var ex = [], byT = {};
+    outsOf(n).forEach(function (lb, i) { if (lb === 'Mỗi vòng' || (happy(n, lb) && n.type !== 'condition')) return; var es = outE(n, i); if (!es.length) return;
+      if (n.type === 'condition' && es.some(function (e) { return path.indexOf(e.to) >= 0; })) return;
+      var to = es[0].to, nm = EXC_VI[lb] || lb; if (byT[to]) { byT[to].names.push(nm.toLowerCase()); return; } byT[to] = { names: [nm], to: to }; ex.push(byT[to]); });
+    return ex.map(function (x) { return { segs: [SG(x.names.join(' hoặc ') + ': ', '')].concat(tgt(x.to, k)) }; });
+  };
+  var whoShort = function (c) { if (c.assignType === 'initiator') return 'Người tạo hồ sơ'; var r = c.assignees.map(roleOf); return r.length ? r.join(' + ') : 'Chưa chọn người'; };
+  var steps = [];
+  path.forEach(function (id, idx) {
+    var n = byId[id], c = n.cfg, k = idx + 1, st0 = { n: k, id: id, title: n.title, who: '', meta: '', exc: excOf(n, k), lead: [], isEnd: n.type === 'end', isStart: n.type === 'start', isPeople: false };
+    var col = colOf(n.type); st0.tile = col[0]; st0.tileBg = col[1]; st0.icon = TYPES[n.type].icon;
+    switch (n.type) {
+      case 'start': st0.title = 'Người dùng gõ /' + (c.cmd || 'tên Quy trình') + ' trong Workspace, kiểm tra form rồi bấm Nộp'; break;
+      case 'end': var ev = END_VI[c.status] || ['Kết thúc', 'b']; st0.title = 'Hồ sơ kết thúc'; st0.endLabel = ev[0]; st0.endOk = c.status === 'completed'; break;
+      case 'human': st0.who = whoShort(c); st0.meta = c.timeout + ' ' + c.tunit; st0.isPeople = true; break;
+      case 'decision': st0.title = 'Tra bảng luật: ' + n.title; break;
+      case 'condition': st0.title = 'Kiểm tra: ' + n.title; break;
+      case 'worker': st0.who = c.worker || 'Chưa chọn Nhân sự số'; st0.meta = parseFloat(c.tmo) > 0 ? c.tmo + ' ' + c.tmoUnit : ''; st0.isPeople = true; break;
+      case 'loop':
+        var body = s.nodes.filter(function (x) { return bodyOf[n.id][x.id] && x.type !== 'note'; });
+        st0.title = body.length ? body.map(function (x) { return x.title; })[0] : n.title;
+        st0.meta = c.mode === 'until' ? 'lặp tới khi đạt, tối đa ' + c.max + ' vòng' : 'cho từng phần tử';
+        body.forEach(function (b) { outsOf(b).forEach(function (lb, i) { outE(b, i).forEach(function (e) { if (bodyOf[n.id][e.to] && byId[e.to].type !== 'end') { var t2 = byId[e.to]; if (b.type === 'condition') st0.exc.unshift({ segs: [SG((lb === 'Else' ? 'Còn lại' : lb) + ': ', ''), SG(t2.title + (t2.type === 'human' ? ' (' + whoShort(t2.cfg) + ')' : '') + ', rồi làm lại', '')] }); } }); }); });
+        break;
+    }
+    var fan = s.edges.filter(function (e) { return e.from === id && e.out === 0; });
+    if (fan.length > 1 && outsOf(n).length >= 1 && n.type !== 'loop') st0.par = fan.map(function (e) { var t = byId[e.to]; return { t: t.title, who: t.type === 'human' ? whoShort(t.cfg) : (t.type === 'worker' ? t.cfg.worker : '') }; });
+    if (n.type === 'join') { var ins = s.edges.filter(function (e) { return e.to === id; }).map(function (e) { return byId[e.from]; }); st0.title = 'Cùng lúc: ' + ins.map(function (x) { return x.title; }).join(', ').replace(/, ([^,]*)$/, ' và $1'); var ws = ins.filter(function (x) { return x.type === 'human'; }).map(function (x) { return whoShort(x.cfg); }); st0.who = ws.join(' · '); st0.isPeople = !!ws.length; st0.meta = c.mode === 'all' ? (ins.length > 2 ? 'chờ đủ ' + ins.length + ' nhánh' : 'chờ đủ cả hai') : 'nhánh nào xong trước';
+      ins.forEach(function (x) { excOf(x, k).forEach(function (e) { st0.exc.push(e); }); }); }
+    steps.push(st0);
+  });
+  // gộp node rẽ song song vào bước Join kế tiếp
+  steps = steps.filter(function (x) { return !x.par || x.isStart; });
+  steps.forEach(function (x, i) { x.n = i + 1; });
+  var people = steps.filter(function (x) { return x.isPeople; }).length;
+  var summary = goal ? [SG('Khi mọi việc suôn sẻ, hồ sơ đi qua ', ''), SG(steps.length + ' bước', 'b'), SG(' dưới đây', '')].concat(people ? [SG(', có ', ''), SG(people + ' lượt cần người hoặc Nhân sự số xử lý', 'who')] : [SG(', tất cả chạy tự động', 'b')]).concat([SG('. Các trường hợp khác ghi nhỏ ngay dưới bước liên quan.', '')])
+    : [SG('Quy trình chưa có đường nào tới End Completed. Xem tab Tất cả bước.', 'warn')];
+  return { summary: summary, steps: steps };
+}
+
 // ── Refine với AI (mock): hiểu vài câu lệnh, đề xuất thay đổi để người dựng Áp dụng ──
 var REFINE_TIPS = ['Thêm bước Giám đốc khối duyệt sau Trưởng phòng duyệt', 'Đổi hạn Trưởng phòng duyệt thành 24 giờ', 'Chờ 3 ngày trước Nhắc NCC', 'Gửi email báo người đề nghị khi Hoàn tất', 'Kiểm tra Quy trình còn lỗi gì', 'Giải thích luồng này'];
 function personOf(t) { var x = norm(t), m = [['giam doc', 2], ['ke toan truong', 1], ['ke toan', 5], ['truong phong', 0], ['mua sam', 3], ['kho', 4]]; for (var i = 0; i < m.length; i++) if (x.indexOf(m[i][0]) >= 0) return PEOPLE[m[i][1]]; var p = PEOPLE.filter(function (pp) { return x.indexOf(norm(pp.split(' · ')[0])) >= 0; })[0]; return p || ''; }
@@ -1408,7 +1475,12 @@ class ProcessBuilderInner extends React.Component<any, any> {
       rEmpty: !(s.rmsgs || []).length, rq: s.rq || '', onRq: function (e) { self.setState({ rq: e.target.value }); }, onRqKey: function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); self.refineSend(); } }, rSend: function () { self.refineSend(); }, rSendNot: !String(s.rq || '').trim(),
       rTips: REFINE_TIPS.map(function (t) { return { t: t, pick: function () { self.refineSend(t); } }; }),
       explainOpen: !!s.explainOpen, closeExplain: function () { self.setState({ explainOpen: false }); },
-      explain: s.explainOpen ? (function () { var x = explainFlow(s); return { summary: x.summary, steps: x.steps.map(function (st) { return Object.assign({}, st, { go: function () { self.setState({ explainOpen: false, sel: st.id, tab: 'cfg', runOpen: false, panel: null }); } }); }) }; })() : { summary: [], steps: [] },
+      exMain: (s.exTab || 'main') === 'main', exAll: s.exTab === 'all',
+      exTabs: [{ id: 'main', label: 'Đường chính' }, { id: 'all', label: 'Tất cả ' + s.nodes.filter(function (n) { return n.type !== 'note'; }).length + ' bước' }].map(function (x) { var on = (s.exTab || 'main') === x.id; return { label: x.label, bg: on ? '#eef1fd' : '#fff', fg: on ? '#203BDC' : '#52525b', line: on ? '#c7d2fe' : '#e4e4e7', on: on, pick: function () { self.setState({ exTab: x.id }); } }; }),
+      explain: s.explainOpen ? (function () { var go = function (id) { return function () { self.setState({ explainOpen: false, sel: id, tab: 'cfg', runOpen: false, panel: null }); }; };
+        var x = explainFlow(s), m = mainFlow(s);
+        return { summary: (s.exTab || 'main') === 'main' ? m.summary : x.summary, steps: x.steps.map(function (st) { return Object.assign({}, st, { go: go(st.id) }); }),
+          main: m.steps.map(function (st, i) { return Object.assign({}, st, { go: go(st.id), hasWho: !!st.who, hasMeta: !!st.meta, hasExc: st.exc.length > 0, isEnd: !!st.isEnd, notEnd: !st.isEnd, endFg: st.endOk ? '#15803d' : '#b91c1c', dotBg: st.isEnd ? (st.endOk ? '#e8f6ec' : '#fdecec') : (st.isPeople ? '#e6f0fe' : '#f1f1f4'), dotFg: st.isEnd ? (st.endOk ? '#15803d' : '#b91c1c') : (st.isPeople ? '#1d4ed8' : '#3f3f46'), line: i < m.steps.length - 1 ? '#ececef' : 'transparent' }); }) }; })() : { summary: [], steps: [], main: [] },
       palOpen: s.palOpen && building && !ro, palClosed: !s.palOpen && building && !ro, togglePal: function () { self.setState({ palOpen: !self.state.palOpen }); },
       palItems: PAL.map(function (k, i) { var t = TYPES[k], cc = COL[t.c], hd = PAL_HEAD[k]; return { hasHead: !!hd, head: hd || '', name: t.name, desc: t.desc, icon: t.icon, tile: cc[0], tileBg: cc[1], more: k === 'tool' || k === 'func', pick: function () { self.palPick(k); } }; }),
       palHint: selNode && selNode.type === 'loop' ? 'Đang chọn vòng lặp: bước mới vào trong vòng lặp.' : (selNode ? 'Bước mới thêm ngay sau "' + selNode.title + '".' : 'Chọn một bước để thêm ngay sau nó.'),
@@ -1581,7 +1653,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
       );
     }
     var v = this.renderVals(); this._v = v;
-    var { actCount, actGuards, addCase, addCrumb, addEmpty, addFrom, addHasCrumb, addHasFrom, addOpen, addQ, addRoot, addSections, addShowTabs, addTabs, aiBanner, aiCount, autoLayout, backD, backToList, bannerLeft, building, canRedoNot, canTest, canUndoNot, canvasCursor, canvasRef, cases, checkOpen, checkPos, closeAdd, closeExplain, collapseSide, ctxItems, ctxOpen, ctxX, ctxY, deleteProcess, deleteSel, desc, descLen, dirIcon, dirLabel, dismissBanner, draftSteps, edgeDel, edgeTags, edgesD, editors, errD, errRetry, expandLabel, expandSide, explain, explainOpen, fit, guards, hasIssues, isGuardPage, isOtherTab, isVersionsPage, issueColor, issueCount, issueGroups, last, lastHas, leftAI, leftAdd, leftTabs, leftW, moreOpen, name, nameBorder, nameHint, nameHintColor, nameInput, nameInvalid, nameLen, navItems, noIssues, noRunInputs, nodeTabs, notEmb, onAddKey, onAddQ, onBgDown, onDesc, onMove, onName, onNameBlur, onRq, onRqKey, onTitle, onUp, opOpts, openRun, openVersions, otherIcon, otherText, otherTitle, outVars, palClosed, palItems, palOpen, panelClose, panelOpen, panelReopen, panelTabs, panelW, pendingBanner, pendingText, pf, pmNode, pmProcess, pmRun, pubOpen, pubState, publish, publishDisabled, publishLabel, rEmpty, rSend, rSendNot, rTips, ranD, readOnly, readyChipFg, readyChipIcon, readyChipText, readyDone, readyItems, readyOpen, readyPct, readyTotal, redo, reopenCfg, rerun, rmsgs, roBanner, rq, runBar, runBtnLabel, runDone, runHasOutput, runInputTitle, runInputs, runLocked, runLog, runOutput, runPaused, runResBg, runResBorder, runResText, runRunning, runShowInput, runShowResult, runShowTrace, runStatusColor, runStatusText, runStep, runTabs, sel, selD, share, showHeader, showReady, showReadyChip, sideRail, sideShow, startRun, statusBg, statusDot, statusFg, statusLabel, stepCount, tabCfg, tabLast, tmpD, toast, toastBg, toastText, toggleCheck, toggleDir, toggleExpand, toggleMore, togglePal, togglePub, toggleReady, toggleRetry, toolHint, toolHintColor, topTabs, triggerName, undo, varOpts, versionSub, versionTitle, viewNodes, waitActions, waitBody, waitExpire, waitRole, waitTitle, worldTransform, zoomIn, zoomOut, zoomPct } = v;
+    var { actCount, actGuards, addCase, addCrumb, addEmpty, addFrom, addHasCrumb, addHasFrom, addOpen, addQ, addRoot, addSections, addShowTabs, addTabs, aiBanner, aiCount, autoLayout, backD, backToList, bannerLeft, building, canRedoNot, canTest, canUndoNot, canvasCursor, canvasRef, cases, checkOpen, checkPos, closeAdd, closeExplain, collapseSide, ctxItems, ctxOpen, ctxX, ctxY, deleteProcess, deleteSel, desc, descLen, dirIcon, dirLabel, dismissBanner, draftSteps, edgeDel, edgeTags, edgesD, editors, errD, errRetry, exAll, exMain, exTabs, expandLabel, expandSide, explain, explainOpen, fit, guards, hasIssues, isGuardPage, isOtherTab, isVersionsPage, issueColor, issueCount, issueGroups, last, lastHas, leftAI, leftAdd, leftTabs, leftW, moreOpen, name, nameBorder, nameHint, nameHintColor, nameInput, nameInvalid, nameLen, navItems, noIssues, noRunInputs, nodeTabs, notEmb, onAddKey, onAddQ, onBgDown, onDesc, onMove, onName, onNameBlur, onRq, onRqKey, onTitle, onUp, opOpts, openRun, openVersions, otherIcon, otherText, otherTitle, outVars, palClosed, palItems, palOpen, panelClose, panelOpen, panelReopen, panelTabs, panelW, pendingBanner, pendingText, pf, pmNode, pmProcess, pmRun, pubOpen, pubState, publish, publishDisabled, publishLabel, rEmpty, rSend, rSendNot, rTips, ranD, readOnly, readyChipFg, readyChipIcon, readyChipText, readyDone, readyItems, readyOpen, readyPct, readyTotal, redo, reopenCfg, rerun, rmsgs, roBanner, rq, runBar, runBtnLabel, runDone, runHasOutput, runInputTitle, runInputs, runLocked, runLog, runOutput, runPaused, runResBg, runResBorder, runResText, runRunning, runShowInput, runShowResult, runShowTrace, runStatusColor, runStatusText, runStep, runTabs, sel, selD, share, showHeader, showReady, showReadyChip, sideRail, sideShow, startRun, statusBg, statusDot, statusFg, statusLabel, stepCount, tabCfg, tabLast, tmpD, toast, toastBg, toastText, toggleCheck, toggleDir, toggleExpand, toggleMore, togglePal, togglePub, toggleReady, toggleRetry, toolHint, toolHintColor, topTabs, triggerName, undo, varOpts, versionSub, versionTitle, viewNodes, waitActions, waitBody, waitExpire, waitRole, waitTitle, worldTransform, zoomIn, zoomOut, zoomPct } = v;
     backToList = function () { clearTimeout(self.timer); self.props.onBack(); };
     return (
       <div className="qt-root" style={S(emb ? 'flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; background: #fff' : 'height: 100vh; min-height: 640px; display: flex; flex-direction: column; overflow: hidden; position: relative; background: #fff')}>
@@ -1911,12 +1983,36 @@ class ProcessBuilderInner extends React.Component<any, any> {
           <div style={S('flex: 1')}>
             <div style={S('font-size: 17px; font-weight: 600; color: #121216')}>Diễn giải luồng</div>
             <div style={S('font-size: 14px; color: #3f3f46; line-height: 1.6; margin-top: 6px')}>{(explain.summary || []).map((g, _ig) => (<React.Fragment key={_ig}><span style={S(`color: ${g.c}; font-weight: ${g.w}`)}>{g.t}</span></React.Fragment>))}</div>
-            <div style={S('display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; font-size: 12px; color: #5b5b66')}>
-              <span><b style={S('color: #1d4ed8')}>Xanh dương</b>: người hoặc Nhân sự số làm việc</span><span><b style={S('color: #b45309')}>Cam</b>: thời hạn, thao tác ghi, trường hợp xấu</span><span><b style={S('color: #15803d')}>Xanh lá</b> / <b style={S('color: #b91c1c')}>Đỏ</b>: kết quả cuối</span>
+            <div role="tablist" style={S('display: flex; gap: 4px; margin-top: 12px')}>
+              {(exTabs || []).map((et, _iet) => (<React.Fragment key={_iet}><button type="button" role="tab" aria-selected={et.on} onClick={et.pick} style={S(`height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid ${et.line}; background: ${et.bg}; color: ${et.fg}; font-size: 12.5px; font-weight: 600`)}>{et.label}</button></React.Fragment>))}
             </div>
           </div>
           <button type="button" className={Q('ghost')} aria-label="Đóng" onClick={closeExplain} style={S('width: 30px; height: 30px; border-radius: 7px')}>✕</button>
         </div>
+        {(exMain) && (<>
+        <ol style={S('list-style: none; margin: 0; padding: 10px 22px 20px; overflow-y: auto')}>
+          {(explain.main || []).map((x, _ix) => (<React.Fragment key={_ix}>
+            <li style={S('display: flex; gap: 12px; position: relative; padding-bottom: 16px')}>
+              <span style={S(`position: absolute; left: 13px; top: 30px; bottom: 0; width: 2px; background: ${x.line}`)}></span>
+              <button type="button" onClick={x.go} title="Mở bước này trên canvas" style={S(`width: 28px; height: 28px; border-radius: 999px; border: 0; background: ${x.dotBg}; color: ${x.dotFg}; font-size: 12px; font-weight: 600; flex-shrink: 0; cursor: pointer; position: relative`)}>{x.n}</button>
+              <div style={S('flex: 1; min-width: 0; padding-top: 4px')}>
+                <div style={S('font-size: 14.5px; line-height: 1.45; color: #18181b')}>
+                  {(x.notEnd) && (<><span>{x.title}</span></>)}
+                  {(x.isEnd) && (<><span>{x.title} </span><b style={S(`color: ${x.endFg}; font-weight: 600`)}>{x.endLabel}</b></>)}
+                  {(x.hasWho) && (<><span style={S('color: #a1a1aa')}> · </span><b style={S('color: #1d4ed8; font-weight: 600')}>{x.who}</b></>)}
+                  {(x.hasMeta) && (<><span style={S('font-size: 12.5px; color: #71717a; margin-left: 8px')}>{x.meta}</span></>)}
+                </div>
+                {(x.hasExc) && (<>
+                  <div style={S('margin-top: 5px; display: flex; flex-direction: column; gap: 3px')}>
+                    {(x.exc || []).map((ex, _iex) => (<React.Fragment key={_iex}><div style={S('font-size: 12.5px; color: #71717a; line-height: 1.45; padding-left: 16px; position: relative')}><span style={S('position: absolute; left: 0; color: #a1a1aa')}>↳</span>{(ex.segs || []).map((g, _ig) => (<React.Fragment key={_ig}><span style={S(`color: ${g.c}; font-weight: ${g.w}`)}>{g.t}</span></React.Fragment>))}</div></React.Fragment>))}
+                  </div>
+                </>)}
+              </div>
+            </li>
+          </React.Fragment>))}
+        </ol>
+        </>)}
+        {(exAll) && (<>
         <ol style={S('list-style: none; margin: 0; padding: 8px 18px 18px; overflow-y: auto')}>
           {(explain.steps || []).map((x, _ix) => (<React.Fragment key={_ix}>
             <li style={S('display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f1f1f4')}>
@@ -1928,6 +2024,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
             </li>
           </React.Fragment>))}
         </ol>
+        </>)}
       </div>
     </>)}
     {(addOpen) && (<>
