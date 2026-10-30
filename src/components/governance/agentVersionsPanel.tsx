@@ -23,6 +23,7 @@ import { externalAgentStore } from "../external-agents/externalAgentStore";
 import { auditLogStore } from "./auditLogStore";
 import { formatDateTime } from "./governanceUi";
 import { getAgent } from "../configure/agentStore";
+import { refineAssistant, refineChatStore } from "../configure/refineChatStore";
 import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
 
 export type VersionStatus = "draft" | "live" | "pending" | "rejected" | "withdrawn" | "revoked" | "previous";
@@ -134,6 +135,7 @@ export function AgentVersionsPanel({ agentId, agentName, onPublish, onChanged }:
   const [filter, setFilter] = useState<VersionStatus | "all">("all");
   const [rollback, setRollback] = useState<VersionRow | null>(null);
   const pendingForRollback = rollback ? governanceStore.getOpenRequestForResource("agent", agentId) : undefined;
+  const refineHolder = rollback ? refineChatStore.holder(agentId) : null;
   const [withdrawRow, setWithdrawRow] = useState<VersionRow | null>(null);
   // The version whose detail sheet is open — kept in the URL (?v=v1.2.0) so the status chips in
   // the top bar and the rejection banner can deep-link straight to a version's detail.
@@ -186,6 +188,8 @@ export function AgentVersionsPanel({ agentId, agentName, onPublish, onChanged }:
       note: `Khôi phục ${rel.version} (thay cho ${liveRow?.version ?? "bản đang live"})`, at: Date.now(),
     });
     if (isExternalAgentId(agentId)) externalAgentStore.applyGovernance(agentId, { status: "published", version: rel.version, channels: rel.channels }, `Khôi phục ${rel.version}`);
+    // Khôi phục changes the Nhân sự số under anyone refining it: their run / waiting card stops.
+    refineAssistant.interruptAgent(agentId, `${CURRENT_USER.name} đã khôi phục ${rel.version} lúc ${new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`);
     toast.success(`Đã khôi phục ${rel.version}. Người dùng đang dùng lại bản này.`);
     setRollback(null);
     refresh();
@@ -325,6 +329,11 @@ export function AgentVersionsPanel({ agentId, agentName, onPublish, onChanged }:
                   Phạm vi và kênh cũng quay về như lúc {rollback?.version} đang live - Workspace: <b className="text-foreground">{rollback?.scope ?? "-"}</b>;
                   Kênh ngoài: <b className="text-foreground">{rollback?.channels?.length ? rollback.channels.map(channelLabel).join(", ") : "Không"}</b>.
                 </p>
+                {refineHolder && (
+                  <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-foreground">
+                    <b>{refineHolder.personaId === CURRENT_USER.id ? "Bạn" : refineHolder.name}</b> đang Refine với AI trên Nhân sự số này. Khôi phục sẽ dừng lượt đó và thẻ đang chờ phê duyệt - chưa thay đổi nào của trợ lý được áp dụng.
+                  </p>
+                )}
                 {pendingForRollback && !removedByAdmin && (
                   <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-foreground">
                     Yêu cầu <b>{pendingForRollback.version}</b> đang chờ duyệt sẽ được rút - Nếu không, khi được duyệt nó sẽ thay bản bạn vừa khôi phục.

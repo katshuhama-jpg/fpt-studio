@@ -19,13 +19,16 @@ export const DEMO_PERSONAS: DemoPersona[] = [
 
 const KEY = "demo_persona";
 
+// Each tab keeps the persona it was switched to (sessionStorage), so two tabs can play two
+// people at once - e.g. two Builders on the same Agent in Refine với AI (30/10). A fresh tab
+// starts from the last persona chosen anywhere (localStorage).
 export function currentPersona(): DemoPersona {
   let k: string | null = null;
-  try { k = localStorage.getItem(KEY); } catch { /* ignore */ }
+  try { k = sessionStorage.getItem(KEY) ?? localStorage.getItem(KEY); } catch { /* ignore */ }
   return DEMO_PERSONAS.find(p => p.key === k) ?? DEMO_PERSONAS[0];
 }
 
 export function switchPersona(key: string) {
-  try { localStorage.setItem(KEY, key); } catch { /* ignore */ }
+  try { localStorage.setItem(KEY, key); sessionStorage.setItem(KEY, key); } catch { /* ignore */ }
   window.location.reload();
 }
