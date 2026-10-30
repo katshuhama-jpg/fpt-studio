@@ -2011,7 +2011,7 @@ export default function ProcessBuilder() {
       navigate("/agents/" + rec.id + (prompt ? "?fromAi=1" : ""), { replace: true });
     } else {
       const rec = processStore.byDraftKey(id) || processStore.get(id);
-      navigate(rec ? "/agents/" + rec.id : "/agents", { replace: true });
+      navigate(rec ? "/agents/" + rec.id : "/processes", { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

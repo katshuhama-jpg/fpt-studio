@@ -42,7 +42,7 @@ const groups: Group[] = [
     items: [
       { to: "/agents", label: "Nhân sự số", icon: Bot },
       { to: "/external-agents", label: "External Agents", icon: Globe },
-      { to: "/workforce", label: "Workforce", icon: UsersRound },
+      { to: "/processes", label: "Quy trình", icon: Workflow },
     ],
   },
   {
@@ -167,7 +167,7 @@ export default function WorkspaceLayout() {
     );
   }
 
-  const BREADCRUMB_LABELS: Record<string, string> = { tools: "Skills", notifications: "Thông báo", agents: "Nhân sự số", "my-agents": "Nhân sự số của tôi" };
+  const BREADCRUMB_LABELS: Record<string, string> = { tools: "Skills", notifications: "Thông báo", agents: "Nhân sự số", processes: "Quy trình", "my-agents": "Nhân sự số của tôi" };
   const persona = currentPersona();
   const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "General", structure: "Structure" };
   let breadcrumbLabel: string;

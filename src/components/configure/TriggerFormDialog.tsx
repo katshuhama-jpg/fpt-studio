@@ -862,7 +862,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
               <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-surface-muted/60">
                 <Info size={14} className="text-muted-foreground shrink-0 mt-0.5" />
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Không cần cấu hình lịch, webhook hay kết nối ứng dụng nào - Bất kỳ ai chạy Workforce này (từ nút "Chạy Workforce" hoặc khung chat) đều kích hoạt Nhân sự số ngay khi gõ yêu cầu.
+                  Không cần cấu hình lịch, webhook hay kết nối ứng dụng nào - Bất kỳ ai gõ yêu cầu cho Nhân sự số này trong Workspace đều kích hoạt nó ngay.
                 </p>
               </div>
               <div>
@@ -879,7 +879,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                   className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm outline-none resize-none transition-base focus:border-primary"
                 />
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  Hiển thị cho người chạy Workforce này khi họ bắt đầu một nhiệm vụ mới. Để trống nếu không cần hướng dẫn thêm.
+                  Hiển thị cho người dùng khi họ bắt đầu một nhiệm vụ mới. Để trống nếu không cần hướng dẫn thêm.
                 </p>
               </div>
             </div>

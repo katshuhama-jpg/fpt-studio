@@ -33,7 +33,7 @@ import { getCurrentTenantId, subscribeTenantChange } from "@/lib/spaceStore";
 const tabs = ["Tất cả Nhân sự số", "Published", "Draft", "Removed", "Chờ duyệt", "Bị từ chối", "Shared with me"] as const;
 /** Display labels — "Published/Draft" read as "Đang live/Bản nháp" to match the card lines. */
 const TAB_LABEL: Partial<Record<typeof tabs[number], string>> = { Published: "Đang live", Draft: "Bản nháp", Removed: "Đã gỡ", "Shared with me": "Được thêm vào" };
-const kindFilters = ["All", "Nhân sự số", "Quy trình", "Nhân sự số tự động"] as const;
+const kindFilters = ["All", "Nhân sự số", "Nhân sự số tự động"] as const;
 
 /** Gợi ý mô tả khi tạo Nhân sự số Quy trình (AI dựng sẵn các bước). */
 const PROCESS_SUGGESTIONS = [
@@ -448,8 +448,8 @@ type CreateKind = "productivity" | "process";
 
 /** Ô tạo Nhân sự số của production ("Bắt đầu từ đâu?"), thêm nút chọn Năng suất | Quy trình.
  * Dùng chung cho màn Space trống và modal Tạo nhân sự số. */
-function CreateBox({ kind, setKind, prompt, setPrompt, onBuild, onTemplates, canCreate }: {
-  kind: CreateKind; setKind: (k: CreateKind) => void; prompt: string; setPrompt: (v: string) => void;
+function CreateBox({ kind, setKind, prompt, setPrompt, onBuild, onTemplates, canCreate, lockKind }: {
+  lockKind?: boolean; kind: CreateKind; setKind: (k: CreateKind) => void; prompt: string; setPrompt: (v: string) => void;
   onBuild: () => void; onTemplates: () => void; canCreate: boolean;
 }) {
   const isProc = kind === "process";
@@ -468,7 +468,7 @@ function CreateBox({ kind, setKind, prompt, setPrompt, onBuild, onTemplates, can
   }, [plusOpen, modeOpen]);
   return (
     <div className="relative w-full rounded-xl border border-border bg-surface p-3 shadow-sm focus-within:border-ring transition-colors">
-      <div role="radiogroup" aria-label="Loại Nhân sự số" className="flex gap-1 p-1 rounded-lg bg-surface-muted w-fit">
+      <div role="radiogroup" aria-label="Loại Nhân sự số" className={`${lockKind ? "hidden" : "flex"} gap-1 p-1 rounded-lg bg-surface-muted w-fit`}>
         {([{ id: "productivity", label: "Năng suất" }, { id: "process", label: "Quy trình" }] as const).map(k => (
           <button key={k.id} type="button" role="radio" aria-checked={kind === k.id}
             onClick={() => { setKind(k.id); setPrompt(""); }}
@@ -477,7 +477,7 @@ function CreateBox({ kind, setKind, prompt, setPrompt, onBuild, onTemplates, can
           </button>
         ))}
       </div>
-      <p className="text-xs text-muted-foreground mt-2 px-0.5">
+      <p className={`${lockKind ? "hidden" : ""} text-xs text-muted-foreground mt-2 px-0.5`}>
         {isProc ? "Dựng quy trình theo node: giao bước cho Nhân sự số, người duyệt, hệ thống, rẽ nhánh theo luật." : "Dựng bằng prompt, hỗ trợ việc hằng ngày."}
       </p>
       <textarea
@@ -567,7 +567,8 @@ function CreateExtras({ kind, setPrompt, onBlank, canCreate }: { kind: CreateKin
   );
 }
 
-export default function AgentsList() {
+export default function AgentsList({ mode = "agents" }: { mode?: "agents" | "process" }) {
+  const isProcPage = mode === "process";
   const navigate = useNavigate();
   const { can } = useMyPermissions();
   const access = useGroupAccess("agents");
@@ -586,12 +587,12 @@ export default function AgentsList() {
   // View is only ever needed to see other people's agents) only ever sees agents it created or
   // that were shared with it, in every tab and count below — not just a "Shared with me" filter.
   const visibleAgents = useMemo(
-    () => access.canSeeAll ? agents : agents.filter(a => isOwnedOrShared(a, access.userId)),
-    [access.canSeeAll, access.userId, shareVersion],
+    () => (access.canSeeAll ? agents : agents.filter(a => isOwnedOrShared(a, access.userId))).filter(a => isProcPage ? a.kind === "process" : a.kind !== "process"),
+    [access.canSeeAll, access.userId, shareVersion, isProcPage],
   );
   const sharedWithMe = useMemo(
-    () => agents.filter(a => a.ownerId !== access.userId && isOwnedOrShared(a, access.userId)),
-    [access.userId, shareVersion],
+    () => agents.filter(a => a.ownerId !== access.userId && isOwnedOrShared(a, access.userId) && (isProcPage ? a.kind === "process" : a.kind !== "process")),
+    [access.userId, shareVersion, isProcPage],
   );
 
   const [activeTab, setActiveTab] = useState<typeof tabs[number]>("Tất cả Nhân sự số");
@@ -599,7 +600,7 @@ export default function AgentsList() {
   const [search, setSearch] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
   const [prompt, setPrompt] = useState("");
-  const [createKind, setCreateKind] = useState<CreateKind>("productivity");
+  const [createKind, setCreateKind] = useState<CreateKind>(isProcPage ? "process" : "productivity");
   const [createOpen, setCreateOpen] = useState(false);
   const [tenantId, setTenantId] = useState(getCurrentTenantId());
   useEffect(() => subscribeTenantChange(() => setTenantId(getCurrentTenantId())), []);
@@ -643,12 +644,12 @@ export default function AgentsList() {
   const allConversationalCount = visibleAgents.filter(a => notProcess(a) && getAgentKind(a.id) === "conversational").length;
   const allAutomationCount = visibleAgents.filter(a => notProcess(a) && getAgentKind(a.id) === "automation").length;
 
-  const showConversational = kindFilter !== "Nhân sự số tự động" && kindFilter !== "Quy trình";
-  const showAutomation = kindFilter !== "Nhân sự số" && kindFilter !== "Quy trình";
-  const showProcess = kindFilter === "All" || kindFilter === "Quy trình";
+  const showConversational = !isProcPage && kindFilter !== "Nhân sự số tự động";
+  const showAutomation = !isProcPage && kindFilter !== "Nhân sự số";
+  const showProcess = isProcPage;
   const processAgents = searched.filter(a => a.kind === "process");
   const allProcessCount = visibleAgents.filter(a => a.kind === "process").length;
-  const singleKindView = kindFilter !== "All";
+  const singleKindView = isProcPage || kindFilter !== "All";
 
   const clearFilters = () => {
     setKindFilter("All");
@@ -690,9 +691,9 @@ export default function AgentsList() {
       {/* Page header - như production: tiêu đề bên trái, nút Tạo nhân sự số bên phải */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Nhân sự số</h1>
+          <h1 className="font-display text-xl font-semibold tracking-tight mb-1">{isProcPage ? "Nhân sự số Quy trình" : "Nhân sự số"}</h1>
           <p className="text-sm text-muted-foreground">
-            Quản lý mọi nhân sự số trong workspace - dựng, kiểm thử, triển khai và giám sát.
+            {isProcPage ? "Dựng quy trình theo node: giao bước cho Nhân sự số, người duyệt và hệ thống, rẽ nhánh theo luật. Mỗi lần chạy là một hồ sơ." : "Quản lý mọi nhân sự số trong workspace - dựng, kiểm thử, triển khai và giám sát."}
           </p>
         </div>
         {!isBlankSpace && (
@@ -700,7 +701,7 @@ export default function AgentsList() {
             title={!canCreateAgent ? "Bạn không có quyền tạo Nhân sự số." : undefined}
             className="btn-primary shrink-0 disabled:opacity-40 disabled:cursor-not-allowed">
             <HugeiconsIcon icon={Add01Icon} size={14} />
-            Tạo nhân sự số
+            {isProcPage ? "Tạo Quy trình" : "Tạo nhân sự số"}
           </button>
         )}
       </div>
@@ -709,11 +710,11 @@ export default function AgentsList() {
         /* ── Space chưa có Nhân sự số: màn chào của production ───────────── */
         <div className="flex flex-col items-center pt-10 pb-16">
           <h2 className="font-display text-[32px] leading-tight font-semibold tracking-tight text-center max-w-[440px]">
-            Sẵn sàng xây dựng nhân sự số đầu tiên của bạn?
+            {isProcPage ? "Dựng Quy trình đầu tiên của bạn" : "Sẵn sàng xây dựng nhân sự số đầu tiên của bạn?"}
           </h2>
-          <p className="text-[15px] text-muted-foreground text-center mt-3 mb-7">Mô tả nhân sự số bạn cần, mọi thứ đều chỉnh được sau.</p>
+          <p className="text-[15px] text-muted-foreground text-center mt-3 mb-7">{isProcPage ? "Mô tả quy trình, AI dựng sẵn các bước để bạn chỉnh tiếp." : "Mô tả nhân sự số bạn cần, mọi thứ đều chỉnh được sau."}</p>
           <div className="w-full max-w-[640px]">
-            <CreateBox kind={createKind} setKind={setCreateKind} prompt={prompt} setPrompt={setPrompt} onBuild={handleBuild} onTemplates={() => setShowTemplates(true)} canCreate={canCreateAgent} />
+            <CreateBox kind={createKind} setKind={setCreateKind} prompt={prompt} setPrompt={setPrompt} onBuild={handleBuild} onTemplates={() => setShowTemplates(true)} canCreate={canCreateAgent} lockKind />
             <CreateExtras kind={createKind} setPrompt={setPrompt} onBlank={handleBlank} canCreate={canCreateAgent} />
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-7 mt-14">
               {BLANK_TIPS[createKind].map(t => (
@@ -730,24 +731,24 @@ export default function AgentsList() {
         /* ── Số liệu như production ─────────────────────────────────────── */
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           <div className="rounded-xl border border-border p-4">
-            <div className="text-xs text-muted-foreground">Nhân sự số đang hoạt động</div>
+            <div className="text-xs text-muted-foreground">{isProcPage ? "Quy trình đang live" : "Nhân sự số đang hoạt động"}</div>
             <div className="mt-2 text-xl font-semibold font-display">{kpi.active} <span className="text-sm font-normal text-muted-foreground">/ {kpi.total}</span></div>
-            <div className="mt-1.5 text-[11.5px] text-muted-foreground">{kpi.total - kpi.active} nhân sự số chưa xuất bản</div>
+            <div className="mt-1.5 text-[11.5px] text-muted-foreground">{kpi.total - kpi.active} {isProcPage ? "Quy trình" : "nhân sự số"} chưa xuất bản</div>
           </div>
           <div className="rounded-xl border border-border p-4">
-            <div className="text-xs text-muted-foreground">Hội thoại 7 ngày</div>
+            <div className="text-xs text-muted-foreground">{isProcPage ? "Hồ sơ 7 ngày" : "Hội thoại 7 ngày"}</div>
             <div className="mt-2 text-xl font-semibold font-display">{kpi.convs.toLocaleString("vi-VN")}</div>
-            <div className="mt-1.5 text-[11.5px] text-muted-foreground">Tổng các Nhân sự số trong Space</div>
+            <div className="mt-1.5 text-[11.5px] text-muted-foreground">{isProcPage ? "Tổng các Quy trình trong Space" : "Tổng các Nhân sự số trong Space"}</div>
           </div>
           <div className="rounded-xl border border-border p-4">
-            <div className="text-xs text-muted-foreground">Người dùng 7 ngày</div>
+            <div className="text-xs text-muted-foreground">{isProcPage ? "Người khởi chạy 7 ngày" : "Người dùng 7 ngày"}</div>
             <div className="mt-2 text-xl font-semibold font-display">{kpi.users.toLocaleString("vi-VN")}</div>
-            <div className="mt-1.5 text-[11.5px] text-muted-foreground">Người đã trò chuyện với Nhân sự số</div>
+            <div className="mt-1.5 text-[11.5px] text-muted-foreground">{isProcPage ? "Người đã gõ /tên Quy trình trong Workspace" : "Người đã trò chuyện với Nhân sự số"}</div>
           </div>
           <div className="rounded-xl border border-border p-4">
-            <div className="text-xs text-muted-foreground">Đánh giá tích cực</div>
+            <div className="text-xs text-muted-foreground">{isProcPage ? "Hồ sơ lỗi" : "Đánh giá tích cực"}</div>
             <div className="mt-2 text-base font-medium text-muted-foreground">Chưa có</div>
-            <div className="mt-1.5 text-[11.5px] text-muted-foreground">Chưa có lượt đánh giá nào</div>
+            <div className="mt-1.5 text-[11.5px] text-muted-foreground">{isProcPage ? "Chưa có hồ sơ nào dừng ở bước lỗi" : "Chưa có lượt đánh giá nào"}</div>
           </div>
         </div>
       )}
@@ -758,9 +759,9 @@ export default function AgentsList() {
             <button type="button" aria-label="Đóng" onClick={() => setCreateOpen(false)} className="absolute right-3 top-3 h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-surface-muted">
               <HugeiconsIcon icon={Cancel01Icon} size={14} />
             </button>
-            <h2 id="create-title" className="text-lg font-semibold">Bắt đầu từ đâu?</h2>
-            <p className="text-sm text-muted-foreground mt-1 mb-4">Mô tả nhân sự số bạn cần, mọi thứ đều chỉnh được sau.</p>
-            <CreateBox kind={createKind} setKind={setCreateKind} prompt={prompt} setPrompt={setPrompt} onBuild={handleBuild} onTemplates={() => { setCreateOpen(false); setShowTemplates(true); }} canCreate={canCreateAgent} />
+            <h2 id="create-title" className="text-lg font-semibold">{isProcPage ? "Tạo Quy trình" : "Bắt đầu từ đâu?"}</h2>
+            <p className="text-sm text-muted-foreground mt-1 mb-4">{isProcPage ? "Mô tả quy trình, AI dựng sẵn các bước để bạn chỉnh tiếp." : "Mô tả nhân sự số bạn cần, mọi thứ đều chỉnh được sau."}</p>
+            <CreateBox kind={createKind} setKind={setCreateKind} prompt={prompt} setPrompt={setPrompt} onBuild={handleBuild} onTemplates={() => { setCreateOpen(false); setShowTemplates(true); }} canCreate={canCreateAgent} lockKind />
             <CreateExtras kind={createKind} setPrompt={setPrompt} onBlank={handleBlank} canCreate={canCreateAgent} />
           </div>
         </div>,
@@ -781,7 +782,7 @@ export default function AgentsList() {
                   : "text-muted-foreground hover:bg-surface-muted"
               }`}
             >
-              {TAB_LABEL[t] ?? t}
+              {isProcPage && t === "Tất cả Nhân sự số" ? "Tất cả" : (TAB_LABEL[t] ?? t)}
               {tabCounts[t] > 0 && (
                 <span className={`text-xs px-1.5 py-0.5 rounded-full ${
                   activeTab === t
@@ -798,7 +799,7 @@ export default function AgentsList() {
           <div className="relative">
             <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
-              placeholder="Tìm Nhân sự số…"
+              placeholder={isProcPage ? "Tìm Quy trình…" : "Tìm Nhân sự số…"}
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
@@ -811,7 +812,7 @@ export default function AgentsList() {
       </div>
 
       {/* ── Kind filter ───────────────────────────────────────────────── */}
-      <div className="flex items-center gap-1 mb-6">
+      <div className={`${isProcPage ? "hidden" : "flex"} items-center gap-1 mb-6`}>
         {kindFilters.map(k => (
           <button
             key={k}
@@ -862,7 +863,7 @@ export default function AgentsList() {
           {processAgents.length === 0 ? (
             <GroupEmptyState
               message={allProcessCount === 0
-                ? (canCreateAgent ? "Chưa có Quy trình nào - Bấm Tạo nhân sự số, chọn Quy trình để dựng Quy trình đầu tiên." : "Chưa có Quy trình nào được chia sẻ với bạn.")
+                ? (canCreateAgent ? "Chưa có Quy trình nào - Bấm Tạo Quy trình để dựng Quy trình đầu tiên." : "Chưa có Quy trình nào được chia sẻ với bạn.")
                 : "Không có Quy trình nào khớp với bộ lọc"}
               onShowAll={allProcessCount > 0 ? clearFilters : undefined}
             />
