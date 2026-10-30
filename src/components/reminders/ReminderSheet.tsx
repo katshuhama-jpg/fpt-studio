@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -20,9 +20,10 @@ import InstructionsEditor from "@/components/configure/InstructionsEditor";
 import { RefChip } from "@/components/configure/refChip";
 import { parseToken } from "@/components/configure/instructionRefs";
 import {
-  MAX_STEPS, REMINDER_CHANNELS, channelLabel, emptyStep, fmtMinutes, generateTrigger, reminderStore,
-  stepMinutes, stepSkills, textFallbackChannels, totalMinutes, validateReminder,
-  HOUR_OPTIONS, MINUTE_OPTIONS, type Reminder, type ReminderStep,
+  MAX_STEPS, MAX_TOTAL_MIN, MAX_REPLIES_PER_WAIT, GENERATE_TIMEOUT_MS, channelLabel, emptyStep, fmtMinutes,
+  findOverlaps, generateTrigger, publishedChannels, reminderStore, apiNotSubscribed, windowWarnings,
+  missingChannels, noLiveChannel, stepMinutes, stepSkills, totalMinutes, validateReminder,
+  HOUR_OPTIONS, MINUTE_OPTIONS, type OverlapHit, type Reminder, type ReminderStep,
 } from "./reminderStore";
 
 type IconData = Parameters<typeof HugeiconsIcon>[0]["icon"];
@@ -31,9 +32,18 @@ const Icon = ({ icon, size = 16, className = "" }: { icon: IconData; size?: numb
 
 const Err = ({ children }: { children?: string }) => (children ? <p className="text-xs text-destructive mt-1.5" role="alert">{children}</p> : null);
 const Helper = ({ children }: { children: React.ReactNode }) => <p className="text-xs text-muted-foreground mt-1.5">{children}</p>;
+/** Warning / info — never blocks saving, so it reads calmer than an error. */
+const Note = ({ tone = "warning", children }: { tone?: "warning" | "info"; children: React.ReactNode }) => (
+  <p className={`mt-1.5 flex items-start gap-1.5 text-xs ${tone === "warning" ? "text-warning" : "text-muted-foreground"}`}>
+    <Icon icon={tone === "warning" ? Alert02Icon : InformationCircleIcon} size={13} className="mt-0.5 shrink-0" />
+    <span>{children}</span>
+  </p>
+);
 const plain = (t: string) => t.replace(/\{\{ref:[^|}]*\|?([^}]*)\}\}/g, "$1").replace(/\s+/g, " ").trim();
 
-function ChannelsSelect({ value, onChange, disabled }: { value: Reminder["channels"]; onChange: (v: Reminder["channels"]) => void; disabled?: boolean }) {
+function ChannelsSelect({ agentId, value, onChange, disabled }: { agentId: string; value: Reminder["channels"]; onChange: (v: Reminder["channels"]) => void; disabled?: boolean }) {
+  const options = publishedChannels(agentId);
+  const live = new Set(options.map(c => c.id));
   const selected = value === "all" ? [] : value;
   const toggle = (id: string) => onChange(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id]);
   return (
@@ -42,7 +52,13 @@ function ChannelsSelect({ value, onChange, disabled }: { value: Reminder["channe
         <button type="button" id="rem-channels" data-field="channels" className="flex min-h-9 w-full flex-wrap items-center gap-1.5 rounded-md border bg-transparent px-2 py-1.5 text-left text-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-60">
           {value === "all"
             ? <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs font-medium">Tất cả kênh</span>
-            : selected.length ? selected.map(id => <span key={id} className="rounded-sm bg-muted px-1.5 py-0.5 text-xs font-medium">{channelLabel(id)}</span>)
+            : selected.length ? selected.map(id => (
+                <span key={id} className={live.has(id)
+                  ? "rounded-sm bg-muted px-1.5 py-0.5 text-xs font-medium"
+                  : "rounded-sm border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-xs font-medium text-warning line-through"}>
+                  {channelLabel(id)}
+                </span>
+              ))
             : <span className="px-1 text-muted-foreground">Chọn kênh</span>}
           <Icon icon={ArrowDown01Icon} className="ml-auto shrink-0 text-muted-foreground" />
         </button>
@@ -50,13 +66,23 @@ function ChannelsSelect({ value, onChange, disabled }: { value: Reminder["channe
       <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-1">
         <label className="flex cursor-pointer items-start gap-2.5 rounded-sm px-2 py-2 hover:bg-muted">
           <Checkbox checked={value === "all"} onCheckedChange={v => onChange(v ? "all" : [])} className="mt-0.5" />
-          <span><span className="block text-sm font-medium">Tất cả kênh</span><span className="block text-xs text-muted-foreground">Bao gồm cả các kênh publish sau này</span></span>
+          <span><span className="block text-sm font-medium">Tất cả kênh</span><span className="block text-xs text-muted-foreground">Áp dụng cả cho kênh publish sau này</span></span>
         </label>
         <div className="my-1 h-px bg-border" />
-        {REMINDER_CHANNELS.map(c => (
-          <label key={c.id} className="flex cursor-pointer items-center gap-2.5 rounded-sm px-2 py-1.5 text-sm hover:bg-muted">
-            <Checkbox checked={value !== "all" && selected.includes(c.id)} onCheckedChange={() => toggle(c.id)} />
-            {c.name}
+        {options.length === 0
+          ? <p className="px-2 py-2 text-xs text-muted-foreground">Agent chưa publish kênh nào.</p>
+          : options.map(c => (
+            <label key={c.id} className="flex cursor-pointer items-center gap-2.5 rounded-sm px-2 py-1.5 text-sm hover:bg-muted">
+              <Checkbox checked={value !== "all" && selected.includes(c.id)} onCheckedChange={() => toggle(c.id)} />
+              {c.name}
+            </label>
+          ))}
+        {/* Kênh đã chọn trước đó nhưng giờ không còn publish — vẫn cho bỏ chọn. */}
+        {selected.filter(id => !live.has(id)).map(id => (
+          <label key={id} className="flex cursor-pointer items-center gap-2.5 rounded-sm px-2 py-1.5 text-sm hover:bg-muted">
+            <Checkbox checked onCheckedChange={() => toggle(id)} />
+            <span className="text-warning line-through">{channelLabel(id)}</span>
+            <span className="ml-auto text-[11px] text-muted-foreground">không còn publish</span>
           </label>
         ))}
       </PopoverContent>
@@ -64,30 +90,65 @@ function ChannelsSelect({ value, onChange, disabled }: { value: Reminder["channe
   );
 }
 
+/** "Xem reminder trùng" — a read-only summary of the reminder whose timing collides. */
+function OverlapPopover({ agentId, otherId }: { agentId: string; otherId: string }) {
+  const other = reminderStore.list(agentId).find(r => r.id === otherId);
+  if (!other) return null;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button type="button" className="underline underline-offset-2 hover:no-underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 rounded-sm">Xem reminder trùng</button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72 text-xs">
+        <p className="text-sm font-medium">{other.name}</p>
+        <p className="mt-1 text-muted-foreground">
+          {other.channels === "all" ? "Tất cả kênh" : other.channels.map(channelLabel).join(", ")} · {other.enabled ? "Đang bật" : "Đang tắt"}
+        </p>
+        <ul className="mt-2 space-y-1">
+          {other.steps.map((s, i) => (
+            <li key={s.id} className="flex gap-2">
+              <span className="shrink-0 text-muted-foreground">Lần {i + 1}</span>
+              <span className="tabular-nums">{fmtMinutes(stepMinutes(s))}</span>
+            </li>
+          ))}
+        </ul>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 type GenState = { status: "idle" | "running" | "error" };
 
-function StepCard({ agentId, step, index, open, onToggle, onChange, onRemove, readOnly, errors, show, touch, channels }: {
+function StepCard({ agentId, step, index, open, onToggle, onChange, onRemove, readOnly, errors, show, touch, overlaps }: {
   agentId: string; step: ReminderStep; index: number; open: boolean; onToggle: () => void;
   onChange: (s: ReminderStep) => void; onRemove?: () => void; readOnly?: boolean;
-  errors: Map<string, string>; show: (k: string) => boolean; touch: (k: string) => void; channels: Reminder["channels"];
+  errors: Map<string, string>; show: (k: string) => boolean; touch: (k: string) => void; overlaps: OverlapHit[];
 }) {
   const k = (f: string) => `step.${step.id}.${f}`;
   const err = (f: string) => (show(k(f)) ? errors.get(k(f)) : undefined);
   const [gen, setGen] = useState<GenState>({ status: "idle" });
   const [replaceWith, setReplaceWith] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => abortRef.current?.abort(), []);
   const skills = stepSkills(agentId, step.instruction);
   const instructionEmpty = !plain(step.instruction);
-  const fallback = textFallbackChannels(channels);
   const hasError = [...errors.keys()].some(x => x.startsWith(`step.${step.id}.`) && show(x));
+  const myOverlaps = overlaps.filter(o => o.stepId === step.id);
 
   const runGenerate = async () => {
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    const timer = window.setTimeout(() => ctrl.abort(), GENERATE_TIMEOUT_MS);
     setGen({ status: "running" });
     try {
-      const text = await generateTrigger(step.instruction);
+      const text = await generateTrigger(step.instruction, ctrl.signal);
       setGen({ status: "idle" });
       if (step.trigger.trim()) setReplaceWith(text); else onChange({ ...step, trigger: text });
     } catch {
       setGen({ status: "error" });
+    } finally {
+      window.clearTimeout(timer);
+      abortRef.current = null;
     }
   };
   const genTip = instructionEmpty ? "Viết Instruction trước." : gen.status === "running" ? "Đang tạo…" : "Tạo từ nội dung Instruction.";
@@ -98,12 +159,13 @@ function StepCard({ agentId, step, index, open, onToggle, onChange, onRemove, re
       <div className="flex items-center gap-2 px-4 py-3">
         <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-w-0 flex-1 items-center gap-2 text-left rounded-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
           <Icon icon={ArrowDown01Icon} className={`shrink-0 text-muted-foreground transition-transform ${open ? "" : "-rotate-90"}`} />
-          <span className="text-sm font-semibold shrink-0">Reminder {index + 1}</span>
+          <span className={`text-sm font-semibold shrink-0 ${hasError ? "text-destructive" : ""}`}>Lần nhắc {index + 1}</span>
           {!open && <span className="truncate text-sm text-muted-foreground">{summary}</span>}
           {!open && hasError && <Icon icon={Alert02Icon} size={14} className="shrink-0 text-destructive" />}
+          {!open && !hasError && myOverlaps.length > 0 && <Icon icon={Alert02Icon} size={14} className="shrink-0 text-warning" />}
         </button>
         {onRemove && !readOnly && (
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" aria-label={`Xóa Reminder ${index + 1}`} onClick={onRemove}>
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" aria-label={`Xóa Lần nhắc ${index + 1}`} onClick={onRemove}>
             <Icon icon={Delete02Icon} />
           </Button>
         )}
@@ -115,19 +177,27 @@ function StepCard({ agentId, step, index, open, onToggle, onChange, onRemove, re
           <div>
             <p id={`${step.id}-dur`} className="text-sm font-medium">Duration <span className="text-destructive">*</span></p>
             <div className="mt-1.5 flex items-center gap-2" role="group" aria-labelledby={`${step.id}-dur`} data-field={k("duration")}>
-              <Select value={String(step.hours)} onValueChange={v => { onChange({ ...step, hours: Number(v), minutes: Number(v) === 23 ? 0 : step.minutes }); touch(k("duration")); }} disabled={readOnly}>
+              <Select value={String(step.hours)} onValueChange={v => { onChange({ ...step, hours: Number(v) }); touch(k("duration")); }} disabled={readOnly}>
                 <SelectTrigger className="w-24 tabular-nums" aria-label="Giờ" aria-invalid={!!err("duration")}><SelectValue /></SelectTrigger>
-                <SelectContent className="max-h-64">{HOUR_OPTIONS.map(h => <SelectItem key={h} value={String(h)}>{h}</SelectItem>)}</SelectContent>
+                <SelectContent className="max-h-64">{HOUR_OPTIONS.map(h => <SelectItem key={h} value={String(h)}>{String(h).padStart(2, "0")}</SelectItem>)}</SelectContent>
               </Select>
               <span className="text-sm text-muted-foreground">giờ</span>
-              <Select value={String(step.minutes)} onValueChange={v => { onChange({ ...step, minutes: Number(v) }); touch(k("duration")); }} disabled={readOnly || step.hours === 23}>
+              <Select value={String(step.minutes)} onValueChange={v => { onChange({ ...step, minutes: Number(v) }); touch(k("duration")); }} disabled={readOnly}>
                 <SelectTrigger className="w-24 tabular-nums ml-2" aria-label="Phút" aria-invalid={!!err("duration")}><SelectValue /></SelectTrigger>
                 <SelectContent className="max-h-64">{MINUTE_OPTIONS.map(m => <SelectItem key={m} value={String(m)}>{String(m).padStart(2, "0")}</SelectItem>)}</SelectContent>
               </Select>
               <span className="text-sm text-muted-foreground">phút</span>
             </div>
-            <Helper>{index === 0 ? "Tính từ tin nhắn cuối của Agent đang chờ người dùng phản hồi." : "Tính từ lần nhắc trước."}</Helper>
+            <Helper>{index === 0
+              ? "Tính từ tin nhắn Agent đang chờ người dùng trả lời."
+              : "Tính từ tin nhắn cuối của Agent (bao gồm cả tin nhắc đã gửi)."}</Helper>
             <Err>{err("duration")}</Err>
+            {myOverlaps.map(o => (
+              <Note key={`${o.otherId}-${o.otherStep}`}>
+                {o.exact ? "Trùng thời gian với" : "Có thể trùng thời gian với"} <strong className="font-medium">{o.otherName}</strong> – Lần {o.otherStep}. Khi đến giờ cùng lúc, reminder tạo trước được xét trước; mỗi lượt chờ chỉ gửi tối đa {MAX_REPLIES_PER_WAIT} tin nên một số lời nhắc có thể không được gửi.{" "}
+                <OverlapPopover agentId={agentId} otherId={o.otherId} />
+              </Note>
+            ))}
           </div>
 
           {/* 2. Instruction */}
@@ -142,9 +212,9 @@ function StepCard({ agentId, step, index, open, onToggle, onChange, onRemove, re
               trigger="@"
               scope="skills"
               readOnly={readOnly}
-              ariaLabel={`Instruction của Reminder ${index + 1}`}
+              ariaLabel={`Instruction của Lần nhắc ${index + 1}`}
               fieldKey={k("instruction")}
-              placeholder="Mô tả việc Agent cần làm ở lần nhắc này. Gõ @ để dùng skill."
+              placeholder="Mô tả việc Agent cần làm ở lần nhắc này dựa trên ngữ cảnh hội thoại. Có thể nhập tên skill để Agent gọi skill đó."
               className={`mt-1.5 min-h-[72px] w-full rounded-md border px-3 py-2 text-sm leading-relaxed focus:ring-[3px] focus:ring-ring/50 ${err("instruction") ? "border-destructive" : ""}`}
             />
             <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
@@ -157,16 +227,17 @@ function StepCard({ agentId, step, index, open, onToggle, onChange, onRemove, re
             <Err>{err("instruction")}</Err>
           </div>
 
-          {/* 3. Trigger */}
+          {/* 3. Trigger — optional */}
           <div>
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5">
-                <label htmlFor={`${step.id}-trigger`} className="text-sm font-medium">Trigger <span className="text-destructive">*</span></label>
+                <label htmlFor={`${step.id}-trigger`} className="text-sm font-medium">Trigger</label>
+                <span className="text-xs text-muted-foreground">(không bắt buộc)</span>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button type="button" aria-label="Về Trigger" className="text-muted-foreground hover:text-foreground"><Icon icon={InformationCircleIcon} size={14} /></button>
                   </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">Agent kiểm tra điều kiện này khi hết thời gian chờ. Nếu không thỏa, lời nhắc không được gửi và các lần nhắc sau của reminder này cũng dừng.</TooltipContent>
+                  <TooltipContent className="max-w-xs">Agent kiểm tra điều kiện này khi hết thời gian chờ. Nếu không thỏa, lời nhắc không được gửi.</TooltipContent>
                 </Tooltip>
               </div>
               {!readOnly && (
@@ -185,21 +256,20 @@ function StepCard({ agentId, step, index, open, onToggle, onChange, onRemove, re
             </div>
             <p className="text-xs text-muted-foreground">Khi nào gửi lời nhắc này?</p>
             <Textarea id={`${step.id}-trigger`} value={step.trigger} readOnly={readOnly || gen.status === "running"} data-field={k("trigger")}
-              onChange={e => onChange({ ...step, trigger: e.target.value })} onBlur={() => touch(k("trigger"))} rows={3}
+              onChange={e => onChange({ ...step, trigger: e.target.value })} rows={3}
               placeholder="Mô tả tình huống cần gửi lời nhắc. Điều kiện được kiểm tra khi hết thời gian chờ."
-              className={`mt-1.5 ${gen.status === "running" ? "opacity-60" : ""}`} aria-invalid={!!err("trigger")} />
-            {gen.status === "error" && <p className="text-xs text-destructive mt-1.5" role="alert">Chưa tạo được. Vui lòng thử lại hoặc tự nhập.</p>}
-            <Err>{err("trigger")}</Err>
+              className={`mt-1.5 ${gen.status === "running" ? "opacity-60" : ""}`} />
+            {gen.status === "error" && <p className="text-xs text-destructive mt-1.5" role="alert">Chưa tạo được, vui lòng thử lại hoặc tự nhập.</p>}
+            <Helper>Để trống thì luôn gửi khi hết thời gian chờ.</Helper>
           </div>
 
           {/* 4. CSAT */}
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-sm font-medium">CSAT rating</p>
-              <Helper>Gửi kèm yêu cầu đánh giá mức độ hài lòng trong lời nhắc này.</Helper>
-              {step.csat && fallback.length > 0 && <p className="text-xs text-muted-foreground mt-1">Hiển thị dạng văn bản trên {fallback.join(", ")}.</p>}
+              <Helper>Gửi kèm yêu cầu đánh giá mức độ hài lòng.</Helper>
             </div>
-            <Switch checked={step.csat} onCheckedChange={v => onChange({ ...step, csat: v })} disabled={readOnly} aria-label={`CSAT rating của Reminder ${index + 1}`} className="shrink-0" />
+            <Switch checked={step.csat} onCheckedChange={v => onChange({ ...step, csat: v })} disabled={readOnly} aria-label={`CSAT rating của Lần nhắc ${index + 1}`} className="shrink-0" />
           </div>
         </div>
       )}
@@ -233,11 +303,19 @@ export default function ReminderSheet({ agentId, initial, mode, readOnly, onClos
   const initialJson = useMemo(() => JSON.stringify(initial), [initial]);
   const dirty = JSON.stringify(draft) !== initialJson;
 
-  const errors = validateReminder(agentId, draft, reminderStore.list(agentId));
+  const others = reminderStore.list(agentId);
+  const errors = validateReminder(agentId, draft, others);
   const show = (k: string) => submitted || touched.has(k);
   const touch = (k: string) => setTouched(t => (t.has(k) ? t : new Set(t).add(k)));
   const total = totalMinutes(draft.steps);
   const totalErr = errors.total;
+
+  const overlaps = useMemo(() => findOverlaps(agentId, draft, others), [agentId, draft, others]);
+  const windows = windowWarnings(agentId, draft);
+  const apiWarn = apiNotSubscribed(agentId, draft);
+  /** Không còn kênh nào đang publish để gửi — chỉ cảnh báo, không chặn lưu. */
+  const noChannel = noLiveChannel(agentId, draft);
+  const gone = missingChannels(agentId, draft);
 
   const setStep = (s: ReminderStep) => setDraft(d => ({ ...d, steps: d.steps.map(x => (x.id === s.id ? s : x)) }));
   const addStep = () => { const s = emptyStep(); setDraft(d => ({ ...d, steps: [...d.steps, s] })); setOpenStep(s.id); };
@@ -269,13 +347,20 @@ export default function ReminderSheet({ agentId, initial, mode, readOnly, onClos
   return (
     <>
       <Sheet open onOpenChange={o => { if (!o) requestClose(); }}>
-        <SheetContent side="right" className="w-full sm:max-w-[560px] p-0 flex flex-col gap-0">
+        <SheetContent side="right" className="w-full sm:max-w-[600px] p-0 flex flex-col gap-0">
           <SheetHeader className="px-6 pt-5 pb-4 border-b text-left">
             <SheetTitle>{readOnly ? "Xem reminder" : mode === "create" ? "Thêm reminder" : "Chỉnh sửa reminder"}</SheetTitle>
             <SheetDescription className="sr-only">Cấu hình các lần nhắc khi người dùng ngừng phản hồi.</SheetDescription>
           </SheetHeader>
 
           <div ref={bodyRef} className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-6">
+            {mode === "edit" && !readOnly && (
+              <p className="flex items-start gap-1.5 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                <Icon icon={InformationCircleIcon} size={13} className="mt-0.5 shrink-0" />
+                <span>Thay đổi chỉ áp dụng cho lượt chờ mới; lượt chờ đang chạy giữ cấu hình cũ.</span>
+              </p>
+            )}
+
             <section className="space-y-4">
               <h3 className="text-sm font-semibold">Thông tin chung</h3>
               <div>
@@ -286,10 +371,21 @@ export default function ReminderSheet({ agentId, initial, mode, readOnly, onClos
                 <Err>{nameErr}</Err>
               </div>
               <div>
-                <label htmlFor="rem-channels" className="text-sm font-medium">Channels <span className="text-destructive">*</span></label>
-                <div className="mt-1.5"><ChannelsSelect value={draft.channels} disabled={readOnly} onChange={v => { setDraft(d => ({ ...d, channels: v })); touch("channels"); }} /></div>
+                <label htmlFor="rem-channels" className="text-sm font-medium">Kênh áp dụng <span className="text-destructive">*</span></label>
+                <div className="mt-1.5"><ChannelsSelect agentId={agentId} value={draft.channels} disabled={readOnly} onChange={v => { setDraft(d => ({ ...d, channels: v })); touch("channels"); }} /></div>
                 <Helper>Tên và kênh áp dụng cho tất cả lần nhắc của reminder này.</Helper>
                 <Err>{channelsErr}</Err>
+                {noChannel && (
+                  <Note>
+                    {draft.channels === "all"
+                      ? "Agent chưa publish kênh nào. Reminder vẫn lưu được và sẽ chạy ngay khi có kênh được publish."
+                      : "Các kênh đã chọn không còn được publish nên reminder không gửi được lời nhắc. Chọn lại kênh đang publish."}
+                  </Note>
+                )}
+                {!noChannel && gone.length > 0 && (
+                  <Note>Kênh {gone.map(channelLabel).join(", ")} không còn được publish nên sẽ không nhận lời nhắc.</Note>
+                )}
+                {apiWarn && <Note>Kênh API chưa đăng ký sự kiện tin nhắc nên sẽ không nhận được lời nhắc.</Note>}
               </div>
             </section>
 
@@ -308,7 +404,7 @@ export default function ReminderSheet({ agentId, initial, mode, readOnly, onClos
                   errors={errors.fields}
                   show={show}
                   touch={touch}
-                  channels={draft.channels}
+                  overlaps={overlaps}
                 />
               ))}
               {!readOnly && draft.steps.length < MAX_STEPS && (
@@ -316,12 +412,19 @@ export default function ReminderSheet({ agentId, initial, mode, readOnly, onClos
                   <Icon icon={Add01Icon} /> Thêm lần nhắc <span className="tabular-nums text-muted-foreground">{draft.steps.length}/{MAX_STEPS}</span>
                 </Button>
               )}
+              {windows.map(w => (
+                <Note key={w.channel}>
+                  Tổng thời gian có thể vượt khung tương tác của {w.channel} ({fmtMinutes(w.windowMin)}); lời nhắc ngoài khung sẽ không được gửi.
+                </Note>
+              ))}
             </section>
           </div>
 
           <div className="flex items-center justify-between gap-3 border-t px-6 py-4">
             <div className="min-w-0">
-              <p className={`text-sm tabular-nums ${totalErr ? "text-destructive font-medium" : "text-muted-foreground"}`}>Tổng thời gian: {total ? fmtMinutes(total) : "0 phút"}</p>
+              <p className={`text-sm tabular-nums ${totalErr ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                Tổng thời gian: {total ? fmtMinutes(total) : "0 phút"} / {fmtMinutes(MAX_TOTAL_MIN)}
+              </p>
               {totalErr && <p className="text-xs text-destructive" role="alert">{totalErr}</p>}
             </div>
             <div className="flex gap-2 shrink-0">
