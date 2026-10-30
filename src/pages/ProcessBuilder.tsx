@@ -558,6 +558,74 @@ function evalDecision(c, vars) {
 }
 function fill(t, vars) { return String(t || '').replace(/@([A-Za-z_][A-Za-z0-9_]*)/g, function (m, k) { var v = vars[k]; return v !== undefined ? v : m; }); }
 
+
+// ── Diễn giải luồng bằng lời cho người không chuyên ───────────────────────────
+var XK = { b: 'color: #121216; font-weight: 600', who: 'color: #1d4ed8; font-weight: 600', time: 'color: #b45309; font-weight: 600', warn: 'color: #b45309; font-weight: 600', ok: 'color: #15803d; font-weight: 600', bad: 'color: #b91c1c; font-weight: 600', mut: 'color: #5b5b66' };
+var XC = { b: ['#121216', 600], who: ['#1d4ed8', 600], time: ['#b45309', 600], warn: ['#b45309', 600], ok: ['#15803d', 600], bad: ['#b91c1c', 600], mut: ['#5b5b66', 400] };
+function SG(t, k) { var c = XC[k] || ['inherit', 400]; return { t: t, c: c[0], w: c[1] }; }
+function lc1(t) { t = String(t || ''); return t.charAt(0).toLowerCase() + t.slice(1); }
+function plainVar(t) { return String(t || '').replace(/@([A-Za-z_][A-Za-z0-9_]*)/g, '$1'); }
+function whoOf(c) { if (c.assignType === 'initiator') return 'người tạo đề nghị'; var ps = c.assignees.map(function (x) { var p = x.split(' · '); return p[1] ? p[1] + ' (' + p[0] + ')' : p[0]; }); if (!ps.length) return 'người nhận (chưa chọn)'; if (ps.length === 1) return ps[0]; return ps.join(' và ') + (c.mode === 'all' ? ' (cả hai đều phải duyệt)' : ' (một người xử lý là đủ)'); }
+var END_VI = { completed: ['Hoàn tất', 'ok'], rejected: ['Bị từ chối', 'bad'], cancelled: ['Đã huỷ', 'bad'], failed: ['Thất bại', 'bad'] };
+function explainFlow(s) {
+  var byId = {}; s.nodes.forEach(function (n) { byId[n.id] = n; });
+  var st = s.nodes.filter(function (n) { return n.type === 'start'; })[0]; if (!st) return { summary: [], steps: [] };
+  var order = [], seen = {}, q = [st.id];
+  while (q.length) { var id = q.shift(); if (seen[id] || !byId[id]) continue; seen[id] = 1; if (byId[id].type !== 'note') order.push(id); s.edges.filter(function (e) { return e.from === id; }).sort(function (a, b) { return a.out - b.out; }).forEach(function (e) { q.push(e.to); }); }
+  var pos = function (id) { var n = byId[id]; return DIR === 'h' ? n.x * 10000 + n.y : n.y * 10000 + n.x; };
+  order = order.filter(function (id) { return byId[id].type !== 'end'; }).sort(function (a, b) { return byId[a].type === 'start' ? -1 : byId[b].type === 'start' ? 1 : pos(a) - pos(b); }).concat(order.filter(function (id) { return byId[id].type === 'end'; }));
+  var num = {}; order.forEach(function (id, i) { num[id] = i + 1; });
+  var ref = function (id) { var n = byId[id]; if (!n) return [SG('chưa nối bước tiếp', 'warn')]; if (n.type === 'end') { var ev = END_VI[n.cfg.status] || ['Kết thúc', 'b']; return [SG('kết thúc hồ sơ: ', ''), SG(ev[0], ev[1])]; } return [SG('bước ' + num[id] + ' ', 'mut'), SG('"' + n.title + '"', 'b')]; };
+  var outsTo = function (n, i) { return s.edges.filter(function (e) { return e.from === n.id && e.out === i; }).map(function (e) { return e.to; }); };
+  var branches = function (n, labels) {
+    var segs = [];
+    outsOf(n).forEach(function (lb, i) { var to = outsTo(n, i); if (!to.length) return; var name = labels && labels[lb] || lb || 'Xong';
+      segs.push(SG(' ' + name + ' thì ', '')); to.forEach(function (t, k) { if (k) segs.push(SG(' và đồng thời ', '')); if (byId[t] && byId[t].type !== 'end') segs.push(SG('sang ', '')); segs = segs.concat(ref(t)); }); segs.push(SG(';', '')); });
+    if (segs.length) segs[segs.length - 1] = SG('.', '');
+    return segs;
+  };
+  var next = function (n) { var to = outsTo(n, 0); if (!to.length) return [SG(' Sau đó dừng ở đây.', 'mut')]; if (to.length > 1) { var sg = [SG(' Sau đó ', ''), SG('chạy song song ' + to.length + ' nhánh', 'b'), SG(': ', '')]; to.forEach(function (t, k) { if (k) sg.push(SG(' và ', '')); sg = sg.concat(ref(t)); }); sg.push(SG('.', '')); return sg; } return [SG(' Sau đó sang ', '')].concat(ref(to[0])).concat([SG('.', '')]); };
+  var tmo = function (n) { var c = n.cfg; return parseFloat(c.tmo) > 0 ? [SG(', hạn ', ''), SG(c.tmo + ' ' + c.tmoUnit, 'time')] : []; };
+  var steps = order.map(function (id) {
+    var n = byId[id], c = n.cfg, t = [];
+    switch (n.type) {
+      case 'start': t = [SG('Hồ sơ bắt đầu khi người dùng gõ ', ''), SG('/' + (c.cmd || 'tên Quy trình'), 'who'), SG(' trong Workspace. Agent điền sẵn form gồm ', ''), SG(c.inputs.filter(function (f) { return f.name; }).length + ' thông tin', 'b'), SG(' (' + c.inputs.map(function (f) { return f.desc || f.name; }).filter(Boolean).join(', ') + ')', 'mut'), SG(', người dùng kiểm tra rồi ', ''), SG('bấm Nộp', 'b'), SG('.', '')].concat(next(n)); break;
+      case 'loop': t = c.mode === 'until' ? [SG('Lặp lại các bước bên trong ', ''), SG('cho tới khi ' + plainVar(c.until), 'b'), SG(', ', ''), SG('tối đa ' + c.max + ' vòng', 'time'), SG('.', '')] : [SG('Làm lần lượt các bước bên trong cho ', ''), SG('từng phần tử của ' + (c.list || 'danh sách'), 'b'), SG('.', '')];
+        t = t.concat([SG(' Bắt đầu vòng ở ', '')]).concat(outsTo(n, 0).length ? ref(outsTo(n, 0)[0]) : [SG('(chưa nối)', 'warn')]).concat([SG('. Lặp xong thì sang ', '')]).concat(outsTo(n, 1).length ? ref(outsTo(n, 1)[0]) : [SG('(chưa nối)', 'warn')]);
+        if (c.mode === 'until' && outsTo(n, 2).length) t = t.concat([SG('; hết số vòng mà chưa đạt thì ', 'warn')]).concat(ref(outsTo(n, 2)[0])); t.push(SG('.', '')); break;
+      case 'tool': var tl = TOOLS.filter(function (x) { return x.name === c.tool; })[0]; t = [SG('Hệ thống tự ', ''), SG(lc1(actOf(c.tool) || 'chạy thao tác'), 'b'), SG(' trên ' + (connOf(c.tool) || 'hệ thống ngoài'), '')];
+        if (c.acc === 'initiator') t.push(SG(' bằng tài khoản của người tạo đề nghị', 'who')); if (tl && tl.write) t.push(SG(' (thao tác ghi, đã có người xác nhận trước)', 'warn'));
+        if (c.retry) t.push(SG(', lỗi kỹ thuật thì thử lại 3 lần', 'mut')); t = t.concat(tmo(n)).concat([SG('.', '')]).concat(next(n)); if (outsOf(n).indexOf('Timeout') >= 0 && outsTo(n, 1).length) t = t.concat([SG(' Quá hạn thì ', 'warn')]).concat(ref(outsTo(n, 1)[0])).concat([SG('.', '')]); break;
+      case 'condition': t = [SG('Kiểm tra: ', '')]; c.cases.forEach(function (cs, i) { t.push(SG('nếu ' + cs.rows.map(function (r) { return r.v + ' ' + r.op.toLowerCase() + ' ' + plainVar(r.val); }).join(cs.logic === 'VÀ' ? ' và ' : ' hoặc '), 'b')); t.push(SG(' thì ', '')); var to = outsTo(n, i); if (to.length && byId[to[0]].type !== 'end') t.push(SG('sang ', '')); t = t.concat(to.length ? ref(to[0]) : [SG('tiếp tục trong vòng lặp', 'mut')]); t.push(SG('; ', '')); });
+        t.push(SG('còn lại', 'b')); t.push(SG(' thì ', '')); var te = outsTo(n, c.cases.length); if (te.length && byId[te[0]].type !== 'end') t.push(SG('sang ', '')); t = t.concat(te.length ? ref(te[0]) : [SG('tiếp tục trong vòng lặp', 'mut')]); t.push(SG('.', '')); break;
+      case 'human': var vb = { approval: 'duyệt', confirm: 'xác nhận', choice: 'chọn' }[c.variant];
+        t = [SG(whoOf(c).charAt(0).toUpperCase() + whoOf(c).slice(1), 'who'), SG(' nhận việc ', ''), SG(vb + ' "' + plainVar(c.title) + '"', 'b'), SG(' ở Action Center, hạn ', ''), SG(c.timeout + ' ' + c.tunit, 'time')];
+        if (c.remind) t = t.concat([SG(', nhắc sau ', ''), SG(plainVar(c.remind), 'time')]); if (c.onTimeout === 'reassign' && c.reassign) t = t.concat([SG('; quá hạn thì giao lại cho ', ''), SG(c.reassign.split(' · ')[0], 'who')]); t.push(SG('.', ''));
+        t = t.concat(branches(n, { Approve: 'Đồng ý', Return: 'Trả lại để sửa', Reject: 'Từ chối', Confirm: 'Xác nhận', Cancel: 'Không xác nhận', Timeout: 'Quá hạn' })); break;
+      case 'worker': t = [SG('Nhân sự số ', ''), SG(c.worker || '(chưa chọn)', 'who'), SG(' làm việc: ', ''), SG(plainVar(c.task), ''), SG(' Hạn ', ''), SG(c.tmo + ' ' + c.tmoUnit, 'time'), SG('.', '')].concat(next(n));
+        if (outsTo(n, 1).length) t = t.concat([SG(' Quá hạn thì ', 'warn')]).concat(ref(outsTo(n, 1)[0])).concat([SG('.', '')]); if (outsTo(n, 2).length) t = t.concat([SG(' Không ra kết quả thì ', 'warn')]).concat(ref(outsTo(n, 2)[0])).concat([SG('.', '')]); break;
+      case 'agent': t = [SG('AI ', ''), SG(lc1(n.title), 'b'), SG(' (' + c.model + ')', 'mut'), SG('.', '')].concat(next(n)); break;
+      case 'decision': t = [SG('Tra bảng luật ', ''), SG('"' + n.title + '"', 'b'), SG(': ', '')]; c.rows.forEach(function (r, i) { if (i) t.push(SG('; ', '')); t.push(SG(r.when === '-' ? 'mọi trường hợp còn lại' : 'khi ' + r.when, 'b')); t.push(SG(' thì ' + r.then, '')); }); t.push(SG('.', '')); t = t.concat(next(n)); break;
+      case 'wait': t = [SG('Chờ ', ''), SG(c.mode === 'until' ? 'tới ' + plainVar(c.at) : c.amount + ' ' + c.aunit, 'time'), SG(' rồi tự đi tiếp.', '')].concat(next(n)); break;
+      case 'join': t = [SG(c.mode === 'all' ? 'Chờ đủ tất cả các nhánh chạy song song' : 'Nhánh nào xong trước thì đi tiếp, các nhánh còn lại bị huỷ', 'b'), SG('.', '')].concat(next(n)); break;
+      case 'code': t = [SG('Hệ thống tự tính toán: ', ''), SG(lc1(n.title), 'b'), SG(' (không dùng AI, kết quả chính xác tuyệt đối).', 'mut')].concat(next(n)); break;
+      case 'variable': t = [SG('Ghi lại thông tin ', ''), SG(c.vars.map(function (v) { return v.name; }).join(', '), 'b'), SG('.', '')].concat(next(n)); break;
+      case 'end': var ev2 = END_VI[c.status] || ['Kết thúc', 'b']; t = [SG('Hồ sơ đóng với kết quả ', ''), SG(ev2[0], ev2[1])].concat(c.message ? [SG(' - ' + c.message, 'mut')] : []).concat([SG('. Người tạo đề nghị nhận thông báo.', '')]); break;
+    }
+    var col = colOf(n.type);
+    return { n: num[id], title: n.title, kind: TYPES[n.type].name, segs: t, tile: col[0], tileBg: col[1], icon: TYPES[n.type].icon, id: n.id };
+  });
+  var people = s.nodes.filter(function (n) { return n.type === 'human'; }).length, branchN = s.nodes.filter(function (n) { return n.type === 'condition' || n.type === 'decision'; }).length, ends = s.nodes.filter(function (n) { return n.type === 'end'; });
+  var summary = [SG('Quy trình có ', ''), SG(order.length + ' bước', 'b'), SG(', trong đó ', ''), SG(people + ' bước cần người xử lý', 'who'), SG(' và ', ''), SG(branchN + ' điểm rẽ nhánh theo luật', 'b'), SG('. Hồ sơ có thể kết thúc theo ' + ends.length + ' cách: ', '')];
+  ends.forEach(function (e, i) { var ev = END_VI[e.cfg.status] || ['Kết thúc', 'b']; if (i) summary.push(SG(', ', '')); summary.push(SG(e.title, ev[1])); }); summary.push(SG('.', ''));
+  return { summary: summary, steps: steps };
+}
+
+// ── Refine với AI (mock): hiểu vài câu lệnh, đề xuất thay đổi để người dựng Áp dụng ──
+var REFINE_TIPS = ['Thêm bước Giám đốc khối duyệt sau Trưởng phòng duyệt', 'Đổi hạn Trưởng phòng duyệt thành 24 giờ', 'Chờ 3 ngày trước Nhắc NCC', 'Gửi email báo người đề nghị khi Hoàn tất', 'Kiểm tra Quy trình còn lỗi gì', 'Giải thích luồng này'];
+function personOf(t) { var x = norm(t), m = [['giam doc', 2], ['ke toan truong', 1], ['ke toan', 5], ['truong phong', 0], ['mua sam', 3], ['kho', 4]]; for (var i = 0; i < m.length; i++) if (x.indexOf(m[i][0]) >= 0) return PEOPLE[m[i][1]]; var p = PEOPLE.filter(function (pp) { return x.indexOf(norm(pp.split(' · ')[0])) >= 0; })[0]; return p || ''; }
+function nodeIn(t, s, after) { var x = norm(t), key = after ? (x.split(/\b(sau|truoc)\b/)[2] || x) : x, best = null; s.nodes.forEach(function (n) { if (n.type === 'note' || n.type === 'start') return; var k = norm(n.title); if (key.indexOf(k) >= 0 && (!best || k.length > norm(best.title).length)) best = n; }); return best; }
+
 class ProcessBuilderInner extends React.Component<any, any> {
   constructor(props) {
     super(props);
@@ -604,7 +672,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
     var self = this; setTimeout(function () { self.fit(1); }, 40);
   }
   canvasSize() { var el = this.canvasEl; return { w: el ? el.clientWidth : 1440, h: el ? el.clientHeight : 850 }; }
-  insets() { var s = this.state, panel = (s.sel || s.runOpen || !s.panelHidden) ? (s.expand ? 640 : 476) : 0; return { l: s.palOpen ? 248 : 40, r: panel + 24 }; }
+  insets() { var s = this.state, panel = (s.sel || s.runOpen || !s.panelHidden) ? (s.expand ? 640 : 476) : 0; return { l: s.palOpen ? (s.leftTab === 'ai' ? 372 : 248) : 40, r: panel + 24 }; }
   fit(minZ) {
     var nodes = this.state.nodes; if (!nodes.length) return;
     DIR = this.state.dir;
@@ -764,6 +832,36 @@ class ProcessBuilderInner extends React.Component<any, any> {
     var es = edges.map(function (e) { return e.to === id && !human(e) ? Object.assign({}, e, { to: h.id }) : e; }).concat([{ from: h.id, out: 0, to: id }]);
     this.showToast('Thao tác ghi: đã chèn Human Review · Confirm ngay trước. Chọn người xác nhận và nối nhánh Cancel.');
     return { nodes: nodes.concat([h]), edges: es };
+  }
+
+  refineSend(text) {
+    var s = this.state, t = String(text || s.rq || '').trim(); if (!t) return;
+    var x = norm(t), msgs = (s.rmsgs || []).concat([{ role: 'me', text: t }]), reply = null, prop = null;
+    var anchor = nodeIn(t, s, /\b(sau|truoc)\b/.test(x)), num = (x.match(/(\d+)\s*(gio|ngay|phut|tuan)/) || []);
+    if (/giai thich|dien giai|tom tat|mo ta luong/.test(x)) { reply = 'Mình đã mở Diễn giải luồng: từng bước được kể lại bằng lời, chỗ quan trọng in đậm và tô màu.'; this.setState({ explainOpen: true }); }
+    else if (/kiem tra|loi|thieu gi|san sang/.test(x)) { var all = this.allIssues(); reply = all.length ? 'Quy trình còn ' + all.length + ' lỗi cần sửa trước khi publish: ' + all.slice(0, 4).map(function (i) { return '"' + i.title + '": ' + i.msgs[0]; }).join('; ') + (all.length > 4 ? '...' : '') + '.' : 'Không còn lỗi nào. Bạn có thể Chạy thử rồi Publish.'; }
+    else if (/\b(xoa|bo)\b/.test(x) && anchor) prop = { op: 'del', id: anchor.id, text: 'Xoá bước "' + anchor.title + '". Các mũi tên nối tới bước này cũng bị gỡ, bạn cần nối lại đường đi.' };
+    else if (/\bhan\b/.test(x) && num[1] && anchor && (anchor.type === 'human' || anchor.type === 'worker')) { var u = { gio: 'giờ', ngay: 'ngày', phut: 'phút', tuan: 'tuần' }[num[2]]; prop = { op: 'cfg', id: anchor.id, patch: anchor.type === 'human' ? { timeout: num[1], tunit: u } : { tmo: num[1], tmoUnit: u === 'ngày' ? 'ngày' : 'giờ' }, text: 'Đổi hạn của "' + anchor.title + '" thành ' + num[1] + ' ' + u + '.' }; }
+    else if (/\bcho\b/.test(x) && num[1]) { var u2 = { gio: 'giờ', ngay: 'ngày', phut: 'phút', tuan: 'ngày' }[num[2]]; prop = { op: 'add', type: 'wait', title: 'Chờ ' + num[1] + ' ' + u2, preset: { mode: 'delay', amount: num[1], aunit: u2 }, anchor: anchor, before: /\btruoc\b/.test(x) }; prop.text = 'Thêm bước Wait "' + prop.title + '"' + (anchor ? (prop.before ? ' trước "' : ' sau "') + anchor.title + '"' : '') + '.'; }
+    else if (/duyet|phe duyet|approve/.test(x)) { var who = personOf(t.replace(/sau .*$/i, '')) || PEOPLE[2]; var ttl = who.split(' · ')[1] + ' duyệt'; prop = { op: 'add', type: 'human', title: ttl, preset: { variant: 'approval', assignees: [who], title: ttl + ' @case_code', timeout: '48', tunit: 'giờ' }, anchor: anchor }; prop.text = 'Thêm Human Review · Approval "' + ttl + '" giao cho ' + who.split(' · ')[0] + ', hạn 48 giờ' + (anchor ? ', ngay sau "' + anchor.title + '"' : '') + '. Nhánh Return và Reject bạn nối tiếp sau khi áp dụng.'; }
+    else if (/email|gui mail|thong bao/.test(x)) { var end = /hoan tat|xong/.test(x) ? s.nodes.filter(function (n) { return n.type === 'end' && n.cfg.status === 'completed'; })[0] : null, anc = anchor || null; prop = { op: 'add', type: 'tool', title: 'Gửi email thông báo', preset: { tool: 'Outlook · Gửi email', acc: 'process', params: 'Hồ sơ @case_code đã xử lý xong' }, anchor: anc, beforeId: !anc && end ? end.id : null }; prop.text = 'Thêm Connector Outlook · Gửi email' + (end && !anc ? ' ngay trước "' + end.title + '"' : anc ? ' sau "' + anc.title + '"' : '') + '. Gửi email là thao tác ghi nên Human Review · Confirm sẽ được tự chèn ngay trước.'; }
+    else reply = 'Mình có thể thêm bước duyệt, bước chờ, email thông báo, đổi hạn xử lý, xoá bước, kiểm tra lỗi hoặc giải thích luồng. Thử gõ: "' + REFINE_TIPS[0] + '".';
+    if (prop) reply = 'Đề xuất thay đổi: ' + prop.text;
+    msgs.push({ role: 'ai', text: reply, prop: prop, done: false });
+    this.setState({ rmsgs: msgs, rq: '' });
+  }
+  refineApply(i) {
+    if (this.roStop()) return;
+    var s = this.state, m = (s.rmsgs || [])[i]; if (!m || !m.prop || m.done) return;
+    var pr = m.prop, msgs = s.rmsgs.map(function (x, j) { return j === i ? Object.assign({}, x, { done: true }) : x; });
+    this.setState({ rmsgs: msgs });
+    if (pr.op === 'del') { this.removeNode(pr.id); return; }
+    if (pr.op === 'cfg') { var nodes = s.nodes.map(function (n) { return n.id === pr.id ? Object.assign({}, n, { cfg: Object.assign({}, n.cfg, pr.patch) }) : n; }); this.commit(nodes, s.edges, { sel: pr.id, tab: 'cfg' }, pr.id); return; }
+    var a = pr.anchor ? this.byId(pr.anchor.id) : null, edge = null;
+    if (pr.beforeId) edge = s.edges.filter(function (e) { return e.to === pr.beforeId; })[0];
+    else if (a && pr.before) edge = s.edges.filter(function (e) { return e.to === a.id; })[0];
+    else if (a) edge = s.edges.filter(function (e) { return e.from === a.id && e.out === 0; })[0];
+    if (edge) this.insertOnEdge(pr.type, edge, pr.preset, pr.title); else this.addNode(pr.type, a ? { id: a.id, out: 0 } : null, pr.preset, pr.title);
   }
   setTool(id, tool) {
     if (this.ro()) return;
@@ -1220,7 +1318,6 @@ class ProcessBuilderInner extends React.Component<any, any> {
       { label: 'Đã chọn kiểu kích hoạt', done: !!startNode, go: function () { self.setState({ section: 'flow', sel: startNode ? startNode.id : null, tab: 'cfg', runOpen: false }); } },
       { label: unwired ? 'Còn ' + unwired + ' bước chưa nối' : 'Đã nối mọi bước', done: !unwired, failed: unwired > 0, go: function () { self.setState({ checkOpen: true, pubOpen: false }); } },
       { label: issueCount ? 'Còn ' + issueCount + ' lỗi cần sửa' : 'Đã cấu hình mọi bước', done: !issueCount, failed: issueCount > 0, go: function () { self.setState({ checkOpen: true, pubOpen: false }); } },
-      { label: 'Đã cấu hình Guardrails', done: Object.keys(g1).some(function (k) { return g1[k]; }), go: function () { self.setState({ readyOpen: false }); if (emb && self.props.onNav) self.props.onNav('guardrails'); else self.setState({ section: 'guard', checkOpen: false }); } },
       { label: 'Đã chạy thử', done: !!(run && run.status === 'done' && run.ok), go: function () { self.setState({ section: 'flow' }); self.openRun(); } }
     ].map(function (r) { return { label: r.label, done: r.done, failed: !r.done && !!r.failed, todo: !r.done && !r.failed, fg: r.done ? '#203BDC' : r.failed ? '#dc2626' : '#686873', pick: function () { self.setState({ readyOpen: false }); r.go(); } }; });
 
@@ -1257,7 +1354,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
       sideShow: s.sideOpen && s.top !== 'channels' && !emb, sideRail: !s.sideOpen && s.top !== 'channels' && !emb, showHeader: !emb, checkLeft: emb ? 16 : 248, checkPos: emb ? 'left: 16px; bottom: 60px' : 'left: 248px; bottom: 16px',
       readOnly: ro, roBanner: ro && building, canTest: !ro,
       panelReopen: building && s.panelHidden && !selNode && !showRun && (!emb || !ro), notEmb: !emb, runBtnLabel: emb ? 'Chạy thử' : 'Test run', reopenCfg: function () { self.setState({ panelHidden: false }); },
-      bannerLeft: (function () { var pw = building && (pmNode || showRun || (pmProcess && !s.panelHidden)) ? (s.expand ? 640 : 476) : 0, lw = s.palOpen && !ro ? 232 : 0; return 'calc(' + lw + 'px + (100% - ' + (lw + pw) + 'px) / 2)'; })(),
+      bannerLeft: (function () { var pw = building && (pmNode || showRun || (pmProcess && !s.panelHidden)) ? (s.expand ? 640 : 476) : 0, lw = s.palOpen && !ro ? (s.leftTab === 'ai' ? 356 : 232) : 0; return 'calc(' + lw + 'px + (100% - ' + (lw + pw) + 'px) / 2)'; })(),
       pendingBanner: building && !ro && (s.status === 'pending' || !!pendVer), pendingText: (pendVer || 'v1') + ' đang chờ duyệt. Bạn đang sửa bản nháp mới - Bản đã gửi duyệt giữ nguyên.',
       nameInput: s.name || '', desc: s.desc || '', descLen: (s.desc || '').length, nameLen: (s.name || '').length, nameInvalid: !!s.nameErr, nameBorder: s.nameErr ? '#dc2626' : '#e5e5e5',
       nameHint: s.nameErr ? 'Nhập tên Quy trình để lưu.' : 'Tên hiện ở danh sách Nhân sự số.', nameHintColor: s.nameErr ? '#dc2626' : '#686873',
@@ -1269,7 +1366,6 @@ class ProcessBuilderInner extends React.Component<any, any> {
       showReady: s.top === 'build',
       navItems: (s.top === 'build' ? [
         { id: 'flow', label: 'Quy trình', icon: ICON.flow, count: issueCount },
-        { id: 'guard', label: 'Guardrails', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
         { id: 'versions', label: 'Phiên bản', icon: 'M3 12a9 9 0 1 0 3-6.7 M3 4v5h5 M12 7v5l3 2' }
       ] : s.top === 'evaluate' ? [
         { id: 'cases', label: 'Test case', icon: 'M9 11l3 3 8-8 M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9' },
@@ -1306,6 +1402,13 @@ class ProcessBuilderInner extends React.Component<any, any> {
       showReadyChip: emb && building && issueCount > 0, readyOpen: false, toggleReady: function () { self.setState({ checkOpen: !self.state.checkOpen, readyOpen: false, add: null }); }, 
       readyChipText: issueCount ? issueCount + ' lỗi' : 'Sẵn sàng ' + readyItems.filter(function (r) { return r.done; }).length + '/' + readyItems.length,
       readyChipFg: issueCount ? '#b45309' : '#3f3f46', readyChipIcon: issueCount ? 'M12 3l10 18H2z M12 10v4 M12 17h.01' : 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M8 12l3 3 5-6',
+      leftAI: s.leftTab === 'ai', leftAdd: s.leftTab !== 'ai', leftW: s.leftTab === 'ai' ? 340 : 216,
+      leftTabs: [{ id: 'add', label: 'Thêm bước' }, { id: 'ai', label: 'Refine với AI' }].map(function (x) { var on = (s.leftTab || 'add') === x.id; return { label: x.label, on: on, bg: on ? '#fff' : 'transparent', fg: on ? '#121216' : '#5b5b66', sh: on ? '0 1px 2px rgba(15,23,42,.08)' : 'none', pick: function () { self.setState({ leftTab: x.id }); } }; }),
+      rmsgs: (s.rmsgs || []).map(function (m, i) { return { me: m.role === 'me', ai: m.role === 'ai', text: m.text, hasProp: !!m.prop && !m.done, applied: !!m.prop && m.done, apply: function () { self.refineApply(i); }, skip: function () { self.setState({ rmsgs: self.state.rmsgs.map(function (x, j) { return j === i ? Object.assign({}, x, { prop: null, text: x.text + ' (đã bỏ qua)' }) : x; }) }); } }; }),
+      rEmpty: !(s.rmsgs || []).length, rq: s.rq || '', onRq: function (e) { self.setState({ rq: e.target.value }); }, onRqKey: function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); self.refineSend(); } }, rSend: function () { self.refineSend(); }, rSendNot: !String(s.rq || '').trim(),
+      rTips: REFINE_TIPS.map(function (t) { return { t: t, pick: function () { self.refineSend(t); } }; }),
+      explainOpen: !!s.explainOpen, closeExplain: function () { self.setState({ explainOpen: false }); },
+      explain: s.explainOpen ? (function () { var x = explainFlow(s); return { summary: x.summary, steps: x.steps.map(function (st) { return Object.assign({}, st, { go: function () { self.setState({ explainOpen: false, sel: st.id, tab: 'cfg', runOpen: false, panel: null }); } }); }) }; })() : { summary: [], steps: [] },
       palOpen: s.palOpen && building && !ro, palClosed: !s.palOpen && building && !ro, togglePal: function () { self.setState({ palOpen: !self.state.palOpen }); },
       palItems: PAL.map(function (k, i) { var t = TYPES[k], cc = COL[t.c], hd = PAL_HEAD[k]; return { hasHead: !!hd, head: hd || '', name: t.name, desc: t.desc, icon: t.icon, tile: cc[0], tileBg: cc[1], more: k === 'tool' || k === 'func', pick: function () { self.palPick(k); } }; }),
       palHint: selNode && selNode.type === 'loop' ? 'Đang chọn vòng lặp: bước mới vào trong vòng lặp.' : (selNode ? 'Bước mới thêm ngay sau "' + selNode.title + '".' : 'Chọn một bước để thêm ngay sau nó.'),
@@ -1454,6 +1557,8 @@ class ProcessBuilderInner extends React.Component<any, any> {
       if (p.command.kind === 'issues') this.setState({ checkOpen: true, pubOpen: false });
       if (p.command.kind === 'run') this.openRun();
       if (p.command.kind === 'details') this.setState({ panelHidden: false, sel: null, runOpen: false, checkOpen: false, panel: null });
+      if (p.command.kind === 'explain') this.setState({ explainOpen: true, add: null });
+      if (p.command.kind === 'refine') this.setState({ palOpen: true, leftTab: 'ai' });
       if (p.command.kind === 'hide') this.setState({ panelHidden: true, sel: null, runOpen: false, panel: null });
     }
     if (p.onReady && this._v) {
@@ -1476,7 +1581,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
       );
     }
     var v = this.renderVals(); this._v = v;
-    var { actCount, actGuards, addCase, addCrumb, addEmpty, addFrom, addHasCrumb, addHasFrom, addOpen, addQ, addRoot, addSections, addShowTabs, addTabs, aiBanner, aiCount, autoLayout, backD, backToList, bannerLeft, building, canRedoNot, canTest, canUndoNot, canvasCursor, canvasRef, cases, checkOpen, checkPos, closeAdd, collapseSide, ctxItems, ctxOpen, ctxX, ctxY, deleteProcess, deleteSel, desc, descLen, dirIcon, dirLabel, dismissBanner, draftSteps, edgeDel, edgeTags, edgesD, editors, errD, errRetry, expandLabel, expandSide, fit, guards, hasIssues, isGuardPage, isOtherTab, isVersionsPage, issueColor, issueCount, issueGroups, last, lastHas, moreOpen, name, nameBorder, nameHint, nameHintColor, nameInput, nameInvalid, nameLen, navItems, noIssues, noRunInputs, nodeTabs, notEmb, onAddKey, onAddQ, onBgDown, onDesc, onMove, onName, onNameBlur, onTitle, onUp, opOpts, openRun, openVersions, otherIcon, otherText, otherTitle, outVars, palClosed, palItems, palOpen, panelClose, panelOpen, panelReopen, panelTabs, panelW, pendingBanner, pendingText, pf, pmNode, pmProcess, pmRun, pubOpen, pubState, publish, publishDisabled, publishLabel, ranD, readOnly, readyChipFg, readyChipIcon, readyChipText, readyDone, readyItems, readyOpen, readyPct, readyTotal, redo, reopenCfg, rerun, roBanner, runBar, runBtnLabel, runDone, runHasOutput, runInputTitle, runInputs, runLocked, runLog, runOutput, runPaused, runResBg, runResBorder, runResText, runRunning, runShowInput, runShowResult, runShowTrace, runStatusColor, runStatusText, runStep, runTabs, sel, selD, share, showHeader, showReady, showReadyChip, sideRail, sideShow, startRun, statusBg, statusDot, statusFg, statusLabel, stepCount, tabCfg, tabLast, tmpD, toast, toastBg, toastText, toggleCheck, toggleDir, toggleExpand, toggleMore, togglePal, togglePub, toggleReady, toggleRetry, toolHint, toolHintColor, topTabs, triggerName, undo, varOpts, versionSub, versionTitle, viewNodes, waitActions, waitBody, waitExpire, waitRole, waitTitle, worldTransform, zoomIn, zoomOut, zoomPct } = v;
+    var { actCount, actGuards, addCase, addCrumb, addEmpty, addFrom, addHasCrumb, addHasFrom, addOpen, addQ, addRoot, addSections, addShowTabs, addTabs, aiBanner, aiCount, autoLayout, backD, backToList, bannerLeft, building, canRedoNot, canTest, canUndoNot, canvasCursor, canvasRef, cases, checkOpen, checkPos, closeAdd, closeExplain, collapseSide, ctxItems, ctxOpen, ctxX, ctxY, deleteProcess, deleteSel, desc, descLen, dirIcon, dirLabel, dismissBanner, draftSteps, edgeDel, edgeTags, edgesD, editors, errD, errRetry, expandLabel, expandSide, explain, explainOpen, fit, guards, hasIssues, isGuardPage, isOtherTab, isVersionsPage, issueColor, issueCount, issueGroups, last, lastHas, leftAI, leftAdd, leftTabs, leftW, moreOpen, name, nameBorder, nameHint, nameHintColor, nameInput, nameInvalid, nameLen, navItems, noIssues, noRunInputs, nodeTabs, notEmb, onAddKey, onAddQ, onBgDown, onDesc, onMove, onName, onNameBlur, onRq, onRqKey, onTitle, onUp, opOpts, openRun, openVersions, otherIcon, otherText, otherTitle, outVars, palClosed, palItems, palOpen, panelClose, panelOpen, panelReopen, panelTabs, panelW, pendingBanner, pendingText, pf, pmNode, pmProcess, pmRun, pubOpen, pubState, publish, publishDisabled, publishLabel, rEmpty, rSend, rSendNot, rTips, ranD, readOnly, readyChipFg, readyChipIcon, readyChipText, readyDone, readyItems, readyOpen, readyPct, readyTotal, redo, reopenCfg, rerun, rmsgs, roBanner, rq, runBar, runBtnLabel, runDone, runHasOutput, runInputTitle, runInputs, runLocked, runLog, runOutput, runPaused, runResBg, runResBorder, runResText, runRunning, runShowInput, runShowResult, runShowTrace, runStatusColor, runStatusText, runStep, runTabs, sel, selD, share, showHeader, showReady, showReadyChip, sideRail, sideShow, startRun, statusBg, statusDot, statusFg, statusLabel, stepCount, tabCfg, tabLast, tmpD, toast, toastBg, toastText, toggleCheck, toggleDir, toggleExpand, toggleMore, togglePal, togglePub, toggleReady, toggleRetry, toolHint, toolHintColor, topTabs, triggerName, undo, varOpts, versionSub, versionTitle, viewNodes, waitActions, waitBody, waitExpire, waitRole, waitTitle, worldTransform, zoomIn, zoomOut, zoomPct } = v;
     backToList = function () { clearTimeout(self.timer); self.props.onBack(); };
     return (
       <div className="qt-root" style={S(emb ? 'flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; background: #fff' : 'height: 100vh; min-height: 640px; display: flex; flex-direction: column; overflow: hidden; position: relative; background: #fff')}>
@@ -1682,21 +1787,59 @@ class ProcessBuilderInner extends React.Component<any, any> {
       </React.Fragment>))}
     </div>
 
-    {/* Bảng Thêm bước */}
+    {/* Bảng trái: Thêm bước | Refine với AI */}
     {(palOpen) && (<>
-      <div data-ui="1" style={S('position: absolute; left: 16px; top: 16px; width: 216px; max-height: calc(100% - 84px); overflow-y: auto; background: #fff; border: 1px solid #e3e1dc; border-radius: 12px; box-shadow: 0 4px 16px rgba(15,23,42,.08); padding: 6px 8px 8px; z-index: 6')}>
-        <div style={S('display: flex; align-items: center; padding: 4px 4px 6px 8px')}><b style={S('flex: 1; font-size: 15px; font-weight: 600; color: #121216')}>Thêm bước</b><button type="button" className={Q('ghost')} aria-label="Thu gọn bảng thêm bước" title="Thu gọn" onClick={togglePal} style={S('width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center')}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h16v16H4z M9 4v16"></path></svg></button></div>
-        {(palItems || []).map((it, _iit) => (<React.Fragment key={_iit}>
-          {(it.hasHead) && (<><div className={Q('palh')}>{it.head}</div></>)}
-          <button type="button" className={Q('pal')} onClick={it.pick} title={it.desc}>
-            <span style={S(`width: 26px; height: 26px; border-radius: 7px; background: ${it.tileBg}; display: flex; align-items: center; justify-content: center; flex-shrink: 0`)}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={it.tile} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={it.icon}></path></svg></span>
-            <span style={S('flex: 1')}>{it.name}</span>
-          </button>
-        </React.Fragment>))}
+      <div data-ui="1" style={S(`position: absolute; left: 16px; top: 16px; bottom: 68px; width: ${leftW}px; display: flex; flex-direction: column; background: #fff; border: 1px solid #e3e1dc; border-radius: 12px; box-shadow: 0 4px 16px rgba(15,23,42,.08); z-index: 6; overflow: hidden`)}>
+        <div style={S('display: flex; align-items: center; gap: 6px; padding: 8px 8px 6px')}>
+          <div role="tablist" aria-label="Bảng bên trái" style={S('flex: 1; display: flex; gap: 2px; padding: 3px; background: #f1f1f4; border-radius: 9px')}>
+            {(leftTabs || []).map((lt, _ilt) => (<React.Fragment key={_ilt}>
+              <button type="button" role="tab" aria-selected={lt.on} onClick={lt.pick} style={S(`flex: 1; height: 28px; border-radius: 7px; border: 0; background: ${lt.bg}; color: ${lt.fg}; box-shadow: ${lt.sh}; font-size: 12.5px; font-weight: 600; white-space: nowrap`)}>{lt.label}</button>
+            </React.Fragment>))}
+          </div>
+          <button type="button" className={Q('ghost')} aria-label="Thu gọn bảng bên trái" title="Thu gọn" onClick={togglePal} style={S('width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0')}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h16v16H4z M9 4v16"></path></svg></button>
+        </div>
+        {(leftAdd) && (<>
+          <div style={S('flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px 8px')}>
+            {(palItems || []).map((it, _iit) => (<React.Fragment key={_iit}>
+              {(it.hasHead) && (<><div className={Q('palh')}>{it.head}</div></>)}
+              <button type="button" className={Q('pal')} onClick={it.pick} title={it.desc}>
+                <span style={S(`width: 26px; height: 26px; border-radius: 7px; background: ${it.tileBg}; display: flex; align-items: center; justify-content: center; flex-shrink: 0`)}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={it.tile} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={it.icon}></path></svg></span>
+                <span style={S('flex: 1')}>{it.name}</span>
+              </button>
+            </React.Fragment>))}
+          </div>
+        </>)}
+        {(leftAI) && (<>
+          <div style={S('flex: 1; min-height: 0; overflow-y: auto; padding: 4px 12px 8px; display: flex; flex-direction: column; gap: 10px')}>
+            <div style={S('font-size: 12px; color: #5b5b66; line-height: 1.5; background: #f4f6fe; border: 1px solid #dfe5fb; border-radius: 10px; padding: 8px 10px')}>Chat để AI sửa luồng trên bản nháp. Mỗi thay đổi hiện thành đề xuất, bấm <b style={S('color: #121216')}>Áp dụng</b> thì mới đổi trên canvas.</div>
+            {(rEmpty) && (<>
+              <div style={S('font-size: 11.5px; font-weight: 600; color: #71717a; letter-spacing: .04em; margin-top: 2px')}>THỬ HỎI</div>
+              {(rTips || []).map((tp, _itp) => (<React.Fragment key={_itp}>
+                <button type="button" onClick={tp.pick} style={S('text-align: left; font-size: 12.5px; color: #27272a; background: #fff; border: 1px solid #e4e4e7; border-radius: 10px; padding: 8px 10px; line-height: 1.4')}>{tp.t}</button>
+              </React.Fragment>))}
+            </>)}
+            {(rmsgs || []).map((m, _im) => (<React.Fragment key={_im}>
+              {(m.me) && (<><div style={S('align-self: flex-end; max-width: 85%; background: #203BDC; color: #fff; font-size: 13px; line-height: 1.45; border-radius: 12px 12px 4px 12px; padding: 8px 10px')}>{m.text}</div></>)}
+              {(m.ai) && (<>
+                <div style={S('align-self: flex-start; max-width: 92%; background: #f4f4f5; color: #27272a; font-size: 13px; line-height: 1.5; border-radius: 12px 12px 12px 4px; padding: 8px 10px')}>{m.text}
+                  {(m.hasProp) && (<><div style={S('display: flex; gap: 6px; margin-top: 8px')}><button type="button" className={Q('btn-p')} onClick={m.apply} style={S('height: 28px; padding: 0 12px; border-radius: 7px; border: 0; background: #203BDC; color: #fff; font-size: 12.5px; font-weight: 600')}>Áp dụng</button><button type="button" className={Q('btn')} onClick={m.skip} style={S('height: 28px; font-size: 12.5px')}>Bỏ qua</button></div></>)}
+                  {(m.applied) && (<><div style={S('margin-top: 6px; font-size: 12px; font-weight: 600; color: #15803d')}>✓ Đã áp dụng trên canvas</div></>)}
+                </div>
+              </>)}
+            </React.Fragment>))}
+          </div>
+          <div style={S('padding: 8px 10px 10px; border-top: 1px solid #ececef')}>
+            <div style={S('display: flex; align-items: flex-end; gap: 6px; border: 1px solid #e4e4e7; border-radius: 10px; padding: 6px 6px 6px 10px')}>
+              <label className={Q('sr')} htmlFor="rq">Nhắn cho AI</label>
+              <textarea id="rq" rows="2" value={rq} onChange={onRq} onKeyDown={onRqKey} placeholder="VD: Thêm bước Giám đốc khối duyệt sau Trưởng phòng duyệt" style={S('flex: 1; resize: none; border: 0; outline: none; font: inherit; font-size: 13px; line-height: 1.45; background: transparent')}></textarea>
+              <button type="button" aria-label="Gửi" onClick={rSend} disabled={rSendNot} style={S('width: 30px; height: 30px; border-radius: 8px; border: 0; background: #203BDC; color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0')}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14 M13 6l6 6-6 6"></path></svg></button>
+            </div>
+          </div>
+        </>)}
       </div>
     </>)}
     {(palClosed) && (<>
-      <button type="button" data-ui="1" className={Q('btn')} onClick={togglePal} style={S('position: absolute; left: 16px; top: 16px; z-index: 6; height: 34px; font-size: 13px')}>+ Thêm bước</button>
+      <button type="button" data-ui="1" className={Q('btn')} onClick={togglePal} style={S('position: absolute; left: 16px; top: 16px; z-index: 6; height: 34px; font-size: 13px')}>+ Thêm bước · Refine với AI</button>
     </>)}
 
     <div data-ui="1" style={S('position: absolute; left: 16px; bottom: 16px; display: flex; align-items: center; gap: 2px; background: #fff; border: 1px solid #e6e6e9; border-radius: 10px; padding: 3px; box-shadow: 0 2px 8px rgba(15,23,42,.06); z-index: 6')}>
@@ -1761,6 +1904,32 @@ class ProcessBuilderInner extends React.Component<any, any> {
     </>)}
 
 {/* Hộp thoại Thêm bước */}
+    {(explainOpen) && (<>
+      <div data-ui="1" onMouseDown={closeExplain} style={S('position: absolute; inset: 0; z-index: 20; background: rgba(15,23,42,.22)')}></div>
+      <div data-ui="1" role="dialog" aria-label="Diễn giải luồng" style={S('position: absolute; left: 50%; top: 32px; transform: translateX(-50%); width: 760px; max-width: calc(100% - 32px); max-height: calc(100% - 64px); display: flex; flex-direction: column; background: #fff; border-radius: 14px; box-shadow: 0 24px 60px rgba(15,23,42,.25); z-index: 21; overflow: hidden')}>
+        <div style={S('display: flex; align-items: flex-start; gap: 10px; padding: 16px 18px 12px; border-bottom: 1px solid #ececef')}>
+          <div style={S('flex: 1')}>
+            <div style={S('font-size: 17px; font-weight: 600; color: #121216')}>Diễn giải luồng</div>
+            <div style={S('font-size: 14px; color: #3f3f46; line-height: 1.6; margin-top: 6px')}>{(explain.summary || []).map((g, _ig) => (<React.Fragment key={_ig}><span style={S(`color: ${g.c}; font-weight: ${g.w}`)}>{g.t}</span></React.Fragment>))}</div>
+            <div style={S('display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; font-size: 12px; color: #5b5b66')}>
+              <span><b style={S('color: #1d4ed8')}>Xanh dương</b>: người hoặc Nhân sự số làm việc</span><span><b style={S('color: #b45309')}>Cam</b>: thời hạn, thao tác ghi, trường hợp xấu</span><span><b style={S('color: #15803d')}>Xanh lá</b> / <b style={S('color: #b91c1c')}>Đỏ</b>: kết quả cuối</span>
+            </div>
+          </div>
+          <button type="button" className={Q('ghost')} aria-label="Đóng" onClick={closeExplain} style={S('width: 30px; height: 30px; border-radius: 7px')}>✕</button>
+        </div>
+        <ol style={S('list-style: none; margin: 0; padding: 8px 18px 18px; overflow-y: auto')}>
+          {(explain.steps || []).map((x, _ix) => (<React.Fragment key={_ix}>
+            <li style={S('display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f1f1f4')}>
+              <span style={S('width: 26px; height: 26px; border-radius: 999px; background: #f1f1f4; color: #3f3f46; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0')}>{x.n}</span>
+              <div style={S('flex: 1; min-width: 0')}>
+                <button type="button" onClick={x.go} title="Mở bước này trên canvas" style={S('display: inline-flex; align-items: center; gap: 8px; border: 0; background: none; padding: 0; cursor: pointer')}><span style={S(`width: 22px; height: 22px; border-radius: 6px; background: ${x.tileBg}; display: flex; align-items: center; justify-content: center`)}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={x.tile} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={x.icon}></path></svg></span><span style={S('font-size: 14px; font-weight: 600; color: #121216')}>{x.title}</span><span style={S('font-size: 11.5px; color: #71717a')}>{x.kind}</span></button>
+                <p style={S('margin: 6px 0 0; font-size: 14px; line-height: 1.65; color: #3f3f46')}>{(x.segs || []).map((g, _ig) => (<React.Fragment key={_ig}><span style={S(`color: ${g.c}; font-weight: ${g.w}`)}>{g.t}</span></React.Fragment>))}</p>
+              </div>
+            </li>
+          </React.Fragment>))}
+        </ol>
+      </div>
+    </>)}
     {(addOpen) && (<>
       <div data-ui="1" onMouseDown={closeAdd} style={S('position: absolute; inset: 0; z-index: 20; background: rgba(15,23,42,.18)')}></div>
       <div data-ui="1" role="dialog" aria-label="Thêm bước" style={S('position: absolute; left: 50%; top: 40px; transform: translateX(-50%); width: 620px; max-width: calc(100% - 32px); max-height: calc(100% - 80px); display: flex; flex-direction: column; background: #fff; border-radius: 14px; box-shadow: 0 24px 60px rgba(15,23,42,.25); z-index: 21; overflow: hidden')}>

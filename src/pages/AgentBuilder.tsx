@@ -170,7 +170,6 @@ const developNav = [
  * every Nhân sự số uses. */
 const processNav = [
   { id: "flow",       label: "Quy trình",  icon: FlowCircleIcon },
-  { id: "guardrails", label: "Guardrails", icon: Shield01Icon },
   { id: "versions",   label: "Phiên bản",  icon: HistoryIcon },
 ];
 const PROCESS_SECTIONS = processNav.map(n => n.id);
@@ -462,7 +461,6 @@ export default function AgentBuilder() {
           <div className="flex items-center gap-1">
             {(isProcess ? [
               { id: "flow",       label: "Quy trình",  Icon: FlowCircleIcon },
-              { id: "guardrails", label: "Guardrails", Icon: Shield01Icon },
               { id: "evaluate",   label: "Evaluate",   Icon: FlaskConicalIcon },
               { id: "channels",   label: "Channels",   Icon: GridViewIcon },
               { id: "insights",   label: "Insights",   Icon: Analytics01Icon },
@@ -500,6 +498,15 @@ export default function AgentBuilder() {
             onPublish={() => canPublishAgent && requestPublish()}
             onShowRejectBanner={() => { if (rejectedGovRequest) { governanceStore.restoreRejection(rejectedGovRequest.id); setRejectBannerTick(t => t + 1); } }}
           />
+          {isProcess && (
+            <button
+              onClick={() => { setParams({ tab: "build", section: "flow" }); setTimeout(() => setProcessCmd({ kind: "explain", t: Date.now() }), 0); }}
+              title="Kể lại từng bước của Quy trình bằng lời, ai cũng đọc được"
+              className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-base"
+            >
+              <HugeiconsIcon icon={BookOpen01Icon} size={14} /> <span className="hidden xl:inline">Diễn giải luồng</span>
+            </button>
+          )}
           {canShareAgent && (
             <button
               onClick={() => setShowShare(true)}
