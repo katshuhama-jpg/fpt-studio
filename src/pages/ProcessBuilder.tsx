@@ -175,6 +175,9 @@ var DOCS = [
   { id: 'contract', label: 'Hợp đồng', out: ['ben_a', 'ben_b', 'gia_tri', 'ngay_hieu_luc'] }
 ];
 var INNER_OK = [];
+// Biến thể theo BRD Workforce §9.1 - hiện dưới tên node trong Thêm bước
+var VARIANT = { end: 'Completed · Rejected · Cancelled · Failed', worker: 'Platform Agent', agent: 'Prompt only', human: 'Approval · Confirm · Choice', tool: 'Connector · API Tool · MCP', wait: 'Duration · Until', decision: 'Unique · First · Collect', condition: 'Điều kiện + Else bắt buộc', join: 'Wait for all · Wait for first', loop: 'For Each · Do Until', code: 'Python', variable: 'Set · Append · Parse · Clear', note: 'Không chạy' };
+var PAL_GROUP = { end: 'Kết thúc', worker: 'AI', agent: 'AI', human: 'Con người', tool: 'Tích hợp', wait: 'Logic', decision: 'Logic', condition: 'Logic', join: 'Logic', loop: 'Logic', code: 'Logic', variable: 'Logic', note: 'Khác' };
 var PAL_HEAD = { end: 'Kết thúc', worker: 'AI', human: 'Con người', tool: 'Tích hợp', wait: 'Logic', note: 'Khác' };
 var PAL = ['end', 'worker', 'agent', 'human', 'tool', 'wait', 'decision', 'condition', 'join', 'loop', 'code', 'variable', 'note'];
 var EVENTS = ['Odoo · Phiếu nhập kho được xác nhận', 'Gmail · Email có hoá đơn đính kèm', 'SAP ERP · Hoá đơn được ghi nhận', 'Webhook · Hệ thống ngoài gọi lại'];
@@ -648,26 +651,21 @@ class ProcessBuilderInner extends React.Component<any, any> {
     var T = function (k, g, extra) { var t = TYPES[k], c = COL[t.c]; return Object.assign({ g: g, type: k, name: t.name, desc: '', icon: t.icon, tile: c[0], tileBg: c[1] }, extra || {}); };
     var start = st.nodes.filter(function (n) { return n.type === 'start'; })[0];
     if (a.mode === 'inner') {
-      if (a.tab === 'tool') { TOOLS.forEach(function (t) { if (match(t.name)) res.push({ g: 'Tool đã kết nối', type: 'tool', preset: { tool: t.name, acc: 'space' }, title: t.name.split(' · ')[1], name: t.name, desc: t.desc, icon: ICON.tool, tile: COL.integ[0], tileBg: COL.integ[1], tag: 'Đã kết nối' }); }); return res; }
+      if (a.tab === 'tool') { TOOLS.forEach(function (t) { if (match(t.name)) res.push({ g: 'Connector đã kết nối', type: 'tool', preset: { tool: t.name, acc: 'space' }, title: t.name.split(' · ')[1], name: t.name, desc: t.desc, icon: ICON.tool, tile: COL.integ[0], tileBg: COL.integ[1], tag: 'Đã kết nối' }); }); return res; }
       var boxN = this.byId(a.loopId), gname = boxN && boxN.type === 'parallel' ? 'Bước trong nhánh ' + ((boxN.cfg.branches[a.lane || 0] || {}).name || '') : 'Bước trong vòng lặp';
       INNER_OK.forEach(function (k) { if (match(TYPES[k].name + ' ' + TYPES[k].kw)) res.push(Object.assign(T(k, gname), k === 'tool' ? { more: true, goTab: 'tool' } : {})); });
       return res;
     }
-    if (a.tab === 'tool' || q) TOOLS.forEach(function (t) { if (match(t.name + ' ' + t.desc + ' tool ' + t.kind)) res.push({ g: 'Tool đã kết nối', type: 'tool', preset: { tool: t.name, acc: 'process', confirm: !!t.write }, title: t.name.split(' · ')[1], name: t.name, desc: t.kind + ' · ' + t.desc, icon: ICON.tool, tile: COL.integ[0], tileBg: COL.integ[1], tag: 'Đã kết nối' }); });
+    if (a.tab === 'tool' || q) TOOLS.forEach(function (t) { if (match(t.name + ' ' + t.desc + ' tool connector ' + t.kind)) res.push({ g: q ? 'Connector đã kết nối' : t.kind, type: 'tool', preset: { tool: t.name, acc: 'process', confirm: !!t.write }, title: t.name.split(' · ')[1], name: t.name, desc: q ? t.kind + ' · ' + t.desc : t.desc, icon: ICON.tool, tile: COL.integ[0], tileBg: COL.integ[1] }); });
     if (a.tab === 'featured' || q) {
-      if (!q) {
-        res.push(Object.assign(T('tool', 'Hay dùng'), { more: true, goTab: 'tool' }));
-        res.push(T('human', 'Hay dùng'));
-      }
-      ['worker', 'agent', 'variable', 'condition', 'decision', 'join', 'loop', 'wait', 'code', 'end', 'note'].forEach(function (k) {
-        if (!q && k === 'human') return;
-        if (match(TYPES[k].name + ' ' + TYPES[k].kw + ' ' + TYPES[k].desc)) res.push(T(k, 'Bước', { desc: q ? TYPES[k].desc : '' }));
+      PAL.forEach(function (k) {
+        if (match(TYPES[k].name + ' ' + TYPES[k].kw + ' ' + TYPES[k].desc + ' ' + VARIANT[k])) res.push(Object.assign(T(k, q ? 'Bước' : PAL_GROUP[k], { desc: VARIANT[k] }), k === 'tool' && !q ? { more: true, goTab: 'tool' } : {}));
       });
     }
     if (a.from && a.tab === 'featured') {
       var anc = {}, stack = [a.from.id]; anc[a.from.id] = 1;
       while (stack.length) { var cur = stack.pop(); st.edges.forEach(function (e) { if (e.to === cur && !anc[e.from]) { anc[e.from] = 1; stack.push(e.from); } }); }
-      st.nodes.forEach(function (n) { if (anc[n.id] || n.type === 'start' || n.type === 'note' || n.parent) return; if (match(n.title + ' noi co san')) { var c = colOf(n.type); res.push({ g: 'Nối tới bước có sẵn', connect: n.id, name: n.title, desc: '', icon: TYPES[n.type].icon, tile: c[0], tileBg: c[1] }); } });
+      st.nodes.forEach(function (n) { if (anc[n.id] || n.type === 'start' || n.type === 'note' || n.parent) return; if (match(n.title + ' noi co san')) { var c = colOf(n.type); res.push({ g: 'Nối tới bước phía sau', connect: n.id, name: n.title, desc: '', icon: TYPES[n.type].icon, tile: c[0], tileBg: c[1] }); } });
     }
     return res;
   }
@@ -1287,7 +1285,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
 
       addOpen: !!ad, addQ: ad ? ad.q : '', addSections: addSections, addEmpty: !!ad && !flat.length, addHasFrom: !!addFrom, addFrom: addFrom,
       addHasCrumb: !!ad && (ad.level === 'func' || ad.mode === 'inner'), addCrumb: ad && ad.mode === 'inner' ? ((self.byId(ad.loopId) || {}).type === 'parallel' ? 'Nhánh song song' : 'Vòng lặp') : 'Hàm', addShowTabs: !!ad && ad.level !== 'func' && ad.mode !== 'inner' && !ad.q,
-      addTabs: [{ id: 'featured', label: 'Nổi bật' }, { id: 'tool', label: 'Tool' }].map(function (x) { var on = ad && ad.tab === x.id; return { label: x.label, on: !!on, bg: on ? '#eef1fd' : '#fff', fg: on ? '#203BDC' : '#475569', line: on ? '#c7d2fe' : '#e5e5e5', pick: function () { self.setState({ add: Object.assign({}, self.state.add, { tab: x.id, idx: 0 }) }); } }; }),
+      addTabs: [{ id: 'featured', label: 'Bước' }, { id: 'tool', label: 'Connector' }].map(function (x) { var on = ad && ad.tab === x.id; return { label: x.label, on: !!on, bg: on ? '#eef1fd' : '#fff', fg: on ? '#203BDC' : '#475569', line: on ? '#c7d2fe' : '#e5e5e5', pick: function () { self.setState({ add: Object.assign({}, self.state.add, { tab: x.id, idx: 0 }) }); } }; }),
       addRoot: function () { self.setState({ add: Object.assign({}, self.state.add, { level: 'root', tab: 'featured', idx: 0 }) }); },
       closeAdd: function () { self.setState({ add: null }); },
       onAddQ: function (e) { self.setState({ add: Object.assign({}, self.state.add, { q: e.target.value, idx: 0 }) }); },
@@ -1727,7 +1725,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
         <div style={S('padding: 10px 16px 0; position: relative')}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" aria-hidden="true" style={S('position: absolute; left: 27px; top: 20px')}><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M21 21l-4.3-4.3"></path></svg>
           <label className={Q('sr')} htmlFor="addq">Tìm bước</label>
-          <input id="addq" className={Q('field')} style={S('padding-left: 32px; height: 36px')} placeholder="Tìm bước, tool, hàm..." value={addQ} onChange={onAddQ} onKeyDown={onAddKey} autoFocus={true} />
+          <input id="addq" className={Q('field')} style={S('padding-left: 32px; height: 36px')} placeholder="Tìm bước hoặc connector..." value={addQ} onChange={onAddQ} onKeyDown={onAddKey} autoFocus={true} />
         </div>
         {(addShowTabs) && (<>
           <div role="tablist" style={S('display: flex; gap: 4px; padding: 10px 16px 0')}>
