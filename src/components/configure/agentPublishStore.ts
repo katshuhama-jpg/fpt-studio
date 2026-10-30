@@ -110,12 +110,13 @@ const SEED_RELEASES: Record<string, Omit<ReleaseEntry, "at">[]> = {
   cskh: [{ version: "v2.0.0", audience: "org", scopeSummary: "Phòng Chăm sóc khách hàng (22 người)", channels: ["web", "zalo"], via: "approved" }],
   "sales-quote": [{ version: "v1.0.0", audience: "org", scopeSummary: "Phòng Kinh doanh (48 người)", channels: [], via: "approved" }],
   "finance-check": [{ version: "v1.2.0", audience: "org", scopeSummary: "Phòng Tài chính (14 người)", channels: ["slack"], via: "approved" }],
-  "legal-review": [{ version: "v1.1.0", audience: "org", scopeSummary: "Ban Pháp chế (14 người)", channels: ["slack"], via: "approved" }],  "policy-assistant": [
+  "legal-review": [{ version: "v1.1.0", audience: "org", scopeSummary: "Ban Pháp chế (14 người)", channels: ["slack"], via: "approved" }],
+  "claim-rules-process": [{ version: "v1.0.0", audience: "org", scopeSummary: "Ban Thẩm định bồi thường (18 người)", channels: [], via: "approved" }],  "policy-assistant": [
     { version: "v1.0.0", audience: "org", scopeSummary: "Phòng Nhân sự (36 người)", channels: ["web"], via: "approved" },
     { version: "v1.1.0", audience: "org", scopeSummary: "FPT Smart Cloud (35 người)", channels: ["web"], via: "approved" },
   ],
 };
-const SEEDED_KEY = "agent_publish_store_seeded_v6";
+const SEEDED_KEY = "agent_publish_store_seeded_v7";
 const store = loadMap<string, AgentPublishState>(STORE_KEY);
 const seededAgents = loadSet<string>(SEEDED_KEY);
 const persist = () => saveMap(STORE_KEY, store);
@@ -139,6 +140,8 @@ const AUTO_PUBLISHED_SEED: Record<string, AgentPublishState> = {
   "legal-review": { placement: "workspace", audience: "org", channels: ["slack"], version: "v1.1.0", scopeSummary: "Ban Pháp chế (14 người)" },
   // Clean approved & live Agent — matches governanceStore req-1008 (approved), no pending request.
   "policy-assistant": { placement: "workspace", audience: "org", channels: ["web"], version: "v1.1.0", scopeSummary: "FPT Smart Cloud (35 người)" },
+  // Nhân sự số Quy trình live v1.0.0 - its v1.1.0 is waiting for review (governanceStore req-4002).
+  "claim-rules-process": { placement: "workspace", audience: "org", channels: [], version: "v1.0.0", scopeSummary: "Ban Thẩm định bồi thường (18 người)" },
 };
 
 function seedAgent(agentId: string) {

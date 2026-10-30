@@ -273,9 +273,9 @@ export interface GovRequest {
   history: GovHistoryEntry[];
 }
 
-const REQ_KEY = "governance_request_store_v16";
+const REQ_KEY = "governance_request_store_v17";
 const LIVE_KEY = "governance_live_snapshots_v9";
-const SEEDED_KEY = "governance_store_seeded_v16";
+const SEEDED_KEY = "governance_store_seeded_v17";
 const DISMISSED_KEY = "governance_dismissed_rejections_v1";
 
 const store = loadMap<string, GovRequest>(REQ_KEY);
@@ -752,7 +752,32 @@ function seed() {
     },
     [hAt("submitted", "m-plat-1", "Mai Hoang", t - 2 * HOUR)],
   );
-  const extraAgentReqs = [quoteReq, legalReq, financeReq, helpdeskReq, faqReq, salesReq, legalApiReq, extFlightReq, extLegalReq, extWarehouseReq, extFlightSlackReq];
+  // Nhân sự số Quy trình - same publish and approval flow as Năng suất.
+  const qtInvoiceReq = mk(
+    {
+      id: "req-4001", changeStateAtSubmit: "new", resourceType: "agent", resourceId: "qt-invoice", resourceName: "Đối chiếu hoá đơn với PO",
+      resourceIcon: "🧾", requesterId: "m-fsoft-vn-1", requesterName: "Duy Nguyen",
+      audience: "org", scopeSummary: "Phòng Kế toán (12 người)", channels: [],
+      workspaceTargets: [{ kind: "department", name: "Phòng Kế toán", members: 12 }],
+      note: "Kế toán gõ /Đối chiếu hoá đơn để so khớp hoá đơn VAT với PO trên ERP.",
+      version: "v1.0.0", status: "rejected", submittedAt: t - 2 * DAY, updatedAt: t - 1 * DAY,
+      reviewerId: "m-fsoft-coo", reviewerName: "Linh Phan",
+      reviewNote: "Bước Ghi nhận công nợ cần Kế toán trưởng xác nhận, không chỉ kế toán viên. Sửa người xác nhận rồi gửi lại.",
+    },
+    [hAt("submitted", "m-fsoft-vn-1", "Duy Nguyen", t - 2 * DAY), hAt("rejected", "m-fsoft-coo", "Linh Phan", t - 1 * DAY, "Bước Ghi nhận công nợ cần Kế toán trưởng xác nhận, không chỉ kế toán viên. Sửa người xác nhận rồi gửi lại.")],
+  );
+  const qtClaimReq = mk(
+    {
+      id: "req-4002", changeStateAtSubmit: "modified", resourceType: "agent", resourceId: "claim-rules-process", resourceName: "Rule thẩm định MB Life",
+      resourceIcon: "🛡️", requesterId: "m-plat-1", requesterName: "Mai Hoang",
+      audience: "org", scopeSummary: "Ban Thẩm định bồi thường (18 người)", channels: [],
+      workspaceTargets: [{ kind: "department", name: "Ban Thẩm định bồi thường", members: 18 }],
+      note: "Thêm rule A3 (bệnh có sẵn) vào bước Chạy rule D, E, A.",
+      version: "v1.1.0", status: "pending", submittedAt: t - 4 * HOUR, updatedAt: t - 4 * HOUR,
+    },
+    [hAt("submitted", "m-plat-1", "Mai Hoang", t - 4 * HOUR)],
+  );
+  const extraAgentReqs = [qtInvoiceReq, qtClaimReq, quoteReq, legalReq, financeReq, helpdeskReq, faqReq, salesReq, legalApiReq, extFlightReq, extLegalReq, extWarehouseReq, extFlightSlackReq];
 
   [agentReq, kbReq, skillReq, guardrailReq, connectorReq, agentCleanReq, ...extraAgentReqs].forEach(r => store.set(r.id, r));
   persist();

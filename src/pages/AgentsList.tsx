@@ -6,6 +6,7 @@ import {
   Add01Icon, Search01Icon, FilterIcon, Chat01Icon,
   SparklesIcon, Cancel01Icon, BoltIcon, TimeScheduleIcon, UserMultipleIcon, FlowCircleIcon,
   Shield01Icon, Image01Icon, Camera01Icon, BulbIcon, Book02Icon, Rocket01Icon, FlashIcon,
+  FileEditIcon,
 } from "@hugeicons/core-free-icons";
 import { useCanShareAgent } from "@/components/configure/ShareAgentModal";
 import { useAgentShareVersion, agentShareStore } from "@/components/configure/agentShareStore";
@@ -301,30 +302,30 @@ function ProcessCard({ p }: { p: typeof agents[number] }) {
     >
       <div className="p-5">
         <div className="flex items-start gap-3 mb-3">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-primary-soft text-primary">
-            <HugeiconsIcon icon={FlowCircleIcon} size={20} />
+          <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg shrink-0 ${p.bg}`}>
+            {p.emoji}
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-sm truncate mb-0.5">{p.name}</h3>
             <AgentVersionLines agentId={p.id} />
           </div>
-          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-primary-soft text-primary shrink-0">Quy trình</span>
+          <AgentShareChip agentId={p.id} />
         </div>
 
         <p className="text-xs text-muted-foreground leading-relaxed mb-4 line-clamp-2 min-h-[32px]">{p.desc}</p>
 
         <div className="flex items-center gap-1.5 pt-3 border-t border-border">
-          <HugeiconsIcon icon={FlowCircleIcon} size={12} className="text-muted-foreground" />
+          <HugeiconsIcon icon={FileEditIcon} size={12} className="text-muted-foreground" />
           <span className="text-xs">
-            <b className="font-display">{steps}</b>
-            <span className="text-muted-foreground ml-1">bước</span>
+            <b className="font-display">{p.convs.toLocaleString()}</b>
+            <span className="text-muted-foreground ml-1">hồ sơ</span>
           </span>
         </div>
 
         <div className="flex items-center gap-1.5 mt-3 text-xs text-muted-foreground">
           <span>Updated {p.updated}</span>
           <span>·</span>
-          <span className="truncate">Quy trình</span>
+          <span className="truncate">{steps} bước</span>
         </div>
       </div>
     </Link>
