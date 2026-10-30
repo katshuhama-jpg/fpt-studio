@@ -11,8 +11,8 @@ import TasksGrid from "@/components/tasks/TasksGrid";
 import BusinessProcessesGrid from "@/components/business-processes/BusinessProcessesGrid";
 import TriggersTab from "@/components/configure/TriggersTab";
 import TriggerFormDialog from "@/components/configure/TriggerFormDialog";
-import { AlertTriangle, Info } from "lucide-react";
-import { refineChatStore, useRefineChat, newMsgId, textHash, type RefineMsg, type RefineMsgBody, type RefineApprovalMode } from "@/components/configure/refineChatStore";
+import { AlertTriangle, Info, Camera } from "lucide-react";
+import { refineChatStore, refineAssistant, useRefineChat, useRefineRunning, newMsgId, INSTRUCTIONS_FILE, type RefineMsg, type RefineToolArgs, type RefineApprovalMode } from "@/components/configure/refineChatStore";
 import TriggerBlockedByConnectorNotice from "@/components/configure/TriggerBlockedByConnectorNotice";
 import { RevokedChip, RevokedDot, RevokedBanner, RevokedReason, RevokedRemoveButton, REVOKED_ROW_CLASS, useRevokedResources } from "@/components/governance/RevokedBadge";
 import { isResourceRevoked, listRevokedResources, REVOKED_COPY, type RevocableType } from "@/components/governance/revokedResources";
@@ -386,6 +386,7 @@ export default function AgentBuilder() {
   // Refine với AI: editors chat; a view-only person sees it only if they have history of their
   // own (e.g. their edit right was taken away), and then only to read it (22/10).
   const refineReadOnly = viewOnly;
+  const refineBuilding = useRefineRunning(id ?? "new");
   const refineAvailable = !refineReadOnly || refineChatStore.hasForAgent(id ?? "new");
   // "View agent history" gates Insights → History (the conversation list and its Trace) on top
   // of just being able to open the Agent — e.g. Viewer can open an Agent shared with them
@@ -515,6 +516,7 @@ export default function AgentBuilder() {
               <HugeiconsIcon icon={UserCheck01Icon} size={14} /> Cấp quyền
             </button>
           )}
+          {refineBuilding && <span role="status" className="text-xs text-muted-foreground whitespace-nowrap shrink-0">Đang dựng...</span>}
           {!viewOnly && <button
             onClick={() => canPublishAgent && requestPublish()}
             disabled={!canPublishAgent || revokedAll.length > 0}
@@ -977,7 +979,7 @@ export default function AgentBuilder() {
               </div>
             )}
             <div className={`flex-1 overflow-y-auto bg-background ${isProcess && tab === "build" && section === "flow" ? "hidden" : ""}`}>
-              {tab === "build" && section === "instructions" && <GeneralTab key={id ?? "new"} agentId={id ?? "new"} onRefineWithAI={refineAvailable ? () => setBuildMode("ai") : undefined} onChatToTest={() => { setBuildMode("manual"); setPreviewView("chat"); }} previewCollapsed={previewCollapsed} onReopenPreview={() => setPreviewCollapsed(false)} />}
+              {tab === "build" && section === "instructions" && <GeneralTab key={id ?? "new"} agentId={id ?? "new"} onRefineWithAI={refineAvailable ? () => setBuildMode(m => (m === "ai" ? "manual" : "ai")) : undefined} refineOpen={buildMode === "ai"} onChatToTest={() => { setBuildMode("manual"); setPreviewView("chat"); }} previewCollapsed={previewCollapsed} onReopenPreview={() => setPreviewCollapsed(false)} />}
               {tab === "build" && section === "knowledge" && <KnowledgeTab agentId={id ?? "new"} />}
               {tab === "build" && section === "guardrails" && <GuardrailsAgentTab agentId={id ?? "new"} />}
               {tab === "build" && section === "skills" && <SkillsAgentTab agentId={id ?? "new"} />}
@@ -1017,22 +1019,110 @@ export default function AgentBuilder() {
 }
 
 /* ============ AI BUILD SIDEBAR (left chat panel) ============ */
-// Chat history lives in refineChatStore (per Agent, per person) - closing the panel, reloading,
-// leaving the Agent or coming back on another device shows the same thread. See that file.
+// Matches production console-agents.fpt.ai (30/10): banner, plain chat, tool-call rows,
+// approval card for edit_file in Thủ công mode, "+" (Thêm tệp hoặc ảnh / Chụp ảnh màn hình),
+// Chế độ duyệt, send that turns into Dừng while the assistant works. On top of production: the
+// thread is kept per Agent and per person (refineChatStore) and paged 40 items at a time.
 
 const REFINE_PAGE = 40;
+const ARG_LABEL: Record<string, string> = { old_string: "Old string", new_string: "New string", file_path: "File path" };
 
-const fmtMarkerTime = (at: number) => {
-  const d = new Date(at);
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
-};
+function RefineToolRow({ msg }: { msg: Extract<RefineMsg, { kind: "tool" }> }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-lg border border-border bg-surface">
+      <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
+        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-surface-muted rounded-lg transition-base">
+        {msg.done
+          ? <HugeiconsIcon icon={Wrench01Icon} size={12} />
+          : <span className="w-3 h-3 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground animate-spin" aria-hidden />}
+        <span>Gọi công cụ</span>
+        <code className="font-mono text-foreground">{msg.name}</code>
+        {msg.outcome === "rejected" && <span className="text-destructive">- Đã từ chối{msg.reason ? `: ${msg.reason}` : ""}</span>}
+        <HugeiconsIcon icon={ChevronDownIcon} size={13} className={`ml-auto transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && msg.args && (
+        <div className="px-2.5 pb-2.5 space-y-1.5">
+          {Object.entries(msg.args).map(([k, v]) => (
+            <div key={k} className="rounded-md border border-border bg-surface-muted/50 px-2 py-1.5">
+              <div className="text-[11px] text-muted-foreground font-mono">{k}</div>
+              <div className="text-xs whitespace-pre-wrap break-words">{v}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RefineApprovalCard({ msg, readOnly, busy, onDecide }: {
+  msg: Extract<RefineMsg, { kind: "approval" }>;
+  readOnly: boolean;
+  busy: boolean;
+  onDecide: (approve: boolean, reason: string, args: RefineToolArgs) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [args, setArgs] = useState<RefineToolArgs>(msg.args);
+  const [reason, setReason] = useState("");
+  if (msg.status !== "pending") {
+    return <RefineToolRow msg={{ id: msg.id, at: msg.at, kind: "tool", name: msg.tool, args: msg.args, done: !msg.running, outcome: msg.status, reason: msg.reason }} />;
+  }
+  return (
+    <div className="rounded-xl border border-warning/50 bg-surface overflow-hidden">
+      <div className="flex gap-2 px-3 py-2.5 bg-warning-soft/40 border-b border-warning/30">
+        <HugeiconsIcon icon={Shield01Icon} size={15} className="text-warning shrink-0 mt-0.5" />
+        <div>
+          <div className="text-sm font-semibold">Trợ lý muốn chạy một công cụ</div>
+          <div className="text-xs text-muted-foreground">Xem lại tham số rồi quyết định. Không có gì chạy trước khi bạn đồng ý.</div>
+        </div>
+      </div>
+      <div className="p-3 space-y-2">
+        <code className="inline-block text-xs font-mono px-1.5 py-0.5 rounded bg-surface-muted border border-border">{msg.tool}</code>
+        {Object.entries(args).map(([k, v]) => (
+          <div key={k}>
+            <div className="text-[11px] text-muted-foreground font-mono mb-0.5">{editing ? (ARG_LABEL[k] ?? k) : k}</div>
+            {editing ? (
+              <textarea value={v} onChange={e => setArgs(a => ({ ...a, [k]: e.target.value }))} rows={Math.min(5, v.split("\n").length + 1)}
+                aria-label={ARG_LABEL[k] ?? k}
+                className="w-full resize-y text-xs px-2.5 py-2 rounded-lg border border-border bg-surface outline-none focus:border-primary transition-base" />
+            ) : (
+              <div className="text-xs whitespace-pre-wrap break-words px-2.5 py-2 rounded-lg border border-border bg-surface-muted/40">{v}</div>
+            )}
+          </div>
+        ))}
+        {readOnly ? (
+          <div className="text-xs text-muted-foreground pt-1">Chưa phê duyệt</div>
+        ) : (
+          <>
+            <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Lý do từ chối (không bắt buộc)" aria-label="Lý do từ chối"
+              className="w-full text-xs px-2.5 py-2 rounded-lg border border-border bg-surface outline-none focus:border-primary transition-base" />
+            <div className="flex items-center gap-2 pt-1">
+              <button type="button" onClick={() => setEditing(e => !e)}
+                className="h-8 px-2.5 rounded-lg text-xs text-muted-foreground hover:bg-surface-muted flex items-center gap-1.5 transition-base">
+                <HugeiconsIcon icon={PencilEdit01Icon} size={12} /> {editing ? "Xong" : "Sửa tham số"}
+              </button>
+              <div className="flex-1" />
+              <button type="button" disabled={busy} onClick={() => onDecide(false, reason, args)}
+                className="h-8 px-3 rounded-lg border border-border text-xs text-destructive hover:bg-destructive/5 disabled:opacity-40 flex items-center gap-1 transition-base">
+                <HugeiconsIcon icon={Cancel01Icon} size={12} /> Từ chối
+              </button>
+              <button type="button" disabled={busy} onClick={() => onDecide(true, "", args)}
+                className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary-glow disabled:opacity-40 flex items-center gap-1 transition-base">
+                <HugeiconsIcon icon={CheckmarkCircle01Icon} size={12} /> Phê duyệt
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function AiBuildSidebar({
   agentId, readOnly = false, onClose, contextLabel, sections, currentSection, onSectionChange, seedPrompt, publishTick,
 }: {
   agentId: string;
-  /** No edit right on this Agent any more: read the thread, no chatting or applying. */
+  /** No edit right on this Agent any more: read the thread, no chatting or deciding. */
   readOnly?: boolean;
   onClose: () => void;
   contextLabel: string;
@@ -1042,9 +1132,9 @@ function AiBuildSidebar({
   seedPrompt?: string;
   publishTick?: number;
 }) {
-  void sections; void currentSection; void onSectionChange; void publishTick;
+  void sections; void currentSection; void onSectionChange; void publishTick; void contextLabel; void onClose;
   const chatKey = refineChatStore.key(agentId, seedPrompt);
-  const currentInstructions = () => instructionDraftStore.get(agentId) ?? (seedPrompt || getAgent(agentId)?.instructions || "");
+  const ctx = { agentId, getInstructions: () => instructionDraftStore.get(agentId) ?? (seedPrompt || getAgent(agentId)?.instructions || "") };
 
   // The opening chat of an Agent created from a prompt - written once, then it's just history.
   const seed = (): RefineMsg[] => {
@@ -1052,46 +1142,47 @@ function AiBuildSidebar({
     const at = Date.now();
     return [
       { id: newMsgId(), at, kind: "text", role: "user", text: seedPrompt },
-      { id: newMsgId(), at, kind: "tool", name: "Phân tích yêu cầu", done: true },
+      { id: newMsgId(), at, kind: "tool", name: "write_file", args: { file_path: INSTRUCTIONS_FILE }, done: true },
       { id: newMsgId(), at, kind: "text", role: "ai", text: "Mình đã tạo Instructions khởi đầu từ mô tả của bạn. Cần chỉnh gì, bạn cứ nhắn ở đây." },
-      { id: newMsgId(), at, kind: "diff", after: seedPrompt.slice(0, 160) + (seedPrompt.length > 160 ? "…" : ""), applied: true, baseHash: textHash(seedPrompt) },
     ];
   };
-
   const messages = useRefineChat(chatKey, seed);
-  // Re-check "Đề xuất đã cũ" the moment the Instructions change, even with the panel open.
-  const [, setInstrTick] = useState(0);
-  useEffect(() => instructionDraftStore.subscribe(aid => { if (aid === agentId) setInstrTick(t => t + 1); }), [agentId]);
-  const setMessages = (fn: (m: RefineMsg[]) => RefineMsg[]) => refineChatStore.update(chatKey, fn);
+  const busy = refineChatStore.isRunning(chatKey);
+  const pending = refineChatStore.hasPendingApproval(chatKey);
 
   const [input, setInput] = useState("");
-  const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
+  const [files, setFiles] = useState<string[]>([]);
   const [mode, setModeState] = useState<RefineApprovalMode>(() => refineChatStore.getMode());
   const [modeOpen, setModeOpen] = useState(false);
+  const [plusOpen, setPlusOpen] = useState(false);
   const [shown, setShown] = useState(REFINE_PAGE);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const keepOffsetRef = useRef<number | null>(null);
+  const modeRef = useRef<HTMLDivElement>(null);
+  const plusRef = useRef<HTMLDivElement>(null);
 
   const setMode = (m: RefineApprovalMode) => { setModeState(m); refineChatStore.setMode(m); setModeOpen(false); };
-  const modeRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!modeOpen) return;
-    const onDown = (e: MouseEvent) => { if (modeRef.current && !modeRef.current.contains(e.target as Node)) setModeOpen(false); };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setModeOpen(false); };
+    if (!modeOpen && !plusOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (modeRef.current && !modeRef.current.contains(e.target as Node)) setModeOpen(false);
+      if (plusRef.current && !plusRef.current.contains(e.target as Node)) setPlusOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { setModeOpen(false); setPlusOpen(false); } };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
     return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
-  }, [modeOpen]);
+  }, [modeOpen, plusOpen]);
 
   // Follow new messages (and a reply as it streams in), but not when older ones are being loaded.
   const last = messages[messages.length - 1];
-  const lastSig = last ? `${last.id}:${last.kind === "text" ? last.text.length : ""}` : "";
+  const lastSig = last ? `${last.id}:${last.kind === "text" ? last.text.length : ""}:${busy}` : "";
   useEffect(() => {
     if (keepOffsetRef.current !== null) return;
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [lastSig, messages.length]);
-  // After loading older messages, keep the reader where they were.
   useEffect(() => {
     const el = scrollRef.current;
     if (el && keepOffsetRef.current !== null) {
@@ -1108,365 +1199,145 @@ function AiBuildSidebar({
     setShown(s => s + REFINE_PAGE);
   };
 
-  const push = (msg: RefineMsgBody & { id?: string; at?: number }) =>
-    setMessages(m => [...m, { id: newMsgId(), at: Date.now(), ...msg } as RefineMsg]);
-
-  // Runs outside the panel's lifetime: closing the panel doesn't stop the reply.
-  const streamAi = (text: string) => {
-    const id = newMsgId();
-    push({ id, kind: "text", role: "ai", text: "", streaming: true, full: text });
-    let i = 0;
-    const iv = setInterval(() => {
-      i++;
-      if (i > text.length) {
-        clearInterval(iv);
-        setMessages(m => m.map(x => x.id === id && x.kind === "text" ? { ...x, text, streaming: false } : x));
-        return;
-      }
-      setMessages(m => m.map(x => x.id === id && x.kind === "text" ? { ...x, text: text.slice(0, i) } : x));
-    }, 14);
+  const send = () => {
+    const text = input.trim();
+    if (!text || busy) return;
+    setInput(""); setFiles([]);
+    refineAssistant.send(chatKey, ctx, text, files);
   };
-
-  const runTool = async (name: string): Promise<void> => {
-    const id = newMsgId();
-    push({ id, kind: "tool", name, done: false });
-    await new Promise(r => setTimeout(r, 900));
-    setMessages(m => m.map(x => x.id === id && x.kind === "tool" ? { ...x, done: true } : x));
-    await new Promise(r => setTimeout(r, 200));
-  };
-
-  // Tự động applies a proposed change straight away; Thủ công waits for Áp dụng / Bỏ qua.
-  /** Writes a proposal into the Instructions draft: replaces `before` when it is there, otherwise
-   * adds `after` as a new paragraph at the end. */
-  const writeToInstructions = (before: string | undefined, after: string) => {
-    const cur = currentInstructions();
-    const next = before && cur.includes(before) ? cur.replace(before, after) : `${cur.trimEnd()}\n\n${after}`;
-    instructionDraftStore.set(agentId, next);
-  };
-  const pushDiff = (before: string | undefined, after: string) => {
-    const auto = refineChatStore.getMode() === "auto";
-    push({ kind: "diff", before, after, applied: auto, baseHash: textHash(currentInstructions()) });
-    if (auto) writeToInstructions(before, after);
-  };
-
-  const handleSend = async (text?: string) => {
-    const msg = (text ?? input).trim();
-    if (!msg) return;
-    setInput("");
-    push({ kind: "text", role: "user", text: msg });
-    await new Promise(r => setTimeout(r, 400));
-
-    // Connector auth demo flow
-    const lower = msg.toLowerCase();
-    if (lower.includes("gmail") || lower.includes("email") || lower.includes("outlook")) {
-      const svc = lower.includes("outlook") ? "Outlook" : "Gmail";
-      await runTool(`Kiểm tra kết nối ${svc}`);
-      streamAi(`Nhân sự số cần quyền truy cập ${svc} để đọc và gửi email thay bạn. Bạn xác nhận kết nối bên dưới nhé.`);
-      await new Promise(r => setTimeout(r, 800));
-      push({
-        kind: "connector",
-        service: svc,
-        logo: svc === "Gmail" ? "📧" : "📨",
-        perms: ["Đọc email và thông tin email", "Gửi email thay bạn", "Quản lý nhãn"],
-      });
-      return;
-    }
-
-    await runTool("Phân tích yêu cầu");
-    push({
-      kind: "clarify",
-      question: `"${msg.slice(0, 32)}${msg.length > 32 ? "…" : ""}" - Nhân sự số nên xử lý thế nào?`,
-      options: [
-        { icon: "bolt", title: "Tự quyết hoàn toàn", desc: "Nhân sự số tự quyết, không cần hỏi thêm" },
-        { icon: "eye", title: "Đề xuất, bạn duyệt", desc: "Nhân sự số soạn đề xuất, bạn duyệt rồi mới áp dụng" },
-        { icon: "hand-stop", title: "Chỉ làm khi được yêu cầu", desc: "Nhân sự số chờ hướng dẫn cụ thể từ người dùng" },
-      ],
-    });
-  };
-
-  const handleAnswer = async (idx: number, answer: string, msgId: string) => {
-    setMessages(m => m.map(x => x.id === msgId && x.kind === "clarify" ? { ...x, answered: answer } : x));
-    await new Promise(r => setTimeout(r, 400));
-    const replies = [
-      "Đã hiểu - Nhân sự số sẽ tự quyết. Mình đề xuất cập nhật Instructions:",
-      "Đã hiểu - Nhân sự số sẽ soạn đề xuất trước khi áp dụng:",
-      "Đã hiểu - Nhân sự số sẽ chờ hướng dẫn, không tự quyết:",
-    ];
-    streamAi(idx === -1 ? `Đã hiểu - "${answer.slice(0, 55)}". Mình đề xuất cập nhật Instructions theo yêu cầu này:` : replies[idx]);
-    await new Promise(r => setTimeout(r, 600));
-    pushDiff(undefined, idx === -1 ? answer.slice(0, 160) : [
-      "Tự xử lý yêu cầu, không cần hỏi lại người dùng.",
-      "Luôn soạn đề xuất để người dùng duyệt trước khi áp dụng.",
-      "Chỉ hành động khi người dùng yêu cầu rõ ràng.",
-    ][idx]);
-  };
-
-  const handleConnectorConnect = (id: string) =>
-    setMessages(m => m.map(x => x.id === id && x.kind === "connector" ? { ...x, connected: true } : x));
-
-  const handleDiffApply = (id: string) => {
-    const d = messages.find(x => x.id === id);
-    if (!d || d.kind !== "diff" || d.applied || d.dismissed) return;
-    if (d.baseHash && d.baseHash !== textHash(currentInstructions())) return; // went stale meanwhile
-    setMessages(m => m.map(x => x.id === id && x.kind === "diff" ? { ...x, applied: true } : x));
-    writeToInstructions(d.before, d.after);
-  };
-  // Bỏ qua keeps the card in the history, marked, instead of deleting it.
-  const handleDiffDismiss = (id: string) =>
-    setMessages(m => m.map(x => x.id === id && x.kind === "diff" ? { ...x, dismissed: true } : x));
-
-  const quickActions = ["Kết nối Gmail", "Viết Instructions gọn hơn", "Thêm guardrail chặn tư vấn pháp lý", "Giọng văn trang trọng hơn"];
-
-  // Publish / Khôi phục markers, placed in the thread by time so a Builder sees which part of
-  // the conversation went into which version. Only releases made after the thread started.
-  const firstAt = messages[0]?.at;
-  const releases = agentId === "new" || firstAt === undefined ? [] : agentPublishStore.releases(agentId).filter(r => r.at >= firstAt);
-  const marker = (r: typeof releases[number]) => (
-    <div key={`rel-${r.version}-${r.at}`} className="flex items-center gap-2 py-1" role="separator" aria-label={`${r.via === "rollback" ? "Khôi phục" : "Publish"} ${r.version}`}>
-      <div className="flex-1 h-px bg-border" />
-      <span className="text-xs text-muted-foreground whitespace-nowrap">
-        {r.via === "rollback" ? "Khôi phục" : "Publish"} {r.version} - {fmtMarkerTime(r.at)}
-      </span>
-      <div className="flex-1 h-px bg-border" />
-    </div>
-  );
 
   const renderMsg = (msg: RefineMsg) => {
-    const i = msg.id;
     if (msg.kind === "text" && msg.role === "user") return (
-      <div key={i} className="flex justify-end">
-        <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-3 py-2 text-xs max-w-[90%] leading-relaxed whitespace-pre-wrap">{msg.text}</div>
+      <div key={msg.id} className="flex flex-col items-end gap-1">
+        {msg.files?.map(f => <span key={f} className="text-xs px-2 py-1 rounded-md bg-surface-muted border border-border flex items-center gap-1"><HugeiconsIcon icon={Attachment01Icon} size={11} />{f}</span>)}
+        <div className="bg-primary text-primary-foreground rounded-xl px-3 py-2 text-sm max-w-[90%] leading-relaxed whitespace-pre-wrap">{msg.text}</div>
       </div>
     );
-    if (msg.kind === "text" && msg.role === "ai") return (
-      <div key={i} className="bg-surface-muted/60 border border-border rounded-2xl rounded-bl-sm px-3 py-2.5 text-sm leading-relaxed w-full">
+    if (msg.kind === "text") return (
+      <div key={msg.id} className="bg-surface border border-border rounded-xl px-3 py-2 text-sm leading-relaxed max-w-[90%] whitespace-pre-wrap">
         {msg.text}{msg.streaming && <span className="inline-block w-0.5 h-3 bg-muted-foreground ml-0.5 animate-pulse align-middle" />}
       </div>
     );
-    if (msg.kind === "tool") return (
-      <div key={i} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs w-fit border ${msg.done ? "border-success/30 bg-success/10 text-success" : "border-primary/30 bg-primary-soft text-primary"}`}>
-        {msg.done ? <HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} /> : <HugeiconsIcon icon={SparklesIcon} size={11} className="animate-pulse" />}
-        {msg.name}
-      </div>
-    );
-    if (msg.kind === "diff") {
-      const stale = !msg.applied && !msg.dismissed && !!msg.baseHash && msg.baseHash !== textHash(currentInstructions());
-      return (
-        <div key={i} className={`rounded-xl border p-2.5 ${msg.applied || msg.dismissed || stale ? "border-border bg-surface" : "border-primary/30 bg-primary-soft/40"}`}>
-          <div className="flex items-center gap-1.5 mb-2">
-            <HugeiconsIcon icon={SparklesIcon} size={11} className="text-primary" />
-            <span className="text-xs font-semibold text-primary">Đề xuất thay đổi - Instructions</span>
-          </div>
-          <div className={`font-mono text-xs space-y-1 ${msg.dismissed || stale ? "opacity-60" : ""}`}>
-            {msg.before && <div className="bg-destructive/10 text-destructive px-2 py-1 rounded line-through">− {msg.before}</div>}
-            <div className="bg-success/10 text-success px-2 py-1 rounded">+ {msg.after}</div>
-          </div>
-          {msg.applied ? (
-            <div className="flex items-center gap-1.5 text-xs text-success mt-2"><HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} /> Đã áp dụng vào Instructions</div>
-          ) : msg.dismissed ? (
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-2"><HugeiconsIcon icon={Cancel01Icon} size={11} /> Đã bỏ qua</div>
-          ) : stale ? (
-            <div className="text-xs text-muted-foreground mt-2 leading-relaxed">
-              <span className="font-medium text-foreground">Đề xuất đã cũ.</span> Instructions đã thay đổi sau khi có đề xuất này. Nhắn lại yêu cầu để nhận đề xuất mới.
-            </div>
-          ) : readOnly ? (
-            <div className="text-xs text-muted-foreground mt-2">Chưa áp dụng</div>
-          ) : (
-            <div className="flex gap-1.5 mt-2">
-              <button onClick={() => handleDiffApply(i)} className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium">Áp dụng</button>
-              <button onClick={() => handleDiffDismiss(i)} className="h-7 px-2.5 rounded-md hover:bg-surface-muted text-xs text-muted-foreground">Bỏ qua</button>
-            </div>
-          )}
-        </div>
-      );
-    }
-    if (msg.kind === "clarify") return (
-      <div key={i} className="rounded-xl border border-primary/20 bg-primary-soft/20 p-2.5 space-y-2">
-        <div className="flex items-center gap-1.5 text-xs font-semibold text-primary"><HugeiconsIcon icon={Chat01Icon} size={11} /> Cần thêm thông tin</div>
-        <p className="text-xs text-foreground leading-relaxed">{msg.question}</p>
-        {msg.answered ? (
-          <div className="flex items-center gap-1.5 text-xs text-primary"><HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} /> Đã chọn: <strong>{msg.answered}</strong></div>
-        ) : readOnly ? (
-          <div className="text-xs text-muted-foreground">Chưa trả lời</div>
-        ) : (
-          <div className="space-y-1.5">
-            {msg.options.map((opt, oi) => (
-              <button key={oi} onClick={() => handleAnswer(oi, opt.title, i)}
-                className="w-full flex items-start gap-2 px-2.5 py-2 rounded-lg border border-border bg-surface hover:border-primary/40 hover:bg-primary-soft/30 transition-base text-left">
-                <div className="w-6 h-6 rounded-md bg-surface-muted border border-border flex items-center justify-center shrink-0 mt-0.5">
-                  {oi === 0 ? <HugeiconsIcon icon={BoltIcon} size={11} className="text-primary" /> : oi === 1 ? <HugeiconsIcon icon={BookOpen01Icon} size={11} className="text-primary" /> : <HugeiconsIcon icon={Shield01Icon} size={11} className="text-primary" />}
-                </div>
-                <div><div className="text-xs font-medium">{opt.title}</div><div className="text-xs text-muted-foreground mt-0.5">{opt.desc}</div></div>
-              </button>
-            ))}
-            <div className="border border-border rounded-lg bg-surface p-2 space-y-1.5">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium"><HugeiconsIcon icon={Add01Icon} size={11} /> Tự nhập câu trả lời</div>
-              <textarea
-                rows={2}
-                aria-label="Tự nhập câu trả lời"
-                placeholder="Nhập yêu cầu cụ thể…"
-                value={customAnswers[i] ?? ""}
-                onChange={e => setCustomAnswers(a => ({ ...a, [i]: e.target.value }))}
-                className="w-full resize-none bg-surface-muted text-xs placeholder:text-muted-foreground outline-none px-2 py-1.5 rounded-md border border-border focus:border-primary transition-base"
-              />
-              <button
-                disabled={!customAnswers[i]?.trim()}
-                onClick={() => { const v = customAnswers[i]?.trim(); if (v) handleAnswer(-1, v, i); }}
-                className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-primary text-primary-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-base"
-              >
-                <HugeiconsIcon icon={SentIcon} size={10} /> Gửi
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-    if (msg.kind === "connector") return (
-      <div key={i} className="rounded-xl border border-warning/40 bg-warning-soft/30 p-2.5">
-        <div className="flex items-center gap-1.5 text-xs font-semibold text-warning mb-2"><HugeiconsIcon icon={Plug01Icon} size={11} /> Cần kết nối tài khoản</div>
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-9 h-9 rounded-xl bg-white border border-border flex items-center justify-center shrink-0 shadow-sm">
-            {msg.service === "Gmail" ? (
-              <svg viewBox="0 0 48 48" width="22" height="22" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path fill="#EA4335" d="M6 40h6V23.8L4 18v18c0 2.2 1.8 4 4 4z"/>
-                <path fill="#34A853" d="M36 40h6c2.2 0 4-1.8 4-4V18l-8 5.8z"/>
-                <path fill="#FBBC05" d="M36 8H12L24 17.3 36 8z"/>
-                <path fill="#4285F4" d="M12 23.8V8L4 13.3 4 18l8 5.8z"/>
-                <path fill="#C5221F" d="M44 13.3L36 8v15.8l8-5.8z"/>
-                <path fill="#EA4335" d="M12 8v15.8l12 8.7 12-8.7V8L24 17.3z"/>
-              </svg>
-            ) : msg.service === "Outlook" ? (
-              <svg viewBox="0 0 48 48" width="22" height="22" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path fill="#1565C0" d="M28 4h12c2.2 0 4 1.8 4 4v32c0 2.2-1.8 4-4 4H28V4z"/>
-                <path fill="#1E88E5" d="M28 4v44H8c-2.2 0-4-1.8-4-4V8c0-2.2 1.8-4 4-4h20z"/>
-                <path fill="#fff" d="M18 14c-5 0-9 4-9 9s4 9 9 9 9-4 9-9-4-9-9-9zm0 14c-2.8 0-5-2.2-5-5s2.2-5 5-5 5 2.2 5 5-2.2 5-5 5z"/>
-                <path fill="#fff" opacity=".7" d="M32 18h8v2h-8zm0 4h8v2h-8zm0 4h8v2h-8z"/>
-              </svg>
-            ) : (
-              <span className="text-lg">{msg.logo}</span>
-            )}
-          </div>
-          <div><div className="text-xs font-medium">{msg.service}</div><div className="text-xs text-muted-foreground">Nhân sự số cần quyền truy cập để làm việc thay bạn.</div></div>
-        </div>
-        <div className="text-xs font-medium mb-1.5">Quyền cần cấp:</div>
-        {msg.perms.map((p, pi) => <div key={pi} className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><HugeiconsIcon icon={CheckmarkCircle01Icon} size={10} className="text-success" />{p}</div>)}
-        {msg.connected ? (
-          <div className="flex items-center gap-1.5 text-xs text-success mt-2"><HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} /> Đã kết nối {msg.service}</div>
-        ) : msg.skipped ? (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-2"><HugeiconsIcon icon={Cancel01Icon} size={11} /> Đã bỏ qua</div>
-        ) : readOnly ? (
-          <div className="text-xs text-muted-foreground mt-2">Chưa kết nối</div>
-        ) : (
-          <div className="flex gap-1.5 mt-2">
-            <button onClick={() => handleConnectorConnect(i)} className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium">
-              Kết nối {msg.service}
-            </button>
-            <button onClick={() => setMessages(m => m.map(x => x.id === i && x.kind === "connector" ? { ...x, skipped: true } : x))} className="h-7 px-2.5 rounded-md border border-border text-xs text-muted-foreground">Bỏ qua</button>
-          </div>
-        )}
-      </div>
+    if (msg.kind === "tool") return <RefineToolRow key={msg.id} msg={msg} />;
+    if (msg.kind === "approval") return (
+      <RefineApprovalCard key={msg.id} msg={msg} readOnly={readOnly} busy={busy}
+        onDecide={(approve, reason, args) => refineAssistant.decide(chatKey, ctx, msg.id, approve, reason, args)} />
     );
     return null;
   };
 
-  // Interleave the visible messages with any Publish markers that fall between them.
   const visible = messages.slice(start);
-  const rows: React.ReactNode[] = [];
-  let prevAt = start > 0 ? messages[start - 1].at : -Infinity;
-  for (const msg of visible) {
-    for (const r of releases) if (r.at > prevAt && r.at <= msg.at) rows.push(marker(r));
-    rows.push(renderMsg(msg));
-    prevAt = msg.at;
-  }
-  for (const r of releases) if (r.at > prevAt) rows.push(marker(r));
+  const streaming = visible.some(m => m.kind === "text" && m.streaming);
 
   return (
-    <aside className="w-[476px] border-r border-border flex flex-col shrink-0 h-full" style={{background:"hsl(var(--card))", minWidth:"476px"}}>
-      {/* Header */}
-      <div className="h-12 px-3 border-b border-border flex items-center gap-2 shrink-0">
-        <div className="w-7 h-7 rounded-md bg-gradient-brand flex items-center justify-center">
-          <HugeiconsIcon icon={SparklesIcon} size={13} className="text-primary-foreground" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold leading-tight">Refine với AI</div>
-          <div className="text-xs text-muted-foreground leading-tight">Chat để chỉnh Nhân sự số</div>
-        </div>
-        <button onClick={onClose} aria-label="Đóng Refine với AI" title="Đóng - lịch sử chat vẫn được giữ" className="h-8 w-8 rounded-md hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base">
-          <HugeiconsIcon icon={Cancel01Icon} size={15} />
-        </button>
+    <aside className="w-[448px] border-r border-border flex flex-col shrink-0 h-full" style={{ background: "hsl(var(--card))", minWidth: "448px" }}>
+      {/* Header - same as production: icon + title only; the Refine với AI button toggles the panel. */}
+      <div className="h-11 px-3 border-b border-border flex items-center gap-2 shrink-0">
+        <HugeiconsIcon icon={SparklesIcon} size={14} className="text-primary" />
+        <div className="text-sm font-semibold">Refine với AI</div>
       </div>
 
       {/* Messages */}
       <div ref={scrollRef} onScroll={e => { if (e.currentTarget.scrollTop < 40 && start > 0) loadOlder(); }} className="flex-1 overflow-y-auto p-3 space-y-2.5">
-        <div className="rounded-lg border border-primary/20 bg-primary-soft/30 px-3 py-2 text-xs text-muted-foreground leading-relaxed flex gap-2">
-          <Info size={13} className="text-primary shrink-0 mt-0.5" />
+        <div className="rounded-lg bg-primary-soft/40 px-3 py-2 text-xs text-muted-foreground leading-relaxed flex gap-2">
+          <HugeiconsIcon icon={UserCircleIcon} size={13} className="text-primary shrink-0 mt-0.5" />
           <span>{readOnly
-            ? "Bạn đang xem lại lịch sử chat của mình. Bạn không còn quyền sửa Nhân sự số này nên không chat tiếp hay áp dụng đề xuất được."
-            : "Bạn đang trò chuyện với chính Nhân sự số này. Nó tự chỉnh cấu hình của mình trên bản nháp - chỉ có hiệu lực khi bạn Publish. Lịch sử chat được giữ lại, chỉ mình bạn xem được."}</span>
+            ? "Bạn đang xem lại lịch sử chat của mình. Bạn không còn quyền sửa Nhân sự số này nên không chat tiếp hay phê duyệt được."
+            : "Bạn đang trò chuyện với chính nhân sự số này. Nó tự chỉnh cấu hình của mình trên bản nháp - chỉ có hiệu lực khi bạn Publish. Model, guardrails và credentials vẫn do bạn đặt."}</span>
         </div>
         {start > 0 && (
           <button onClick={loadOlder} className="w-full text-xs text-primary hover:underline py-1">Xem tin nhắn cũ hơn</button>
         )}
-        {rows}
-        {!readOnly && <div className="flex flex-wrap gap-1.5 pt-1">
-          {quickActions.map(s => (
-            <button key={s} onClick={() => handleSend(s)} className="text-xs px-2 py-1 rounded-full bg-surface border border-border hover:bg-primary-soft hover:text-primary hover:border-primary/30 transition-base">
-              {s}
-            </button>
-          ))}
-        </div>}
+        {visible.map(renderMsg)}
+        {busy && !streaming && <div className="flex gap-1 px-1 py-1" aria-label="Đang trả lời"><span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce" /><span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:120ms]" /><span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:240ms]" /></div>}
         <div ref={bottomRef} />
       </div>
 
-      {/* Composer - replaced by a note when the person can only read their history */}
+      {/* Composer */}
       {readOnly ? (
         <div className="border-t border-border px-3 py-3 shrink-0 bg-surface text-xs text-muted-foreground leading-relaxed">
           Chỉ xem lại. Muốn chat tiếp, hãy nhờ chủ sở hữu hoặc Admin cấp lại quyền sửa Nhân sự số này.
         </div>
       ) : (
-      <div className="border-t border-border p-2.5 shrink-0 bg-surface">
-        <div className="rounded-xl border border-border bg-surface focus-within:border-primary transition-base p-1.5">
-          <textarea rows={2} value={input} onChange={e => setInput(e.target.value)}
-            aria-label="Nói bạn muốn sửa gì"
-            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-            placeholder="Nói bạn muốn sửa gì..."
-            className="w-full resize-none bg-transparent text-sm placeholder:text-muted-foreground outline-none px-1 py-0.5 max-h-32" />
-          <div className="flex items-center gap-1.5">
-            <div ref={modeRef} className="relative">
-            <button onClick={() => setModeOpen(o => !o)} aria-haspopup="menu" aria-expanded={modeOpen}
-              className="h-7 px-2 rounded-md hover:bg-surface-muted text-xs text-muted-foreground flex items-center gap-1 transition-base">
-              <HugeiconsIcon icon={mode === "manual" ? Shield01Icon : BoltIcon} size={12} className={mode === "manual" ? "" : "text-warning"} />
-              {mode === "manual" ? "Thủ công" : "Tự động"}
-            </button>
-            {modeOpen && (
-              <div role="menu" className="absolute bottom-9 left-0 w-72 z-50 bg-surface border border-border rounded-xl shadow-lg p-2">
-                <div className="px-2 pt-1 pb-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Chế độ duyệt</div>
-                {([
-                  { k: "manual", icon: Shield01Icon, title: "Thủ công", desc: "Luôn cần bạn xác nhận trước khi thay đổi cấu hình" },
-                  { k: "auto", icon: BoltIcon, title: "Tự động", desc: "Tự áp dụng thay đổi cấu hình. Kết nối công cụ ngoài vẫn hỏi bạn", tag: "Mặc định" },
-                ] as const).map(o => (
-                  <button key={o.k} role="menuitemradio" aria-checked={mode === o.k} onClick={() => setMode(o.k)}
-                    className={`w-full flex items-start gap-2 px-2 py-2 rounded-lg text-left hover:bg-surface-muted transition-base ${mode === o.k ? "bg-primary-soft/40" : ""}`}>
-                    <HugeiconsIcon icon={o.icon} size={14} className="mt-0.5 text-primary shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-medium flex items-center gap-1.5">{o.title}{"tag" in o && <span className="chip text-[10px]">{o.tag}</span>}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">{o.desc}</div>
-                    </div>
-                    {mode === o.k && <HugeiconsIcon icon={CheckmarkCircle01Icon} size={13} className="text-primary mt-0.5" />}
-                  </button>
+        <div className="p-2.5 shrink-0">
+          <div className={`rounded-xl border bg-surface transition-base p-2 ${busy ? "border-border opacity-80" : "border-border focus-within:border-primary"}`}>
+            {files.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-1.5">
+                {files.map(f => (
+                  <span key={f} className="text-xs px-2 py-1 rounded-md bg-surface-muted border border-border flex items-center gap-1">
+                    <HugeiconsIcon icon={Attachment01Icon} size={11} />{f}
+                    <button onClick={() => setFiles(fs => fs.filter(x => x !== f))} aria-label={`Bỏ ${f}`} className="text-muted-foreground hover:text-foreground"><HugeiconsIcon icon={Cancel01Icon} size={10} /></button>
+                  </span>
                 ))}
-                <div className="border-t border-border mt-1 pt-1.5 px-2 text-[11px] text-muted-foreground">Lựa chọn được lưu cho các phiên sau.</div>
               </div>
             )}
+            <textarea rows={2} value={input} onChange={e => setInput(e.target.value)} disabled={busy}
+              aria-label="Nói bạn muốn sửa gì"
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+              placeholder={busy ? "Trợ lý đang làm việc..." : "Nói bạn muốn sửa gì..."}
+              className="w-full resize-none bg-transparent text-sm placeholder:text-muted-foreground outline-none px-1 py-0.5 max-h-32 disabled:cursor-not-allowed" />
+            <div className="flex items-center gap-1">
+              <div ref={plusRef} className="relative">
+                <button onClick={() => setPlusOpen(o => !o)} disabled={busy} aria-label="Thêm" aria-haspopup="menu" aria-expanded={plusOpen}
+                  className="h-7 w-7 rounded-md hover:bg-surface-muted flex items-center justify-center text-muted-foreground disabled:opacity-40 transition-base">
+                  <HugeiconsIcon icon={Add01Icon} size={15} />
+                </button>
+                {plusOpen && (
+                  <div role="menu" className="absolute bottom-9 left-0 w-52 z-50 bg-surface border border-border rounded-xl shadow-lg p-1">
+                    <button role="menuitem" onClick={() => { setPlusOpen(false); fileRef.current?.click(); }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-sm hover:bg-surface-muted text-left">
+                      <HugeiconsIcon icon={Upload01Icon} size={14} className="text-muted-foreground" /> Thêm tệp hoặc ảnh
+                    </button>
+                    <button role="menuitem" onClick={() => { setPlusOpen(false); setFiles(fs => [...fs, `Ảnh chụp màn hình ${fs.length + 1}.png`]); }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-sm hover:bg-surface-muted text-left">
+                      <Camera size={14} className="text-muted-foreground" /> Chụp ảnh màn hình
+                    </button>
+                  </div>
+                )}
+                <input ref={fileRef} type="file" multiple accept="image/*,.pdf,.doc,.docx,.txt,.md,.csv" className="hidden"
+                  onChange={e => { const names = Array.from(e.target.files ?? []).map(f => f.name); setFiles(fs => [...fs, ...names]); e.target.value = ""; }} />
+              </div>
+              <div ref={modeRef} className="relative">
+                <button onClick={() => setModeOpen(o => !o)} aria-haspopup="menu" aria-expanded={modeOpen}
+                  className="h-7 px-2 rounded-md hover:bg-surface-muted text-xs text-muted-foreground flex items-center gap-1 transition-base">
+                  <HugeiconsIcon icon={mode === "manual" ? Shield01Icon : BoltIcon} size={12} className={mode === "manual" ? "" : "text-warning"} />
+                  {mode === "manual" ? "Thủ công" : "Tự động"}
+                </button>
+                {modeOpen && (
+                  <div role="menu" className="absolute bottom-9 left-0 w-72 z-50 bg-surface border border-border rounded-xl shadow-lg p-2">
+                    <div className="px-2 pt-1 pb-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Chế độ duyệt</div>
+                    {([
+                      { k: "manual", icon: Shield01Icon, title: "Thủ công", desc: "Luôn cần xác nhận trước khi thay đổi cấu hình" },
+                      { k: "auto", icon: BoltIcon, title: "Tự động", desc: "Tự duyệt thay đổi cấu hình. Công cụ kết nối ngoài vẫn hỏi.", tag: "Mặc định" },
+                    ] as const).map(o => (
+                      <button key={o.k} role="menuitemradio" aria-checked={mode === o.k} onClick={() => setMode(o.k)}
+                        className={`w-full flex items-start gap-2 px-2 py-2 rounded-lg text-left hover:bg-surface-muted transition-base ${mode === o.k ? "bg-primary-soft/40" : ""}`}>
+                        <HugeiconsIcon icon={o.icon} size={14} className="mt-0.5 text-primary shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-medium flex items-center gap-1.5">{o.title}{"tag" in o && <span className="chip text-[10px]">{o.tag}</span>}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">{o.desc}</div>
+                        </div>
+                        {mode === o.k && <HugeiconsIcon icon={CheckmarkCircle01Icon} size={13} className="text-primary mt-0.5" />}
+                      </button>
+                    ))}
+                    <div className="border-t border-border mt-1 pt-1.5 px-2 text-[11px] text-muted-foreground">Lựa chọn được lưu cho các phiên sau.</div>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1" />
+              {busy ? (
+                <button onClick={() => refineAssistant.stop(chatKey)} aria-label="Dừng" title="Dừng"
+                  className="h-7 w-7 rounded-md bg-primary text-primary-foreground hover:bg-primary-glow flex items-center justify-center transition-base">
+                  <span className="w-2.5 h-2.5 rounded-[2px] border-2 border-primary-foreground" />
+                </button>
+              ) : (
+                <button onClick={send} aria-label="Gửi" disabled={!input.trim()}
+                  className="h-7 w-7 rounded-md bg-primary text-primary-foreground hover:bg-primary-glow disabled:bg-surface-muted disabled:text-muted-foreground flex items-center justify-center transition-base">
+                  <HugeiconsIcon icon={SentIcon} size={12} />
+                </button>
+              )}
             </div>
-            <div className="flex-1" />
-            <button onClick={() => handleSend()} aria-label="Gửi" disabled={!input.trim()} className="h-7 w-7 rounded-md bg-primary text-primary-foreground hover:bg-primary-glow disabled:opacity-40 flex items-center justify-center transition-base shrink-0">
-              <HugeiconsIcon icon={SentIcon} size={12} />
-            </button>
           </div>
+          {pending && <div className="text-xs text-muted-foreground mt-1.5 px-1">Quyết định ở thẻ phía trên, hoặc gõ câu trả lời thay cho công cụ.</div>}
         </div>
-        <div className="text-xs text-muted-foreground mt-1.5 px-1">Enter để gửi - Shift+Enter để xuống dòng</div>
-      </div>
       )}
     </aside>
   );
@@ -1579,8 +1450,8 @@ function inlineFormat(text: string, agentId?: string): React.ReactNode {
 }
 
 
-function GeneralTab({ agentId, onRefineWithAI, onChatToTest, previewCollapsed, onReopenPreview }: {
-  agentId: string; onRefineWithAI?: () => void; onChatToTest?: () => void;
+function GeneralTab({ agentId, onRefineWithAI, refineOpen, onChatToTest, previewCollapsed, onReopenPreview }: {
+  agentId: string; onRefineWithAI?: () => void; refineOpen?: boolean; onChatToTest?: () => void;
   previewCollapsed?: boolean; onReopenPreview?: () => void;
 }) {
   const [params, setParams] = useSearchParams();
@@ -1595,7 +1466,10 @@ function GeneralTab({ agentId, onRefineWithAI, onChatToTest, previewCollapsed, o
   const [instructions, setInstructions] = useState(() => instructionDraftStore.get(agentId) ?? defaultInstructions);
   const emojiOptions = ["🏦","🤖","💼","🧠","🎯","🛡️","⚡","🌐","📊","🔧","💡","🚀"];
 
+  // While Refine với AI is working on this Agent the Instructions are locked (same as production).
+  const refineBusy = useRefineRunning(agentId);
   const onInstructionsChange = (next: string) => {
+    if (refineBusy) return;
     setInstructions(next);
     instructionDraftStore.set(agentId, next);
   };
@@ -1701,8 +1575,8 @@ function GeneralTab({ agentId, onRefineWithAI, onChatToTest, previewCollapsed, o
           </div>
 
           {/* Action buttons */}
-          {onRefineWithAI && <button onClick={() => onRefineWithAI()} data-refine-history
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm text-foreground transition-base whitespace-nowrap shrink-0">
+          {onRefineWithAI && <button onClick={() => onRefineWithAI()} data-refine-history aria-pressed={!!refineOpen}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm text-foreground transition-base whitespace-nowrap shrink-0 ${refineOpen ? "border-primary/40 bg-primary-soft" : "border-border bg-surface hover:bg-surface-muted"}`}>
             <HugeiconsIcon icon={SparklesIcon} size={13} className="text-primary" /> Refine với AI
           </button>}
           <button onClick={() => onChatToTest?.()}
@@ -1727,7 +1601,14 @@ function GeneralTab({ agentId, onRefineWithAI, onChatToTest, previewCollapsed, o
             {renderMarkdown(instructions, agentId)}
           </div>
         )}
+        {viewMode === "markdown" && refineBusy && (
+          <div role="status" className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="w-3 h-3 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground animate-spin" aria-hidden />
+            Refine với AI đang sửa Instructions - bạn sửa tiếp được khi trợ lý xong.
+          </div>
+        )}
         {viewMode === "markdown" && (
+          <div className={refineBusy ? "pointer-events-none opacity-60" : undefined} aria-busy={refineBusy}>
           <InstructionsEditor
             agentId={agentId}
             value={instructions}
@@ -1736,6 +1617,7 @@ function GeneralTab({ agentId, onRefineWithAI, onChatToTest, previewCollapsed, o
             placeholder="Viết hướng dẫn cho Nhân sự số ở đây… Gõ / để chèn Skill, Tool hoặc file Knowledge."
             className="w-full bg-transparent border border-transparent rounded-xl px-3 py-3 -mx-3 text-sm leading-relaxed hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base font-sans min-h-[160px]"
           />
+          </div>
         )}
         {(viewMode === "ai" || viewMode === "chat") && (
           <div className="prose prose-sm max-w-none text-foreground opacity-50 select-none pointer-events-none">

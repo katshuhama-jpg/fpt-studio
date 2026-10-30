@@ -18,7 +18,7 @@ describe("refineChatStore", () => {
   });
 
   it("finishes a reply a reload cut off instead of leaving it half-written", async () => {
-    localStorage.setItem("refine_chat_v1", JSON.stringify({
+    localStorage.setItem("refine_chat_v2", JSON.stringify({
       "hr::m-fsoft-ceo": [
         { id: "a", at: 1, kind: "text", role: "ai", text: "Đã hi", streaming: true, full: "Đã hiểu." },
         { id: "b", at: 2, kind: "tool", name: "Phân tích yêu cầu", done: false },
