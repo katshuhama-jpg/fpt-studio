@@ -12,7 +12,7 @@ import BusinessProcessesGrid from "@/components/business-processes/BusinessProce
 import TriggersTab from "@/components/configure/TriggersTab";
 import TriggerFormDialog from "@/components/configure/TriggerFormDialog";
 import { AlertTriangle, Info, Camera } from "lucide-react";
-import { refineChatStore, refineAssistant, useRefineChat, useRefineRunning, newMsgId, INSTRUCTIONS_FILE, type RefineMsg, type RefineToolArgs, type RefineApprovalMode } from "@/components/configure/refineChatStore";
+import { refineChatStore, refineAssistant, useRefineChat, useRefineRunning, useRefineLockTick, newMsgId, INSTRUCTIONS_FILE, type RefineMsg, type RefineToolArgs, type RefineApprovalMode } from "@/components/configure/refineChatStore";
 import TriggerBlockedByConnectorNotice from "@/components/configure/TriggerBlockedByConnectorNotice";
 import { RevokedChip, RevokedDot, RevokedBanner, RevokedReason, RevokedRemoveButton, REVOKED_ROW_CLASS, useRevokedResources } from "@/components/governance/RevokedBadge";
 import { isResourceRevoked, listRevokedResources, REVOKED_COPY, type RevocableType } from "@/components/governance/revokedResources";
@@ -1039,6 +1039,7 @@ function RefineToolRow({ msg }: { msg: Extract<RefineMsg, { kind: "tool" }> }) {
         <span>Gọi công cụ</span>
         <code className="font-mono text-foreground">{msg.name}</code>
         {msg.outcome === "rejected" && <span className="text-destructive">- Đã từ chối{msg.reason ? `: ${msg.reason}` : ""}</span>}
+        {msg.outcome === "stopped" && <span className="text-warning" title={msg.reason}>- Đã dừng</span>}
         <HugeiconsIcon icon={ChevronDownIcon} size={13} className={`ml-auto transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && msg.args && (
@@ -1055,10 +1056,12 @@ function RefineToolRow({ msg }: { msg: Extract<RefineMsg, { kind: "tool" }> }) {
   );
 }
 
-function RefineApprovalCard({ msg, readOnly, busy, onDecide }: {
+function RefineApprovalCard({ msg, readOnly, busy, blockedBy, onDecide }: {
   msg: Extract<RefineMsg, { kind: "approval" }>;
   readOnly: boolean;
   busy: boolean;
+  /** Someone else holds this Agent's Refine turn (the card waited over 10 minutes). */
+  blockedBy?: string;
   onDecide: (approve: boolean, reason: string, args: RefineToolArgs) => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -1096,17 +1099,18 @@ function RefineApprovalCard({ msg, readOnly, busy, onDecide }: {
           <>
             <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Lý do từ chối (không bắt buộc)" aria-label="Lý do từ chối"
               className="w-full text-xs px-2.5 py-2 rounded-lg border border-border bg-surface outline-none focus:border-primary transition-base" />
+            {blockedBy && <div className="text-xs text-muted-foreground">{blockedBy} đang Refine với AI. Bạn phê duyệt hoặc từ chối được khi họ xong.</div>}
             <div className="flex items-center gap-2 pt-1">
               <button type="button" onClick={() => setEditing(e => !e)}
                 className="h-8 px-2.5 rounded-lg text-xs text-muted-foreground hover:bg-surface-muted flex items-center gap-1.5 transition-base">
                 <HugeiconsIcon icon={PencilEdit01Icon} size={12} /> {editing ? "Xong" : "Sửa tham số"}
               </button>
               <div className="flex-1" />
-              <button type="button" disabled={busy} onClick={() => onDecide(false, reason, args)}
+              <button type="button" disabled={busy || !!blockedBy} onClick={() => onDecide(false, reason, args)}
                 className="h-8 px-3 rounded-lg border border-border text-xs text-destructive hover:bg-destructive/5 disabled:opacity-40 flex items-center gap-1 transition-base">
                 <HugeiconsIcon icon={Cancel01Icon} size={12} /> Từ chối
               </button>
-              <button type="button" disabled={busy} onClick={() => onDecide(true, "", args)}
+              <button type="button" disabled={busy || !!blockedBy} onClick={() => onDecide(true, "", args)}
                 className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary-glow disabled:opacity-40 flex items-center gap-1 transition-base">
                 <HugeiconsIcon icon={CheckmarkCircle01Icon} size={12} /> Phê duyệt
               </button>
@@ -1149,6 +1153,13 @@ function AiBuildSidebar({
   const messages = useRefineChat(chatKey, seed);
   const busy = refineChatStore.isRunning(chatKey);
   const pending = refineChatStore.hasPendingApproval(chatKey);
+  // One Refine run per Nhân sự số: someone else's turn blocks sending (drafting is fine).
+  useRefineLockTick();
+  const other = readOnly ? null : refineChatStore.otherHolder(agentId);
+  const sawOtherRef = useRef(false);
+  if (other) sawOtherRef.current = true;
+  const doneBy = !other && sawOtherRef.current ? refineChatStore.lastDoneByOther(agentId) : null;
+  const hhmm = (t: number) => new Date(t).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 
   const [input, setInput] = useState("");
   const [files, setFiles] = useState<string[]>([]);
@@ -1201,7 +1212,7 @@ function AiBuildSidebar({
 
   const send = () => {
     const text = input.trim();
-    if (!text || busy) return;
+    if (!text || busy || other) return;
     setInput(""); setFiles([]);
     refineAssistant.send(chatKey, ctx, text, files);
   };
@@ -1220,7 +1231,7 @@ function AiBuildSidebar({
     );
     if (msg.kind === "tool") return <RefineToolRow key={msg.id} msg={msg} />;
     if (msg.kind === "approval") return (
-      <RefineApprovalCard key={msg.id} msg={msg} readOnly={readOnly} busy={busy}
+      <RefineApprovalCard key={msg.id} msg={msg} readOnly={readOnly} busy={busy} blockedBy={other?.name}
         onDecide={(approve, reason, args) => refineAssistant.decide(chatKey, ctx, msg.id, approve, reason, args)} />
     );
     return null;
@@ -1260,6 +1271,17 @@ function AiBuildSidebar({
         </div>
       ) : (
         <div className="p-2.5 shrink-0">
+          {other && (
+            <div role="status" className="mb-2 rounded-lg border border-warning/40 bg-warning-soft/40 px-3 py-2 text-xs leading-relaxed flex gap-2">
+              <HugeiconsIcon icon={UserCircleIcon} size={13} className="text-warning shrink-0 mt-0.5" />
+              <span><b>{other.name}</b> đang Refine với AI từ {hhmm(other.since)}. Mỗi lúc chỉ một người Refine một Nhân sự số - bạn soạn trước được, gửi khi họ xong.</span>
+            </div>
+          )}
+          {doneBy && (
+            <div role="status" className="mb-2 rounded-lg border border-primary/20 bg-primary-soft/40 px-3 py-2 text-xs leading-relaxed">
+              <b>{doneBy.name}</b> đã Refine xong lúc {hhmm(doneBy.at)}. Bạn gửi yêu cầu được rồi - trợ lý sẽ làm trên bản đã có thay đổi của họ.
+            </div>
+          )}
           <div className={`rounded-xl border bg-surface transition-base p-2 ${busy ? "border-border opacity-80" : "border-border focus-within:border-primary"}`}>
             {files.length > 0 && (
               <div className="flex flex-wrap gap-1 mb-1.5">
@@ -1274,7 +1296,7 @@ function AiBuildSidebar({
             <textarea rows={2} value={input} onChange={e => setInput(e.target.value)} disabled={busy}
               aria-label="Nói bạn muốn sửa gì"
               onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-              placeholder={busy ? "Trợ lý đang làm việc..." : "Nói bạn muốn sửa gì..."}
+              placeholder={busy ? "Trợ lý đang làm việc..." : other ? "Soạn trước yêu cầu của bạn..." : "Nói bạn muốn sửa gì..."}
               className="w-full resize-none bg-transparent text-sm placeholder:text-muted-foreground outline-none px-1 py-0.5 max-h-32 disabled:cursor-not-allowed" />
             <div className="flex items-center gap-1">
               <div ref={plusRef} className="relative">
@@ -1329,7 +1351,7 @@ function AiBuildSidebar({
                   <span className="w-2.5 h-2.5 rounded-[2px] border-2 border-primary-foreground" />
                 </button>
               ) : (
-                <button onClick={send} aria-label="Gửi" disabled={!input.trim()}
+                <button onClick={send} aria-label="Gửi" disabled={!input.trim() || !!other} title={other ? `${other.name} đang Refine với AI` : undefined}
                   className="h-7 w-7 rounded-md bg-primary text-primary-foreground hover:bg-primary-glow disabled:bg-surface-muted disabled:text-muted-foreground flex items-center justify-center transition-base">
                   <HugeiconsIcon icon={SentIcon} size={12} />
                 </button>
