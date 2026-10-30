@@ -17,8 +17,8 @@ export interface ProcessGraph {
   dir?: "h" | "v";
 }
 
-const CREATED_KEY = "process_agents_v2";
-const GRAPH_KEY = (id: string) => `process_graph_v2:${id}`;
+const CREATED_KEY = "process_agents_v3";
+const GRAPH_KEY = (id: string) => `process_graph_v3:${id}`;
 
 function read<T>(key: string, fallback: T): T {
   try { const raw = sessionStorage.getItem(key); return raw ? JSON.parse(raw) as T : fallback; } catch { return fallback; }
