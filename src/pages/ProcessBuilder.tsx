@@ -912,7 +912,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
         isNote: n.type === 'note', isCard: n.type !== 'note', noteText: n.cfg.text || '', isLoop: false, loopEmpty: false, isPar: false,
         lanes: false ? n.cfg.branches.map(function (b, li) { var p0 = innerPos(n, 0, li); return { label: b.name || ('Nhánh ' + (li + 1)), lx: DIR === 'h' ? 16 : p0.x, ly: DIR === 'h' ? p0.y + H / 2 - 9 : 66, lw: DIR === 'h' ? 100 : W, empty: !(b.inner || []).length && !ro, px: p0.x + W / 2 - 11, py: p0.y + H / 2 - 11, aria: 'Thêm bước vào nhánh ' + (b.name || li + 1), add: function (e) { e.stopPropagation(); self.setState({ sel: n.id }); self.openAdd({ mode: 'inner', loopId: n.id, lane: li }); } }; }) : [],
         addInner: function (e) { e.stopPropagation(); self.setState({ sel: n.id }); self.openAdd({ mode: 'inner', loopId: n.id }); },
-        pills: br ? o.map(function (l) { var lab = l || 'Next', warn = l === 'Failed' || l === 'Timeout' || l === 'Max reached' || l === 'Reject'; return { label: lab, flex: DIR === 'v' ? '1' : 'none', bg: warn ? '#fef3c7' : '#ebebee', fg: warn ? '#92400e' : '#242424' }; }) : [],
+        pills: br ? o.map(function (l, pi) { var lab = l || 'Next', warn = l === 'Failed' || l === 'Timeout' || l === 'Max reached' || l === 'Reject'; return { label: lab, flex: DIR === 'v' ? '1' : 'none', fg: warn ? '#b45309' : '#5b5b66', dot: warn ? '#f59e0b' : '#9ca3af', justify: DIR === 'v' ? 'center' : 'flex-end', line: DIR === 'v' ? 'none' : (pi ? '1px solid #f1f1f4' : 'none') }; }) : [],
         pillDir: DIR === 'v' ? 'row' : 'column', pillPad: br ? '8px 12px 10px' : '0', headLine: br ? '1px solid #ececef' : 'none',
         hasSub: !badge && !!sub, sub: sub,
         bg: n.type === 'note' ? '#fff8c5' : (isBox(n) ? 'rgba(255,255,255,.45)' : '#fff'),
@@ -1601,7 +1601,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
             </div>
             <div style={S(`display: flex; flex-direction: ${n.pillDir}; gap: 8px; padding: ${n.pillPad}`)}>
               {(n.pills || []).map((b, _ib) => (<React.Fragment key={_ib}>
-                <div style={S(`flex: ${b.flex}; height: 32px; border-radius: 16px; background: ${b.bg}; color: ${b.fg}; font-size: 12.5px; font-weight: 500; display: flex; align-items: center; justify-content: center; padding: 0 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0`)}>{b.label}</div>
+                <div style={S(`flex: ${b.flex}; height: 32px; border-top: ${b.line}; color: ${b.fg}; font-size: 12px; font-weight: 500; display: flex; align-items: center; justify-content: ${b.justify}; gap: 6px; padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0`)}><span style={S('overflow: hidden; text-overflow: ellipsis')}>{b.label}</span></div>
               </React.Fragment>))}
             </div>
             {(n.isPar) && (<>
