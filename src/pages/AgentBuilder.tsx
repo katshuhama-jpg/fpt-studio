@@ -4311,6 +4311,14 @@ function mockPublishChanges(agentId: string): PublishChange[] {
   return out;
 }
 
+/** Quy trình không có Instructions, Skills hay Guardrails: phần Thay đổi nói về số bước so với bản đang live. */
+const PROCESS_STEP_DIFF: Record<string, [number, number]> = { "qt-procure": [28, 29], "qt-invoice": [10, 11], "claim-rules-process": [12, 12] };
+function processPublishChanges(agentId: string): PublishChange[] {
+  const d = PROCESS_STEP_DIFF[agentId];
+  if (!d || d[0] === d[1]) return [];
+  return [{ id: "steps", label: "Các bước", marker: "~", kind: "value", before: 0, after: 0, beforeLabel: `${d[0]} bước`, afterLabel: `${d[1]} bước` }];
+}
+
 function LiveDotChip({ label }: { label: string }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-success bg-success/10 border border-success/20 rounded-full px-2 py-0.5 whitespace-nowrap">
@@ -4574,7 +4582,9 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
     ? mockExternalChanges(external).map(c => c.kind === "diff"
         ? { id: c.id, label: c.label, marker: c.marker, kind: "diff" as const, before: c.before, after: c.after }
         : { id: c.id, label: c.label, marker: c.marker, kind: "value" as const, before: 0, after: 0, afterLabel: c.countLabel })
-    : mockPublishChanges(agentId);
+    : getAgent(agentId)?.kind === "process"
+      ? processPublishChanges(agentId)
+      : mockPublishChanges(agentId);
   const [changesOpen, setChangesOpen] = useState(true);
   const totalChangeRows = changes.length + (agentConnectors.length > 0 ? 1 : 0) + (triggerCount > 0 ? 1 : 0);
 
