@@ -19,6 +19,7 @@ import { runsStore } from "@/components/configure/runsStore";
 import { triggerStore, triggerNeedsSetup, type TriggerType } from "@/components/configure/triggerStore";
 import { AGENTS as ALL_AGENTS } from "@/components/configure/agentStore";
 import { processStore } from "@/components/process/processStore";
+import { processCasesOf } from "@/components/process/ProcessCasesTab";
 // Nhân sự số Quy trình are AgentRecords too (kind "process") - same tabs, counts and statuses,
 // listed in their own "Quy trình" group below.
 const agents = ALL_AGENTS;
@@ -406,7 +407,7 @@ function AutomationCard({ a }: { a: typeof agents[number] }) {
   );
 }
 
-function GroupEmptyState({ message, onShowAll }: { message: string; onShowAll?: () => void }) {
+function GroupEmptyState({ message, onShowAll, allLabel }: { message: string; onShowAll?: () => void; allLabel?: string }) {
   return (
     <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-10 text-center">
       <p className="text-sm text-muted-foreground max-w-md mx-auto">{message}</p>
@@ -416,7 +417,7 @@ function GroupEmptyState({ message, onShowAll }: { message: string; onShowAll?: 
           onClick={onShowAll}
           className="mt-4 h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base"
         >
-          Xem tất cả Nhân sự số
+          {allLabel ?? "Xem tất cả Nhân sự số"}
         </button>
       )}
     </div>
@@ -663,8 +664,12 @@ export default function AgentsList({ mode = "agents" }: { mode?: "agents" | "pro
     const total = visibleAgents.length;
     const active = visibleAgents.filter(a => agentTabStatus(a) === "Published").length;
     const convs = visibleAgents.reduce((n, a) => n + (Number((a as any).convs) || 0), 0);
-    return { total, active, convs, users: Math.round(convs / 6) };
-  }, [visibleAgents]);
+    if (isProcPage) {
+      const cs = visibleAgents.flatMap(a => processCasesOf(a.id));
+      return { total, active, convs: cs.length, users: new Set(cs.map(c => c.initiator)).size, failed: cs.filter(c => c.status === "failed").length };
+    }
+    return { total, active, convs, users: Math.round(convs / 6), failed: 0 };
+  }, [visibleAgents, isProcPage]);
   const handleBlank = () => navigate(isProcessKind ? "/process/new" : "/agents/new?tab=build&section=instructions");
 
   const handleBuild = () => {
@@ -707,7 +712,9 @@ export default function AgentsList({ mode = "agents" }: { mode?: "agents" | "pro
         )}
       </div>
 
-      {isBlankSpace ? (
+      {isBlankSpace && !canCreateAgent ? (
+        <div className="pt-10"><GroupEmptyState message={isProcPage ? "Chưa có Nhân sự số Quy trình nào được chia sẻ với bạn. Khi chủ Quy trình cấp quyền, Quy trình sẽ hiện ở đây." : "Chưa có Nhân sự số nào được chia sẻ với bạn. Khi chủ Nhân sự số cấp quyền, Nhân sự số sẽ hiện ở đây."} /></div>
+      ) : isBlankSpace ? (
         /* ── Space chưa có Nhân sự số: màn chào của production ───────────── */
         <div className="flex flex-col items-center pt-10 pb-16">
           <h2 className="font-display text-[32px] leading-tight font-semibold tracking-tight text-center max-w-[440px]">
@@ -737,19 +744,21 @@ export default function AgentsList({ mode = "agents" }: { mode?: "agents" | "pro
             <div className="mt-1.5 text-[11.5px] text-muted-foreground">{kpi.total - kpi.active} {isProcPage ? "Quy trình" : "nhân sự số"} chưa xuất bản</div>
           </div>
           <div className="rounded-xl border border-border p-4">
-            <div className="text-xs text-muted-foreground">{isProcPage ? "Hồ sơ 7 ngày" : "Hội thoại 7 ngày"}</div>
+            <div className="text-xs text-muted-foreground">{isProcPage ? "Hồ sơ đã mở" : "Hội thoại 7 ngày"}</div>
             <div className="mt-2 text-xl font-semibold font-display">{kpi.convs.toLocaleString("vi-VN")}</div>
             <div className="mt-1.5 text-[11.5px] text-muted-foreground">{isProcPage ? "Tổng các Quy trình trong Space" : "Tổng các Nhân sự số trong Space"}</div>
           </div>
           <div className="rounded-xl border border-border p-4">
-            <div className="text-xs text-muted-foreground">{isProcPage ? "Người khởi chạy 7 ngày" : "Người dùng 7 ngày"}</div>
+            <div className="text-xs text-muted-foreground">{isProcPage ? "Người khởi chạy" : "Người dùng 7 ngày"}</div>
             <div className="mt-2 text-xl font-semibold font-display">{kpi.users.toLocaleString("vi-VN")}</div>
             <div className="mt-1.5 text-[11.5px] text-muted-foreground">{isProcPage ? "Người đã gõ /tên Quy trình trong Workspace" : "Người đã trò chuyện với Nhân sự số"}</div>
           </div>
           <div className="rounded-xl border border-border p-4">
             <div className="text-xs text-muted-foreground">{isProcPage ? "Hồ sơ lỗi" : "Đánh giá tích cực"}</div>
-            <div className="mt-2 text-base font-medium text-muted-foreground">Chưa có</div>
-            <div className="mt-1.5 text-[11.5px] text-muted-foreground">{isProcPage ? "Chưa có hồ sơ nào dừng ở bước lỗi" : "Chưa có lượt đánh giá nào"}</div>
+            {isProcPage && kpi.failed > 0
+              ? <><div className="mt-2 text-xl font-semibold font-display text-destructive">{kpi.failed}</div><div className="mt-1.5 text-[11.5px] text-muted-foreground">Hồ sơ dừng ở bước lỗi, cần chạy lại</div></>
+              : <><div className="mt-2 text-base font-medium text-muted-foreground">Chưa có</div>
+            <div className="mt-1.5 text-[11.5px] text-muted-foreground">{isProcPage ? "Chưa có hồ sơ nào dừng ở bước lỗi" : "Chưa có lượt đánh giá nào"}</div></>}
           </div>
         </div>
       )}
@@ -867,6 +876,7 @@ export default function AgentsList({ mode = "agents" }: { mode?: "agents" | "pro
                 ? (canCreateAgent ? "Chưa có Quy trình nào - Bấm Tạo Quy trình để dựng Quy trình đầu tiên." : "Chưa có Quy trình nào được chia sẻ với bạn.")
                 : "Không có Quy trình nào khớp với bộ lọc"}
               onShowAll={allProcessCount > 0 ? clearFilters : undefined}
+              allLabel="Xem tất cả Quy trình"
             />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

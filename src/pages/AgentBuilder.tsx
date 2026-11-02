@@ -23,6 +23,8 @@ import DeleteTriggerDialog from "@/components/configure/DeleteTriggerDialog";
 import HistoryTab from "@/components/history/HistoryTab";
 import AgentAnalytics, { type AnalyticsSection } from "@/components/insights/AgentAnalytics";
 import ProcessCasesTab from "@/components/process/ProcessCasesTab";
+import ProcessOverviewTab from "@/components/process/ProcessOverviewTab";
+import ProcessEvalTab from "@/components/process/ProcessEvalTab";
 import { AgentVersionsPanel } from "@/components/governance/agentVersionsPanel";
 import { AgentStatusCluster } from "@/components/governance/agentStatusCluster";
 import HistoryChatPanel from "@/components/history/HistoryChatPanel";
@@ -220,6 +222,12 @@ export default function AgentBuilder() {
   const isProcess = agent.kind === "process";
   const access = useGroupAccess("agents");
   const { tree: agentBuilderOrgTree } = useOrg();
+  // The Quy trình canvas reads its people directory and Năng suất agent list from these globals
+  // (Human Review assignees via @ search, Agent node picker with the live version).
+  if (isProcess && typeof window !== "undefined") {
+    (window as any).__qtPeople = collectMembers(agentBuilderOrgTree).map(m => `${m.name} · ${m.role}`);
+    (window as any).__qtAgents = AGENTS.filter(a => a.kind !== "process").flatMap(a => { const p = agentPublishStore.get(a.id); return p.placement ? [{ name: a.name, ver: p.version }] : []; });
+  }
 
   // Same anti-bypass re-check as AgentsList, scoped to the single Agent being viewed here — a
   // Builder who opens their own Agent (rather than the list) still gets the live roster-overlap
@@ -563,7 +571,7 @@ export default function AgentBuilder() {
                     onClick={() => { setShowAgentMenu(false); setConfirmDelete(true); }}
                     className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-surface-muted disabled:text-muted-foreground/50 disabled:cursor-not-allowed"
                   >
-                    Xóa Nhân sự số
+                    {isProcess ? "Xoá Quy trình" : "Xóa Nhân sự số"}
                   </button>}
                 </div>
               </>
@@ -659,7 +667,9 @@ export default function AgentBuilder() {
                 <>Quy trình này đang là một bước trong {processUsages.length} Workforce. Gỡ Quy trình khỏi các Workforce dưới đây rồi xoá lại:
                   <span className="block mt-2 space-y-1">{processUsages.map(u => <a key={u.id} href={`/workforce/${u.id}`} className="block text-primary hover:underline">{u.name}</a>)}</span>
                 </>
-              ) : published
+              ) : isProcess
+                ? (published ? "Người dùng không mở được hồ sơ mới bằng lệnh / nữa. Hồ sơ đang chạy dừng lại, các việc đang chờ ở Action Center bị huỷ. Bản vẽ, phiên bản và lịch sử hồ sơ bị xoá hẳn, không khôi phục được." : "Bản vẽ, phiên bản và quyền đã cấp của Quy trình bị xoá hẳn, không khôi phục được.")
+                : published
                 ? "Nhân sự số đang live sẽ dừng phục vụ người dùng ngay. Cấu hình, phiên bản, quyền đã cấp và lịch sử chat Refine với AI của mọi người sẽ bị xóa hẳn, không khôi phục được."
                 : "Cấu hình, phiên bản, quyền đã cấp và lịch sử chat Refine với AI của mọi người sẽ bị xóa hẳn, không khôi phục được."}
             </AlertDialogDescription>
@@ -678,7 +688,7 @@ export default function AgentBuilder() {
                 navigate(isProcess ? "/processes" : "/agents");
               }}
             >
-              Xóa Nhân sự số
+              {isProcess ? "Xoá Quy trình" : "Xóa Nhân sự số"}
             </AlertDialogAction>}
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -872,7 +882,7 @@ export default function AgentBuilder() {
                 )}
               </button>
             ))}
-            {tab === "evaluate" && EVAL_SUBTABS.map(s => (
+            {tab === "evaluate" && (isProcess ? EVAL_SUBTABS.filter(s => s.id === "test-sets").map(s => ({ ...s, label: "Test case" })) : EVAL_SUBTABS).map(s => (
               <button
                 key={s.id}
                 onClick={() => setSection(s.id)}
@@ -890,7 +900,7 @@ export default function AgentBuilder() {
                 )}
               </button>
             ))}
-            {tab === "insights" && INSIGHTS_SUBTABS.filter(s => s.id !== "history" || canSeeHistory).map(s => (
+            {tab === "insights" && INSIGHTS_SUBTABS.filter(s => (s.id !== "history" || canSeeHistory) && (!isProcess || ["performance", "cost", "history"].includes(s.id))).map(s => isProcess && s.id === "history" ? { ...s, label: "Hồ sơ" } : s).map(s => (
               <button
                 key={s.id}
                 onClick={() => setSection(s.id)}
@@ -999,9 +1009,11 @@ export default function AgentBuilder() {
               {tab === "build" && section === "triggers" && (
                 <TriggersTab agentId={id ?? "new"} onChange={() => setTriggerTick(t => t + 1)} />
               )}
-              {tab === "evaluate" && <EvaluationTab agentId={id ?? "new"} agentName={agent.name} section={section as EvalSection} readOnly={viewOnly} onRefineWithAI={() => setParams({ tab: "build", section: "instructions", buildMode: "ai" })} />}
+              {tab === "evaluate" && isProcess && <ProcessEvalTab agentId={id ?? "new"} readOnly={viewOnly} />}
+              {tab === "evaluate" && !isProcess && <EvaluationTab agentId={id ?? "new"} agentName={agent.name} section={section as EvalSection} readOnly={viewOnly} onRefineWithAI={() => setParams({ tab: "build", section: "instructions", buildMode: "ai" })} />}
               {tab === "channels" && <DeployTab agentId={id} onViewTriggers={() => setParams({ tab: "build", section: "triggers" })} onViewVersions={() => setParams({ tab: "build", section: "versions" })} onOpenPublish={() => canPublishAgent && requestPublish()} onOpenCapabilities={() => setParams({ tab: "build", section: "advanced", atab: "capabilities" })} />}
-              {tab === "insights" && ["performance", "usage", "feedback", "topics", "operations", "cost"].includes(section) && <AgentAnalytics agentId={id ?? "new"} section={section as AnalyticsSection} kind={isProcess ? "process" : kind === "automation" ? "automation" : "conversational"} published={published} onPublish={canPublishAgent ? () => requestPublish() : undefined} onOpenChannels={() => setParams({ tab: "channels" })} canEdit={!viewOnly} />}
+              {tab === "insights" && isProcess && section === "performance" && <ProcessOverviewTab agentId={id ?? "new"} published={published} onPublish={canPublishAgent ? () => requestPublish() : undefined} onOpenCases={() => setParams({ tab: "insights", section: "history" })} />}
+              {tab === "insights" && ["performance", "usage", "feedback", "topics", "operations", "cost"].includes(section) && !(isProcess && section === "performance") && <AgentAnalytics agentId={id ?? "new"} section={section as AnalyticsSection} kind={isProcess ? "process" : kind === "automation" ? "automation" : "conversational"} published={published} onPublish={canPublishAgent ? () => requestPublish() : undefined} onOpenChannels={() => setParams({ tab: "channels" })} canEdit={!viewOnly} />}
               {tab === "insights" && section === "history" && canSeeHistory && (
                 isProcess
                   ? <div className="p-8"><ProcessCasesTab agentId={id ?? "new"} readOnly={viewOnly} /></div>
@@ -3156,6 +3168,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
 function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish, onOpenCapabilities }: { agentId: string; onViewTriggers?: () => void; onViewVersions?: () => void; onOpenPublish?: () => void; onOpenCapabilities?: () => void }) {
   const access = useGroupAccess("agents");
   const ownedAgent = AGENTS.find(a => a.id === agentId);
+  const isProc = ownedAgent?.kind === "process";
   const deployPerms = useAgentPerms(agentId ?? "new");
   const canPublishAgent = deployPerms && !deployPerms.owner ? deployPerms.perms.has("publish") : access.canAct("publish", ownedAgent ? isOwnedOrShared(ownedAgent, access.userId) : true);
   const [tick, setTick] = useState(0);
@@ -3272,7 +3285,7 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish, onO
         </div>
         <div>
           <h1 className="text-xl font-semibold">Kênh triển khai</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Nhân sự số đang chạy ở đâu và người dùng đang dùng phiên bản nào.</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{isProc ? "Quy trình mở cho ai trong Workspace và đang chạy phiên bản nào. Người dùng mở hồ sơ bằng lệnh / trong chat." : "Nhân sự số đang chạy ở đâu và người dùng đang dùng phiên bản nào."}</p>
         </div>
       </div>
 
@@ -3283,11 +3296,11 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish, onO
             <p className="text-sm text-muted-foreground mb-1">Workspace</p>
             <p className="text-base font-semibold font-mono">{published ? servingVersion : <span className="font-sans text-muted-foreground font-normal text-sm">Chưa publish</span>}</p>
           </div>
-          <div>
+          {!isProc && <div>
             <p className="text-sm text-muted-foreground mb-1">Kênh ngoài</p>
             <p className="text-base font-semibold font-mono">{channelsLive ? channelVersion : <span className="font-sans text-muted-foreground font-normal text-sm">Chưa bật</span>}</p>
-          </div>
-          <div>
+          </div>}
+          <div className={isProc ? "hidden" : ""}>
             <p className="text-sm text-muted-foreground mb-1">Kênh đang live</p>
             <p className="text-base font-semibold">{liveDestinationCount}</p>
           </div>
@@ -3303,7 +3316,8 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish, onO
       {/* Two tabs: where the Nhân sự số is deployed (Workspace / Automation) and the external
           channels — with "Chuyển cho nhân viên", which only applies to external channels. */}
       <Tabs value={channelTab} onValueChange={v => setChannelTab(v as "deploy" | "external")}>
-        <TabsList className="h-9 w-fit rounded-lg bg-muted p-[3px] text-muted-foreground mb-6">
+        {isProc && <p className="text-xs text-muted-foreground -mt-4 mb-6">Khởi chạy Quy trình từ kênh ngoài (Zalo, Teams, API) và bằng lời nói tự nhiên: V2.</p>}
+        <TabsList className={`h-9 w-fit rounded-lg bg-muted p-[3px] text-muted-foreground mb-6 ${isProc ? "hidden" : ""}`}>
           <TabsTrigger value="deploy" className="h-full flex-none rounded-md border border-transparent px-3 py-1 text-sm font-medium text-muted-foreground hover:text-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-offset-0">Kênh triển khai</TabsTrigger>
           <TabsTrigger value="external" className="h-full flex-none rounded-md border border-transparent px-3 py-1 text-sm font-medium text-muted-foreground hover:text-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-offset-0">Kênh ngoài</TabsTrigger>
         </TabsList>
@@ -4545,7 +4559,10 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
   const canPublishToOrg = !personalSpace && isConnectedToOrg(getCurrentTenantId());
 
   const [versionType, setVersionType] = useState<"patch" | "minor" | "major">("patch");
+  // Never published and never sent for review: the first version is v1.0.0, whatever the type.
+  const firstRelease = agentPublishStore.releases(agentId).length === 0 && governanceStore.listForResource("agent", agentId).length === 0 && !current.placement;
   const newVersion = (() => {
+    if (firstRelease) return [1, 0, 0];
     const [maj, min, pat] = BASE;
     if (versionType === "major") return [maj + 1, 0, 0];
     if (versionType === "minor") return [maj, min + 1, 0];
@@ -4932,14 +4949,15 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
               <div className="text-right">
                 <p className="text-xs text-muted-foreground">Phiên bản mới</p>
                 <p className="text-xl font-bold tracking-tight text-foreground font-display">
-                  v<span className={versionType === "major" ? "text-primary underline underline-offset-4 decoration-2" : ""}>{newVersion[0]}</span>
+                  v<span className={!firstRelease && versionType === "major" ? "text-primary underline underline-offset-4 decoration-2" : ""}>{newVersion[0]}</span>
                   .
-                  <span className={versionType === "minor" ? "text-primary underline underline-offset-4 decoration-2" : ""}>{newVersion[1]}</span>
+                  <span className={!firstRelease && versionType === "minor" ? "text-primary underline underline-offset-4 decoration-2" : ""}>{newVersion[1]}</span>
                   .
-                  <span className={versionType === "patch" ? "text-primary underline underline-offset-4 decoration-2" : ""}>{newVersion[2]}</span>
+                  <span className={!firstRelease && versionType === "patch" ? "text-primary underline underline-offset-4 decoration-2" : ""}>{newVersion[2]}</span>
                 </p>
               </div>
             </div>
+            {firstRelease ? <p className="text-sm text-muted-foreground">Bản đầu tiên của {agentName}. Các lần publish sau mới chọn Major, Minor hoặc Patch.</p> : <>
             <div className="flex gap-2 mb-2">
               {([
                 { key: "major", label: "Major" },
@@ -4965,6 +4983,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
               {versionType === "minor" && "Thêm tính năng mới, không thay đổi cách Nhân sự số đang hoạt động."}
               {versionType === "major" && "Thay đổi lớn, có thể không tương thích với bản trước."}
             </p>
+            </>}
           </div>
 
           {/* Section 3 — Release notes */}

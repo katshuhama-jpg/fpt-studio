@@ -203,6 +203,9 @@ function roundPath(pts, r) {
   var last = pts[pts.length - 1];
   return d + ' L' + last[0] + ' ' + last[1];
 }
+// Thư mục tổ chức và Nhân sự số Năng suất đã publish do trang bao ngoài truyền vào (window.__qtPeople / __qtAgents).
+function dirPeople() { var w = (typeof window !== 'undefined' && window.__qtPeople) || []; return PEOPLE.concat(w.filter(function (x) { return PEOPLE.indexOf(x) < 0 && !PEOPLE.some(function (p) { return p.split(' · ')[0] === x.split(' · ')[0]; }); })); }
+function dirAgents() { var w = (typeof window !== 'undefined' && window.__qtAgents) || []; var names = w.map(function (a) { return a.name; }); var SV = { 'Trợ lý So sánh báo giá': 'v3.1.0', 'Trợ lý Mua sắm': 'v1.4.0', 'Trợ lý Kinh doanh': 'v2.0.0', 'Tư vấn khoản vay': 'v1.0.3' }; return AGENTS.filter(function (n) { return names.indexOf(n) < 0; }).map(function (n) { return { name: n, ver: SV[n] || '' }; }).concat(w); }
 function norm(s) { return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd'); }
 function slug(s) { return norm(s).replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').replace(/^[0-9_]+/, ''); }
 function colOf(type) { return COL[TYPES[type].c]; }
@@ -1210,8 +1213,8 @@ class ProcessBuilderInner extends React.Component<any, any> {
       var TMO = function () { pf.push(P('tmo', 'Thời hạn (không bắt buộc)', 'input', { ph: 'VD: 2' })); pf.push(P('tmoUnit', 'Đơn vị', 'select', { options: opt(['giờ', 'ngày']), hint: 'Có thời hạn thì bước có thêm nhánh Timeout.' })); };
       var PICK = function (key, title, addLabel, note) {
         var arr = c[key];
-        return { title: title, hasB: false, addLabel: addLabel, hasNote: !!note, note: note || '', hasExtra: false, extraLabel: '', extra: function () {}, picking: s.picking === n.id + ':' + key, pickTitle: 'Chọn người trong tổ chức',
-          types: PEOPLE.filter(function (p) { return arr.indexOf(p) < 0; }).map(function (p) { return { label: p, pick: function () { var pp = {}; pp[key] = arr.concat([p]); self.updateCfg(pp); self.setState({ picking: null }); } }; }),
+        return { title: title, hasB: false, addLabel: addLabel, hasNote: !!note, note: note || '', hasExtra: false, extraLabel: '', extra: function () {}, picking: s.picking === n.id + ':' + key, pickTitle: 'Chọn người trong thư mục tổ chức', hasSearch: true, q: s.pickQ || '', onQ: function (ev) { self.setState({ pickQ: ev.target.value }); },
+          types: dirPeople().filter(function (p) { var q = norm(String(s.pickQ || '').replace(/^@/, '')).trim(); return arr.indexOf(p) < 0 && (!q || norm(p).indexOf(q) >= 0); }).slice(0, 12).map(function (p) { return { label: p, pick: function () { var pp = {}; pp[key] = arr.concat([p]); self.updateCfg(pp); self.setState({ picking: null, pickQ: '' }); } }; }),
           items: arr.map(function (p, i) { return { a: p, aPh: '', aAria: 'Người ' + (i + 1), aFont: 'inherit', hasTag: false, lock: false, onA: function () {}, remove: function () { var pp = {}; pp[key] = arr.filter(function (_, j) { return j !== i; }); self.updateCfg(pp); } }; }),
           add: function () { self.setState({ picking: s.picking === n.id + ':' + key ? null : n.id + ':' + key }); } };
       };
@@ -1229,14 +1232,14 @@ class ProcessBuilderInner extends React.Component<any, any> {
           break;
         case 'worker':
           help = 'Giao một bước cho Nhân sự số Năng suất như một hộp đen. Lớp bọc bảo đảm hình dạng output, không bảo đảm nội dung đúng: thứ cần đúng tuyệt đối thì đặt ở DMN, Code hoặc Human Review.';
-          pf.push(P('worker', 'Nhân sự số', 'select', { options: opt([''].concat(AGENTS)), hint: 'Chọn Nhân sự số Năng suất đã publish. Mỗi lượt chạy dùng bản đã duyệt mới nhất. Agent bên ngoài (A2A): Phase 2.' }));
+          pf.push(P('worker', 'Nhân sự số', 'select', { options: [{ v: '', l: 'Chọn Nhân sự số' }].concat(dirAgents().map(function (a) { return { v: a.name, l: a.name + (a.ver ? ' · Live ' + a.ver : '') }; })), hint: 'Chọn Nhân sự số Năng suất đã publish. Mỗi lượt chạy dùng bản đã duyệt mới nhất. Agent bên ngoài (A2A): Phase 2.' }));
           pf.push(P('task', 'Đề bài', 'text', { ph: 'VD: Xin báo giá từ ít nhất 3 NCC cho @items, so sánh giá, thời gian giao, bảo hành và đề xuất NCC.', canVar: true }));
           editors.push({ title: 'OUTPUT SCHEMA (BẮT BUỘC)', hasB: false, addLabel: '+ Thêm trường', hasNote: true, note: 'Nhân sự số phải nộp kết quả đúng các trường này. Không nộp thì được nhắc một lần, rồi đi nhánh Failed.', hasExtra: false, extraLabel: '', extra: function () {}, picking: false, types: [],
             items: c.outVars.map(function (v, i) { return { a: v, aPh: 'ten_truong', aAria: 'Trường ' + (i + 1), aFont: 'ui-monospace, monospace', hasTag: false, lock: false, onA: function (ev) { var a2 = c.outVars.slice(); a2[i] = ev.target.value.replace(/\s+/g, '_'); self.updateCfg({ outVars: a2 }); }, remove: function () { self.updateCfg({ outVars: c.outVars.filter(function (_, j) { return j !== i; }) }); } }; }),
             add: function () { self.updateCfg({ outVars: c.outVars.concat(['']) }); } });
           pf.push(P('tmo', 'Thời hạn', 'input', { ph: 'VD: 48' }));
           pf.push(P('tmoUnit', 'Đơn vị', 'select', { options: opt(['giờ', 'ngày']), hint: 'Gồm cả thời gian chờ người trả lời câu hỏi của Nhân sự số. Hết hạn thì đi nhánh Timeout.' }));
-          pf.push(P('askTo', 'Người nhận câu hỏi của Nhân sự số', 'select', { value: c.askTo || 'initiator', options: [{ v: 'initiator', l: 'Initiator (mặc định)' }].concat(PEOPLE.map(function (x) { return { v: x, l: x }; })), hint: 'Câu hỏi thành việc trong Action Center. Câu hỏi trước thao tác dùng credential cá nhân luôn về Initiator.' }));
+          pf.push(P('askTo', 'Người nhận câu hỏi của Nhân sự số', 'select', { value: c.askTo || 'initiator', options: [{ v: 'initiator', l: 'Initiator (mặc định)' }].concat(dirPeople().map(function (x) { return { v: x, l: x }; })), hint: 'Câu hỏi thành việc trong Action Center. Câu hỏi trước thao tác dùng credential cá nhân luôn về Initiator.' }));
           NOTIFY();
           break;
         case 'agent':
@@ -1273,7 +1276,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
           pf.push(P('tunit', 'Đơn vị', 'select', { options: opt(['giờ', 'ngày']), hint: 'Tối đa 30 ngày.' }));
           pf.push(P('remind', 'Nhắc sau (giờ, không bắt buộc)', 'input', { ph: 'VD: 24 hoặc @remind_after' }));
           pf.push(P('onTimeout', 'Khi quá hạn', 'select', { options: [{ v: 'wait', l: 'Tiếp tục chờ' }, { v: 'reassign', l: 'Giao lại cho người khác' }, { v: 'branch', l: 'Đi nhánh Timeout' }], onChange: function (ev) { if (ev.target.value !== 'branch') self.setState({ edges: self.state.edges.filter(function (e) { return !(e.from === n.id && e.out === humanOpts(c).length); }) }); self.updateCfg({ onTimeout: ev.target.value }); self.relayoutSoon(); } }));
-          if (c.onTimeout === 'reassign') pf.push(P('reassign', 'Giao lại cho', 'select', { options: opt([''].concat(PEOPLE)) }));
+          if (c.onTimeout === 'reassign') pf.push(P('reassign', 'Giao lại cho', 'select', { options: opt([''].concat(dirPeople())) }));
           NOTIFY();
           break;
         case 'tool':
@@ -2228,6 +2231,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
             {(ed.picking) && (<>
               <div style={S('margin-top: 8px; border: 1px solid #e5e5e5; border-radius: 10px; padding: 10px')}>
                 <div style={S('font-size: 12px; color: #475569')}>{ed.pickTitle}</div>
+                {(ed.hasSearch) && (<><input className={Q('field')} aria-label="Tìm người" value={ed.q} onChange={ed.onQ} placeholder="Gõ @ hoặc tên, chức danh để tìm" autoFocus={true} style={S('margin-top: 8px; font-size: 12.5px')} /></>)}
                 <div style={S('display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px')}>
                   {(ed.types || []).map((ty, _ity) => (<React.Fragment key={_ity}><button type="button" className={Q('pill')} onClick={ty.pick}>{ty.label}</button></React.Fragment>))}
                 </div>

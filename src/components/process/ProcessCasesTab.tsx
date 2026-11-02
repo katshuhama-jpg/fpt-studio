@@ -42,7 +42,8 @@ const PR_CASES: ProcessCase[] = [
     steps: [START("PR-0141", "Đỗ Thu Hà", "21/10 14:05"),
       { at: "21/10 14:06", node: "collect_quotes", type: "Agent", result: "Trợ lý So sánh báo giá (v3.0.2) nộp 3 báo giá", ok: true },
       { at: "22/10 08:30", node: "manager_approval", type: "Human Review", result: "Nguyễn Văn Bình chọn Approve", ok: true },
-      { at: "22/10 09:00", node: "send_po", type: "Connector", result: "Vũ Thanh Tâm xác nhận, PO-2026-0377 đã gửi NCC", ok: true },
+      { at: "22/10 08:55", node: "confirm_po", type: "Human Review", result: "Vũ Thanh Tâm chọn Confirm", ok: true },
+      { at: "22/10 09:00", node: "send_po", type: "Connector", result: "PO-2026-0377 đã gửi NCC từ Outlook", ok: true },
       { at: "27/10 16:10", node: "three_way_match", type: "Code", result: "Khớp PO, phiếu nhập kho, hoá đơn", ok: true },
       { at: "27/10 16:20", node: "completed", type: "End", result: "Completed - Initiator nhận thông báo", ok: true }] },
   { code: "PR-0140", initiator: "Phạm Minh Khoa", status: "failed", step: "Lưu PO lên SharePoint", started: "20/10 10:40", updated: "20/10 11:02", version: "v1.1.0",
@@ -56,15 +57,44 @@ const PR_CASES: ProcessCase[] = [
       { at: "18/10 17:30", node: "rejected", type: "End", result: "Rejected - Initiator nhận thông báo", ok: true }] },
   { code: "PR-0138", initiator: "Hoàng Anh Tuấn", status: "cancelled", step: "Đã huỷ", started: "15/10 13:20", updated: "16/10 09:05", version: "v1.0.0",
     steps: [START("PR-0138", "Hoàng Anh Tuấn", "15/10 13:20"),
-      { at: "16/10 09:05", node: "send_po", type: "Connector", result: "Vũ Thanh Tâm chọn Cancel, không gửi PO", ok: true },
+      { at: "16/10 09:05", node: "confirm_po", type: "Human Review", result: "Vũ Thanh Tâm chọn Cancel, không gửi PO", ok: true },
       { at: "16/10 09:05", node: "cancelled", type: "End", result: "Cancelled - Ban Mua sắm huỷ gửi PO", ok: true }] },
 ];
+
+const MSTART = (code: string, at: string): CaseStep => ({ at, node: "start", type: "Start", result: `Thẩm định viên gõ /Thẩm định bồi thường - hồ sơ ${code} được tạo`, ok: true });
+const MBL_CASES: ProcessCase[] = [
+  { code: "HS-2026-0214", initiator: "Phạm Minh Khoa", status: "waiting", step: "Thẩm định viên xem lại", waitingFor: "Lý Thu Trang", started: "01/11 09:20", updated: "01/11 09:21", version: "v1.0.0",
+    steps: [MSTART("HS-2026-0214", "01/11 09:20"),
+      { at: "01/11 09:20", node: "join_data", type: "Join", result: "Đủ Policy, lịch sử bồi thường, bảng tham chiếu", ok: true },
+      { at: "01/11 09:21", node: "run_rules", type: "Code", result: "D1 PASS, E1 PASS, A2 WARN", ok: true },
+      { at: "01/11 09:21", node: "review_warn", type: "Human Review", result: "Đang chờ Lý Thu Trang - hạn 01/11 17:21" }] },
+  { code: "HS-2026-0213", initiator: "Ngô Bảo Ngọc", status: "completed", step: "Đã thẩm định", started: "31/10 15:02", updated: "31/10 15:03", version: "v1.0.0",
+    steps: [MSTART("HS-2026-0213", "31/10 15:02"),
+      { at: "31/10 15:03", node: "run_rules", type: "Code", result: "Mọi rule PASS", ok: true },
+      { at: "31/10 15:03", node: "completed", type: "End", result: "Completed - Initiator nhận thông báo", ok: true }] },
+  { code: "HS-2026-0212", initiator: "Ngô Bảo Ngọc", status: "failed", step: "Tra Policy", started: "31/10 11:40", updated: "31/10 11:41", version: "v1.0.0",
+    error: "MB Life Policy Info không phản hồi sau 3 lần thử. Hồ sơ dừng ở bước này.",
+    steps: [MSTART("HS-2026-0212", "31/10 11:40"),
+      { at: "31/10 11:41", node: "get_policy", type: "Connector", result: "Lỗi kết nối MB Life sau 3 lần thử", ok: false }] },
+  { code: "HS-2026-0211", initiator: "Phạm Minh Khoa", status: "rejected", step: "Từ chối bồi thường", started: "30/10 10:05", updated: "30/10 14:30", version: "v1.0.0",
+    steps: [MSTART("HS-2026-0211", "30/10 10:05"),
+      { at: "30/10 10:06", node: "run_rules", type: "Code", result: "A2 WARN: bệnh có sẵn trước hiệu lực", ok: true },
+      { at: "30/10 14:30", node: "review_warn", type: "Human Review", result: "Lý Thu Trang chọn Reject", ok: true },
+      { at: "30/10 14:30", node: "rejected", type: "End", result: "Rejected - Initiator nhận thông báo", ok: true }] },
+];
+
+/** Hồ sơ mẫu của từng Quy trình - dùng chung cho History và Tổng quan để hai màn khớp số. */
+export function processCasesOf(agentId: string): ProcessCase[] {
+  return agentId === "qt-procure" ? PR_CASES : agentId === "claim-rules-process" ? MBL_CASES : [];
+}
+export type { ProcessCase, CaseStatus };
+export { STATUS as CASE_STATUS };
 
 export default function ProcessCasesTab({ agentId, readOnly }: { agentId: string; readOnly?: boolean }) {
   const [filter, setFilter] = useState<"all" | CaseStatus>("all");
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<ProcessCase | null>(null);
-  const [cases, setCases] = useState<ProcessCase[]>(() => (agentId === "qt-procure" ? PR_CASES : []));
+  const [cases, setCases] = useState<ProcessCase[]>(() => processCasesOf(agentId));
   const rows = useMemo(() => cases.filter(c => (filter === "all" || c.status === filter)
     && (!q.trim() || (c.code + " " + c.initiator).toLowerCase().includes(q.trim().toLowerCase()))), [cases, filter, q]);
   const count = (id: "all" | CaseStatus) => id === "all" ? cases.length : cases.filter(c => c.status === id).length;

@@ -304,9 +304,9 @@ IP và IP-Sur không bắt buộc bảng kê: ghi chú để bước dự toán 
   },
   {
     id: "qt-procure", name: "Đề nghị mua sắm", emoji: "🛒", bg: "bg-accent-soft", accent: "bg-gradient-brand",
-    status: "Draft", desc: "Kiểm ngân sách, Nhân sự số lấy báo giá NCC, duyệt theo phân cấp, tạo và gửi PO, đối chiếu chứng từ (PR-0142).",
+    status: "Published", desc: "Kiểm ngân sách, Nhân sự số lấy báo giá NCC, duyệt theo phân cấp, tạo và gửi PO, đối chiếu chứng từ (PR-0142).",
     ownerId: "m-fsoft-ceo", kind: "process", processId: "pr",
-    model: "Quy trình", convs: 6, success: 0, channels: ["Workspace"], updated: "Just now",
+    model: "Quy trình", convs: 5, success: 0, channels: ["Workspace"], updated: "Just now",
     instructions: `Nhân sự số Quy trình - mở để xem các bước.`,
   },
   {
@@ -320,7 +320,7 @@ IP và IP-Sur không bắt buộc bảng kê: ghi chú để bước dự toán 
     id: "claim-rules-process", name: "Rule thẩm định MB Life", emoji: "🛡️", bg: "bg-primary-soft", accent: "bg-gradient-brand",
     status: "Published", desc: "Tra Policy, lịch sử bồi thường, bảng tham chiếu song song, chạy rule D/E/A bằng Code, có WARN thì thẩm định viên xem lại.",
     ownerId: "m-fsoft-ceo", sharedWith: ["m-plat-1", "m-fsoft-vn-1"], kind: "process", processId: "mbl-rules",
-    model: "Quy trình", convs: 214, success: 0, channels: ["Workspace"], updated: "2h ago",
+    model: "Quy trình", convs: 4, success: 0, channels: ["Workspace"], updated: "2h ago",
     outputs: [
       { key: "ket_qua_rule", label: "Bảng kết quả từng rule", type: "table", sample: "D1 PASS, D2 PASS, E1 PASS, A2 WARN, E3 NOT_EVALUATED" },
       { key: "so_warn", label: "Số rule WARN", type: "number", sample: "1" },
