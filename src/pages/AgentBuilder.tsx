@@ -1,5 +1,6 @@
 import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { createPortal } from "react-dom";
+import { isCreditExhausted } from "@/lib/usageStore";
 
 import { HugeiconsIcon } from "@hugeicons/react"
 import { SquareLock01Icon, Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, Attachment01Icon, BlockedIcon, BookOpen01Icon, Cancel01Icon, BoltIcon, PauseIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, InformationCircleIcon, MinusSignIcon, CircleArrowReload01Icon, Wrench01Icon, UserGroupIcon, ArrowLeftDoubleIcon, Notification01Icon } from "@hugeicons/core-free-icons";
@@ -4028,6 +4029,11 @@ function PreviewPanel({ agentId, view, onViewChange, onConnectionsChange, onClos
     const userMsg = input.trim();
     setMessages(m => [...m, { role: "user", text: userMsg }]);
     setInput("");
+    // Space hết credit (BR-03): Nhân sự số dừng, Test run cũng không chạy.
+    if (isCreditExhausted()) {
+      setTimeout(() => setMessages(m => [...m, { role: "agent", text: "Space đã hết credit nên Nhân sự số đang tạm dừng. Liên hệ Admin của Space để mua thêm credit, sau đó thử lại." }]), 300);
+      return;
+    }
     setTimeout(() => {
       setMessages(m => [...m, { role: "agent", text: `Thanks for reaching out! I'm processing your request about "${userMsg}". Please give me a moment.` }]);
     }, 800);

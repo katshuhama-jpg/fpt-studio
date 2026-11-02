@@ -141,6 +141,7 @@ const App = () => (
             <Route path="/process/:id" element={<RequireAuth><ProcessBuilder /></RequireAuth>} />
             <Route path="/inventor" element={<RequireAuth><Inventor /></RequireAuth>} />
             <Route path="/plans" element={<RequireAuth><PlansPage /></RequireAuth>} />
+            <Route path="/usage" element={<Navigate to="/plans?tab=usage" replace />} />
             <Route path="/connectors/custom/toolkits/new" element={<RequireAuth><CreateToolkit /></RequireAuth>} />
             <Route path="/agents/:id/tools/new" element={<RequireAuth><ToolBuilder /></RequireAuth>} />
             <Route path="/agents/:id/tools/:toolId" element={<RequireAuth><ToolBuilder /></RequireAuth>} />

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Bell, CheckCircle2, XCircle, Ban, Inbox, RotateCcw, ChevronRight, CheckCheck, EyeOff, Trash2, Users } from "lucide-react";
+import { Bell, CheckCircle2, XCircle, Ban, Inbox, RotateCcw, ChevronRight, CheckCheck, EyeOff, Trash2, Users, Gauge } from "lucide-react";
 import { getAgent } from "@/components/configure/agentStore";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { governanceStore } from "@/components/governance/governanceStore";
@@ -56,6 +56,10 @@ const KIND_META: Record<NotificationKind, { icon: typeof Bell; tone: Tone; chip:
   agent_shared: { icon: Users, tone: "info", chip: "Được cấp quyền" },
   agent_access_changed: { icon: Users, tone: "info", chip: "Đổi quyền" },
   agent_admin_unpublished: { icon: Ban, tone: "danger", chip: "Bị gỡ publish" },
+  usage_alert: { icon: Gauge, tone: "warning", chip: "Sắp hết credit" },
+  usage_exhausted: { icon: Ban, tone: "danger", chip: "Hết credit" },
+  usage_storage_alert: { icon: Gauge, tone: "warning", chip: "Dung lượng" },
+  usage_request_activated: { icon: CheckCircle2, tone: "success", chip: "Đã kích hoạt" },
 };
 
 /** "Agent của bạn" / "Agent được chia sẻ với bạn" for outcomes; nothing extra for incoming. */
@@ -74,6 +78,7 @@ function contextLabel(n: AppNotification, userId: string): string | null {
   if (n.kind === "request_submitted") return resolvedLabel(n);
   if (n.kind === "resource_unshared" || n.kind === "resource_deleted" || n.kind === "resource_removed") return "Tài nguyên của bạn";
   if (n.kind === "agent_shared" || n.kind === "agent_access_changed") return "Nhân sự số bạn được cấp quyền";
+  if (n.kind.startsWith("usage_")) return "Hạn mức sử dụng";
   if (!n.resourceId) return null;
   if (n.resourceId.startsWith("ext-")) return "Nhân sự số của bạn";
   const a = getAgent(n.resourceId) as { ownerId?: string; sharedWith?: string[] } | undefined;

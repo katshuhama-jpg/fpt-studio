@@ -34,7 +34,13 @@ export type NotificationKind =
   /** Your own level on an Agent was raised on the Cấp quyền main screen. */
   | "agent_access_changed"
   /** A Space Admin / Unit Admin took a live Nhân sự số down, with a reason (to owner + collaborators). */
-  | "agent_admin_unpublished";
+  | "agent_admin_unpublished"
+  /** Hạn mức sử dụng: mốc 80% / 95% / dự kiến hết credit (to Space Admins). */
+  | "usage_alert"
+  | "usage_exhausted"
+  | "usage_storage_alert"
+  /** Sales đã kích hoạt yêu cầu mua thêm credit / dung lượng. */
+  | "usage_request_activated";
 
 export interface AppNotification {
   id: string;
@@ -89,6 +95,10 @@ export const notificationStore = {
   },
   unread(v: Viewer): AppNotification[] {
     return this.list(v).filter(n => !n.readBy.includes(v.userId));
+  },
+  /** True if any stored notification matches (used by usage alerts to re-add one a seed reset wiped). */
+  some(pred: (n: AppNotification) => boolean) {
+    return [...store.values()].some(pred);
   },
   isRead(n: AppNotification, userId: string) {
     return n.readBy.includes(userId);

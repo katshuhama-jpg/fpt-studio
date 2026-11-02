@@ -11,6 +11,7 @@ import { useOrg } from "@/pages/organization/orgStore";
 import { governanceStore } from "@/components/governance/governanceStore";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { NotificationBell } from "@/components/notifications/notificationUi";
+import { UsageBanners } from "@/components/usage/UsageBanner";
 import { DEMO_PERSONAS, currentPersona, switchPersona } from "@/lib/demoPersona";
 import { TENANTS, getAllTenants, getCurrentTenantId, setCurrentTenantId } from "@/lib/spaceStore";
 import { useAgentReviewScope } from "@/components/governance/agentReviewScope";
@@ -280,11 +281,11 @@ export default function WorkspaceLayout() {
               {/* Gói dịch vụ: cho biết Space đang dùng gói nào và mở trang danh sách gói */}
               <button
                 type="button"
-                onClick={() => { setUserMenu(false); navigate("/plans"); }}
+                onClick={() => { setUserMenu(false); navigate("/plans?tab=usage"); }}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base"
               >
                 <CircleArrowUp size={14} className="text-muted-foreground shrink-0" />
-                <span className="flex-1 min-w-0 text-left truncate">{currentTenant.plan === "Enterprise" ? "Xem các gói" : "Nâng cấp gói"}</span>
+                <span className="flex-1 min-w-0 text-left truncate">Gói và hạn mức</span>
               </button>
               <div className="border-t border-border" />
               {/* Org management — moved here from the top switcher (that's now purely
@@ -400,6 +401,8 @@ export default function WorkspaceLayout() {
 
         </header>
         <main className="flex-1 overflow-y-auto">
+          {/* Hạn mức sử dụng: banner credit trên mọi trang Console, banner dung lượng ở trang Knowledge */}
+          <UsageBanners showStorage={loc.pathname.startsWith("/knowledge")} className="px-6 pt-4" />
           <Outlet />
         </main>
       </div>

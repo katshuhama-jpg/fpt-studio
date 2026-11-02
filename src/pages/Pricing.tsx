@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import { Check, Minus, ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import UsageTab from "@/components/usage/UsageTab";
 import { getAllTenants, getCurrentTenantId, TENANTS } from "@/lib/spaceStore";
 
 /**
@@ -309,24 +310,44 @@ function PlansContent() {
   );
 }
 
+type PageTab = "usage" | "plans";
+const PAGE_TABS: { id: PageTab; label: string }[] = [
+  { id: "usage", label: "Hạn mức sử dụng" },
+  { id: "plans", label: "Các gói" },
+];
+
 /**
- * Trang Gói dịch vụ (/plans): trang riêng, không có sidebar của workspace - mở từ menu tài khoản.
- * Thanh trên cùng có nút quay lại trang trước.
+ * Trang Gói và hạn mức (/plans): trang riêng, không có sidebar của workspace - mở từ menu tài khoản.
+ * 2 tab: Hạn mức sử dụng (?tab=usage, mặc định) và Các gói (?tab=plans). Thanh trên cùng có nút quay lại.
  */
 export default function PlansPage() {
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const tab: PageTab = params.get("tab") === "plans" ? "plans" : "usage";
+  const setTab = (t: PageTab) => { params.set("tab", t); setParams(params, { replace: true }); };
   const goBack = () => (window.history.length > 1 ? navigate(-1) : navigate("/"));
   return (
     <div className="h-screen w-full flex flex-col bg-background">
-      <header className="h-14 shrink-0 border-b border-border bg-surface px-6 flex items-center gap-3">
-        <button type="button" onClick={goBack} className="btn-ghost focus-ring" aria-label="Quay lại trang trước">
-          <ArrowLeft size={16} aria-hidden /> Quay lại
-        </button>
-        <span className="h-5 w-px bg-border" aria-hidden />
-        <h1 className="text-sm font-semibold">Gói dịch vụ</h1>
+      <header className="h-14 shrink-0 border-b border-border bg-surface px-4 sm:px-6 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <button type="button" onClick={goBack} className="btn-ghost focus-ring" aria-label="Quay lại trang trước">
+            <ArrowLeft size={16} aria-hidden /> <span className="hidden sm:inline">Quay lại</span>
+          </button>
+          <span className="h-5 w-px bg-border hidden md:block" aria-hidden />
+          <h1 className="text-sm font-semibold truncate hidden md:block">Gói và hạn mức</h1>
+        </div>
+        <div role="tablist" aria-label="Gói và hạn mức" className="inline-flex rounded-[10px] bg-surface-muted p-1">
+          {PAGE_TABS.map(t => (
+            <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}
+              className={`h-8 px-3 sm:px-4 rounded-[8px] text-sm font-medium transition-base focus-ring whitespace-nowrap ${tab === t.id ? "bg-surface text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <span aria-hidden />
       </header>
-      <main className="flex-1 overflow-y-auto">
-        <PlansContent />
+      <main className="flex-1 overflow-y-auto" role="tabpanel">
+        {tab === "usage" ? <UsageTab /> : <PlansContent />}
       </main>
     </div>
   );

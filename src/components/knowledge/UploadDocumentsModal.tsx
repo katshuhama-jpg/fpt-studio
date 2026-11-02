@@ -13,6 +13,7 @@ import { CURRENT_USER, type SharingMode, type SharedPerson } from "./knowledgeBa
 import MemberPicker from "./MemberPicker";
 import FileTypeIcon from "./FileTypeIcon";
 import { formatFileSize } from "./formatFileSize";
+import { useUsage } from "@/lib/usageStore";
 
 const ALLOWED_EXT = ["txt", "md", "pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx"];
 const ACCEPT_ATTR = ALLOWED_EXT.map(ext => `.${ext}`).join(",");
@@ -75,6 +76,10 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
   const folders = agentId ? [] : knowledgeDocumentStore.listFolders(kbId!);
 
   const validCount = staged.filter(s => !s.error).length;
+  // Hạn mức dung lượng knowledge (BR-14, FR-32): chặn cả lần tải nếu tổng dung lượng vượt phần còn lại.
+  const usage = useUsage();
+  const stagedBytes = staged.filter(s => !s.error).reduce((sum, s) => sum + s.file.size, 0);
+  const overStorage = stagedBytes > 0 && stagedBytes > usage.storage.remainingBytes;
 
   const findExisting = (name: string): { id: string } | undefined => {
     const norm = name.trim().toLowerCase();
@@ -146,7 +151,7 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
   const submit = () => {
     const valid = staged.filter(s => !s.error);
     if (valid.length === 0) return;
-    if (accessInvalid) return;
+    if (accessInvalid || overStorage) return;
     const sharing = accessMode === "private" ? undefined : { mode: accessMode, people: accessMode === "specific" ? accessPeople : [] };
     setUploading(true);
 
@@ -254,6 +259,12 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
             </div>
           )}
 
+          {usage.storage.full && staged.length === 0 && (
+            <p role="status" className="flex items-start gap-1.5 text-xs text-destructive"><AlertTriangle size={12} className="mt-0.5 shrink-0" /> Dung lượng knowledge của Space đã đầy. Xóa bớt tài liệu cũ hoặc liên hệ Admin để nâng dung lượng.</p>
+          )}
+          {overStorage && (
+            <p role="alert" className="flex items-start gap-1.5 text-xs text-destructive"><AlertTriangle size={12} className="mt-0.5 shrink-0" /> Các tệp đã chọn ({formatFileSize(stagedBytes)}) vượt dung lượng còn lại của Space ({formatFileSize(usage.storage.remainingBytes)}). Bỏ bớt tệp, xóa tài liệu cũ hoặc liên hệ Admin để nâng dung lượng.</p>
+          )}
           {overLimitMsg && (
             <p className="flex items-center gap-1.5 text-xs text-destructive"><AlertTriangle size={12} /> {overLimitMsg}</p>
           )}
@@ -300,7 +311,7 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
 
         <DialogFooter>
           <button onClick={() => { clearAll(); onClose(); }} disabled={uploading} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base disabled:opacity-40">Hủy</button>
-          <button onClick={submit} disabled={validCount === 0 || uploading || accessInvalid} className="btn-primary h-9 disabled:opacity-40 disabled:pointer-events-none">
+          <button onClick={submit} disabled={validCount === 0 || uploading || accessInvalid || overStorage} className="btn-primary h-9 disabled:opacity-40 disabled:pointer-events-none">
             Lưu & Xử lý
           </button>
         </DialogFooter>
