@@ -73,7 +73,7 @@ export default function ReminderPreviewDialog({ agentId, reminder, onClose }: {
           <User>…</User>
           {reminder.steps.map((s, i) => (
             <div key={s.id} className="space-y-2.5">
-              <Gap label={fmtMinutes(stepMinutes(s))} />
+              <Gap label={`${fmtMinutes(stepMinutes(s) - (i ? stepMinutes(reminder.steps[i - 1]) : 0))} · ${fmtMinutes(stepMinutes(s))} kể từ tin chờ`} />
               <Agent>
                 {plain(s.instruction) || <span className="text-muted-foreground">(chưa có Instruction)</span>}
                 {s.csat && <Csat />}
