@@ -125,24 +125,20 @@ describe("InactiveReminderTab", () => {
     expect(within(dlg).queryByText("Kênh áp dụng")).toBeNull();
   });
 
-  it("blocks creating a reminder when no channel is published", () => {
+  it("lets you create a reminder even when the agent has no published channel", () => {
     wrap(<InactiveReminderTab agentId="sales-quote" />);
-    expect(screen.getByText(/Cần publish ít nhất 1 kênh/)).toBeTruthy();
+    expect(screen.queryByText(/Cần publish ít nhất 1 kênh/)).toBeNull();
+    const add = screen.getAllByRole("button", { name: /Thêm reminder/ })[0];
+    expect(add.hasAttribute("disabled")).toBe(false);
   });
 
-  it("warns once and pauses the rows when the agent has no published channel left", () => {
-    // Seed an agent that has reminders but no live channel: "all" + an explicit list.
+  it("no channel banner or paused state while channels aren't considered", () => {
     reminderStore.save("sales-quote", { ...emptyReminder(), name: "Nhắc tất cả kênh", steps: [{ ...emptyStep(), instruction: "Nhắc khách" }] });
-    reminderStore.save("sales-quote", { ...emptyReminder(), name: "Nhắc kênh web", channels: ["web"], steps: [{ ...emptyStep(), instruction: "Nhắc khách" }] });
     wrap(<InactiveReminderTab agentId="sales-quote" />);
-    expect(screen.getByText(/Agent chưa publish kênh nào nên mọi reminder đang tạm dừng/)).toBeTruthy();
-    // One banner, not one note per row.
-    expect(screen.queryByText(/Chọn lại kênh để bật lại/)).toBeNull();
-    // "Tất cả kênh" stays on but is flagged as paused; its switch can't be toggled.
-    expect(screen.getByText("Tạm dừng")).toBeTruthy();
-    expect(screen.getByLabelText("Trạng thái Nhắc tất cả kênh").hasAttribute("disabled")).toBe(true);
-    reminderStore.remove("sales-quote", reminderStore.list("sales-quote").find(r => r.name === "Nhắc tất cả kênh")!.id);
-    reminderStore.remove("sales-quote", reminderStore.list("sales-quote").find(r => r.name === "Nhắc kênh web")!.id);
+    expect(screen.queryByText(/mọi reminder đang tạm dừng/)).toBeNull();
+    expect(screen.queryByText("Tạm dừng")).toBeNull();
+    expect(screen.getByLabelText("Trạng thái Nhắc tất cả kênh").hasAttribute("disabled")).toBe(false);
+    reminderStore.remove("sales-quote", reminderStore.list("sales-quote")[0].id);
   });
 
   it("caps the list at 10 reminders", () => {

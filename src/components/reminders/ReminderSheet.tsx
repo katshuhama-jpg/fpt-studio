@@ -315,7 +315,7 @@ export default function ReminderSheet({ agentId, agentName, initial, mode, readO
 
   const overlaps = useMemo(() => findOverlaps(agentId, draft, others), [agentId, draft, others]);
   /** Không còn kênh nào đang publish để gửi — chỉ cảnh báo, không chặn lưu. */
-  const noChannel = noLiveChannel(agentId, draft);
+  const noChannel = CHANNEL_PICKER_ENABLED && noLiveChannel(agentId, draft);
   const gone = missingChannels(agentId, draft);
 
   const setStep = (s: ReminderStep) => setDraft(d => ({ ...d, steps: d.steps.map(x => (x.id === s.id ? s : x)) }));

@@ -93,7 +93,8 @@ export default function InactiveReminderTab({ agentId, agentName, readOnly }: { 
   }, [agentId]);
 
   const list = reminderStore.list(agentId);
-  const canPublish = hasPublishedChannels(agentId);
+  // Phase này không tính đến kênh: tạo reminder không cần Agent đã publish kênh nào.
+  const canPublish = !CHANNEL_PICKER_ENABLED || hasPublishedChannels(agentId);
   const atLimit = list.length >= MAX_REMINDERS;
 
   const openCreate = () => setSheet({ mode: "create", reminder: emptyReminder() });
@@ -138,7 +139,7 @@ export default function InactiveReminderTab({ agentId, agentName, readOnly }: { 
         </span>
       </p>
 
-      {!canPublish && list.length > 0 && (
+      {CHANNEL_PICKER_ENABLED && !canPublish && list.length > 0 && (
         <div role="status" className="mb-4 flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5 text-sm">
           <Icon icon={Alert02Icon} size={16} className="mt-0.5 shrink-0 text-warning" />
           <span>
@@ -176,7 +177,7 @@ export default function InactiveReminderTab({ agentId, agentName, readOnly }: { 
                 {list.map(r => {
                   const lost = lostAllChannels(agentId, r);
                   // "Tất cả kênh" khi Agent không còn kênh nào: chỉ tạm dừng, không tự tắt.
-                  const paused = noLiveChannel(agentId, r);
+                  const paused = CHANNEL_PICKER_ENABLED && noLiveChannel(agentId, r);
                   return (
                     <tr key={r.id} className="align-middle hover:bg-muted/30">
                       <td className="px-4 py-3 tabular-nums text-muted-foreground">{fmtDate(r.createdAt)}</td>
