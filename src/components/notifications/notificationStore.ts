@@ -40,7 +40,11 @@ export type NotificationKind =
   | "usage_exhausted"
   | "usage_storage_alert"
   /** Sales đã kích hoạt yêu cầu mua thêm credit / dung lượng. */
-  | "usage_request_activated";
+  | "usage_request_activated"
+  /** Trần chạy thử Console: member xin thêm (to Admins), Admin duyệt / từ chối (to member) */
+  | "usage_cap_request"
+  | "usage_cap_approved"
+  | "usage_cap_rejected";
 
 export interface AppNotification {
   id: string;

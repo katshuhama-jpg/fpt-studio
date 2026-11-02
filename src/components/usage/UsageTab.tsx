@@ -10,6 +10,7 @@ import {
   type CreditScenario, type PurchaseRequest, type StorageScenario, type UsageSnapshot,
 } from "@/lib/usageStore";
 import { UsageBanners } from "./UsageBanner";
+import { BuildCapNotice } from "./BuildCapNotice";
 
 /* ---------------- Small parts ---------------- */
 
@@ -205,25 +206,106 @@ function DailyChart({ u }: { u: UsageSnapshot }) {
 
 /* ---------------- Members table ---------------- */
 
+type CapMode = "default" | "custom" | "none";
+
+/** Sửa trần chạy thử: mặc định cho mọi người (member = null) hoặc trần riêng của 1 member. */
+function CapDialog({ u, member, open, onClose }: { u: UsageSnapshot; member: UsageSnapshot["members"][number] | null; open: boolean; onClose: () => void }) {
+  const isDefault = !member;
+  const initMode: CapMode = isDefault ? (u.buildCapDefault === null ? "none" : "custom") : !member!.build.custom ? "default" : member!.build.cap === null ? "none" : "custom";
+  const initVal = isDefault ? u.buildCapDefault : member!.build.custom ? (member!.build.cap === null ? null : member!.build.cap - member!.build.bonus) : null;
+  const [mode, setMode] = useState<CapMode>(initMode);
+  const [val, setVal] = useState(initVal ? String(initVal) : "");
+  const [touched, setTouched] = useState(false);
+  useEffect(() => { if (open) { setMode(initMode); setVal(initVal ? String(initVal) : ""); setTouched(false); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  const n = Number(val || 0);
+  const err = mode === "custom" && (!val || n <= 0) ? "Nhập số credit lớn hơn 0." : null;
+  const save = () => {
+    setTouched(true);
+    if (err) return;
+    const cap = mode === "none" ? null : mode === "default" ? undefined : n;
+    if (isDefault) usageStore.setBuildCapDefault(cap === undefined ? null : cap);
+    else usageStore.setBuildCap(member!.id, member!.name, cap);
+    toast.success("Đã lưu trần chạy thử.");
+    onClose();
+  };
+  const opts: { v: CapMode; label: string }[] = isDefault
+    ? [{ v: "custom", label: "Giới hạn mỗi tháng" }, { v: "none", label: "Không giới hạn" }]
+    : [{ v: "default", label: `Theo mặc định (${u.buildCapDefault === null ? "Không giới hạn" : `${fmtNum(u.buildCapDefault)} credit`})` }, { v: "custom", label: "Trần riêng" }, { v: "none", label: "Không giới hạn" }];
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="sm:max-w-[420px]">
+        <DialogHeader>
+          <DialogTitle>{isDefault ? "Trần chạy thử mặc định" : `Trần chạy thử của ${member!.name}`}</DialogTitle>
+          <DialogDescription>Tính credit dùng khi chạy thử, Refine với AI và chạy bộ test trong Console, mỗi tháng. Không tính credit Nhân sự số dùng khi trả lời trên các kênh.</DialogDescription>
+        </DialogHeader>
+        <fieldset className="space-y-2 py-1">
+          <legend className="sr-only">Kiểu trần</legend>
+          {opts.map(o => (
+            <label key={o.v} className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="radio" name="cap-mode" checked={mode === o.v} onChange={() => setMode(o.v)} className="accent-[hsl(var(--primary))]" /> {o.label}
+            </label>
+          ))}
+          {mode === "custom" && (
+            <div className="pl-6 pt-1">
+              <label htmlFor="cap-value" className="sr-only">Số credit mỗi tháng</label>
+              <div className="flex items-center gap-2">
+                <input id="cap-value" inputMode="numeric" value={n ? fmtNum(n) : val} onChange={e => setVal(e.target.value.replace(/\D/g, ""))} className="ds-input tabular-nums w-40" autoFocus />
+                <span className="text-sm text-muted-foreground">credit / tháng</span>
+              </div>
+              {touched && err && <p className="text-xs text-destructive mt-1">{err}</p>}
+            </div>
+          )}
+          {!isDefault && member!.build.bonus > 0 && <p className="text-xs text-muted-foreground pt-1">Kỳ này đã duyệt thêm {fmtNum(member!.build.bonus)} credit, cộng vào trần trên.</p>}
+        </fieldset>
+        <DialogFooter>
+          <button type="button" onClick={onClose} className="btn-secondary">Hủy</button>
+          <button type="button" onClick={save} className="btn-primary">Lưu</button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BuildCell({ b }: { b: UsageSnapshot["members"][number]["build"] }) {
+  if (b.cap === null) return <span className="tabular-nums">{fmtNum(b.used)} <span className="text-muted-foreground">/ Không giới hạn</span></span>;
+  const tone = b.blocked ? "text-[hsl(var(--destructive-strong))] font-medium" : b.near ? "text-[hsl(var(--warning-strong))] font-medium" : "";
+  return (
+    <span className="inline-flex flex-col items-end gap-1">
+      <span className={`tabular-nums ${tone}`}>{fmtNum(b.used)} <span className="text-muted-foreground font-normal">/ {fmtNum(b.cap)}</span></span>
+      {b.blocked && <span className="chip chip-danger !py-0 text-[11px]">Đã chạm trần</span>}
+    </span>
+  );
+}
+
 function MembersTable({ u }: { u: UsageSnapshot }) {
   const [q, setQ] = useState("");
   const [desc, setDesc] = useState(true);
+  const [editing, setEditing] = useState<string | "default" | null>(null);
   const rows = useMemo(() => {
     const k = q.trim().toLowerCase();
     return u.members.filter(m => !k || m.name.toLowerCase().includes(k)).sort((a, b) => desc ? b.used - a.used : a.used - b.used);
   }, [u.members, q, desc]);
+  const editMember = editing && editing !== "default" ? u.members.find(m => m.id === editing) ?? null : null;
   return (
     <section className="rounded-2xl border border-border bg-surface p-5 space-y-3" aria-labelledby="members-title">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h3 id="members-title" className="text-base font-semibold">Credit theo member</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">Gồm credit member dùng trong Console và credit của Nhân sự số do member sở hữu.</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Credit đã dùng gồm credit member dùng trong Console và credit của Nhân sự số do member sở hữu.</p>
         </div>
         <div className="relative w-full sm:w-56">
           <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden />
           <label htmlFor="member-search" className="sr-only">Tìm member</label>
           <input id="member-search" value={q} onChange={e => setQ(e.target.value)} placeholder="Tìm member" className="ds-input pl-8" />
         </div>
+      </div>
+      <div className="rounded-xl bg-surface-muted px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+        <div className="text-sm">
+          <span className="font-medium">Trần chạy thử mặc định:</span>{" "}
+          <span className="tabular-nums">{u.buildCapDefault === null ? "Không giới hạn" : `${fmtNum(u.buildCapDefault)} credit / tháng mỗi người`}</span>
+          <p className="text-xs text-muted-foreground mt-0.5">Tính chạy thử, Refine với AI và chạy bộ test trong Console. Chạm trần thì người đó tạm khóa các việc này và xin thêm được.</p>
+        </div>
+        <button type="button" onClick={() => setEditing("default")} className="btn-secondary h-8 px-3 shrink-0"><Pencil size={13} aria-hidden /> Sửa</button>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -235,8 +317,10 @@ function MembersTable({ u }: { u: UsageSnapshot }) {
                   Credit đã dùng {desc ? <ArrowDown size={12} aria-hidden /> : <ArrowUp size={12} aria-hidden />}
                 </button>
               </th>
-              <th className="kb-table-header text-left py-2 px-3 w-[28%]">% của Space</th>
-              <th className="kb-table-header text-right py-2 pl-3">Nhân sự số</th>
+              <th className="kb-table-header text-left py-2 px-3 w-[18%]">% của Space</th>
+              <th className="kb-table-header text-right py-2 px-3">Chạy thử / Trần</th>
+              <th className="kb-table-header text-right py-2 px-3">Nhân sự số</th>
+              <th className="py-2 pl-2 w-10"><span className="sr-only">Sửa trần</span></th>
             </tr>
           </thead>
           <tbody>
@@ -249,13 +333,95 @@ function MembersTable({ u }: { u: UsageSnapshot }) {
                 <td className="py-2.5 px-3">
                   <div className="flex items-center gap-2"><div className="flex-1 h-1.5 rounded-full bg-surface-muted overflow-hidden"><div className="h-full bg-primary/70 rounded-full" style={{ width: `${m.share * 100}%` }} /></div><span className="tabular-nums text-xs text-muted-foreground w-8 text-right">{Math.round(m.share * 100)}%</span></div>
                 </td>
-                <td className="py-2.5 pl-3 text-right tabular-nums">{m.agents}</td>
+                <td className="py-2.5 px-3 text-right"><BuildCell b={m.build} />{m.build.custom && <div className="text-[11px] text-muted-foreground">Trần riêng</div>}</td>
+                <td className="py-2.5 px-3 text-right tabular-nums">{m.agents}</td>
+                <td className="py-2.5 pl-2 text-right">
+                  <button type="button" onClick={() => setEditing(m.id)} aria-label={`Sửa trần chạy thử của ${m.name}`} title="Sửa trần chạy thử"
+                    className="w-7 h-7 rounded-lg inline-flex items-center justify-center text-muted-foreground hover:bg-surface-muted hover:text-foreground focus-ring"><Pencil size={13} aria-hidden /></button>
+                </td>
               </tr>
             ))}
-            {!rows.length && <tr><td colSpan={4} className="py-8 text-center text-sm text-muted-foreground">Không tìm thấy member "{q}". Thử tên khác.</td></tr>}
+            {!rows.length && <tr><td colSpan={6} className="py-8 text-center text-sm text-muted-foreground">Không tìm thấy member "{q}". Thử tên khác.</td></tr>}
           </tbody>
         </table>
       </div>
+      <CapDialog u={u} member={editMember} open={!!editing} onClose={() => setEditing(null)} />
+    </section>
+  );
+}
+
+/* ---------------- Yêu cầu xin thêm hạn mức chạy thử ---------------- */
+
+function CapRequestsCard({ u }: { u: UsageSnapshot }) {
+  const [approveId, setApproveId] = useState<string | null>(null);
+  const [rejectId, setRejectId] = useState<string | null>(null);
+  const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+  const [touched, setTouched] = useState(false);
+  if (!u.capRequests.length) return null;
+  const openApprove = (r: UsageSnapshot["capRequests"][number]) => { setApproveId(r.id); setAmount(r.amount ? String(r.amount) : ""); setTouched(false); };
+  const n = Number(amount || 0);
+  const amountErr = !amount || n <= 0 ? "Nhập số credit lớn hơn 0." : null;
+  const reasonErr = reason.length > 200 ? "Lý do tối đa 200 ký tự." : null;
+  const pending = u.capRequests.filter(r => r.status === "pending");
+  return (
+    <section className="rounded-2xl border border-border bg-surface p-5 space-y-3" aria-labelledby="capreq-title">
+      <div className="flex items-center gap-2">
+        <h3 id="capreq-title" className="text-base font-semibold">Xin thêm hạn mức chạy thử</h3>
+        {pending.length > 0 && <span className="chip chip-warning">{pending.length} chờ duyệt</span>}
+      </div>
+      <ul className="divide-y divide-border">
+        {u.capRequests.map(r => (
+          <li key={r.id} className="py-3 flex items-start gap-3 flex-wrap">
+            <div className="flex-1 min-w-[220px]">
+              <div className="text-sm font-medium">{r.memberName} · {r.amount ? `${fmtNum(r.amount)} credit` : "Không ghi số credit"}</div>
+              <div className="text-xs text-muted-foreground">Gửi {fmtDateFull(r.createdAt)} · "{r.reason}"</div>
+              {r.status === "approved" && <div className="text-xs text-muted-foreground">{r.decidedBy} đã duyệt thêm {fmtNum(r.decidedAmount ?? 0)} credit cho kỳ này</div>}
+              {r.status === "rejected" && <div className="text-xs text-muted-foreground">{r.decidedBy} đã từ chối{r.rejectReason ? `: "${r.rejectReason}"` : ""}</div>}
+            </div>
+            {r.status === "pending" ? (
+              <div className="flex gap-2">
+                <button type="button" onClick={() => { setRejectId(r.id); setReason(""); }} className="btn-secondary h-8 px-3">Từ chối</button>
+                <button type="button" onClick={() => openApprove(r)} className="btn-primary h-8 px-3">Duyệt</button>
+              </div>
+            ) : <span className={r.status === "approved" ? "chip chip-success" : "chip chip-muted"}>{r.status === "approved" ? "Đã duyệt" : "Đã từ chối"}</span>}
+          </li>
+        ))}
+      </ul>
+      <Dialog open={!!approveId} onOpenChange={v => { if (!v) setApproveId(null); }}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Duyệt thêm hạn mức chạy thử</DialogTitle>
+            <DialogDescription>Số credit được cộng vào trần của người này trong kỳ hiện tại. Người này được mở khóa ngay.</DialogDescription>
+          </DialogHeader>
+          <div>
+            <label htmlFor="approve-amount" className="text-sm font-medium mb-1.5 block">Số credit thêm <span className="text-destructive">*</span></label>
+            <input id="approve-amount" inputMode="numeric" value={n ? fmtNum(n) : amount} onChange={e => setAmount(e.target.value.replace(/\D/g, ""))} className="ds-input tabular-nums" autoFocus />
+            {touched && amountErr && <p className="text-xs text-destructive mt-1">{amountErr}</p>}
+          </div>
+          <DialogFooter>
+            <button type="button" onClick={() => setApproveId(null)} className="btn-secondary">Hủy</button>
+            <button type="button" onClick={() => { setTouched(true); if (amountErr || !approveId) return; usageStore.decideBuildCap(approveId, true, { amount: n }); setApproveId(null); toast.success("Đã duyệt. Người dùng được mở khóa chạy thử."); }} className="btn-primary">Duyệt</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!rejectId} onOpenChange={v => { if (!v) setRejectId(null); }}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Từ chối yêu cầu?</DialogTitle>
+            <DialogDescription>Người gửi nhận thông báo kèm lý do. Họ vẫn bị khóa chạy thử đến kỳ sau hoặc tới khi bạn nâng trần.</DialogDescription>
+          </DialogHeader>
+          <div>
+            <label htmlFor="reject-reason" className="text-sm font-medium mb-1.5 block">Lý do (không bắt buộc)</label>
+            <textarea id="reject-reason" rows={3} value={reason} onChange={e => setReason(e.target.value)} className="ds-textarea resize-none" placeholder="Ví dụ: Space còn ít credit, chờ kỳ sau nhé" />
+            {reasonErr && <p className="text-xs text-destructive mt-1">{reasonErr}</p>}
+          </div>
+          <DialogFooter>
+            <button type="button" onClick={() => setRejectId(null)} className="btn-secondary">Hủy</button>
+            <button type="button" disabled={!!reasonErr} onClick={() => { if (!rejectId) return; usageStore.decideBuildCap(rejectId, false, { reason: reason.trim() || undefined }); setRejectId(null); toast.success("Đã từ chối yêu cầu."); }} className="btn-primary bg-destructive hover:!bg-destructive/90 disabled:opacity-40">Từ chối</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
@@ -345,7 +511,7 @@ function DemoControls({ u }: { u: UsageSnapshot }) {
 
 function MemberView({ u }: { u: UsageSnapshot }) {
   const { userId } = useMyPermissions();
-  const me = u.members.find(m => m.id === userId) ?? { used: 0, agents: 0 };
+  const me = u.members.find(m => m.id === userId) ?? { used: 0, agents: 0, build: null };
   return (
     <>
       <section className="rounded-2xl border border-border bg-surface p-5 space-y-4">
@@ -357,6 +523,11 @@ function MemberView({ u }: { u: UsageSnapshot }) {
           <div className="rounded-xl bg-surface-muted px-4 py-3"><div className="text-xs text-muted-foreground">Credit bạn đã dùng</div><div className="text-xl font-semibold tabular-nums">{fmtNum(me.used)}</div></div>
           <div className="rounded-xl bg-surface-muted px-4 py-3"><div className="text-xs text-muted-foreground">Nhân sự số bạn sở hữu</div><div className="text-xl font-semibold tabular-nums">{me.agents}</div></div>
         </div>
+        {me.build && (
+          <Meter label="Hạn mức chạy thử của bạn" value={me.build.cap === null ? `${fmtNum(me.build.used)} credit · Không giới hạn` : `${fmtNum(me.build.used)} / ${fmtNum(me.build.cap)}`}
+            pct={me.build.cap === null ? null : me.build.pct} sub="Chạy thử, Refine với AI và chạy bộ test trong Console" />
+        )}
+        <BuildCapNotice />
         <Meter label="Dung lượng knowledge của Space" value={`${fmtGB(u.storage.usedGB)} / ${fmtGB(u.storage.totalGB)} GB`} pct={u.storage.pct} />
         <p className="text-xs text-muted-foreground flex items-start gap-1.5"><Info size={13} className="shrink-0 mt-0.5" aria-hidden />Admin của Space quản lý credit và mua thêm khi cần.</p>
       </section>
@@ -436,6 +607,7 @@ export default function UsageTab() {
           </section>
 
           <RequestsCard u={u} />
+          <CapRequestsCard u={u} />
           <DailyChart u={u} />
           <MembersTable u={u} />
           <FallbackCard u={u} />

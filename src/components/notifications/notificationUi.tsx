@@ -60,6 +60,9 @@ const KIND_META: Record<NotificationKind, { icon: typeof Bell; tone: Tone; chip:
   usage_exhausted: { icon: Ban, tone: "danger", chip: "Hết credit" },
   usage_storage_alert: { icon: Gauge, tone: "warning", chip: "Dung lượng" },
   usage_request_activated: { icon: CheckCircle2, tone: "success", chip: "Đã kích hoạt" },
+  usage_cap_request: { icon: Inbox, tone: "info", chip: "Cần bạn duyệt" },
+  usage_cap_approved: { icon: CheckCircle2, tone: "success", chip: "Đã duyệt" },
+  usage_cap_rejected: { icon: XCircle, tone: "danger", chip: "Bị từ chối" },
 };
 
 /** "Agent của bạn" / "Agent được chia sẻ với bạn" for outcomes; nothing extra for incoming. */

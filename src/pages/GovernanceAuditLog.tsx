@@ -17,7 +17,7 @@ const ACTION_DOT: Record<AuditAction, string> = {
   submitted: "bg-primary", approved: "bg-success",
   rejected: "bg-destructive", revoked: "bg-destructive", withdrawn: "bg-muted-foreground",
   rolled_back: "bg-warning", channel_off: "bg-muted-foreground", exported: "bg-primary",
-  usage_request_sent: "bg-primary", usage_request_cancelled: "bg-muted-foreground", usage_request_activated: "bg-success", usage_fallback_changed: "bg-primary",
+  usage_request_sent: "bg-primary", usage_request_cancelled: "bg-muted-foreground", usage_request_activated: "bg-success", usage_fallback_changed: "bg-primary", usage_cap_changed: "bg-primary", usage_cap_request_approved: "bg-success", usage_cap_request_rejected: "bg-destructive",
 };
 
 function Table({ children }: { children: React.ReactNode }) {

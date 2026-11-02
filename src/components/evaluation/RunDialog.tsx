@@ -7,6 +7,8 @@ import { evaluationStore, TEMPLATE_METRICS, METRIC_GROUP_LABEL, passRuleText, AP
 import { agentTools, WRITE_CONNECTORS } from "./agentTools";
 import { agentPublishStore } from "@/components/configure/agentPublishStore";
 import { CURRENT_USER } from "./shared";
+import { useBuildCap, usageStore } from "@/lib/usageStore";
+import { BuildCapNotice } from "@/components/usage/BuildCapNotice";
 
 /** Draft = what the Builder is editing now; Live = the version end users currently get. */
 function versionOptions(agentId: string) {
@@ -66,7 +68,10 @@ export function RunDialog({ agentId, open, onOpenChange, presetSetId, presetCase
   const missingRef = set ? metrics.some(sm => evaluationStore.metric(sm.metricId)?.needs.includes("reference")) && cases.some(c => !c.reference) : false;
   const totalCalls = cases.length * runs;
 
+  const buildCap = useBuildCap();
   const start = () => {
+    if (buildCap.blocked) return;
+    usageStore.addBuildUsage(200);
     setTouched(true);
     if (!set || required === 0) return;
     const run = evaluationStore.startRun(set.id, VERSION_OPTIONS.find(v => v.id === version)!.label, CURRENT_USER, { name: name.trim() || undefined, caseIds: presetCaseIds, metrics, runsPerCase: runs, toolModes, approval });
@@ -168,9 +173,10 @@ export function RunDialog({ agentId, open, onOpenChange, presetSetId, presetCase
             </div>
           )}
         </div>
+        <BuildCapNotice />
         <DialogFooter>
           <button className="btn-secondary" onClick={() => onOpenChange(false)}>Hủy</button>
-          <button className="btn-primary" onClick={start} disabled={!set || cases.length === 0}>
+          <button className="btn-primary" onClick={start} disabled={!set || cases.length === 0 || buildCap.blocked}>
             <HugeiconsIcon icon={PlayIcon} size={14} /> Bắt đầu chạy
           </button>
         </DialogFooter>

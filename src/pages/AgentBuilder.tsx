@@ -1,6 +1,7 @@
 import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { createPortal } from "react-dom";
-import { isCreditExhausted } from "@/lib/usageStore";
+import { isCreditExhausted, isBuildBlocked, usageStore, useBuildCap } from "@/lib/usageStore";
+import { BuildCapNotice } from "@/components/usage/BuildCapNotice";
 
 import { HugeiconsIcon } from "@hugeicons/react"
 import { SquareLock01Icon, Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, Attachment01Icon, BlockedIcon, BookOpen01Icon, Cancel01Icon, BoltIcon, PauseIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, InformationCircleIcon, MinusSignIcon, CircleArrowReload01Icon, Wrench01Icon, UserGroupIcon, ArrowLeftDoubleIcon, Notification01Icon } from "@hugeicons/core-free-icons";
@@ -1211,9 +1212,11 @@ function AiBuildSidebar({
     setShown(s => s + REFINE_PAGE);
   };
 
+  const buildCap = useBuildCap();
   const send = () => {
     const text = input.trim();
-    if (!text || busy || other) return;
+    if (!text || busy || other || buildCap.blocked) return;
+    usageStore.addBuildUsage(60);
     setInput(""); setFiles([]);
     refineAssistant.send(chatKey, ctx, text, files);
   };
@@ -1278,6 +1281,7 @@ function AiBuildSidebar({
               <span><b>{other.name}</b> đang Refine với AI từ {hhmm(other.since)}. Mỗi lúc chỉ một người Refine một Nhân sự số - bạn soạn trước được, gửi khi họ xong.</span>
             </div>
           )}
+          <BuildCapNotice className="mb-2" />
           {doneBy && (
             <div role="status" className="mb-2 rounded-lg border border-primary/20 bg-primary-soft/40 px-3 py-2 text-xs leading-relaxed">
               <b>{doneBy.name}</b> đã Refine xong lúc {hhmm(doneBy.at)}. Bạn gửi yêu cầu được rồi - trợ lý sẽ làm trên bản đã có thay đổi của họ.
@@ -1294,7 +1298,7 @@ function AiBuildSidebar({
                 ))}
               </div>
             )}
-            <textarea rows={2} value={input} onChange={e => setInput(e.target.value)} disabled={busy}
+            <textarea rows={2} value={input} onChange={e => setInput(e.target.value)} disabled={busy || buildCap.blocked}
               aria-label="Nói bạn muốn sửa gì"
               onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
               placeholder={busy ? "Trợ lý đang làm việc..." : other ? "Soạn trước yêu cầu của bạn..." : "Nói bạn muốn sửa gì..."}
@@ -4024,12 +4028,14 @@ function PreviewPanel({ agentId, view, onViewChange, onConnectionsChange, onClos
   // Unavailable resources (unshared, taken back, deleted) are not applied in the test chat.
   const unavailableForChat = useRevokedResources(agentId);
 
+  const testCap = useBuildCap();
   const send = () => {
-    if (!input.trim()) return;
+    if (!input.trim() || isBuildBlocked()) return;
     const userMsg = input.trim();
     setMessages(m => [...m, { role: "user", text: userMsg }]);
     setInput("");
     // Space hết credit (BR-03): Nhân sự số dừng, Test run cũng không chạy.
+    if (!isCreditExhausted()) usageStore.addBuildUsage(40);
     if (isCreditExhausted()) {
       setTimeout(() => setMessages(m => [...m, { role: "agent", text: "Space đã hết credit nên Nhân sự số đang tạm dừng. Liên hệ Admin của Space để mua thêm credit, sau đó thử lại." }]), 300);
       return;
@@ -4134,10 +4140,12 @@ function PreviewPanel({ agentId, view, onViewChange, onConnectionsChange, onClos
 
           {/* Input */}
           <div className="p-3 border-t border-border shrink-0">
+            <BuildCapNotice className="mb-2" />
             <div className="flex items-center gap-2 bg-surface-muted rounded-xl border border-border px-3 py-2 focus-within:border-primary focus-within:ring-glow transition-base">
               <input
-                className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-                placeholder="Type a message to test…"
+                disabled={testCap.blocked}
+                className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
+                placeholder={testCap.blocked ? "Đã dùng hết hạn mức chạy thử tháng này" : "Type a message to test…"}
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && send()}

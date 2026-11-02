@@ -7,7 +7,8 @@ import type { GovResourceType } from "./governanceStore";
 
 export type AuditAction = "submitted" | "approved" | "rejected" | "revoked" | "withdrawn" | "rolled_back" | "channel_off" | "exported"
   /** Gói và hạn mức (Hạn mức sử dụng) */
-  | "usage_request_sent" | "usage_request_cancelled" | "usage_request_activated" | "usage_fallback_changed";
+  | "usage_request_sent" | "usage_request_cancelled" | "usage_request_activated" | "usage_fallback_changed"
+  | "usage_cap_changed" | "usage_cap_request_approved" | "usage_cap_request_rejected";
 /** Audit Log also records Space-level actions on "Gói và hạn mức", outside the five governed resource types. */
 export type AuditResourceType = GovResourceType | "usage";
 
@@ -44,6 +45,9 @@ export const ACTION_LABEL: Record<AuditAction, string> = {
   usage_request_cancelled: "Đã hủy yêu cầu mua thêm",
   usage_request_activated: "Đã kích hoạt mua thêm",
   usage_fallback_changed: "Đã sửa câu trả lời khi hết credit",
+  usage_cap_changed: "Đã đổi trần chạy thử",
+  usage_cap_request_approved: "Đã duyệt thêm hạn mức chạy thử",
+  usage_cap_request_rejected: "Đã từ chối xin thêm hạn mức chạy thử",
 };
 
 export interface AuditFilter {

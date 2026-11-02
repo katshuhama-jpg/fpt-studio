@@ -51,6 +51,28 @@ interface SpaceUsageState {
   notified: string[];
   /** Banner đã ẩn: level -> thời điểm ẩn (ẩn 24 giờ) */
   dismissed: Record<string, number>;
+  /** Trần chạy thử theo người dùng Console (Test run, Refine với AI, chạy bộ test ở Evaluate). null = không giới hạn */
+  buildCapDefault: number | null;
+  /** Trần riêng: số = trần riêng, null = không giới hạn, thiếu = theo mặc định */
+  buildCaps: Record<string, number | null>;
+  /** Phần trần được Admin duyệt thêm trong kỳ: "<periodKey>:<memberId>" -> credit */
+  buildBonus: Record<string, number>;
+  /** Credit chạy thử phát sinh thêm trong prototype (mỗi lần gửi) */
+  buildExtra: Record<string, number>;
+  capRequests: CapRequest[];
+}
+
+export interface CapRequest {
+  id: string;
+  memberId: string;
+  memberName: string;
+  amount: number | null;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  createdAt: number;
+  decidedAmount?: number;
+  rejectReason?: string;
+  decidedBy?: string;
 }
 
 /* ---------------- Plan quotas ---------------- */
@@ -77,6 +99,12 @@ export function planQuota(plan: string): PlanQuota {
 }
 
 /* ---------------- Demo members (credit theo member) ---------------- */
+
+/** Credit chạy thử (Console) trong kỳ - demo cố định, Mai Hoang đã chạm trần mặc định 10.000 */
+const BUILD_USED: Record<string, number> = {
+  "m-fsoft-ceo": 6_200, "m-plat-1": 10_000, "m-kt": 8_400, "m-hl": 2_300, "m-bp": 3_600,
+  "m-fsoft-coo": 900, "m-na": 1_500, "m-dq": 700, "m-plat-7": 400,
+};
 
 const MEMBER_SHARES: { id: string; name: string; initials: string; agents: number; share: number }[] = [
   { id: "m-fsoft-ceo", name: "Tran Nam", initials: "TN", agents: 5, share: 0.22 },
@@ -106,10 +134,16 @@ function save() {
 }
 
 function defaultState(): SpaceUsageState {
-  return { credit: "forecast", storage: "normal", lots: [], extraStorageGB: 0, requests: [], fallback: DEFAULT_FALLBACK, notified: [], dismissed: {} };
+  return {
+    credit: "forecast", storage: "normal", lots: [], extraStorageGB: 0, requests: [], fallback: DEFAULT_FALLBACK, notified: [], dismissed: {},
+    buildCapDefault: 10_000, buildCaps: {}, buildBonus: {}, buildExtra: {}, capRequests: [],
+  };
 }
 function stateOf(tenantId: string): SpaceUsageState {
   if (!map[tenantId]) map[tenantId] = defaultState();
+  const d = defaultState();
+  // Dữ liệu demo cũ trong phiên chưa có các trường mới
+  for (const k of Object.keys(d) as (keyof SpaceUsageState)[]) if (map[tenantId][k] === undefined) (map[tenantId] as any)[k] = d[k];
   return map[tenantId];
 }
 function tenantOf(id: string): Tenant {
@@ -164,7 +198,9 @@ export interface UsageSnapshot {
   level: UsageLevel;
   exhausted: boolean;
   daily: { date: Date; used: number; forecast: boolean }[];
-  members: { id: string; name: string; initials: string; agents: number; used: number; share: number }[];
+  members: { id: string; name: string; initials: string; agents: number; used: number; share: number; build: BuildStatus }[];
+  buildCapDefault: number | null;
+  capRequests: CapRequest[];
   storage: { totalGB: number; usedGB: number; remainingBytes: number; pct: number; note: string; full: boolean; near: boolean };
   requests: PurchaseRequest[];
   pendingCredit: PurchaseRequest | null;
@@ -221,7 +257,7 @@ export function getUsage(tenantId = getCurrentTenantId()): UsageSnapshot {
     daily.push({ date: new Date(period.today.getTime() + i * DAY), used, forecast: true });
   }
 
-  const members = MEMBER_SHARES.map(m => ({ ...m, used: Math.round(planUsed * m.share) }));
+  const members = MEMBER_SHARES.map(m => ({ ...m, used: Math.round(planUsed * m.share), build: buildStatusOf(tenantId, m.id) }));
 
   const totalGB = quota.storageGB + st.extraStorageGB;
   const usedGB = st.storage === "full" ? totalGB : totalGB * STORAGE_PCT[st.storage];
@@ -239,6 +275,8 @@ export function getUsage(tenantId = getCurrentTenantId()): UsageSnapshot {
     pendingCredit: requests.find(r => r.kind === "credit" && r.status === "pending") ?? null,
     pendingStorage: requests.find(r => r.kind === "storage" && r.status === "pending") ?? null,
     fallback: st.fallback || DEFAULT_FALLBACK,
+    buildCapDefault: st.buildCapDefault,
+    capRequests: [...st.capRequests].sort((a, b) => b.createdAt - a.createdAt),
     scenario: { credit: st.credit, storage: st.storage },
     dismissed: st.dismissed,
   };
@@ -247,6 +285,41 @@ export function getUsage(tenantId = getCurrentTenantId()): UsageSnapshot {
 /** Dùng ở nơi không phải component (vd Test run trong Agent Builder). */
 export function isCreditExhausted(tenantId = getCurrentTenantId()) {
   return getUsage(tenantId).exhausted;
+}
+
+/* ---------------- Trần chạy thử theo người dùng Console ---------------- */
+
+export interface BuildStatus {
+  used: number;
+  /** null = không giới hạn */
+  cap: number | null;
+  /** Trần đến từ mặc định hay đặt riêng */
+  custom: boolean;
+  bonus: number;
+  pct: number;
+  near: boolean;
+  blocked: boolean;
+  pending: CapRequest | null;
+}
+
+export function buildStatusOf(tenantId: string, memberId: string): BuildStatus {
+  const st = stateOf(tenantId);
+  const period = currentPeriod();
+  const used = (BUILD_USED[memberId] ?? 0) + (st.buildExtra[memberId] ?? 0);
+  const custom = Object.prototype.hasOwnProperty.call(st.buildCaps, memberId);
+  const base = custom ? st.buildCaps[memberId] : st.buildCapDefault;
+  const bonus = st.buildBonus[`${period.key}:${memberId}`] ?? 0;
+  const cap = base === null || base === undefined ? null : base + bonus;
+  const pct = cap ? used / cap : 0;
+  return {
+    used, cap, custom, bonus, pct, near: !!cap && pct >= 0.8, blocked: !!cap && used >= cap,
+    pending: st.capRequests.find(r => r.memberId === memberId && r.status === "pending") ?? null,
+  };
+}
+
+/** Người đang đăng nhập có chạy thử được không (dùng ở Test run, Refine với AI, Evaluate). */
+export function isBuildBlocked(tenantId = getCurrentTenantId()) {
+  return buildStatusOf(tenantId, currentPersona().id).blocked;
 }
 
 /* ---------------- Notifications (BR-05: mỗi mốc 1 lần mỗi kỳ, gửi Admin) ---------------- */
@@ -277,6 +350,17 @@ export function syncUsageNotifications(tenantId = getCurrentTenantId()) {
   if (text) notify(u.level, u.level === "exhausted" ? "usage_exhausted" : "usage_alert", text(u));
   if (u.storage.near) notify(u.storage.full ? "storage-full" : "storage-80", "usage_storage_alert",
     u.storage.full ? "Dung lượng knowledge đã đầy. Không tải thêm tài liệu được" : "Dung lượng knowledge đã dùng 80%");
+  // Trần chạy thử: báo riêng từng người khi dùng 80% và khi chạm trần (mỗi mốc 1 lần mỗi kỳ)
+  for (const m of u.members) {
+    const lvl = m.build.blocked ? "cap100" : m.build.near ? "cap80" : null;
+    if (!lvl || !m.build.cap) continue;
+    const k = `${u.period.key}:${lvl}:${m.id}`;
+    const resourceId = `usage:${tenantId}:${k}`;
+    if (st.notified.includes(k) && notificationStore.some(n => n.resourceId === resourceId)) continue;
+    if (!st.notified.includes(k)) { st.notified.push(k); changed = true; }
+    const title = lvl === "cap100" ? `Bạn đã dùng hết hạn mức chạy thử tháng này (${fmtNum(m.build.cap)} credit)` : `Bạn đã dùng 80% hạn mức chạy thử tháng này`;
+    notificationStore.push({ kind: "usage_alert", recipients: [m.id], actorId: "system", actorName: "FPT AI EOS", title, segments: [[title]], resourceId, href: "/plans?tab=usage" });
+  }
   if (changed) save();
 }
 
@@ -294,9 +378,64 @@ function audit(action: AuditAction, tenantId: string, detail?: string, note?: st
 /* ---------------- Actions ---------------- */
 
 export const usageStore = {
+  setBuildCapDefault(cap: number | null, tenantId = getCurrentTenantId()) {
+    const st = stateOf(tenantId);
+    st.buildCapDefault = cap;
+    audit("usage_cap_changed", tenantId, `Trần chạy thử mặc định: ${cap === null ? "Không giới hạn" : `${fmtNum(cap)} credit`}`);
+    save();
+  },
+  /** cap: số = trần riêng, null = không giới hạn, undefined = theo mặc định */
+  setBuildCap(memberId: string, memberName: string, cap: number | null | undefined, tenantId = getCurrentTenantId()) {
+    const st = stateOf(tenantId);
+    if (cap === undefined) delete st.buildCaps[memberId]; else st.buildCaps[memberId] = cap;
+    audit("usage_cap_changed", tenantId, `Trần chạy thử của ${memberName}: ${cap === undefined ? "Theo mặc định" : cap === null ? "Không giới hạn" : `${fmtNum(cap)} credit`}`);
+    save();
+  },
+  /** Demo: mỗi lần chạy thử tốn thêm credit của người đang đăng nhập. */
+  addBuildUsage(credits: number, tenantId = getCurrentTenantId()) {
+    const st = stateOf(tenantId);
+    const id = currentPersona().id;
+    st.buildExtra[id] = (st.buildExtra[id] ?? 0) + credits;
+    save();
+  },
+  requestBuildCap(amount: number | null, reason: string, tenantId = getCurrentTenantId()) {
+    const st = stateOf(tenantId);
+    const p = currentPersona();
+    if (st.capRequests.some(r => r.memberId === p.id && r.status === "pending")) return;
+    const req: CapRequest = { id: `cap-${Date.now().toString(36)}`, memberId: p.id, memberName: p.name, amount, reason, status: "pending", createdAt: Date.now() };
+    st.capRequests.push(req);
+    const title = `${p.name} xin thêm hạn mức chạy thử${amount ? ` ${fmtNum(amount)} credit` : ""}`;
+    notificationStore.push({
+      kind: "usage_cap_request", recipients: [REVIEWERS], actorId: p.id, actorName: p.name, title,
+      segments: [[p.name, true], [` xin thêm hạn mức chạy thử${amount ? ` ${fmtNum(amount)} credit` : ""}`]], note: reason, href: "/plans?tab=usage",
+    });
+    save();
+  },
+  decideBuildCap(id: string, approve: boolean, opts: { amount?: number; reason?: string } = {}, tenantId = getCurrentTenantId()) {
+    const st = stateOf(tenantId);
+    const r = st.capRequests.find(x => x.id === id);
+    if (!r || r.status !== "pending") return;
+    const p = currentPersona();
+    r.decidedBy = p.name;
+    if (approve) {
+      const amount = opts.amount ?? r.amount ?? 0;
+      r.status = "approved"; r.decidedAmount = amount;
+      const k = `${currentPeriod().key}:${r.memberId}`;
+      st.buildBonus[k] = (st.buildBonus[k] ?? 0) + amount;
+      audit("usage_cap_request_approved", tenantId, `${r.memberName} · thêm ${fmtNum(amount)} credit chạy thử`);
+      const title = `${p.name} đã duyệt thêm ${fmtNum(amount)} credit chạy thử cho bạn`;
+      notificationStore.push({ kind: "usage_cap_approved", recipients: [r.memberId], actorId: p.id, actorName: p.name, title, segments: [[p.name, true], [` đã duyệt thêm ${fmtNum(amount)} credit chạy thử cho bạn`]], href: "/plans?tab=usage" });
+    } else {
+      r.status = "rejected"; r.rejectReason = opts.reason;
+      audit("usage_cap_request_rejected", tenantId, `${r.memberName}`, opts.reason);
+      const title = `${p.name} đã từ chối yêu cầu xin thêm hạn mức chạy thử`;
+      notificationStore.push({ kind: "usage_cap_rejected", recipients: [r.memberId], actorId: p.id, actorName: p.name, title, segments: [[p.name, true], [" đã từ chối yêu cầu xin thêm hạn mức chạy thử"]], note: opts.reason, href: "/plans?tab=usage" });
+    }
+    save();
+  },
   setScenario(patch: Partial<{ credit: CreditScenario; storage: StorageScenario }>, tenantId = getCurrentTenantId()) {
     const st = stateOf(tenantId);
-    if (patch.credit) { st.credit = patch.credit; st.notified = st.notified.filter(k => k.includes("storage")); st.dismissed = {}; }
+    if (patch.credit) { st.credit = patch.credit; st.notified = st.notified.filter(k => k.includes("storage") || k.includes(":cap")); st.dismissed = {}; }
     if (patch.storage) { st.storage = patch.storage; st.notified = st.notified.filter(k => !k.includes("storage")); }
     save();
   },
@@ -371,6 +510,19 @@ export function useUsage(): UsageSnapshot {
     return () => { window.removeEventListener(USAGE_EVT, on); window.removeEventListener(notificationStore.EVT, onNotif); off(); };
   }, []);
   const u = getUsage();
-  useEffect(() => { syncUsageNotifications(); }, [u.level, u.storage.near, u.storage.full, u.tenant.id]);
+  const capKey = u.members.map(m => `${m.build.near ? 1 : 0}${m.build.blocked ? 1 : 0}`).join("");
+  useEffect(() => { syncUsageNotifications(); }, [u.level, u.storage.near, u.storage.full, u.tenant.id, capKey]);
   return u;
+}
+
+/** Hạn mức chạy thử của người đang đăng nhập - cập nhật khi dữ liệu đổi. */
+export function useBuildCap(): BuildStatus {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const on = () => setTick(t => t + 1);
+    window.addEventListener(USAGE_EVT, on);
+    const off = subscribeTenantChange(on);
+    return () => { window.removeEventListener(USAGE_EVT, on); off(); };
+  }, []);
+  return buildStatusOf(getCurrentTenantId(), currentPersona().id);
 }
