@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getAllTenants, getCurrentTenantId, subscribeTenantChange, TENANTS, type Tenant } from "@/lib/spaceStore";
 import { currentPersona } from "@/lib/demoPersona";
 import { notificationStore, REVIEWERS } from "@/components/notifications/notificationStore";
+import { auditLogStore, type AuditAction } from "@/components/governance/auditLogStore";
 
 /**
  * Hạn mức sử dụng (Usage & Quota) - spec: claude/SPEC_HanMuc_SuDung.md (02/11/2026).
@@ -138,6 +139,8 @@ export const fmtDate = (d: Date | number) => {
 };
 export const fmtDateFull = (d: Date | number) => `${fmtDate(d)}/${new Date(d).getFullYear()}`;
 export const fmtNum = (n: number) => Math.round(n).toLocaleString("vi-VN");
+/** GB: dưới 10 GB hiện 1 chữ số thập phân (0,6 GB), từ 10 GB làm tròn. */
+export const fmtGB = (n: number) => n < 10 ? n.toLocaleString("vi-VN", { maximumFractionDigits: 1 }) : fmtNum(n);
 
 /* ---------------- Snapshot ---------------- */
 
@@ -277,6 +280,17 @@ export function syncUsageNotifications(tenantId = getCurrentTenantId()) {
   if (changed) save();
 }
 
+/* ---------------- Audit Log ---------------- */
+
+const reqDetail = (r: Pick<PurchaseRequest, "kind" | "amount">) => r.kind === "credit" ? `${fmtNum(r.amount)} credit` : `${fmtNum(r.amount)} GB dung lượng`;
+function audit(action: AuditAction, tenantId: string, detail?: string, note?: string, actor?: { id: string; name: string }) {
+  const p = actor ?? { id: currentPersona().id, name: currentPersona().name };
+  auditLogStore.log({
+    at: Date.now(), actorId: p.id, actorName: p.name, action, resourceType: "usage",
+    resourceId: tenantId, resourceName: `Gói và hạn mức - ${tenantOf(tenantId).name}`, detail, note,
+  });
+}
+
 /* ---------------- Actions ---------------- */
 
 export const usageStore = {
@@ -293,6 +307,7 @@ export const usageStore = {
   },
   setFallback(text: string, tenantId = getCurrentTenantId()) {
     stateOf(tenantId).fallback = text.trim();
+    audit("usage_fallback_changed", tenantId, undefined, text.trim() || DEFAULT_FALLBACK);
     save();
   },
   dismiss(level: string, tenantId = getCurrentTenantId()) {
@@ -303,6 +318,7 @@ export const usageStore = {
     const st = stateOf(tenantId);
     const req: PurchaseRequest = { ...r, id: `req-${Date.now().toString(36)}`, status: "pending", createdAt: Date.now(), createdBy: currentPersona().id };
     st.requests.push(req);
+    audit("usage_request_sent", tenantId, reqDetail(req), r.note || undefined);
     save();
     return req;
   },
@@ -310,6 +326,7 @@ export const usageStore = {
     const r = stateOf(tenantId).requests.find(x => x.id === id);
     if (!r || r.status !== "pending") return;
     r.status = "cancelled"; r.handledAt = Date.now();
+    audit("usage_request_cancelled", tenantId, reqDetail(r));
     save();
   },
   /** Demo: giả lập Sales kích hoạt yêu cầu (phase 1 làm thủ công ngoài sản phẩm). */
@@ -327,6 +344,7 @@ export const usageStore = {
       if (st.storage === "full") st.storage = "near";
     }
     st.dismissed = {};
+    audit("usage_request_activated", tenantId, reqDetail(r), undefined, { id: "sales", name: "FPT AI Sales" });
     const title = r.kind === "credit"
       ? `Đã kích hoạt ${fmtNum(r.amount)} credit mua thêm cho Space`
       : `Đã nâng thêm ${fmtNum(r.amount)} GB dung lượng knowledge cho Space`;

@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { currentPersona } from "@/lib/demoPersona";
 import {
-  CREDIT_PRICE, CREDIT_STEP, DEFAULT_FALLBACK, FALLBACK_MAX, fmtDate, fmtDateFull, fmtNum, usageStore, useUsage,
+  CREDIT_PRICE, CREDIT_STEP, DEFAULT_FALLBACK, FALLBACK_MAX, fmtDate, fmtDateFull, fmtGB, fmtNum, usageStore, useUsage,
   type CreditScenario, type PurchaseRequest, type StorageScenario, type UsageSnapshot,
 } from "@/lib/usageStore";
 import { UsageBanners } from "./UsageBanner";
@@ -19,7 +19,7 @@ function barTone(pct: number) {
   return "bg-primary";
 }
 
-function Meter({ label, value, sub, subTone, pct, emphasis }: { label: string; value: string; sub?: string; subTone?: "warning" | "danger"; pct: number | null; emphasis?: boolean }) {
+function Meter({ label, value, sub, subTone, pct, emphasis, neutral }: { label: string; value: string; sub?: string; subTone?: "warning" | "danger"; pct: number | null; emphasis?: boolean; /** Không đổi màu theo mốc cảnh báo (vd số người dùng) */ neutral?: boolean }) {
   const subCls = subTone === "danger" ? "text-[hsl(var(--destructive-strong))] font-medium" : subTone === "warning" ? "text-[hsl(var(--warning-strong))] font-medium" : "text-muted-foreground";
   return (
     <div className="space-y-1.5">
@@ -29,7 +29,7 @@ function Meter({ label, value, sub, subTone, pct, emphasis }: { label: string; v
       </div>
       {pct !== null && (
         <div className="h-2 rounded-full bg-surface-muted overflow-hidden" role="progressbar" aria-label={label} aria-valuenow={Math.round(pct * 100)} aria-valuemin={0} aria-valuemax={100}>
-          <div className={`h-full rounded-full ${barTone(pct)}`} style={{ width: `${Math.min(100, Math.max(pct > 0 ? 1.5 : 0, pct * 100))}%` }} />
+          <div className={`h-full rounded-full ${neutral ? "bg-primary/70" : barTone(pct)}`} style={{ width: `${Math.min(100, Math.max(pct > 0 ? 1.5 : 0, pct * 100))}%` }} />
         </div>
       )}
       {sub && <p className={`text-xs ${subCls}`}>{sub}</p>}
@@ -357,7 +357,7 @@ function MemberView({ u }: { u: UsageSnapshot }) {
           <div className="rounded-xl bg-surface-muted px-4 py-3"><div className="text-xs text-muted-foreground">Credit bạn đã dùng</div><div className="text-xl font-semibold tabular-nums">{fmtNum(me.used)}</div></div>
           <div className="rounded-xl bg-surface-muted px-4 py-3"><div className="text-xs text-muted-foreground">Nhân sự số bạn sở hữu</div><div className="text-xl font-semibold tabular-nums">{me.agents}</div></div>
         </div>
-        <Meter label="Dung lượng knowledge của Space" value={`${fmtNum(u.storage.usedGB)} / ${fmtNum(u.storage.totalGB)} GB`} pct={u.storage.pct} />
+        <Meter label="Dung lượng knowledge của Space" value={`${fmtGB(u.storage.usedGB)} / ${fmtGB(u.storage.totalGB)} GB`} pct={u.storage.pct} />
         <p className="text-xs text-muted-foreground flex items-start gap-1.5"><Info size={13} className="shrink-0 mt-0.5" aria-hidden />Admin của Space quản lý credit và mua thêm khi cần.</p>
       </section>
     </>
@@ -412,10 +412,10 @@ export default function UsageTab() {
             </div>
             <Meter emphasis label="Credit gói cho cả Space" value={`${fmtNum(u.planUsed)} / ${fmtNum(u.quota.credit)}`} pct={u.pct} sub={forecastSub.text} subTone={forecastSub.tone} />
             <Meter label="Credit mua thêm" value={topUpValue} pct={null} sub={topUpSub} />
-            <Meter label="Dung lượng knowledge" value={`${fmtNum(u.storage.usedGB)} / ${fmtNum(u.storage.totalGB)} GB`} pct={u.storage.pct}
+            <Meter label="Dung lượng knowledge" value={`${fmtGB(u.storage.usedGB)} / ${fmtGB(u.storage.totalGB)} GB`} pct={u.storage.pct}
               sub={u.storage.full ? "Đã đầy. Chưa tải thêm tài liệu được." : u.storage.note} subTone={u.storage.full ? "danger" : u.storage.near ? "warning" : undefined} />
             <Meter label="Người dùng" value={u.quota.usersIncluded ? `${fmtNum(u.quota.usersActive)} / ${fmtNum(u.quota.usersIncluded)}` : `${fmtNum(u.quota.usersActive)} người dùng`}
-              pct={u.quota.usersIncluded ? u.quota.usersActive / u.quota.usersIncluded : null} sub={u.quota.usersIncluded ? undefined : "Theo hợp đồng"} />
+              neutral pct={u.quota.usersIncluded ? u.quota.usersActive / u.quota.usersIncluded : null} sub={u.quota.usersIncluded ? undefined : "Theo hợp đồng"} />
 
             <div className="border-t border-border pt-4 flex items-center justify-between gap-3 flex-wrap">
               <div>

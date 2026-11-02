@@ -5,7 +5,11 @@
 import { loadMap, saveMap } from "@/lib/sessionPersist";
 import type { GovResourceType } from "./governanceStore";
 
-export type AuditAction = "submitted" | "approved" | "rejected" | "revoked" | "withdrawn" | "rolled_back" | "channel_off" | "exported";
+export type AuditAction = "submitted" | "approved" | "rejected" | "revoked" | "withdrawn" | "rolled_back" | "channel_off" | "exported"
+  /** Gói và hạn mức (Hạn mức sử dụng) */
+  | "usage_request_sent" | "usage_request_cancelled" | "usage_request_activated" | "usage_fallback_changed";
+/** Audit Log also records Space-level actions on "Gói và hạn mức", outside the five governed resource types. */
+export type AuditResourceType = GovResourceType | "usage";
 
 export interface AuditEntry {
   id: string;
@@ -13,7 +17,7 @@ export interface AuditEntry {
   actorId: string;
   actorName: string;
   action: AuditAction;
-  resourceType: GovResourceType;
+  resourceType: AuditResourceType;
   resourceId: string;
   resourceName: string;
   requestId?: string;
@@ -36,11 +40,15 @@ export const ACTION_LABEL: Record<AuditAction, string> = {
   rolled_back: "Đã khôi phục phiên bản cũ",
   channel_off: "Đã tắt kênh ngoài",
   exported: "Đã xuất dữ liệu hội thoại",
+  usage_request_sent: "Đã gửi yêu cầu mua thêm",
+  usage_request_cancelled: "Đã hủy yêu cầu mua thêm",
+  usage_request_activated: "Đã kích hoạt mua thêm",
+  usage_fallback_changed: "Đã sửa câu trả lời khi hết credit",
 };
 
 export interface AuditFilter {
   actorId?: string;
-  resourceType?: GovResourceType;
+  resourceType?: AuditResourceType;
   resourceId?: string;
   from?: number;
   to?: number;

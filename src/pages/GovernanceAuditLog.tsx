@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, History, ExternalLink } from "lucide-react";
-import { auditLogStore, ACTION_LABEL, type AuditAction } from "@/components/governance/auditLogStore";
+import { Search, History, ExternalLink, Gauge } from "lucide-react";
+import { auditLogStore, ACTION_LABEL, type AuditAction, type AuditResourceType } from "@/components/governance/auditLogStore";
 import { RESOURCE_TYPE_LABEL, type GovResourceType } from "@/components/governance/governanceStore";
 import { ResourceTypeIcon, formatDateTime } from "@/components/governance/governanceUi";
 
@@ -17,6 +17,7 @@ const ACTION_DOT: Record<AuditAction, string> = {
   submitted: "bg-primary", approved: "bg-success",
   rejected: "bg-destructive", revoked: "bg-destructive", withdrawn: "bg-muted-foreground",
   rolled_back: "bg-warning", channel_off: "bg-muted-foreground", exported: "bg-primary",
+  usage_request_sent: "bg-primary", usage_request_cancelled: "bg-muted-foreground", usage_request_activated: "bg-success", usage_fallback_changed: "bg-primary",
 };
 
 function Table({ children }: { children: React.ReactNode }) {
@@ -38,7 +39,7 @@ const COLS = "150px 1fr 130px 140px 130px";
 export default function GovernanceAuditLog() {
   const actors = auditLogStore.listActors();
   const [actorId, setActorId] = useState<string>("all");
-  const [resourceType, setResourceType] = useState<"all" | GovResourceType>("all");
+  const [resourceType, setResourceType] = useState<"all" | AuditResourceType>("all");
   const [range, setRange] = useState<RangeKey>("all");
   const [query, setQuery] = useState("");
 
@@ -86,6 +87,7 @@ export default function GovernanceAuditLog() {
             <option value="skill">Skill</option>
             <option value="guardrail">Guardrails</option>
             <option value="connector">Connector</option>
+            <option value="usage">Gói và hạn mức</option>
           </select>
           <select
             value={range}
@@ -124,10 +126,12 @@ export default function GovernanceAuditLog() {
               </span>
             </div>
             <div className="text-sm text-muted-foreground flex items-center gap-1.5">
-              <ResourceTypeIcon type={e.resourceType} size={13} /> {RESOURCE_TYPE_LABEL[e.resourceType]}
+              {e.resourceType === "usage"
+                ? <><Gauge size={13} aria-hidden /> Gói và hạn mức</>
+                : <><ResourceTypeIcon type={e.resourceType} size={13} /> {RESOURCE_TYPE_LABEL[e.resourceType]}</>}
             </div>
             <div className="text-sm text-foreground truncate">{e.actorName}</div>
-            <Link to={`${e.resourceType === "agent" ? "/governance/requests" : "/governance/library-requests"}/${e.requestId}`} className="text-sm text-primary hover:underline truncate flex items-center gap-1">
+            <Link to={e.resourceType === "usage" ? "/plans?tab=usage" : `${e.resourceType === "agent" ? "/governance/requests" : "/governance/library-requests"}/${e.requestId}`} className="text-sm text-primary hover:underline truncate flex items-center gap-1">
               {e.resourceName} <ExternalLink size={11} className="shrink-0" />
             </Link>
           </TRow>
