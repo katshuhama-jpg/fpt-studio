@@ -29,8 +29,14 @@ export interface Reminder {
 }
 
 export const MAX_STEPS = 3;
-/** 23 giờ 59 phút. */
+/** Mỗi Agent tối đa 10 reminder. */
+export const MAX_REMINDERS = 10;
+/** 23 giờ 59 phút — the longest wait of any step (every step is counted from the waiting message). */
 export const MAX_TOTAL_MIN = 23 * 60 + 59;
+/** Phase này: reminder áp dụng cho tất cả kênh đã publish (không chọn kênh). */
+export const CHANNEL_PICKER_ENABLED = false;
+/** Reminder name: chữ (có dấu), số và khoảng trắng; tối đa 100 ký tự. */
+export const NAME_PATTERN = /^[\p{L}\p{M}\p{N} ]+$/u;
 /** Hard cap per wait, counted across every reminder — the rule the whole feature hangs on. */
 export const MAX_REPLIES_PER_WAIT = 3;
 export const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => i);
@@ -51,7 +57,13 @@ let seq = 0;
 export const uid = (p: string) => `${p}-${Date.now().toString(36)}-${(seq++).toString(36)}`;
 
 export const stepMinutes = (s: Pick<ReminderStep, "hours" | "minutes">) => (s.hours || 0) * 60 + (s.minutes || 0);
-export const totalMinutes = (steps: ReminderStep[]) => steps.reduce((t, s) => t + stepMinutes(s), 0);
+/** Every step counts from the same waiting message, so the reminder spans as long as its last step. */
+export const totalMinutes = (steps: ReminderStep[]) => (steps.length ? stepMinutes(steps[steps.length - 1]) : 0);
+/** "5'", "1h15'", "23h59'" — compact form for the list. */
+export function fmtShort(min: number): string {
+  const h = Math.floor(min / 60), m = min % 60;
+  return h ? `${h}h${m ? `${String(m).padStart(2, "0")}'` : ""}` : `${m}'`;
+}
 export function fmtMinutes(min: number): string {
   const h = Math.floor(min / 60), m = min % 60;
   if (h && m) return `${h} giờ ${m} phút`;
@@ -111,7 +123,11 @@ export function stepSkills(agentId: string, instruction: string) {
 export const needsUpdate = (agentId: string, r: Reminder) =>
   r.steps.some(s => stepSkills(agentId, s.instruction).some(x => x.status !== "ok"));
 
-export const emptyStep = (): ReminderStep => ({ id: uid("step"), hours: 0, minutes: 5, instruction: "", trigger: "", csat: false });
+/** Lần 1 mặc định 5 phút; lần sau = lần trước + 5 phút (tối đa 23h59'). */
+export const emptyStep = (prev?: ReminderStep): ReminderStep => {
+  const m = prev ? Math.min(stepMinutes(prev) + 5, MAX_TOTAL_MIN) : 5;
+  return { id: uid("step"), hours: Math.floor(m / 60), minutes: m % 60, instruction: "", trigger: "", csat: false };
+};
 export const emptyReminder = (): Reminder => ({ id: uid("rem"), name: "", channels: "all", steps: [emptyStep()], enabled: true, createdAt: Date.now(), updatedAt: Date.now() });
 
 /* ───────────── warnings (never block saving) ───────────── */
@@ -129,11 +145,8 @@ export interface OverlapHit {
   exact: boolean;
 }
 
-/** Running offset of each step from the message the agent is waiting on. */
-const offsets = (steps: ReminderStep[]) => {
-  let acc = 0;
-  return steps.map(s => (acc += stepMinutes(s)));
-};
+/** Offset of each step from the waiting message (each step is already counted from it). */
+const offsets = (steps: ReminderStep[]) => steps.map(stepMinutes);
 
 /**
  * Steps of other enabled reminders that land on the same minute and share at least one
@@ -153,7 +166,7 @@ export function findOverlaps(agentId: string, r: Reminder, others: Reminder[]): 
       if (!stepMinutes(r.steps[i])) return;
       theirs.forEach((t, j) => {
         if (m !== t) return;
-        hits.push({ stepId: r.steps[i].id, stepIndex: i + 1, otherId: o.id, otherName: o.name, otherStep: j + 1, exact: i === 0 && j === 0 });
+        hits.push({ stepId: r.steps[i].id, stepIndex: i + 1, otherId: o.id, otherName: o.name, otherStep: j + 1, exact: true });
       });
     });
   }
@@ -174,8 +187,8 @@ export const apiNotSubscribed = (agentId: string, r: Reminder) =>
 
 /* ───────────── persistence ───────────── */
 
-const LIST_KEY = "inactive_reminders_v2";
-const SEEDED_KEY = "inactive_reminders_seeded_v2";
+const LIST_KEY = "inactive_reminders_v3";
+const SEEDED_KEY = "inactive_reminders_seeded_v3";
 const lists = loadMap<string, Reminder[]>(LIST_KEY);
 const persist = () => saveMap(LIST_KEY, lists);
 const DAY = 86_400_000;
@@ -193,12 +206,12 @@ function seed(agentId: string) {
   lists.set(agentId, [
     {
       // Lần 1 = 5 phút, cùng kênh "web" với "Chốt đơn" → minh hoạ cảnh báo trùng thời gian.
-      id: uid("rem"), name: "Nhắc xin số điện thoại", channels: ["web", "zalo"], enabled: true,
+      id: uid("rem"), name: "Nhắc xin số điện thoại", channels: "all", enabled: true,
       createdAt: Date.now() - 12 * DAY, updatedAt: Date.now() - DAY,
       steps: [step(0, 5, `Nhắc khách để lại số điện thoại để nhân viên gọi lại ${skillTok}`.trim(), "Khách chưa để lại số điện thoại sau khi được hỏi.")],
     },
     {
-      id: uid("rem"), name: "Chốt đơn", channels: ["web"], enabled: true,
+      id: uid("rem"), name: "Chốt đơn", channels: "all", enabled: true,
       createdAt: Date.now() - 9 * DAY, updatedAt: Date.now() - 3 * DAY,
       steps: [
         step(0, 5, "Hỏi khách có cần hỗ trợ hoàn tất đơn hàng không.", ""),
@@ -208,12 +221,12 @@ function seed(agentId: string) {
     },
     {
       // Kênh messenger không nằm trong danh sách publish của agent → mất kênh, tự tắt.
-      id: uid("rem"), name: "Nhắc chọn sản phẩm", channels: ["messenger"], enabled: false,
+      id: uid("rem"), name: "Nhắc chọn sản phẩm", channels: "all", enabled: false,
       createdAt: Date.now() - 20 * DAY, updatedAt: Date.now() - 7 * DAY,
       steps: [step(0, 45, "Gợi ý lại 3 sản phẩm phù hợp nhất với nhu cầu khách đã nói.", "Khách chưa chọn sản phẩm nào.")],
     },
     {
-      id: uid("rem"), name: "Nhắc tra cứu khoản vay", channels: ["web"], enabled: false,
+      id: uid("rem"), name: "Nhắc tra cứu khoản vay", channels: "all", enabled: false,
       createdAt: Date.now() - 30 * DAY, updatedAt: Date.now() - 7 * DAY,
       steps: [step(0, 45, "Dùng {{ref:skill:legacy-loan-lookup|tra-cuu-khoan-vay-cu}} để nhắc khách số tiền còn nợ.", "Khách hỏi về khoản vay nhưng chưa xác nhận số hợp đồng.")],
     },
@@ -234,7 +247,8 @@ function migrate(r: Reminder): Reminder {
 }
 
 export const reminderStore = {
-  list(agentId: string): Reminder[] { seed(agentId); return (lists.get(agentId) ?? []).map(migrate); },
+  /** Newest first (Thời điểm tạo giảm dần). */
+  list(agentId: string): Reminder[] { seed(agentId); return (lists.get(agentId) ?? []).map(migrate).sort((a, b) => b.createdAt - a.createdAt); },
   save(agentId: string, r: Reminder) {
     const cur = this.list(agentId);
     const exists = cur.some(x => x.id === r.id);
@@ -247,10 +261,6 @@ export const reminderStore = {
     persist();
   },
   remove(agentId: string, id: string) { lists.set(agentId, this.list(agentId).filter(x => x.id !== id)); persist(); },
-  /** Copy for "Nhân bản": new ids, "(bản sao)" suffix, off until saved and turned on. */
-  duplicate(r: Reminder): Reminder {
-    return { ...r, id: uid("rem"), name: `${r.name} (bản sao)`.slice(0, 100), enabled: false, createdAt: Date.now(), updatedAt: Date.now(), steps: r.steps.map(s => ({ ...s, id: uid("step") })) };
-  },
   /** A reminder whose channels all went away can't run — switch it off so the table tells the truth. */
   syncLostChannels(agentId: string): number {
     const cur = this.list(agentId);
@@ -272,19 +282,20 @@ export function validateReminder(agentId: string, r: Reminder, others: Reminder[
   const fields = new Map<string, string>();
   const name = r.name.trim();
   if (!name) fields.set("name", "Vui lòng nhập Reminder name.");
+  else if (name.length > 100 || !NAME_PATTERN.test(name)) fields.set("name", "Tên reminder chỉ gồm chữ, số và khoảng trắng, tối đa 100 ký tự");
   else if (others.some(o => o.id !== r.id && o.name.trim().toLowerCase() === name.toLowerCase())) fields.set("name", "Tên reminder đã tồn tại trong Agent.");
-  if (r.channels !== "all" && r.channels.length === 0) fields.set("channels", "Vui lòng chọn kênh áp dụng.");
-  for (const s of r.steps) {
+  if (CHANNEL_PICKER_ENABLED && r.channels !== "all" && r.channels.length === 0) fields.set("channels", "Vui lòng chọn kênh áp dụng.");
+  r.steps.forEach((s, i) => {
     const k = (f: string) => `step.${s.id}.${f}`;
     const m = stepMinutes(s);
     if (m === 0) fields.set(k("duration"), "Vui lòng nhập Duration.");
     else if (m > MAX_TOTAL_MIN) fields.set(k("duration"), "Thời gian chờ không được vượt quá 23 giờ 59 phút.");
+    else if (i > 0 && m <= stepMinutes(r.steps[i - 1])) fields.set(k("duration"), "Duration lần sau phải lớn hơn lần trước");
     if (!s.instruction.replace(/\{\{ref:[^}]*\}\}/g, "x").trim()) fields.set(k("instruction"), "Vui lòng nhập Instruction.");
-    else if (stepSkills(agentId, s.instruction).some(x => x.status !== "ok")) fields.set(k("instruction"), "Skill không còn tồn tại, vui lòng gỡ hoặc thay thế.");
+    // A skill removed from the Agent doesn't block saving: at runtime the Agent picks a suitable replacement.
     // Trigger is optional — empty means the nudge always goes out when the wait is over.
-  }
-  const total = totalMinutes(r.steps) > MAX_TOTAL_MIN ? "Tổng thời gian chờ của các lần nhắc không được vượt quá 23 giờ 59 phút." : undefined;
-  return { fields, total };
+  });
+  return { fields };
 }
 
 /** Simulated "✨ Tạo tự động": derives a trigger condition from the instruction. */

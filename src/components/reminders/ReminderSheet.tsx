@@ -20,9 +20,9 @@ import InstructionsEditor from "@/components/configure/InstructionsEditor";
 import { RefChip } from "@/components/configure/refChip";
 import { parseToken } from "@/components/configure/instructionRefs";
 import {
-  MAX_STEPS, MAX_TOTAL_MIN, MAX_REPLIES_PER_WAIT, GENERATE_TIMEOUT_MS, channelLabel, emptyStep, fmtMinutes,
-  findOverlaps, generateTrigger, publishedChannels, reminderStore, apiNotSubscribed, windowWarnings,
-  missingChannels, noLiveChannel, stepMinutes, stepSkills, totalMinutes, validateReminder,
+  CHANNEL_PICKER_ENABLED, MAX_STEPS, MAX_TOTAL_MIN, MAX_REPLIES_PER_WAIT, GENERATE_TIMEOUT_MS, channelLabel, emptyStep, fmtMinutes,
+  findOverlaps, generateTrigger, publishedChannels, reminderStore,
+  missingChannels, noLiveChannel, stepMinutes, stepSkills, validateReminder,
   HOUR_OPTIONS, MINUTE_OPTIONS, type OverlapHit, type Reminder, type ReminderStep,
 } from "./reminderStore";
 
@@ -151,7 +151,7 @@ function StepCard({ agentId, step, index, open, onToggle, onChange, onRemove, re
       abortRef.current = null;
     }
   };
-  const genTip = instructionEmpty ? "Viết Instruction trước." : gen.status === "running" ? "Đang tạo…" : "Tạo từ nội dung Instruction.";
+  const genTip = instructionEmpty ? "Viết instruction trước" : gen.status === "running" ? "Đang tạo…" : "Tạo từ nội dung Instruction.";
   const summary = `${stepMinutes(step) ? fmtMinutes(stepMinutes(step)) : "Chưa đặt thời gian"}${plain(step.instruction) ? ` · ${plain(step.instruction).slice(0, 48)}${plain(step.instruction).length > 48 ? "…" : ""}` : ""}`;
 
   return (
@@ -189,12 +189,12 @@ function StepCard({ agentId, step, index, open, onToggle, onChange, onRemove, re
               <span className="text-sm text-muted-foreground">phút</span>
             </div>
             <Helper>{index === 0
-              ? "Tính từ tin nhắn Agent đang chờ người dùng trả lời."
-              : "Tính từ tin nhắn cuối của Agent (bao gồm cả tin nhắc đã gửi)."}</Helper>
+              ? "Tính từ tin chờ của Agent (tin Agent hỏi và đang chờ người dùng trả lời)."
+              : "Tính từ tin chờ của Agent, giống lần 1 (không tính từ lần nhắc trước). Phải lớn hơn lần trước."}</Helper>
             <Err>{err("duration")}</Err>
             {myOverlaps.map(o => (
               <Note key={`${o.otherId}-${o.otherStep}`}>
-                {o.exact ? "Trùng thời gian với" : "Có thể trùng thời gian với"} <strong className="font-medium">{o.otherName}</strong> – Lần {o.otherStep}. Khi đến giờ cùng lúc, reminder tạo trước được xét trước; mỗi lượt chờ chỉ gửi tối đa {MAX_REPLIES_PER_WAIT} tin nên một số lời nhắc có thể không được gửi.{" "}
+                Trùng thời gian với <strong className="font-medium">{o.otherName}</strong> – Lần {o.otherStep}. Khi đến giờ cùng lúc, reminder tạo trước được xét trước; mỗi lượt chờ chỉ gửi tối đa {MAX_REPLIES_PER_WAIT} tin nên một số lời nhắc có thể không được gửi.{" "}
                 <OverlapPopover agentId={agentId} otherId={o.otherId} />
               </Note>
             ))}
@@ -224,6 +224,7 @@ function StepCard({ agentId, step, index, open, onToggle, onChange, onRemove, re
                 return ref ? <span key={s.token} className={s.status === "ok" ? "" : "[&_.truncate]:line-through"}><RefChip agentId={agentId} reference={ref} /></span> : null;
               })}
             </div>
+            {skills.some(x => x.status !== "ok") && <Note tone="info">Skill đã bị gỡ khỏi Agent. Reminder vẫn chạy, Agent sẽ tự chọn skill phù hợp thay thế.</Note>}
             <Err>{err("instruction")}</Err>
           </div>
 
@@ -237,7 +238,7 @@ function StepCard({ agentId, step, index, open, onToggle, onChange, onRemove, re
                   <TooltipTrigger asChild>
                     <button type="button" aria-label="Về Trigger" className="text-muted-foreground hover:text-foreground"><Icon icon={InformationCircleIcon} size={14} /></button>
                   </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">Agent kiểm tra điều kiện này khi hết thời gian chờ. Nếu không thỏa, lời nhắc không được gửi.</TooltipContent>
+                  <TooltipContent className="max-w-xs">Agent kiểm tra điều kiện này khi hết thời gian chờ. Nếu không thỏa, lời nhắc không được gửi và các lần nhắc sau của reminder này cũng dừng. Để trống thì luôn gửi.</TooltipContent>
                 </Tooltip>
               </div>
               {!readOnly && (
@@ -291,9 +292,13 @@ function StepCard({ agentId, step, index, open, onToggle, onChange, onRemove, re
 }
 
 /** Right sheet "Thêm reminder" / "Chỉnh sửa reminder". */
-export default function ReminderSheet({ agentId, initial, mode, readOnly, onClose, onSaved }: {
-  agentId: string; initial: Reminder; mode: "create" | "edit"; readOnly?: boolean; onClose: () => void; onSaved: () => void;
+export default function ReminderSheet({ agentId, agentName, initial, mode, readOnly: readOnlyNow, onClose, onSaved, onLostAccess }: {
+  agentId: string; agentName?: string; initial: Reminder; mode: "create" | "edit"; readOnly?: boolean;
+  onClose: () => void; onSaved: () => void; onLostAccess?: () => void;
 }) {
+  // The sheet keeps the access it opened with; losing edit rights mid-way is caught on Lưu (nhánh 18).
+  const [readOnly] = useState(!!readOnlyNow);
+  const [lostAccess, setLostAccess] = useState(false);
   const [draft, setDraft] = useState<Reminder>(initial);
   const [openStep, setOpenStep] = useState<string>(initial.steps[0]?.id ?? "");
   const [submitted, setSubmitted] = useState(false);
@@ -307,25 +312,24 @@ export default function ReminderSheet({ agentId, initial, mode, readOnly, onClos
   const errors = validateReminder(agentId, draft, others);
   const show = (k: string) => submitted || touched.has(k);
   const touch = (k: string) => setTouched(t => (t.has(k) ? t : new Set(t).add(k)));
-  const total = totalMinutes(draft.steps);
-  const totalErr = errors.total;
 
   const overlaps = useMemo(() => findOverlaps(agentId, draft, others), [agentId, draft, others]);
-  const windows = windowWarnings(agentId, draft);
-  const apiWarn = apiNotSubscribed(agentId, draft);
   /** Không còn kênh nào đang publish để gửi — chỉ cảnh báo, không chặn lưu. */
-  const noChannel = noLiveChannel(agentId, draft);
+  const noChannel = CHANNEL_PICKER_ENABLED && noLiveChannel(agentId, draft);
   const gone = missingChannels(agentId, draft);
 
   const setStep = (s: ReminderStep) => setDraft(d => ({ ...d, steps: d.steps.map(x => (x.id === s.id ? s : x)) }));
-  const addStep = () => { const s = emptyStep(); setDraft(d => ({ ...d, steps: [...d.steps, s] })); setOpenStep(s.id); };
+  const lastStep = draft.steps[draft.steps.length - 1];
+  const atMaxWait = !!lastStep && stepMinutes(lastStep) >= MAX_TOTAL_MIN;
+  const addStep = () => { const s = emptyStep(lastStep); setDraft(d => ({ ...d, steps: [...d.steps, s] })); setOpenStep(s.id); };
   const removeStep = (id: string) => setDraft(d => ({ ...d, steps: d.steps.filter(x => x.id !== id) }));
 
   const requestClose = () => { if (dirty && !readOnly) setConfirmDiscard(true); else onClose(); };
 
   const save = () => {
+    if (readOnlyNow) { setLostAccess(true); return; }
     setSubmitted(true);
-    if (errors.fields.size || totalErr) {
+    if (errors.fields.size) {
       const first = [...errors.fields.keys()][0];
       if (first?.startsWith("step.")) {
         const stepId = first.split(".")[1];
@@ -336,7 +340,7 @@ export default function ReminderSheet({ agentId, initial, mode, readOnly, onClos
       }
       return;
     }
-    reminderStore.save(agentId, { ...draft, name: draft.name.trim() });
+    reminderStore.save(agentId, { ...draft, name: draft.name.trim(), channels: CHANNEL_PICKER_ENABLED ? draft.channels : "all" });
     toast.success(mode === "create" ? "Đã thêm reminder." : "Đã lưu reminder.");
     onSaved();
   };
@@ -370,6 +374,7 @@ export default function ReminderSheet({ agentId, initial, mode, readOnly, onClos
                   placeholder="VD: Nhắc xin số điện thoại" className="mt-1.5" aria-invalid={!!nameErr} />
                 <Err>{nameErr}</Err>
               </div>
+              {CHANNEL_PICKER_ENABLED && (
               <div>
                 <label htmlFor="rem-channels" className="text-sm font-medium">Kênh áp dụng <span className="text-destructive">*</span></label>
                 <div className="mt-1.5"><ChannelsSelect agentId={agentId} value={draft.channels} disabled={readOnly} onChange={v => { setDraft(d => ({ ...d, channels: v })); touch("channels"); }} /></div>
@@ -385,8 +390,8 @@ export default function ReminderSheet({ agentId, initial, mode, readOnly, onClos
                 {!noChannel && gone.length > 0 && (
                   <Note>Kênh {gone.map(channelLabel).join(", ")} không còn được publish nên sẽ không nhận lời nhắc.</Note>
                 )}
-                {apiWarn && <Note>Kênh API chưa đăng ký sự kiện tin nhắc nên sẽ không nhận được lời nhắc.</Note>}
               </div>
+              )}
             </section>
 
             <section className="space-y-3">
@@ -408,24 +413,19 @@ export default function ReminderSheet({ agentId, initial, mode, readOnly, onClos
                 />
               ))}
               {!readOnly && draft.steps.length < MAX_STEPS && (
-                <Button type="button" variant="outline" className="w-full border-dashed" onClick={addStep}>
-                  <Icon icon={Add01Icon} /> Thêm lần nhắc <span className="tabular-nums text-muted-foreground">{draft.steps.length}/{MAX_STEPS}</span>
-                </Button>
+                <div>
+                  <Button type="button" variant="outline" className="w-full border-dashed" onClick={addStep} disabled={atMaxWait}>
+                    <Icon icon={Add01Icon} /> Thêm lần nhắc <span className="tabular-nums text-muted-foreground">{draft.steps.length}/{MAX_STEPS}</span>
+                  </Button>
+                  {atMaxWait && <Helper>Đã đạt thời gian chờ tối đa 23h59', không thể thêm lần nhắc</Helper>}
+                </div>
               )}
-              {windows.map(w => (
-                <Note key={w.channel}>
-                  Tổng thời gian có thể vượt khung tương tác của {w.channel} ({fmtMinutes(w.windowMin)}); lời nhắc ngoài khung sẽ không được gửi.
-                </Note>
-              ))}
             </section>
           </div>
 
           <div className="flex items-center justify-between gap-3 border-t px-6 py-4">
             <div className="min-w-0">
-              <p className={`text-sm tabular-nums ${totalErr ? "text-destructive font-medium" : "text-muted-foreground"}`}>
-                Tổng thời gian: {total ? fmtMinutes(total) : "0 phút"} / {fmtMinutes(MAX_TOTAL_MIN)}
-              </p>
-              {totalErr && <p className="text-xs text-destructive" role="alert">{totalErr}</p>}
+              {!readOnly && <p className="text-xs text-muted-foreground">Lưu là áp dụng ngay, không cần publish Agent.</p>}
             </div>
             <div className="flex gap-2 shrink-0">
               {readOnly ? (
@@ -440,6 +440,18 @@ export default function ReminderSheet({ agentId, initial, mode, readOnly, onClos
           </div>
         </SheetContent>
       </Sheet>
+
+      <AlertDialog open={lostAccess}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bạn không còn quyền chỉnh sửa</AlertDialogTitle>
+            <AlertDialogDescription>Quyền chỉnh sửa Agent {agentName ?? "này"} của bạn vừa được thay đổi nên thay đổi này chưa được lưu. Vui lòng liên hệ quản trị viên nếu cần cấp lại quyền.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => { setLostAccess(false); (onLostAccess ?? onClose)(); }}>Đóng</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
         <AlertDialogContent >

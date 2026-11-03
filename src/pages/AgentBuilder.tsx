@@ -992,7 +992,7 @@ export default function AgentBuilder() {
                   </button>
                 </div>
               )}
-              {tab === "build" && section === "advanced" && <AdvancedSettingsTab agentId={id ?? "new"} readOnly={viewOnly} />}
+              {tab === "build" && section === "advanced" && <AdvancedSettingsTab agentId={id ?? "new"} agentName={agent.name} readOnly={viewOnly} />}
               {tab === "build" && section === "versions" && (
                 <AgentVersionsPanel key={publishTick} agentId={id ?? "new"} onPublish={() => canPublishAgent && requestPublish()} onChanged={() => setPublishTick(t => t + 1)} />
               )}
@@ -3853,7 +3853,7 @@ type AdvancedTabId = typeof ADVANCED_TABS[number]["id"];
 /** Build › Cài đặt nâng cao — what used to be the "Advanced settings" group at the bottom of the
  * config rail, now its own left-nav section with one tab per item (?atab= keeps the tab).
  * Nhân sự số con stays in the config rail. */
-function AdvancedSettingsTab({ agentId, readOnly }: { agentId: string; readOnly?: boolean }) {
+function AdvancedSettingsTab({ agentId, agentName, readOnly }: { agentId: string; agentName?: string; readOnly?: boolean }) {
   const [params, setParams] = useSearchParams();
   useAgentCard(agentId);
   const fromUrl = ADVANCED_TABS.find(t => t.id === params.get("atab"))?.id;
@@ -3884,7 +3884,7 @@ function AdvancedSettingsTab({ agentId, readOnly }: { agentId: string; readOnly?
         <TabsContent value="starter-prompts" className="mt-0"><StarterPromptsInner /></TabsContent>
         <TabsContent value="agent-card" className="mt-0"><AgentCardBlock agentId={agentId} /></TabsContent>
         <TabsContent value="capabilities" className="mt-0"><CapabilitiesEditor agentId={agentId} /></TabsContent>
-        <TabsContent value="inactive-reminder" className="mt-0"><InactiveReminderTab agentId={agentId} readOnly={readOnly} /></TabsContent>
+        <TabsContent value="inactive-reminder" className="mt-0"><InactiveReminderTab agentId={agentId} agentName={agentName} readOnly={readOnly} /></TabsContent>
       </Tabs>
     </div>
   );
