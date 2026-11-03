@@ -7,7 +7,7 @@ import { ChevronDown, Calendar as CalendarIcon } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { InformationCircleIcon, ArrowRight01Icon, Analytics01Icon, Rocket01Icon, Plug01Icon } from "@hugeicons/core-free-icons";
 import {
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend,
+  BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend,
 } from "recharts";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -545,7 +545,6 @@ export function AnalyticsOverview({ a }: { a: A }) {
 /* ============ SỬ DỤNG ============ */
 export function AnalyticsUsage({ a }: { a: A }) {
   const noun = useNoun();
-  const users = a.rows.map(d => ({ day: d.day, "Người dùng mới": d.newUsers, "Người dùng cũ": d.users - d.newUsers }));
   const errors = a.rows.map(d => d.runs ? { day: d.day, "Tỷ lệ lỗi": pct(d.errors, d.runs), "Số lỗi": d.errors } : { day: d.day });
   const tokens = a.rows.map(d => ({ day: d.day, "Đầu vào": d.tokensIn, "Đầu ra": d.tokens - d.tokensIn }));
   const heatDows = a.today ? [dowOf(a.rows[0].date)] : DOW;
@@ -564,20 +563,42 @@ export function AnalyticsUsage({ a }: { a: A }) {
         <Kpi a={a} label={cap(noun)} value={vn(a.cur.sessions)} k="sessions" good={1} sub={`${vn(a.cur.sessionsPerUser, 2)} ${noun} mỗi người dùng`} info={`Tổng số ${noun} trong khoảng thời gian đang xem (Sessions).`} />
       </div>
       <div className="grid lg:grid-cols-2 gap-4">
-        <Card title={`Người dùng mới và người dùng cũ theo ${a.step}`} note="New users và returning users">
-          <div className="h-56" role="img" aria-label={`Người dùng mới và người dùng cũ theo ${a.step}`}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={users} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
-                <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="day" tick={AXIS} tickLine={false} axisLine={false} interval={iv} />
-                <YAxis tick={AXIS} tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip contentStyle={TT} cursor={{ fill: "hsl(var(--surface-muted))" }} />
-                <Legend iconType="circle" iconSize={8} wrapperStyle={LEGEND} />
-                <Bar dataKey="Người dùng mới" stackId="u" fill="hsl(var(--primary) / 0.35)" maxBarSize={18} isAnimationActive={false} />
-                <Bar dataKey="Người dùng cũ" stackId="u" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} maxBarSize={18} isAnimationActive={false} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+        <Card title="Người dùng mới và người dùng cũ" note={`Tổng trong kỳ · ${periodText(a)}. Mỗi người chỉ đếm 1 lần`}>
+          {(() => {
+            const pie = [
+              { name: "Người dùng mới", value: a.cur.newUsers, color: "hsl(var(--primary) / 0.35)" },
+              { name: "Người dùng cũ", value: a.cur.returningUsers, color: "hsl(var(--primary))" },
+            ];
+            const total = Math.max(1, a.cur.users);
+            return (
+              <div className="flex items-center gap-6 flex-wrap">
+                <div className="relative h-56 w-56 shrink-0" role="img" aria-label={`Người dùng mới ${vn(a.cur.newUsers)}, người dùng cũ ${vn(a.cur.returningUsers)}`}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={pie} dataKey="value" nameKey="name" innerRadius="62%" outerRadius="95%" startAngle={90} endAngle={-270} stroke="none" isAnimationActive={false}>
+                        {pie.map(p => <Cell key={p.name} fill={p.color} />)}
+                      </Pie>
+                      <Tooltip contentStyle={TT} formatter={(v: number, n: string) => [`${vn(v)} (${vn(pct(v, total), 1)}%)`, n]} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="font-display text-2xl font-semibold tabular-nums">{vn(a.cur.users)}</span>
+                    <span className="text-xs text-muted-foreground">người dùng</span>
+                  </div>
+                </div>
+                <div className="space-y-3 min-w-[10rem] flex-1">
+                  {pie.map(p => (
+                    <div key={p.name} className="flex items-center gap-3 text-sm">
+                      <span className="w-3 h-3 rounded-full shrink-0" style={{ background: p.color }} />
+                      <span className="flex-1">{p.name}</span>
+                      <span className="tabular-nums font-medium">{vn(p.value)}</span>
+                      <span className="tabular-nums text-muted-foreground w-14 text-right">{vn(pct(p.value, total), 1)}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
         </Card>
         <Card title={`Lỗi theo ${a.step}`} note={`Tỷ lệ lỗi = số câu trả lời bị lỗi / tổng số câu trả lời · ${vn(a.cur.errorPct, 1)}% trong kỳ`}>
           <div className="h-56" role="img" aria-label={`Tỷ lệ lỗi theo ${a.step}`}>
