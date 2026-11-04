@@ -4,7 +4,6 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowDown01Icon, Alert02Icon, InformationCircleIcon, Notification01Icon, Clock01Icon, FloppyDiskIcon } from "@hugeicons/core-free-icons";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -13,7 +12,7 @@ import {
 import InactiveReminderTab from "@/components/reminders/InactiveReminderTab";
 import { HOUR_OPTIONS, MINUTE_OPTIONS, fmtShort, reminderStore, subscribeReminders } from "@/components/reminders/reminderStore";
 import {
-  MESSAGE_MAX, conversationTimeoutStore, hhmm, reminderSteps, timeoutMinutes, validateTimeout,
+  DAY_OPTIONS, conversationTimeoutStore, hhmm, reminderSteps, timeoutMinutes, validateTimeout,
   type ConversationTimeout, type TimelineStep,
 } from "./conversationTimeoutStore";
 
@@ -65,12 +64,11 @@ function Timeline({ steps, timeoutMin }: { steps: TimelineStep[]; timeoutMin?: n
   );
 }
 
-/** Build › Cài đặt nâng cao › Cài đặt hội thoại: Inactive reminder (collapsed) + Conversation timeout + timeline. */
+/** Build › Cài đặt nâng cao › Cài đặt hội thoại: (1) Conversation timeout, (2) Inactive reminder (collapsed), timeline. */
 export default function ConversationSettings({ agentId, agentName, readOnly }: { agentId: string; agentName?: string; readOnly?: boolean }) {
   useReminderVersion();
   const [saved, setSaved] = useState<ConversationTimeout>(() => conversationTimeoutStore.get(agentId));
   const [draft, setDraft] = useState<ConversationTimeout>(saved);
-  const [submitted, setSubmitted] = useState(false);
   const [remOpen, setRemOpen] = useState(false);
   const [highlight, setHighlight] = useState(false);
   const [confirm, setConfirm] = useState(false);
@@ -79,7 +77,7 @@ export default function ConversationSettings({ agentId, agentName, readOnly }: {
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   const total = timeoutMinutes(draft);
   const errors = validateTimeout(draft);
-  const showErr = (k: "duration" | "message") => (k === "duration" || submitted) ? errors[k] : undefined;
+  const showErr = (k: "duration") => errors[k];
   const timeoutMin = draft.enabled ? total : undefined;
   const steps = reminderSteps(agentId, timeoutMin);
   const blocked = steps.filter(s => s.blocked);
@@ -96,12 +94,10 @@ export default function ConversationSettings({ agentId, agentName, readOnly }: {
   const commit = () => {
     conversationTimeoutStore.save(agentId, draft);
     setSaved(draft);
-    setSubmitted(false);
     toast.success("Đã lưu cài đặt hội thoại vào bản nháp.");
   };
   const save = () => {
-    setSubmitted(true);
-    if (errors.duration || errors.message) return;
+    if (errors.duration) return;
     if (draft.enabled && blocked.length) { setConfirm(true); return; }
     commit();
   };
@@ -114,33 +110,14 @@ export default function ConversationSettings({ agentId, agentName, readOnly }: {
         <p className="mt-0.5 text-sm text-muted-foreground">Cách Agent xử lý khi khách ngừng phản hồi. Hai khối hoạt động độc lập.</p>
       </div>
 
-      {/* (1) Inactive reminder — collapsed for context */}
-      <div ref={remRef} className={`scroll-mt-4 rounded-lg border bg-card transition-shadow ${highlight ? "ring-2 ring-warning/60" : ""}`}>
-        <button type="button" onClick={() => setRemOpen(o => !o)} aria-expanded={remOpen}
-          className="flex w-full items-start gap-3 rounded-lg px-4 py-3.5 text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
-          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"><Icon icon={Notification01Icon} /></span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold">Nhắc nhở khi khách không phản hồi</span>
-            <span className="block text-sm text-muted-foreground">Tự động nhắc khách khi họ ngừng phản hồi trong lúc Agent đang chờ. · {remSummary}</span>
-            {draft.enabled && blocked.length > 0 && <span className="mt-1 block text-xs text-warning">{blocked.length} bước sẽ không được gửi vì ≥ thời gian kết thúc hội thoại.</span>}
-          </span>
-          <Icon icon={ArrowDown01Icon} className={`mt-1.5 shrink-0 text-muted-foreground transition-transform ${remOpen ? "rotate-180" : ""}`} />
-        </button>
-        {remOpen && (
-          <div className="border-t px-4 py-4">
-            <InactiveReminderTab agentId={agentId} agentName={agentName} readOnly={readOnly} embedded blockedFrom={timeoutMin} highlightBlocked={highlight} />
-          </div>
-        )}
-      </div>
-
-      {/* (2) Conversation timeout — always last */}
+      {/* (1) Conversation timeout */}
       <div className="rounded-lg border bg-card">
         <div className="flex items-start gap-3 px-4 py-3.5">
           <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"><Icon icon={Clock01Icon} /></span>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold">Kết thúc hội thoại tự động</p>
             <p className="text-sm text-muted-foreground">Tự động kết thúc hội thoại khi khách không phản hồi sau một khoảng thời gian. Tin nhắn tiếp theo của khách sẽ bắt đầu một hội thoại mới.</p>
-            {!draft.enabled && saved.message && (
+            {!draft.enabled && conversationTimeoutStore.hasSaved(agentId) && (
               <p className="mt-1 text-xs text-muted-foreground tabular-nums">Đang tắt · Giá trị đã lưu: {hhmm(timeoutMinutes(saved))}. Bật lại để dùng tiếp.</p>
             )}
           </div>
@@ -151,14 +128,19 @@ export default function ConversationSettings({ agentId, agentName, readOnly }: {
           <div className="space-y-5 border-t px-4 py-4">
             <div>
               <p id="ct-dur" className="text-sm font-medium">Thời gian chờ <span className="text-destructive">*</span></p>
-              <div className="mt-1.5 flex items-center gap-2" role="group" aria-labelledby="ct-dur">
+              <div className="mt-1.5 flex flex-wrap items-center gap-2" role="group" aria-labelledby="ct-dur">
+                <Select value={String(draft.days)} onValueChange={v => set({ days: Number(v) })} disabled={readOnly}>
+                  <SelectTrigger className={`w-20 tabular-nums ${showErr("duration") ? "border-destructive" : ""}`} aria-label="Ngày" aria-invalid={!!showErr("duration")}><SelectValue /></SelectTrigger>
+                  <SelectContent className="max-h-64">{DAY_OPTIONS.map(d => <SelectItem key={d} value={String(d)}>{d}</SelectItem>)}</SelectContent>
+                </Select>
+                <span className="text-sm text-muted-foreground">ngày</span>
                 <Select value={String(draft.hours)} onValueChange={v => set({ hours: Number(v) })} disabled={readOnly}>
-                  <SelectTrigger className={`w-24 tabular-nums ${showErr("duration") ? "border-destructive" : ""}`} aria-label="Giờ" aria-invalid={!!showErr("duration")}><SelectValue /></SelectTrigger>
+                  <SelectTrigger className={`ml-2 w-20 tabular-nums ${showErr("duration") ? "border-destructive" : ""}`} aria-label="Giờ" aria-invalid={!!showErr("duration")}><SelectValue /></SelectTrigger>
                   <SelectContent className="max-h-64">{HOUR_OPTIONS.map(h => <SelectItem key={h} value={String(h)}>{String(h).padStart(2, "0")}</SelectItem>)}</SelectContent>
                 </Select>
                 <span className="text-sm text-muted-foreground">giờ</span>
                 <Select value={String(draft.minutes)} onValueChange={v => set({ minutes: Number(v) })} disabled={readOnly}>
-                  <SelectTrigger className={`ml-2 w-24 tabular-nums ${showErr("duration") ? "border-destructive" : ""}`} aria-label="Phút" aria-invalid={!!showErr("duration")}><SelectValue /></SelectTrigger>
+                  <SelectTrigger className={`ml-2 w-20 tabular-nums ${showErr("duration") ? "border-destructive" : ""}`} aria-label="Phút" aria-invalid={!!showErr("duration")}><SelectValue /></SelectTrigger>
                   <SelectContent className="max-h-64">{MINUTE_OPTIONS.map(m => <SelectItem key={m} value={String(m)}>{String(m).padStart(2, "0")}</SelectItem>)}</SelectContent>
                 </Select>
                 <span className="text-sm text-muted-foreground">phút</span>
@@ -176,17 +158,6 @@ export default function ConversationSettings({ agentId, agentName, readOnly }: {
               )}
             </div>
 
-            <div>
-              <label htmlFor="ct-msg" className="text-sm font-medium">Tin nhắn kết thúc <span className="text-destructive">*</span></label>
-              <Textarea id="ct-msg" rows={4} maxLength={MESSAGE_MAX} value={draft.message} disabled={readOnly}
-                onChange={e => set({ message: e.target.value })} aria-invalid={!!showErr("message")}
-                placeholder="Ví dụ: Cuộc trò chuyện đã kết thúc do lâu không có phản hồi. Bạn cứ nhắn tin bất cứ lúc nào để bắt đầu lại nhé!"
-                className={`mt-1.5 ${showErr("message") ? "border-destructive" : ""}`} />
-              <div className="mt-1.5 flex items-start justify-between gap-3">
-                {showErr("message") ? <p className="text-xs text-destructive" role="alert">{showErr("message")}</p> : <span />}
-                <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{draft.message.length}/{MESSAGE_MAX}</span>
-              </div>
-            </div>
           </div>
         )}
 
@@ -201,6 +172,25 @@ export default function ConversationSettings({ agentId, agentName, readOnly }: {
             </>
           )}
         </div>
+      </div>
+
+      {/* (2) Inactive reminder — collapsed by default */}
+      <div ref={remRef} className={`scroll-mt-4 rounded-lg border bg-card transition-shadow ${highlight ? "ring-2 ring-warning/60" : ""}`}>
+        <button type="button" onClick={() => setRemOpen(o => !o)} aria-expanded={remOpen}
+          className="flex w-full items-start gap-3 rounded-lg px-4 py-3.5 text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
+          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"><Icon icon={Notification01Icon} /></span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold">Nhắc nhở khi khách không phản hồi</span>
+            <span className="block text-sm text-muted-foreground">Tự động nhắc khách khi họ ngừng phản hồi trong lúc Agent đang chờ. · {remSummary}</span>
+            {draft.enabled && blocked.length > 0 && <span className="mt-1 block text-xs text-warning">{blocked.length} bước sẽ không được gửi vì ≥ thời gian kết thúc hội thoại.</span>}
+          </span>
+          <Icon icon={ArrowDown01Icon} className={`mt-1.5 shrink-0 text-muted-foreground transition-transform ${remOpen ? "rotate-180" : ""}`} />
+        </button>
+        {remOpen && (
+          <div className="border-t px-4 py-4">
+            <InactiveReminderTab agentId={agentId} agentName={agentName} readOnly={readOnly} embedded blockedFrom={timeoutMin} highlightBlocked={highlight} />
+          </div>
+        )}
       </div>
 
       {showTimeline && <Timeline steps={steps} timeoutMin={timeoutMin !== undefined && !errors.duration ? timeoutMin : undefined} />}

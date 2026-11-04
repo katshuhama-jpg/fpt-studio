@@ -15,9 +15,11 @@ const wrap = (agentId: string) => render(<TooltipProvider><MemoryRouter><Convers
 
 describe("conversation timeout", () => {
   it("validates min 5 phút and a required message; flags reminder steps ≥ timeout", () => {
-    expect(validateTimeout({ enabled: true, hours: 0, minutes: 4, message: "" })).toEqual({ duration: "Thời gian chờ tối thiểu là 5 phút.", message: "Vui lòng nhập tin nhắn kết thúc." });
-    expect(validateTimeout({ enabled: false, hours: 0, minutes: 0, message: "" })).toEqual({});
+    expect(validateTimeout({ enabled: true, days: 0, hours: 0, minutes: 4 })).toEqual({ duration: "Thời gian chờ tối thiểu là 5 phút." });
+    expect(validateTimeout({ enabled: true, days: 1, hours: 0, minutes: 0 }).duration).toBeUndefined();
+    expect(validateTimeout({ enabled: false, days: 0, hours: 0, minutes: 0 })).toEqual({});
     expect(hhmm(90)).toBe("01:30");
+    expect(hhmm(1440 + 150)).toBe("1 ngày 02:30");
     // cskh reminders: 5', 5', 30', 2h (enabled) → timeout 30' blocks 30' and 2h.
     expect(reminderSteps("cskh", 30).filter(s => s.blocked).map(s => s.minutes)).toEqual([30, 120]);
   });
@@ -26,7 +28,8 @@ describe("conversation timeout", () => {
     wrap("cskh");
     expect(screen.getByText(/Giá trị đã lưu: 00:25/)).toBeTruthy();
     fireEvent.click(screen.getByLabelText("Bật kết thúc hội thoại tự động"));
-    expect((screen.getByLabelText(/Tin nhắn kết thúc/) as HTMLTextAreaElement).value).toMatch(/Cuộc trò chuyện đã kết thúc/);
+    expect(screen.queryByLabelText(/Tin nhắn kết thúc/)).toBeNull();
+    expect(screen.getByLabelText("Ngày")).toBeTruthy();
     expect(screen.getByText(/Có 2 bước nhắc nhở có thời gian ≥ thời gian chờ \(00:25\)/)).toBeTruthy();
     expect(screen.getByText(/Kết thúc hội thoại \(00:25\)/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Lưu/ }));
@@ -35,13 +38,14 @@ describe("conversation timeout", () => {
     expect(conversationTimeoutStore.get("cskh").enabled).toBe(true);
   });
 
-  it("(a)/(d) default 30 phút on first enable; empty message blocks save", () => {
+  it("(a) default 30 phút on first enable and saves without an end message; timeout block comes first", () => {
     wrap("faq");
     expect(screen.queryByText(/Giá trị đã lưu/)).toBeNull();
+    const titles = screen.getAllByText(/Kết thúc hội thoại tự động|Nhắc nhở khi khách không phản hồi/).map(e => e.textContent);
+    expect(titles[0]).toBe("Kết thúc hội thoại tự động");
     fireEvent.click(screen.getByLabelText("Bật kết thúc hội thoại tự động"));
     expect(screen.getByText(/Kết thúc hội thoại \(00:30\)/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Lưu/ }));
-    expect(screen.getByText("Vui lòng nhập tin nhắn kết thúc.")).toBeTruthy();
-    expect(conversationTimeoutStore.get("faq").enabled).toBe(false);
+    expect(conversationTimeoutStore.get("faq")).toMatchObject({ enabled: true, days: 0, hours: 0, minutes: 30 });
   });
 });
