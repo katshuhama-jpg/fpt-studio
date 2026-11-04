@@ -14,7 +14,6 @@ import { NotificationBell } from "@/components/notifications/notificationUi";
 import { UsageBanners } from "@/components/usage/UsageBanner";
 import { DEMO_PERSONAS, currentPersona, switchPersona } from "@/lib/demoPersona";
 import { TENANTS, getCurrentTenantId, getMySpaces, setCurrentTenantId } from "@/lib/spaceStore";
-import SpaceSidebar from "@/components/layout/SpaceSidebar";
 import { useAgentReviewScope } from "@/components/governance/agentReviewScope";
 
 const APP_VERSION = "0.58.5";
@@ -205,7 +204,7 @@ export default function WorkspaceLayout() {
           {/* Workspace switcher — picks which Console/workspace you're in. Org
               management moved off this control and now lives in the profile menu
               below ("Quản lý Org"), so this is purely a workspace picker. */}
-          <SpaceSidebar collapsed={collapsed} tenantId={tenantId} tenants={tenants} onChange={setTenantId} />
+          <WorkspaceSwitcher collapsed={collapsed} tenantId={tenantId} tenants={tenants} onChange={setTenantId} />
         </div>
 
         {/* Nav */}
@@ -412,6 +411,68 @@ export default function WorkspaceLayout() {
 }
 
 /* ============ Workspace switcher (top of sidebar — picks the Console/workspace) ======= */
+function WorkspaceSwitcher({ collapsed, tenantId, tenants, onChange }: { collapsed: boolean; tenantId: string; tenants: typeof TENANTS; onChange: (id: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const active = tenants.find(t => t.id === tenantId) ?? TENANTS[0];
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(v => !v)}
+        title={collapsed ? active.name : undefined}
+        aria-label={collapsed ? `${active.name}, switch Space` : undefined}
+        className={`w-full flex items-center gap-2.5 rounded-2xl bg-white border border-border shadow-soft hover:bg-surface-muted transition-base cursor-pointer ${
+          collapsed ? "justify-center p-1.5" : "px-2.5 py-2"
+        }`}
+      >
+        <div className="w-9 h-9 rounded-xl bg-gradient-brand flex items-center justify-center shrink-0 shadow-soft">
+          <span className="font-display font-bold text-xs text-primary-foreground">{active.initial}</span>
+        </div>
+        {!collapsed && (
+          <>
+            <span className="flex-1 min-w-0 text-left text-sm font-semibold text-foreground truncate">{active.name}</span>
+            <ChevronsUpDown size={14} className="text-muted-foreground shrink-0" />
+          </>
+        )}
+      </button>
+
+      {open && (
+        <div className={`absolute z-50 bg-surface rounded-xl overflow-hidden ring-1 ring-border shadow-xl w-[280px] ${
+          collapsed ? "left-full ml-2 top-0" : "left-0 top-full mt-1.5"
+        }`}>
+          <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <Building2 size={11} /> Choose Space
+          </div>
+          <div className="px-1.5 pb-1.5 space-y-0.5">
+            {tenants.map(t => {
+              const isActive = t.id === tenantId;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => { onChange(t.id); setOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-base text-left ${
+                    isActive ? "bg-primary-soft ring-1 ring-primary/20" : "hover:bg-surface-muted"
+                  }`}
+                >
+                  <div className="w-7 h-7 rounded-lg bg-primary-soft text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
+                    {t.initial}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-semibold text-foreground truncate">{t.name}</div>
+                    <div className="text-[10px] text-muted-foreground truncate">{t.plan}</div>
+                  </div>
+                  {isActive && <Check size={13} className="text-primary shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ============ Tenant switcher (relocated to header) ============ */
 function TenantSwitcher({ tenantId, tenants, onChange }: { tenantId: string; tenants: typeof TENANTS; onChange: (id: string) => void }) {
   const [open, setOpen] = useState(false);
