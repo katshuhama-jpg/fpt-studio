@@ -13,7 +13,8 @@ import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { NotificationBell } from "@/components/notifications/notificationUi";
 import { UsageBanners } from "@/components/usage/UsageBanner";
 import { DEMO_PERSONAS, currentPersona, switchPersona } from "@/lib/demoPersona";
-import { TENANTS, getAllTenants, getCurrentTenantId, setCurrentTenantId } from "@/lib/spaceStore";
+import { TENANTS, SIDEBAR_SPACE_LIMIT, getCurrentTenantId, getMySpaces, getSpacesByRecent, setCurrentTenantId } from "@/lib/spaceStore";
+import { AllSpacesDialog, SpaceRow } from "@/components/layout/SpacePicker";
 import { useAgentReviewScope } from "@/components/governance/agentReviewScope";
 
 const APP_VERSION = "0.58.5";
@@ -101,7 +102,7 @@ export default function WorkspaceLayout() {
   // getAllTenants() = the 4 seed Spaces + the one pending-setup Space (spaceStore.ts) — a
   // Tenant Admin switches between Spaces but never creates one (that's Super Admin's job,
   // out of scope this round), so this list is fixed for the lifetime of the component.
-  const tenants = getAllTenants();
+  const tenants = getMySpaces();
 
   // Sync the sidebar to the narrow/mobile breakpoint on resize, in both directions — otherwise
   // shrinking the window narrow and back wide again would leave it stuck collapsed with no way
@@ -413,6 +414,7 @@ export default function WorkspaceLayout() {
 /* ============ Workspace switcher (top of sidebar — picks the Console/workspace) ======= */
 function WorkspaceSwitcher({ collapsed, tenantId, tenants, onChange }: { collapsed: boolean; tenantId: string; tenants: typeof TENANTS; onChange: (id: string) => void }) {
   const [open, setOpen] = useState(false);
+  const [all, setAll] = useState(false);
   const active = tenants.find(t => t.id === tenantId) ?? TENANTS[0];
 
   return (
@@ -437,38 +439,30 @@ function WorkspaceSwitcher({ collapsed, tenantId, tenants, onChange }: { collaps
       </button>
 
       {open && (
-        <div className={`absolute z-50 bg-surface rounded-xl overflow-hidden ring-1 ring-border shadow-xl w-[280px] ${
-          collapsed ? "left-full ml-2 top-0" : "left-0 top-full mt-1.5"
-        }`}>
-          <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <Building2 size={11} /> Choose Space
+        <>
+          <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setOpen(false)} />
+          <div className={`absolute z-50 bg-surface rounded-xl overflow-hidden ring-1 ring-border shadow-xl w-[280px] ${
+            collapsed ? "left-full ml-2 top-0" : "left-0 top-full mt-1.5"
+          }`}>
+            <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <Building2 size={11} /> Chọn Space
+            </div>
+            <div className="px-1.5 pb-1.5 space-y-0.5">
+              {/* Tối đa 3 Space (đang dùng + gần đây), còn lại ở "Xem thêm". */}
+              {getSpacesByRecent(tenantId).slice(0, SIDEBAR_SPACE_LIMIT).map(t => (
+                <SpaceRow key={t.id} t={t} compact active={t.id === tenantId} onClick={() => { onChange(t.id); setOpen(false); }} />
+              ))}
+            </div>
+            {tenants.length > SIDEBAR_SPACE_LIMIT && (
+              <button type="button" onClick={() => { setOpen(false); setAll(true); }}
+                className="w-full border-t px-3 py-2 text-left text-xs font-medium text-primary hover:bg-surface-muted transition-base">
+                Xem thêm ({tenants.length - SIDEBAR_SPACE_LIMIT})
+              </button>
+            )}
           </div>
-          <div className="px-1.5 pb-1.5 space-y-0.5">
-            {tenants.map(t => {
-              const isActive = t.id === tenantId;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => { onChange(t.id); setOpen(false); }}
-                  className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-base text-left ${
-                    isActive ? "bg-primary-soft ring-1 ring-primary/20" : "hover:bg-surface-muted"
-                  }`}
-                >
-                  <div className="w-7 h-7 rounded-lg bg-primary-soft text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
-                    {t.initial}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-semibold text-foreground truncate">{t.name}</div>
-                    <div className="text-[10px] text-muted-foreground truncate">{t.plan}</div>
-                  </div>
-                  {isActive && <Check size={13} className="text-primary shrink-0" />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        </>
       )}
+      {all && <AllSpacesDialog spaces={tenants} activeId={tenantId} onPick={onChange} onClose={() => setAll(false)} />}
     </div>
   );
 }

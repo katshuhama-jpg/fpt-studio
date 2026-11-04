@@ -44,6 +44,16 @@ export const TENANTS: Tenant[] = [
 const PENDING_TENANT: Tenant = { id: "acme-pending", name: "Ngân hàng ABC", plan: "Enterprise", initial: "AB", orgConfigured: false };
 
 const TENANT_KEY = "current_tenant_id";
+const RECENT_KEY = "recent_tenant_ids";
+
+/** Most-recently-entered Spaces first (the sidebar shows the top 3, the rest under "Xem thêm"). */
+export function getRecentTenantIds(): string[] {
+  try {
+    return JSON.parse(sessionStorage.getItem(RECENT_KEY) ?? "[]") as string[];
+  } catch {
+    return [];
+  }
+}
 const PENDING_CONFIGURED_KEY = "pending_tenant_org_configured";
 
 export function getCurrentTenantId(): string {
@@ -68,6 +78,8 @@ export function subscribeTenantChange(fn: TenantChangeListener): () => void {
 export function setCurrentTenantId(id: string) {
   try {
     sessionStorage.setItem(TENANT_KEY, id);
+    const recent = [id, ...getRecentTenantIds().filter(x => x !== id)];
+    sessionStorage.setItem(RECENT_KEY, JSON.stringify(recent));
   } catch {
     /* ignore (e.g. private-browsing quota) */
   }
@@ -127,3 +139,26 @@ export const PERSONAL_SPACE_MEMBER_CAP = 5;
 export function isSeedTenant(tenantId: string): boolean {
   return TENANTS.some(t => t.id === tenantId);
 }
+
+/* ───────────── Space picker (sidebar + first sign-in) ───────────── */
+
+export type SpaceKind = "individual" | "organization";
+/** A Free-plan Space is a personal (Individual) Space; every other plan is an Organization Space. */
+export const spaceKind = (t: Tenant): SpaceKind => (t.plan === "Free" ? "individual" : "organization");
+
+/** The Spaces the signed-in person belongs to and can switch between — 5 for the demo:
+ * 1 Individual + 4 Organization (FPT Software stays a seed Space for org data but isn't joined). */
+export function getMySpaces(): Tenant[] {
+  return getAllTenants().filter(t => t.id !== "fpt-software");
+}
+
+/** My Spaces, the active one first, then by most recent use, then the default order. */
+export function getSpacesByRecent(activeId = getCurrentTenantId()): Tenant[] {
+  const all = getMySpaces();
+  const order = [activeId, ...getRecentTenantIds()];
+  const rank = (t: Tenant) => { const i = order.indexOf(t.id); return i === -1 ? order.length + all.indexOf(t) : i; };
+  return [...all].sort((a, b) => rank(a) - rank(b));
+}
+
+/** Max Space cards shown directly in the sidebar menu before "Xem thêm". */
+export const SIDEBAR_SPACE_LIMIT = 3;

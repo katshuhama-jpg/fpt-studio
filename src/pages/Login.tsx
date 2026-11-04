@@ -17,16 +17,20 @@ export default function Login() {
     }
     const existing = getUser();
     const firstTime = !existing || existing.email !== trimmed ? true : existing.firstTime;
-    setUser({ email: trimmed, firstTime, welcomeSeen: existing?.welcomeSeen });
-    navigate(firstTime ? "/onboarding?step=industry" : "/");
+    const spaceChosen = !!existing && existing.email === trimmed && !!existing.spaceChosen;
+    setUser({ email: trimmed, firstTime, welcomeSeen: existing?.welcomeSeen, spaceChosen });
+    // Signed in → first time this account picks a Space, then onboarding / Home.
+    navigate(!spaceChosen ? "/select-space" : firstTime ? "/onboarding?step=industry" : "/");
   };
 
   const handleSSO = () => {
     const trimmed = email.trim() || "demo@fpt.com";
     const existing = getUser();
     const firstTime = !existing || existing.email !== trimmed ? true : existing.firstTime;
-    setUser({ email: trimmed, firstTime, welcomeSeen: existing?.welcomeSeen });
-    navigate(firstTime ? "/onboarding?step=industry" : "/");
+    const spaceChosen = !!existing && existing.email === trimmed && !!existing.spaceChosen;
+    setUser({ email: trimmed, firstTime, welcomeSeen: existing?.welcomeSeen, spaceChosen });
+    // Signed in → first time this account picks a Space, then onboarding / Home.
+    navigate(!spaceChosen ? "/select-space" : firstTime ? "/onboarding?step=industry" : "/");
   };
 
   return (

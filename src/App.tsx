@@ -47,6 +47,7 @@ import Notifications from "./pages/Notifications";
 import PlansPage from "./pages/Pricing";
 import NotFound from "./pages/NotFound.tsx";
 import Login from "./pages/Login";
+import SelectSpace from "./pages/SelectSpace";
 import Onboarding from "./pages/Onboarding";
 import { getUser } from "@/lib/onboarding";
 
@@ -102,6 +103,8 @@ function RequireAuth({ children }: { children: ReactNode }) {
   const loc = useLocation();
   const user = getUser();
   if (!user) return <Navigate to="/login" replace state={{ from: loc.pathname }} />;
+  // First sign-in: pick a Space before anything else.
+  if (!user.spaceChosen) return <Navigate to="/select-space" replace state={{ from: loc.pathname }} />;
   if (
     user.firstTime &&
     loc.pathname !== "/onboarding" &&
@@ -122,6 +125,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/select-space" element={getUser() ? <SelectSpace /> : <Navigate to="/login" replace />} />
             <Route path="/onboarding" element={<Onboarding />} />
 
             <Route element={<RequireAuth><WorkspaceLayout /></RequireAuth>}>

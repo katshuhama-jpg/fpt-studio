@@ -4,6 +4,8 @@ export type LovUser = {
   email: string;
   firstTime: boolean;
   welcomeSeen?: boolean;
+  /** Picked a Space on first sign-in (Chọn Space). */
+  spaceChosen?: boolean;
 };
 
 export type OnboardingState = {
