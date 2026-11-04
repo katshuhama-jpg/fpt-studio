@@ -413,12 +413,7 @@ export default function WorkspaceLayout() {
 /* ============ Workspace switcher (top of sidebar — picks the Console/workspace) ======= */
 /** "Individual" (personal, Free plan) vs "Shared" (a Space shared by an organization). */
 function SpaceTypeBadge({ t }: { t: { plan: string } }) {
-  const individual = t.plan === "Free";
-  return (
-    <span className={`inline-flex shrink-0 items-center rounded-sm px-1.5 py-px text-[10px] font-medium leading-4 ${individual ? "bg-muted text-muted-foreground" : "bg-primary-soft text-primary"}`}>
-      {individual ? "Individual" : "Shared"}
-    </span>
-  );
+  return <span className="block truncate text-xs text-muted-foreground">{t.plan === "Free" ? "Individual" : "Shared"}</span>;
 }
 
 function WorkspaceSwitcher({ collapsed, tenantId, tenants, onChange }: { collapsed: boolean; tenantId: string; tenants: typeof TENANTS; onChange: (id: string) => void }) {
@@ -473,10 +468,7 @@ function WorkspaceSwitcher({ collapsed, tenantId, tenants, onChange }: { collaps
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-semibold text-foreground truncate">{t.name}</div>
-                    <div className="mt-0.5 flex items-center gap-1.5 min-w-0">
-                      <SpaceTypeBadge t={t} />
-                      <span className="text-[10px] text-muted-foreground truncate">{t.plan}</span>
-                    </div>
+                    <div className="text-[10px] text-muted-foreground truncate">{t.plan === "Free" ? "Individual" : "Shared"} · {t.plan}</div>
                   </div>
                   {isActive && <Check size={13} className="text-primary shrink-0" />}
                 </button>
