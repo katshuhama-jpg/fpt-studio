@@ -28,16 +28,21 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const fmtDate = (ms: number) => { const d = new Date(ms); return `${pad(d.getHours())}:${pad(d.getMinutes())} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`; };
 
 /** "5' → 30' → 2h" — each step's wait from the waiting message, star on the ones that ask for CSAT. */
-function StepsSummary({ r, overlapNote }: { r: Reminder; overlapNote?: string }) {
+function StepsSummary({ r, overlapNote, blockedFrom, highlight }: { r: Reminder; overlapNote?: string; blockedFrom?: number; highlight?: boolean }) {
   return (
     <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5 tabular-nums">
-      {r.steps.map((s, i) => (
+      {r.steps.map((s, i) => {
+        const blocked = r.enabled && blockedFrom !== undefined && stepMinutes(s) >= blockedFrom;
+        return (
         <span key={s.id} className="inline-flex items-center gap-1">
           {i > 0 && <span className="text-muted-foreground" aria-hidden="true">→</span>}
-          {fmtShort(stepMinutes(s))}
+          {blocked
+            ? <span title="Sẽ không được gửi: ≥ thời gian kết thúc hội thoại" className={`rounded-sm px-1 text-muted-foreground line-through ${highlight ? "bg-warning/20 ring-1 ring-warning/50" : ""}`}>{fmtShort(stepMinutes(s))}</span>
+            : fmtShort(stepMinutes(s))}
           {s.csat && <span title="Có CSAT rating"><Icon icon={StarIcon} size={13} className="text-warning" /></span>}
         </span>
-      ))}
+        );
+      })}
       {overlapNote && (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -79,7 +84,14 @@ function Channels({ agentId, r }: { agentId: string; r: Reminder }) {
 type SheetState = { mode: "create" | "edit"; reminder: Reminder } | null;
 
 /** Build › Cài đặt nâng cao › Inactive reminder. */
-export default function InactiveReminderTab({ agentId, agentName, readOnly }: { agentId: string; agentName?: string; readOnly?: boolean }) {
+export default function InactiveReminderTab({ agentId, agentName, readOnly, embedded, blockedFrom, highlightBlocked }: {
+  agentId: string; agentName?: string; readOnly?: boolean;
+  /** Inside "Cài đặt hội thoại": the block header already shows the title. */
+  embedded?: boolean;
+  /** Conversation timeout (minutes) — steps at or after it are never sent. */
+  blockedFrom?: number;
+  highlightBlocked?: boolean;
+}) {
   const [, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
   const [sheet, setSheet] = useState<SheetState>(null);
@@ -116,10 +128,12 @@ export default function InactiveReminderTab({ agentId, agentName, readOnly }: { 
   return (
     <div>
       <div className="flex flex-col gap-3 mb-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="text-base font-semibold">Inactive reminder</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">Tự động nhắc người dùng khi họ ngừng phản hồi trong lúc Agent đang chờ.</p>
-        </div>
+        {!embedded ? (
+          <div>
+            <h2 className="text-base font-semibold">Inactive reminder</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">Tự động nhắc người dùng khi họ ngừng phản hồi trong lúc Agent đang chờ.</p>
+          </div>
+        ) : <span />}
         <div className="flex items-center gap-3 shrink-0">
           {!readOnly && (canPublish && !atLimit ? addButton : (
             <Tooltip>
@@ -192,7 +206,7 @@ export default function InactiveReminderTab({ agentId, agentName, readOnly }: { 
                         )}
                       </td>
                       {CHANNEL_PICKER_ENABLED && <td className="px-4 py-3"><Channels agentId={agentId} r={r} /></td>}
-                      <td className="px-4 py-3"><StepsSummary r={r} overlapNote={overlapNoteFor(r)} /></td>
+                      <td className="px-4 py-3"><StepsSummary r={r} overlapNote={overlapNoteFor(r)} blockedFrom={blockedFrom} highlight={highlightBlocked} /></td>
                       <td className="px-4 py-3">
                         <span className="flex items-center gap-2">
                           <Switch checked={r.enabled} disabled={readOnly || paused} aria-label={`Trạng thái ${r.name}`}

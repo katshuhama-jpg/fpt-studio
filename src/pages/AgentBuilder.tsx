@@ -69,7 +69,7 @@ import { skillStore, type Skill } from "@/components/configure/skillStore";
 import { agentSkillStore } from "@/components/configure/agentSkillStore";
 import { builtinSkillStore, type BuiltinSkill } from "@/components/configure/builtinSkillStore";
 import { agentCapabilityStore } from "@/components/configure/agentCapabilityStore";
-import InactiveReminderTab from "@/components/reminders/InactiveReminderTab";
+import ConversationSettings from "@/components/conversation/ConversationSettings";
 import CapabilitiesEditor from "@/components/configure/CapabilitiesEditor";
 import CreateSkillModal, { type SkillFormData } from "@/components/configure/CreateSkillModal";
 import CreateSkillChoiceModal from "@/components/configure/CreateSkillChoiceModal";
@@ -3846,7 +3846,7 @@ const ADVANCED_TABS = [
   { id: "starter-prompts", label: "Starter Prompts", icon: Chat01Icon },
   { id: "agent-card", label: "Danh thiếp Nhân sự số", icon: UserCheck01Icon },
   { id: "capabilities", label: "Khả năng của Nhân sự số", icon: BoltIcon },
-  { id: "inactive-reminder", label: "Inactive reminder", icon: Notification01Icon },
+  { id: "conversation", label: "Cài đặt hội thoại", icon: Notification01Icon },
 ] as const;
 type AdvancedTabId = typeof ADVANCED_TABS[number]["id"];
 
@@ -3856,7 +3856,9 @@ type AdvancedTabId = typeof ADVANCED_TABS[number]["id"];
 function AdvancedSettingsTab({ agentId, agentName, readOnly }: { agentId: string; agentName?: string; readOnly?: boolean }) {
   const [params, setParams] = useSearchParams();
   useAgentCard(agentId);
-  const fromUrl = ADVANCED_TABS.find(t => t.id === params.get("atab"))?.id;
+  // Old links (?atab=inactive-reminder) land on Cài đặt hội thoại.
+  const atab = params.get("atab") === "inactive-reminder" ? "conversation" : params.get("atab");
+  const fromUrl = ADVANCED_TABS.find(t => t.id === atab)?.id;
   const current: AdvancedTabId = fromUrl ?? (agentCardStore.peekFocus(agentId) ? "agent-card" : "starter-prompts");
   const select = (t: string) => { const next = new URLSearchParams(params); next.set("atab", t); setParams(next, { replace: true }); };
   const trigger = "h-full flex-none gap-1.5 rounded-md border border-transparent px-3 py-1 text-sm font-medium text-muted-foreground hover:text-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-offset-0";
@@ -3868,7 +3870,7 @@ function AdvancedSettingsTab({ agentId, agentName, readOnly }: { agentId: string
         </div>
         <div>
           <h1 className="text-xl font-semibold">Cài đặt nâng cao</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Gợi ý mở đầu, danh thiếp, năng lực mặc định và lời nhắc khi người dùng im lặng.</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Gợi ý mở đầu, danh thiếp, năng lực mặc định và cài đặt hội thoại.</p>
         </div>
       </div>
       <Tabs value={current} onValueChange={select}>
@@ -3884,7 +3886,7 @@ function AdvancedSettingsTab({ agentId, agentName, readOnly }: { agentId: string
         <TabsContent value="starter-prompts" className="mt-0"><StarterPromptsInner /></TabsContent>
         <TabsContent value="agent-card" className="mt-0"><AgentCardBlock agentId={agentId} /></TabsContent>
         <TabsContent value="capabilities" className="mt-0"><CapabilitiesEditor agentId={agentId} /></TabsContent>
-        <TabsContent value="inactive-reminder" className="mt-0"><InactiveReminderTab agentId={agentId} agentName={agentName} readOnly={readOnly} /></TabsContent>
+        <TabsContent value="conversation" className="mt-0"><ConversationSettings agentId={agentId} agentName={agentName} readOnly={readOnly} /></TabsContent>
       </Tabs>
     </div>
   );

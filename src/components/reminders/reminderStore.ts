@@ -190,7 +190,10 @@ export const apiNotSubscribed = (agentId: string, r: Reminder) =>
 const LIST_KEY = "inactive_reminders_v3";
 const SEEDED_KEY = "inactive_reminders_seeded_v3";
 const lists = loadMap<string, Reminder[]>(LIST_KEY);
-const persist = () => saveMap(LIST_KEY, lists);
+const reminderListeners = new Set<() => void>();
+/** Re-render other blocks (Conversation timeout, timeline) when reminders change. */
+export const subscribeReminders = (fn: () => void) => { reminderListeners.add(fn); return () => { reminderListeners.delete(fn); }; };
+const persist = () => { saveMap(LIST_KEY, lists); reminderListeners.forEach(fn => fn()); };
 const DAY = 86_400_000;
 
 /** Demo data for two agents; every other agent starts empty (shows the empty state). */
