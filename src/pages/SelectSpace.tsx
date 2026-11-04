@@ -71,8 +71,7 @@ export default function SelectSpace() {
           <div className="mt-6 flex items-start gap-2.5 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
             <Icon icon={InformationCircleIcon} className="mt-0.5 shrink-0 text-primary" />
             <p>
-              Bạn đã được quản trị viên tổ chức thêm vào <span className="font-medium">{sharedCount} Shared space</span> bên dưới.
-              Bạn dùng Nhân sự số, tài nguyên chung trong các Space này theo vai trò được cấp. Chọn một Space để vào lần đầu; sau đó có thể chuyển Space ở thanh bên trái.
+              Bạn có quyền truy cập <span className="font-medium">{sharedCount} Shared space</span> bên dưới. Chọn một Space để bắt đầu sử dụng tài nguyên chung.
             </p>
           </div>
         )}

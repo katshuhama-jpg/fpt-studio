@@ -27,7 +27,7 @@ describe("SelectSpace", () => {
     </Routes></MemoryRouter>);
     expect(screen.getByText("Cá nhân")).toBeTruthy();
     expect(screen.getByText("FPT Corporation")).toBeTruthy();
-    expect(screen.getByText(/đã được quản trị viên tổ chức thêm vào/)).toBeTruthy();
+    expect(screen.getByText(/Bạn có quyền truy cập/)).toBeTruthy();
     expect(screen.queryByText(/gần nhất/)).toBeNull();
     expect((screen.getByRole("button", { name: /Chọn một Space/ }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole("radio", { name: /Bộ Tài Chính.*Vai trò Viewer/ }));
