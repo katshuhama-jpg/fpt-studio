@@ -188,3 +188,15 @@ export function togglePinSpace(id: string): boolean {
   pinListeners.forEach(fn => fn());
   return true;
 }
+
+/* ───────────── Organization that owns each Shared Space (first sign-in picker) ───────────── */
+
+export interface SpaceMembership { orgId: string; orgName: string; role: "Admin" | "Builder" | "Viewer"; addedBy: string }
+/** Mock: which Organization a Shared Space sits under, the person's role there, and who added them. */
+const MEMBERSHIP: Record<string, SpaceMembership> = {
+  "fpt-smart-cloud": { orgId: "fpt-corp", orgName: "FPT Corporation", role: "Admin", addedBy: "Lê Minh (Admin FPT Corporation)" },
+  "fpt-telecom": { orgId: "fpt-corp", orgName: "FPT Corporation", role: "Builder", addedBy: "Lê Minh (Admin FPT Corporation)" },
+  "bo-tai-chinh": { orgId: "mof", orgName: "Bộ Tài Chính", role: "Viewer", addedBy: "Phạm Hà (Admin Bộ Tài Chính)" },
+  "acme-pending": { orgId: "abc-bank", orgName: "Ngân hàng ABC", role: "Admin", addedBy: "FPT AI (Super Admin)" },
+};
+export const membershipOf = (spaceId: string): SpaceMembership | undefined => MEMBERSHIP[spaceId];

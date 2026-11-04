@@ -19,18 +19,19 @@ describe("spaces", () => {
 });
 
 describe("SelectSpace", () => {
-  it("lists Individual and Organization Spaces and enters the picked one", () => {
+  it("lists the personal Space and Shared spaces grouped by Organization, enters the picked one", () => {
     setUser({ email: "an@fpt.com", firstTime: false });
     render(<MemoryRouter initialEntries={["/select-space"]}><Routes>
       <Route path="/select-space" element={<SelectSpace />} />
       <Route path="/" element={<p>HOME</p>} />
     </Routes></MemoryRouter>);
-    expect(screen.getByText("Individual space")).toBeTruthy();
-    expect(screen.getByText("Organization space")).toBeTruthy();
-    const enter = screen.getByRole("button", { name: /Vào Space/ }) as HTMLButtonElement;
-    expect(enter.disabled).toBe(true);
-    fireEvent.click(screen.getByRole("button", { name: /Bộ Tài Chính/ }));
-    fireEvent.click(enter);
+    expect(screen.getByText("Cá nhân")).toBeTruthy();
+    expect(screen.getByText("FPT Corporation")).toBeTruthy();
+    expect(screen.getByText(/đã được quản trị viên tổ chức thêm vào/)).toBeTruthy();
+    expect(screen.queryByText(/gần nhất/)).toBeNull();
+    expect((screen.getByRole("button", { name: /Chọn một Space/ }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole("radio", { name: /Bộ Tài Chính.*Vai trò Viewer/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Vào Bộ Tài Chính/ }));
     expect(getCurrentTenantId()).toBe("bo-tai-chinh");
     expect(getUser()?.spaceChosen).toBe(true);
     expect(screen.getByText("HOME")).toBeTruthy();
