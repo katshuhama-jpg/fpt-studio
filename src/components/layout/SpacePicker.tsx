@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Search01Icon, Tick02Icon, UserIcon, Building03Icon } from "@hugeicons/core-free-icons";
+import { Search01Icon, Tick02Icon, UserIcon, Building03Icon, PinIcon, PinOffIcon } from "@hugeicons/core-free-icons";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { spaceKind, type SpaceKind, type Tenant } from "@/lib/spaceStore";
@@ -39,7 +40,10 @@ export function SpaceRow({ t, active, onClick, compact }: { t: Tenant; active: b
 }
 
 /** "Xem thêm" — every Space you belong to, grouped Individual / Organization, with search. */
-export function AllSpacesDialog({ spaces, activeId, onPick, onClose }: { spaces: Tenant[]; activeId: string; onPick: (id: string) => void; onClose: () => void }) {
+export function AllSpacesDialog({ spaces, activeId, onPick, onClose, pinned, onTogglePin, maxPinned = 2 }: {
+  spaces: Tenant[]; activeId: string; onPick: (id: string) => void; onClose: () => void;
+  pinned?: string[]; onTogglePin?: (id: string) => void; maxPinned?: number;
+}) {
   const [q, setQ] = useState("");
   const shown = spaces.filter(t => t.name.toLowerCase().includes(q.trim().toLowerCase()));
   return (
@@ -47,7 +51,7 @@ export function AllSpacesDialog({ spaces, activeId, onPick, onClose }: { spaces:
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle>Tất cả Space</DialogTitle>
-          <DialogDescription>{spaces.length} Space bạn đang tham gia. Chọn Space để chuyển sang.</DialogDescription>
+          <DialogDescription>{spaces.length} Space bạn đang tham gia. Chọn Space để chuyển sang{onTogglePin ? `, ghim tối đa ${maxPinned} Space để hiện ngay trên sidebar` : ""}.</DialogDescription>
         </DialogHeader>
         <div className="relative">
           <Icon icon={Search01Icon} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -60,7 +64,29 @@ export function AllSpacesDialog({ spaces, activeId, onPick, onClose }: { spaces:
             return (
               <section key={kind}>
                 <h3 className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground"><Icon icon={KIND_META[kind].icon} size={14} />{KIND_META[kind].label}</h3>
-                <div className="space-y-1">{list.map(t => <SpaceRow key={t.id} t={t} active={t.id === activeId} onClick={() => { onPick(t.id); onClose(); }} />)}</div>
+                <div className="space-y-1">{list.map(t => {
+                  const isPinned = !!pinned?.includes(t.id);
+                  const full = !isPinned && (pinned?.length ?? 0) >= maxPinned;
+                  return (
+                    <div key={t.id} className="flex items-center gap-1">
+                      <div className="min-w-0 flex-1"><SpaceRow t={t} active={t.id === activeId} onClick={() => { onPick(t.id); onClose(); }} /></div>
+                      {onTogglePin && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span tabIndex={full ? 0 : -1}>
+                              <button type="button" disabled={full} onClick={() => onTogglePin(t.id)} aria-pressed={isPinned}
+                                aria-label={isPinned ? `Bỏ ghim ${t.name}` : `Ghim ${t.name}`}
+                                className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors disabled:opacity-40 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${isPinned ? "text-primary hover:bg-primary/10" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
+                                <Icon icon={isPinned ? PinOffIcon : PinIcon} />
+                              </button>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>{isPinned ? "Bỏ ghim" : full ? `Chỉ ghim tối đa ${maxPinned} Space. Bỏ ghim một Space trước.` : "Ghim lên sidebar"}</TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                  );
+                })}</div>
               </section>
             );
           })}

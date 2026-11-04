@@ -162,3 +162,29 @@ export function getSpacesByRecent(activeId = getCurrentTenantId()): Tenant[] {
 
 /** Max Space cards shown directly in the sidebar menu before "Xem thêm". */
 export const SIDEBAR_SPACE_LIMIT = 3;
+
+/* ───────────── Pinned Spaces (sidebar: Đang dùng + Đã ghim) ───────────── */
+
+/** At most 2 pinned Spaces sit under the active one in the sidebar; the rest are under "Xem thêm". */
+export const MAX_PINNED_SPACES = 2;
+const PIN_KEY = "pinned_space_ids";
+const pinListeners = new Set<() => void>();
+export function subscribePins(fn: () => void): () => void { pinListeners.add(fn); return () => pinListeners.delete(fn); }
+export function getPinnedSpaceIds(): string[] {
+  try {
+    const ids = JSON.parse(localStorage.getItem(PIN_KEY) ?? "[]") as string[];
+    const mine = new Set(getMySpaces().map(t => t.id));
+    return ids.filter(id => mine.has(id)).slice(0, MAX_PINNED_SPACES);
+  } catch {
+    return [];
+  }
+}
+/** Pin or unpin; returns false when pinning would go over the limit. */
+export function togglePinSpace(id: string): boolean {
+  const cur = getPinnedSpaceIds();
+  const next = cur.includes(id) ? cur.filter(x => x !== id) : cur.length >= MAX_PINNED_SPACES ? null : [...cur, id];
+  if (!next) return false;
+  try { localStorage.setItem(PIN_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+  pinListeners.forEach(fn => fn());
+  return true;
+}

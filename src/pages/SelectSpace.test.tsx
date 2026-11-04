@@ -36,3 +36,29 @@ describe("SelectSpace", () => {
     expect(screen.getByText("HOME")).toBeTruthy();
   });
 });
+
+import SpaceSidebar from "@/components/layout/SpaceSidebar";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { getPinnedSpaceIds, togglePinSpace } from "@/lib/spaceStore";
+
+describe("SpaceSidebar (Đang dùng + Đã ghim + Xem thêm)", () => {
+  it("shows the active Space, up to 2 pins, and the rest behind Xem thêm", () => {
+    globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver;
+    const spaces = getMySpaces();
+    const ui = () => <TooltipProvider><SpaceSidebar collapsed={false} tenantId="fpt-smart-cloud" tenants={spaces} onChange={() => {}} /></TooltipProvider>;
+    const { rerender } = render(ui());
+    expect(screen.getByText("Đang dùng")).toBeTruthy();
+    expect(screen.getByText(/Ghim tối đa 2 Space/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Xem thêm 4 Space/ })).toBeTruthy();
+    expect(togglePinSpace("sandbox")).toBe(true);
+    expect(togglePinSpace("fpt-telecom")).toBe(true);
+    expect(togglePinSpace("bo-tai-chinh")).toBe(false);
+    expect(getPinnedSpaceIds()).toEqual(["sandbox", "fpt-telecom"]);
+    rerender(ui());
+    expect(screen.getByText("Personal Sandbox")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Xem thêm 2 Space/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Xem thêm 2 Space/ }));
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Ghim Bộ Tài Chính" }).hasAttribute("disabled")).toBe(true);
+  });
+});
