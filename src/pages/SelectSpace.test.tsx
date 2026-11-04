@@ -11,7 +11,7 @@ describe("spaces", () => {
   it("5 Spaces: 1 Individual + 4 Organization; recent first", () => {
     const all = getMySpaces();
     expect(all).toHaveLength(5);
-    expect(all.filter(t => spaceKind(t) === "individual").map(t => t.name)).toEqual(["Personal Sandbox"]);
+    expect(all.filter(t => spaceKind(t) === "individual").map(t => t.name)).toEqual(["Tran Nam's space"]);
     setCurrentTenantId("bo-tai-chinh");
     setCurrentTenantId("fpt-telecom");
     expect(getSpacesByRecent().slice(0, SIDEBAR_SPACE_LIMIT).map(t => t.id)).toEqual(["fpt-telecom", "bo-tai-chinh", "fpt-smart-cloud"]);
@@ -56,7 +56,7 @@ describe("SpaceSidebar (Đang dùng + Đã ghim + Xem thêm)", () => {
     expect(togglePinSpace("bo-tai-chinh")).toBe(false);
     expect(getPinnedSpaceIds()).toEqual(["sandbox", "fpt-telecom"]);
     rerender(ui());
-    expect(screen.getByText("Personal Sandbox")).toBeTruthy();
+    expect(screen.getByText("Tran Nam's space")).toBeTruthy();
     expect(screen.getByRole("button", { name: /Xem thêm 2 Space/ })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Xem thêm 2 Space/ }));
     expect(screen.getByRole("dialog")).toBeTruthy();

@@ -1,6 +1,8 @@
+import { currentPersona } from "@/lib/demoPersona";
+
 // Which Space (internally: "tenant" — PM/Dev term only, never shown in the product) the
 // person is currently working in. Space is where an Agent + its resources are built/owned:
-// either someone's personal Space ("Personal Sandbox" here) or an enterprise Space (FPT Smart
+// either someone's personal Space ("[Name]'s space", e.g. "Tran Nam's space") or an enterprise Space (FPT Smart
 // Cloud, FPT Telecom, FPT Software, or a newly-onboarded customer — see PENDING_TENANT below).
 // This is distinct from "Agent Workspace" (agentPublishStore.ts / governanceStore.ts), which
 // is where a published Agent is shared TO.
@@ -89,7 +91,15 @@ export function setCurrentTenantId(id: string) {
 /** Every Space a Tenant Admin can switch into — the 4 seed Spaces plus the pending one above.
  * Call this instead of reading `TENANTS` directly anywhere the full switcher list is needed. */
 export function getAllTenants(): Tenant[] {
-  return [...TENANTS, PENDING_TENANT];
+  return [...TENANTS.map(t => (t.id === PERSONAL_SPACE_ID ? personalSpace(t) : t)), PENDING_TENANT];
+}
+
+/** The personal (Individual) Space is named after its owner: "[Name]'s space". */
+export const PERSONAL_SPACE_ID = "sandbox";
+export const personalSpaceName = (name = currentPersona().name) => `${name}'s space`;
+function personalSpace(t: Tenant): Tenant {
+  const p = currentPersona();
+  return { ...t, name: personalSpaceName(p.name), initial: p.initials };
 }
 
 /** Whether `tenantId`'s Organization is set up — always true except for `PENDING_TENANT`
