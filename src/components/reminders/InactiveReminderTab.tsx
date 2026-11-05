@@ -127,7 +127,7 @@ export default function InactiveReminderTab({ agentId, agentName, readOnly, embe
 
   return (
     <div>
-      <div className="flex flex-col gap-3 mb-3 sm:flex-row sm:items-start sm:justify-between">
+      {(!embedded || list.length > 0) && <div className="flex flex-col gap-3 mb-3 sm:flex-row sm:items-start sm:justify-between">
         {!embedded ? (
           <div>
             <h2 className="text-base font-semibold">Inactive reminder</h2>
@@ -135,14 +135,15 @@ export default function InactiveReminderTab({ agentId, agentName, readOnly, embe
           </div>
         ) : <span />}
         <div className="flex items-center gap-3 shrink-0">
-          {!readOnly && (canPublish && !atLimit ? addButton : (
+          {/* Chưa có reminder: chỉ còn nút Thêm ở empty state bên dưới. */}
+          {!readOnly && list.length > 0 && (canPublish && !atLimit ? addButton : (
             <Tooltip>
               <TooltipTrigger asChild><span tabIndex={0}>{addButton}</span></TooltipTrigger>
               <TooltipContent>{!canPublish ? "Cần publish ít nhất 1 kênh để tạo reminder." : `Đã đạt tối đa ${MAX_REMINDERS} reminder`}</TooltipContent>
             </Tooltip>
           ))}
         </div>
-      </div>
+      </div>}
 
       <p className="mb-4 flex items-start gap-1.5 text-xs text-muted-foreground">
         <Icon icon={InformationCircleIcon} size={13} className="mt-0.5 shrink-0" />
