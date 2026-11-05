@@ -145,14 +145,6 @@ export default function InactiveReminderTab({ agentId, agentName, readOnly, embe
         </div>
       </div>}
 
-      <p className="mb-4 flex items-start gap-1.5 text-xs text-muted-foreground">
-        <Icon icon={InformationCircleIcon} size={13} className="mt-0.5 shrink-0" />
-        <span>
-          {!CHANNEL_PICKER_ENABLED && "Reminder áp dụng cho tất cả kênh đã publish. "}
-          Mỗi lần nhắc phát sinh lượt gọi LLM và có thể gọi skill; các lượt này tính vào usage.
-          Mỗi lượt chờ chỉ gửi tối đa {MAX_REPLIES_PER_WAIT} tin, tính trên mọi reminder.
-        </span>
-      </p>
 
       {CHANNEL_PICKER_ENABLED && !canPublish && list.length > 0 && (
         <div role="status" className="mb-4 flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5 text-sm">
@@ -253,6 +245,16 @@ export default function InactiveReminderTab({ agentId, agentName, readOnly, embe
           </div>
         )}
       </div>
+
+      {/* Ghi chú chung, đặt dưới danh sách reminder. */}
+      <p className="mt-3 flex items-start gap-1.5 text-xs text-muted-foreground">
+        <Icon icon={InformationCircleIcon} size={13} className="mt-0.5 shrink-0" />
+        <span>
+          {!CHANNEL_PICKER_ENABLED && "Reminder áp dụng cho tất cả kênh đã publish. "}
+          Mỗi lần nhắc phát sinh lượt gọi LLM và có thể gọi skill; các lượt này tính vào usage.
+          Mỗi lượt chờ chỉ gửi tối đa {MAX_REPLIES_PER_WAIT} tin, tính trên mọi reminder.
+        </span>
+      </p>
 
       {sheet && (
         <ReminderSheet
