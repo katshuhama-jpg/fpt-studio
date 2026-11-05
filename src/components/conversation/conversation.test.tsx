@@ -31,7 +31,7 @@ describe("conversation timeout", () => {
     expect(screen.queryByLabelText(/Tin nhắn kết thúc/)).toBeNull();
     expect(screen.getByLabelText("Ngày")).toBeTruthy();
     expect(screen.getByText(/Có 2 bước nhắc nhở có thời gian ≥ thời gian chờ \(00:25\)/)).toBeTruthy();
-    expect(screen.getByText(/Kết thúc hội thoại \(00:25\)/)).toBeTruthy();
+    expect(screen.queryByText("Xem trước dòng thời gian")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /Lưu/ }));
     const dlg = screen.getByRole("alertdialog");
     fireEvent.click(within(dlg).getByRole("button", { name: "Vẫn lưu" }));
@@ -44,7 +44,6 @@ describe("conversation timeout", () => {
     const titles = screen.getAllByText(/Kết thúc hội thoại tự động|Nhắc nhở khi khách không phản hồi/).map(e => e.textContent);
     expect(titles[0]).toBe("Kết thúc hội thoại tự động");
     fireEvent.click(screen.getByLabelText("Bật kết thúc hội thoại tự động"));
-    expect(screen.getByText(/Kết thúc hội thoại \(00:30\)/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Lưu/ }));
     expect(conversationTimeoutStore.get("faq")).toMatchObject({ enabled: true, days: 0, hours: 0, minutes: 30 });
   });

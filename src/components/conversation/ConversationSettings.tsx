@@ -20,6 +20,9 @@ type IconData = Parameters<typeof HugeiconsIcon>[0]["icon"];
 const Icon = ({ icon, size = 16, className = "" }: { icon: IconData; size?: number; className?: string }) =>
   <HugeiconsIcon icon={icon} size={size} strokeWidth={1.5} className={className} aria-hidden="true" />;
 
+/** Tạm ẩn "Xem trước dòng thời gian" — bật lại bằng cách đổi thành true. */
+const SHOW_TIMELINE = false;
+
 let reminderVersion = 0;
 const subscribe = (fn: () => void) => subscribeReminders(() => { reminderVersion++; fn(); });
 const useReminderVersion = () => useSyncExternalStore(subscribe, () => reminderVersion);
@@ -193,7 +196,7 @@ export default function ConversationSettings({ agentId, agentName, readOnly }: {
         )}
       </div>
 
-      {showTimeline && <Timeline steps={steps} timeoutMin={timeoutMin !== undefined && !errors.duration ? timeoutMin : undefined} />}
+      {SHOW_TIMELINE && showTimeline && <Timeline steps={steps} timeoutMin={timeoutMin !== undefined && !errors.duration ? timeoutMin : undefined} />}
 
       <AlertDialog open={confirm} onOpenChange={setConfirm}>
         <AlertDialogContent>
