@@ -41,6 +41,7 @@ describe("conversation timeout", () => {
   it("(a) default 30 phút on first enable and saves without an end message; timeout block comes first", () => {
     wrap("faq");
     expect(screen.queryByText(/Giá trị đã lưu/)).toBeNull();
+    expect(screen.queryByText(/Không áp dụng cho Workspace/)).toBeNull();
     const titles = screen.getAllByText(/Kết thúc hội thoại tự động|Nhắc nhở khi khách không phản hồi/).map(e => e.textContent);
     expect(titles[0]).toBe("Kết thúc hội thoại tự động");
     fireEvent.click(screen.getByLabelText("Bật kết thúc hội thoại tự động"));

@@ -164,7 +164,8 @@ export default function ConversationSettings({ agentId, agentName, readOnly }: {
           </div>
         )}
 
-        <div className="flex flex-wrap items-center gap-3 border-t px-4 py-3">
+        {/* Chỉ hiện khi đang bật; khi vừa tắt một cấu hình đã lưu thì vẫn hiện để lưu trạng thái tắt. */}
+        {(draft.enabled || dirty) && <div className="flex flex-wrap items-center gap-3 border-t px-4 py-3">
           <p className="flex flex-1 items-center gap-1.5 text-xs text-muted-foreground">
             <Icon icon={InformationCircleIcon} size={14} className="shrink-0" />Áp dụng cho tất cả kênh tích hợp. Không áp dụng cho Workspace.
           </p>
@@ -174,7 +175,7 @@ export default function ConversationSettings({ agentId, agentName, readOnly }: {
               <Button type="button" size="sm" disabled={!dirty} onClick={save}><Icon icon={FloppyDiskIcon} /> Lưu</Button>
             </>
           )}
-        </div>
+        </div>}
       </div>
 
       {/* (2) Inactive reminder — collapsed by default */}
