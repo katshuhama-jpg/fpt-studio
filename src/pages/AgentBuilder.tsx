@@ -4851,9 +4851,10 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
           </button>
         </div>
 
-        {/* Two columns: Cập nhật (left) | Kênh (right) */}
-        <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 md:divide-x divide-border overflow-y-auto md:overflow-hidden">
-        <section aria-labelledby="pub-col-update" className="min-h-0 md:overflow-y-auto px-6 py-5 space-y-5">
+        {/* Two columns: Cập nhật (left) | Kênh (right), one shared scroll */}
+        <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 md:divide-x divide-border">
+        <section aria-labelledby="pub-col-update" className="px-6 py-5 space-y-5">
           <h3 id="pub-col-update" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cập nhật</h3>
           {pendingRequest && !requiresReview && (
             <div className="flex items-start gap-2.5 rounded-lg border border-warning/25 bg-warning/5 px-3.5 py-3">
@@ -4989,7 +4990,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
 
         </section>
 
-        <section aria-labelledby="pub-col-channels" className="min-h-0 md:overflow-y-auto px-6 py-5 space-y-4 border-t md:border-t-0 border-border">
+        <section aria-labelledby="pub-col-channels" className="px-6 py-5 space-y-4 border-t md:border-t-0 border-border">
           <h3 id="pub-col-channels" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Kênh</h3>
           {/* Publish to */}
           <div className="rounded-xl border border-border p-4">
@@ -5104,6 +5105,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
             )}
           </div>
         </section>
+        </div>
         </div>
 
         {/* Evaluate gate - Relevance-style: test sets marked for publish run automatically on the Draft */}
