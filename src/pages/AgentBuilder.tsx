@@ -4833,7 +4833,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-xl mx-4 bg-white rounded-2xl border border-border shadow-lg animate-fade-up flex flex-col max-h-[90vh]">
+      <div className="relative z-10 w-full max-w-5xl mx-4 bg-white rounded-2xl border border-border shadow-lg animate-fade-up flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-start justify-between px-6 py-5 border-b border-border shrink-0">
           <div>
@@ -4851,7 +4851,10 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+        {/* Two columns: Cập nhật (left) | Kênh (right) */}
+        <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 md:divide-x divide-border overflow-y-auto md:overflow-hidden">
+        <section aria-labelledby="pub-col-update" className="min-h-0 md:overflow-y-auto px-6 py-5 space-y-5">
+          <h3 id="pub-col-update" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cập nhật</h3>
           {pendingRequest && !requiresReview && (
             <div className="flex items-start gap-2.5 rounded-lg border border-warning/25 bg-warning/5 px-3.5 py-3">
               <HugeiconsIcon icon={Clock01Icon} size={15} className="text-warning shrink-0 mt-0.5" />
@@ -4984,6 +4987,10 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
             </div>
           </div>
 
+        </section>
+
+        <section aria-labelledby="pub-col-channels" className="min-h-0 md:overflow-y-auto px-6 py-5 space-y-4 border-t md:border-t-0 border-border">
+          <h3 id="pub-col-channels" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Kênh</h3>
           {/* Publish to */}
           <div className="rounded-xl border border-border p-4">
             <label className="flex items-center gap-3 cursor-pointer">
@@ -5096,6 +5103,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
               </div>
             )}
           </div>
+        </section>
         </div>
 
         {/* Evaluate gate - Relevance-style: test sets marked for publish run automatically on the Draft */}
