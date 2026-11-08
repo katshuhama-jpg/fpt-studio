@@ -19,7 +19,8 @@ import { EmptyState } from "@/components/evaluation/shared";
  * Agent details → Insights: số liệu tổng hợp cho chủ Nhân sự số.
  * Theo wiki "Insights - Nghiệp vụ" v1.3 (TOVA-6380): 4 mục Tổng quan / Sử dụng / Chất lượng / Chi phí,
  * chỉ Agent hội thoại, chưa so sánh kỳ trước, mặc định 7 ngày qua, cập nhật 2 giờ một lần (BR-11),
- * phân biệt 0 và "--" (BR-04), token tính cả kênh Chạy thử (BR-07). Chủ đề / Hiệu năng giữ code, chưa hiện.
+ * phân biệt 0 và "--" (BR-04), token tính cả kênh Chạy thử (BR-07). Các bảng cũ vẫn giữ:
+ * Chủ đề, Hiệu năng ("Cập nhật sau"), CSAT, trích dẫn, tỷ lệ phản hồi, Guardrail, Token theo model ("Phase 2").
  * Sub-tab: Tổng quan / Sử dụng / Chất lượng / Người dùng hỏi gì / Hoạt động / Chi phí.
  * - Tổng quan (Tyler 28/10): Người dùng đang hoạt động, Phiên, Tỷ lệ Like, Tỷ lệ Dislike, Token.
  * - Sử dụng: người dùng (tổng, mới, cũ), phiên, mới/cũ theo ngày, lỗi, token, kênh, giờ cao điểm.
@@ -423,13 +424,13 @@ function updateTimes() {
 /** Tag đầu trang (4.2 #1, #2, #3, #8) — thẻ và biểu đồ vẫn hiện bên dưới theo BR-04. */
 export type PageTag = { tone: "info" | "warning"; title: string; desc: string; actions?: React.ReactNode };
 
-function Header({ a, title, desc, tag }: { a: A; title: string; desc: string; tag?: PageTag | null }) {
+function Header({ a, title, desc, tag, badge }: { a: A; title: string; desc: string; tag?: PageTag | null; badge?: string }) {
   const t = updateTimes();
   return (
     <div className="space-y-3">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="font-display text-xl font-semibold">{title}</h2>
+          <h2 className="font-display text-xl font-semibold">{title}{badge && <span className="ml-2 rounded-sm bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground align-middle">{badge}</span>}</h2>
           <p className="text-sm text-muted-foreground mt-1">{desc}</p>
         </div>
         <PeriodPicker a={a} />
@@ -518,11 +519,11 @@ function Kpi({ a, label, value, k, good, unit, info, sub }: {
   );
 }
 
-function Card({ title, note, children, className = "" }: { title: string; note?: string; children: React.ReactNode; className?: string }) {
+function Card({ title, note, children, className = "", badge }: { title: string; note?: string; children: React.ReactNode; className?: string; badge?: string }) {
   return (
     <div className={`surface-card p-5 ${className}`}>
       <div className="mb-3">
-        <h3 className="font-display text-sm font-semibold">{title}</h3>
+        <h3 className="font-display text-sm font-semibold">{title}{badge && <span className="ml-1.5 rounded-sm bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground align-middle">{badge}</span>}</h3>
         {note && <p className="text-xs text-muted-foreground mt-0.5">{note}</p>}
       </div>
       {children}
@@ -614,11 +615,11 @@ export function AnalyticsOverview({ a }: { a: V }) {
 }
 
 /** Thẻ số đơn giản (không delta). */
-function Stat({ label, value, info, sub }: { label: string; value: string; info: string; sub?: string }) {
+function Stat({ label, value, info, sub, badge }: { label: string; value: string; info: string; sub?: string; badge?: string }) {
   return (
     <div className="surface-card p-4">
       <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-        <span>{label}</span>
+        <span>{label}{badge && <span className="ml-1.5 rounded-sm bg-muted px-1.5 py-0.5 text-[10px] font-medium">{badge}</span>}</span>
         <InfoTip text={info} label={label} />
       </div>
       <div className="font-display text-2xl font-semibold tracking-tight tabular-nums mt-1.5">{value}</div>
@@ -789,12 +790,18 @@ export function AnalyticsFeedback({ a }: { a: V }) {
   const { cur } = a;
   // Cột xếp chồng: Dislike ở dưới, Like ở trên; ngày không có lượt nào thì không có cột.
   const series = a.rows.map(d => (!a.dash && !d.blank && d.likes + d.dislikes ? { day: d.day, Dislike: d.dislikes, Like: d.likes } : { day: d.day }));
+  const rates = a.rows.map(d => (!a.dash && !d.blank && d.likes + d.dislikes ? { day: d.day, Like: pct(d.likes, d.likes + d.dislikes), Dislike: pct(d.dislikes, d.likes + d.dislikes) } : { day: d.day }));
+  const g = GUARDRAIL.map(x => ({ ...x, count: Math.round(x.count * a.factor) }));
+  const maxG = Math.max(1, ...g.map(x => x.count));
   return (
     <Page>
-      <Header a={a} title="Chất lượng" desc="Đánh giá Like / Dislike của người dùng." tag={a.tag} />
-      <div className="grid grid-cols-2 gap-3 max-w-xl">
-        <Stat label="Số lượt Like" value={real(a, vn(cur.likes))} info="Likes: số lượt Like trong khoảng đang xem. Người dùng đổi đánh giá thì chỉ tính lượt cuối." />
-        <Stat label="Số lượt Dislike" value={real(a, vn(cur.dislikes))} info="Dislikes: số lượt Dislike trong khoảng đang xem. Người dùng đổi đánh giá thì chỉ tính lượt cuối." />
+      <Header a={a} title="Chất lượng" desc="Đánh giá của người dùng, trích dẫn nguồn và Guardrail." tag={a.tag} />
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <Stat label="Số lượt Like" value={real(a, vn(cur.likes))} sub={`Tỷ lệ Like ${ratio(a, cur.likes + cur.dislikes, `${vn(cur.likePct, 1)}%`)}`} info="Likes: số lượt Like trong khoảng đang xem. Người dùng đổi đánh giá thì chỉ tính lượt cuối. Tỷ lệ Like = số Like ÷ (Like + Dislike)." />
+        <Stat label="Số lượt Dislike" value={real(a, vn(cur.dislikes))} sub={`Tỷ lệ Dislike ${ratio(a, cur.likes + cur.dislikes, `${vn(cur.dislikePct, 1)}%`)}`} info="Dislikes: số lượt Dislike trong khoảng đang xem. Người dùng đổi đánh giá thì chỉ tính lượt cuối. Tỷ lệ Dislike = số Dislike ÷ (Like + Dislike)." />
+        <Stat label="CSAT" badge="Phase 2" value={ratio(a, cur.sessions, `${vn(cur.csat, 2)}/5`)} info="Customer satisfaction score: điểm trung bình người dùng chấm cuối phiên, thang 1 – 5." />
+        <Stat label="Tỷ lệ trích dẫn nguồn" badge="Phase 2" value={ratio(a, cur.messages, `${vn(cur.citedPct, 1)}%`)} info="Citation rate: câu trả lời có trích dẫn tài liệu nguồn ÷ tổng câu trả lời × 100." />
+        <Stat label="Tỷ lệ phản hồi" badge="Phase 2" value={ratio(a, cur.messages, `${vn(cur.coveragePct, 1)}%`)} info="Feedback rate: (số Like + số Dislike) ÷ tổng câu trả lời × 100. Tỷ lệ thấp thì số lượt Like/Dislike chưa đại diện cho nhiều người dùng." />
       </div>
       <Card title="Like / Dislike theo ngày" note="Chiều cao cột là tổng lượt tương tác trong ngày">
         <div className="h-64" role="img" aria-label="Số lượt Like và Dislike theo ngày">
@@ -817,6 +824,25 @@ export function AnalyticsFeedback({ a }: { a: V }) {
             </BarChart>
           </ResponsiveContainer>
         </div>
+      </Card>
+      <Card title="Tỷ lệ Like và tỷ lệ Dislike theo ngày">
+        <div className="h-56" role="img" aria-label="Tỷ lệ Like và Dislike theo ngày">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={rates} margin={{ top: 16, right: 8, left: -16, bottom: 0 }}>
+              <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
+              <XAxis dataKey="day" tick={AXIS} tickLine={false} axisLine={false} interval={tickEvery(rates.length)} />
+              <YAxis tick={AXIS} tickLine={false} axisLine={false} unit="%" domain={[0, 100]} />
+              <Tooltip contentStyle={TT} formatter={(v: number, n: string) => [`${vn(v, 1)}%`, n]} />
+              <Legend iconType="circle" iconSize={8} wrapperStyle={LEGEND} />
+              {versionLines(a.markers)}
+              <Line type="linear" dataKey="Like" stroke="hsl(var(--success))" strokeWidth={2} dot={rates.length < 3} isAnimationActive={false} />
+              <Line type="linear" dataKey="Dislike" stroke="hsl(var(--destructive))" strokeWidth={2} dot={rates.length < 3} isAnimationActive={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+      <Card title="Số lần Guardrail chặn" badge="Phase 2" note={`Theo quy tắc · ${periodText(a)}`}>
+        {a.dash ? <p className="text-sm text-muted-foreground">--</p> : <HBars max={maxG} rows={g.map((x, i) => ({ label: x.rule, value: x.count, text: vn(x.count), highlight: i === 0 }))} />}
       </Card>
     </Page>
   );
@@ -872,7 +898,7 @@ export function AnalyticsTopics({ a, agentId, canEdit = true }: { a: A; agentId:
   const unanswered = UNANSWERED.map(u => ({ ...u, times: Math.round(u.times * a.factor) })).filter(u => u.times > 0);
   return (
     <Page>
-      <Header a={a} title="Chủ đề" desc="AI gom các câu hỏi giống nhau thành chủ đề. Kèm danh sách câu hỏi chưa trả lời được." />
+      <Header a={a} title="Chủ đề" badge="Cập nhật sau" desc="AI gom các câu hỏi giống nhau thành chủ đề. Kèm danh sách câu hỏi chưa trả lời được." />
       <div className="surface-card overflow-hidden">
         <div className="px-5 py-3 border-b border-border">
           <h3 className="font-display text-sm font-semibold">Chủ đề</h3>
@@ -947,7 +973,7 @@ export function AnalyticsOperations({ a }: { a: A }) {
   const dots = a.rows.length < 3;
   return (
     <Page>
-      <Header a={a} title="Hiệu năng" desc="Thời gian phản hồi, tỷ lệ lỗi, Tool và Knowledge." />
+      <Header a={a} title="Hiệu năng" badge="Cập nhật sau" desc="Thời gian phản hồi, tỷ lệ lỗi, Tool và Knowledge." />
       <div className="grid lg:grid-cols-2 gap-4">
         <Card title="Thời gian phản hồi" note="Giây. Trung vị (P50) và P95: 95% câu trả lời nhanh hơn mức này">
           <div className="h-52" role="img" aria-label={`Thời gian phản hồi theo ${a.step}`}>
@@ -1047,9 +1073,14 @@ export function AnalyticsCost({ a }: { a: V }) {
         <Stat label="Token trung bình mỗi phiên" value={ratio(a, cur.sessions, vn(cur.tokPerSession))} info="Tokens per session: token của kênh thật ÷ Phiên. Không tính token Chạy thử." />
         <Stat label="% đầu vào / đầu ra" value={cur.tokens ? `${vn(inPct, 0)}% / ${vn(100 - inPct, 0)}%` : D} info="Input / output share: token đầu vào ÷ Token sử dụng × 100; đầu ra = 100% trừ đầu vào." />
       </div>
-      <Card title="Token theo ngày" note={`Đầu vào và đầu ra · Token sử dụng cả kỳ: ${compact(cur.tokens)}`}>
-        <TokenChart a={a} />
-      </Card>
+      <div className="grid lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-4">
+        <Card title="Token theo ngày" note={`Đầu vào và đầu ra · Token sử dụng cả kỳ: ${compact(cur.tokens)}`}>
+          <TokenChart a={a} />
+        </Card>
+        <Card title="Token theo model" badge="Phase 2" note={periodText(a)}>
+          <HBars rows={MODELS.map((m, i) => ({ label: m.model, value: m.share, text: `${m.share}%`, highlight: i === 0 }))} />
+        </Card>
+      </div>
     </Page>
   );
 }
@@ -1138,7 +1169,9 @@ export function AgentAnalytics({ agentId, section, kind = "conversational", publ
     case "usage": body = <AnalyticsUsage a={v} />; break;
     case "feedback": body = <AnalyticsFeedback a={v} />; break;
     case "cost": body = <AnalyticsCost a={v} />; break;
-    default: body = <AnalyticsOverview a={v} />; // Chủ đề, Hiệu năng: cập nhật sau
+    case "topics": body = <AnalyticsTopics a={v} agentId={agentId} canEdit={canEdit} />; break;
+    case "operations": body = <AnalyticsOperations a={v} />; break;
+    default: body = <AnalyticsOverview a={v} />;
   }
   return <NounCtx.Provider value="phiên">{body}</NounCtx.Provider>;
 }

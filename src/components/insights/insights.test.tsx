@@ -28,10 +28,12 @@ describe("Insights v1.3", () => {
     expect(screen.getAllByText("--").length).toBeGreaterThanOrEqual(3);
     expect(screen.getByRole("button", { name: /Publish/ })).toBeTruthy();
   });
-  it("Chất lượng chỉ còn số lượt Like/Dislike; Chi phí có % đầu vào / đầu ra", async () => {
+  it("Chất lượng: số lượt Like/Dislike mới + giữ các bảng cũ (Phase 2)", async () => {
     await show("feedback");
     expect(screen.getByText("Số lượt Like")).toBeTruthy();
-    expect(screen.queryByText("CSAT")).toBeNull();
+    expect(screen.getByText("CSAT")).toBeTruthy();
+    expect(screen.getByText("Số lần Guardrail chặn")).toBeTruthy();
+    expect(screen.getByText("Tỷ lệ Like và tỷ lệ Dislike theo ngày")).toBeTruthy();
   });
   it("Agent không phải hội thoại: Đang phát triển", async () => {
     await show("performance", "", { kind: "process" });
