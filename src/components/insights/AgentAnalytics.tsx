@@ -569,24 +569,26 @@ const tokIn = (d: Day) => (d.blank ? 0 : d.tokensIn) + d.testTokensIn;
 const tokOut = (d: Day) => (d.blank ? 0 : d.tokens - d.tokensIn) + (d.testTokens - d.testTokensIn);
 
 /* ============ TỔNG QUAN ============ */
-/** 4 thẻ, không có biểu đồ nhỏ, không so sánh kỳ trước. Bấm thẻ sang mục chi tiết. */
+/** 4 thẻ, mỗi thẻ có biểu đồ cột nhỏ theo ngày, không so sánh kỳ trước. Bấm thẻ sang mục chi tiết. */
 export function AnalyticsOverview({ a }: { a: V }) {
   const { cur } = a;
   const [, setParams] = useSearchParams();
   const go = (section: AnalyticsSection) => setParams(p => { const n = new URLSearchParams(p); n.set("tab", "insights"); n.set("section", section); return n; });
-  const cards: { title: string; info: string; section: AnalyticsSection; tabLabel: string; value: string; foot: string }[] = [
+  // Biểu đồ nhỏ theo ngày; ngày Agent chưa có mặt / "--" thì cột bằng 0.
+  const per = (f: (d: Day) => number) => a.rows.map(d => (a.dash || d.blank ? 0 : f(d)));
+  const cards: { title: string; info: string; section: AnalyticsSection; tabLabel: string; value: string; foot: string; viz: number[] }[] = [
     { title: "Số người dùng đang hoạt động", section: "usage", tabLabel: "Sử dụng",
       info: "Active users: số người dùng có ít nhất 1 phiên trong khoảng đang xem. Bằng Người dùng mới cộng Người dùng cũ.",
-      value: real(a, vn(cur.users)), foot: a.dash ? "Người dùng mới -- · Người dùng cũ --" : `Người dùng mới ${vn(cur.newUsers)} · Người dùng cũ ${vn(cur.returningUsers)}` },
+      value: real(a, vn(cur.users)), foot: a.dash ? "Người dùng mới -- · Người dùng cũ --" : `Người dùng mới ${vn(cur.newUsers)} · Người dùng cũ ${vn(cur.returningUsers)}`, viz: per(d => d.users) },
     { title: "Phiên", section: "usage", tabLabel: "Sử dụng",
       info: "Sessions: số cuộc trò chuyện ở kênh thật trong khoảng đang xem. Không tính kênh Chạy thử.",
-      value: real(a, vn(cur.sessions)), foot: `${ratio(a, cur.users, vn(cur.sessionsPerUser, 2))} phiên mỗi người dùng` },
+      value: real(a, vn(cur.sessions)), foot: `${ratio(a, cur.users, vn(cur.sessionsPerUser, 2))} phiên mỗi người dùng`, viz: per(d => d.sessions) },
     { title: "Tổng lượt tương tác", section: "feedback", tabLabel: "Chất lượng",
       info: "Ratings: số lượt Like cộng số lượt Dislike. Người dùng đổi đánh giá thì chỉ tính lượt cuối.",
-      value: real(a, vn(cur.likes + cur.dislikes)), foot: a.dash ? "-- Like : -- Dislike" : `${vn(cur.likes)} Like : ${vn(cur.dislikes)} Dislike` },
+      value: real(a, vn(cur.likes + cur.dislikes)), foot: a.dash ? "-- Like : -- Dislike" : `${vn(cur.likes)} Like : ${vn(cur.dislikes)} Dislike`, viz: per(d => d.likes + d.dislikes) },
     { title: "Token sử dụng", section: "cost", tabLabel: "Chi phí",
       info: "Token usage: token đầu vào cộng token đầu ra, tính cả kênh Chạy thử.",
-      value: compact(cur.tokens), foot: `${ratio(a, cur.sessions, vn(cur.tokPerSession))} token trung bình mỗi phiên` },
+      value: compact(cur.tokens), foot: `${ratio(a, cur.sessions, vn(cur.tokPerSession))} token trung bình mỗi phiên`, viz: a.rows.map(d => tokIn(d) + tokOut(d)) },
   ];
   return (
     <Page>
@@ -602,6 +604,7 @@ export function AnalyticsOverview({ a }: { a: V }) {
               </span>
             </div>
             <div className="font-display text-3xl font-semibold tracking-tight tabular-nums mt-2">{c.value}</div>
+            <div className="mt-3 h-11" title="Theo ngày trong khoảng đang xem">{c.viz.some(v => v > 0) ? <MiniBars values={c.viz} /> : <div className="h-full border-b border-dashed" aria-hidden="true" />}</div>
             <div className="text-xs text-muted-foreground mt-2 truncate tabular-nums">{c.foot}</div>
           </div>
         ))}
