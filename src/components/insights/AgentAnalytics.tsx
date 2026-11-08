@@ -43,6 +43,16 @@ const UPDATE_EVERY_H = 2; // BR-11
 /** Ngày Publish đầu tiên (số ngày trước hôm nay) — trước đó số liệu kênh thật để trống (BR-04). */
 const FIRST_PUBLISH_DAYS_AGO = 49;
 
+/** Demo: mỗi Nhân sự số hội thoại thể hiện một trạng thái của Insights (4.3). ?demo= trên URL vẫn ghi đè.
+ * Agent Draft tự ra "Chưa có số liệu"; Agent Quy trình / trigger tự ra "Đang phát triển". */
+export const INSIGHTS_DEMO: Record<string, { state?: "no-sessions" | "empty-range" | "unpublish" | "error"; firstPublishDaysAgo?: number }> = {
+  "sales-quote": { state: "no-sessions" },
+  "finance-check": { state: "empty-range" },
+  "legal-review": { state: "unpublish" },
+  "ops": { state: "error" },
+  "policy-assistant": { firstPublishDaysAgo: 3 },
+};
+
 /* ---------- ngữ cảnh: tên đơn vị đếm ---------- */
 const NounCtx = createContext("phiên");
 const useNoun = () => useContext(NounCtx);
@@ -175,6 +185,7 @@ function merge(rows: Day[], date: Date, label: string): Day {
 
 /** 90 ngày theo ngày (ô cuối = hôm nay, số tạm) + hôm nay và hôm qua theo giờ, tới giờ hiện tại. */
 function buildData(agentId: string) {
+  const firstAgo = INSIGHTS_DEMO[agentId]?.firstPublishDaysAgo ?? FIRST_PUBLISH_DAYS_AGO;
   const r = rng(agentId || "agent");
   const today = startOfToday();
   const hourNow = new Date().getHours();
@@ -191,7 +202,7 @@ function buildData(agentId: string) {
     return Array.from({ length: upto + 1 }, (_, h) => bucket(r, Math.round((d.sessions * w[h]) / W), qAt(i), d.date, `${h}h`, h));
   };
   // Trước ngày Publish đầu tiên: không có số liệu kênh thật, chỉ còn token Chạy thử (BR-04, BR-07).
-  const firstIdx = LOOKBACK - 1 - FIRST_PUBLISH_DAYS_AGO;
+  const firstIdx = LOOKBACK - 1 - firstAgo;
   for (let i = 0; i < firstIdx; i++) {
     const d = days[i];
     NUM_KEYS.forEach(k => { if (k !== "testTokens" && k !== "testTokensIn") (d as Record<string, unknown>)[k] = 0; });
@@ -200,7 +211,8 @@ function buildData(agentId: string) {
   const todayH = hourly(LOOKBACK - 1, hourNow);
   const yestH = hourly(LOOKBACK - 2, hourNow);
   days[LOOKBACK - 1] = merge(todayH, today, ddmm(today));
-  const markers = VERSIONS.map(v => ({ label: v.version, day: days[LOOKBACK - 1 - v.daysAgo].day }));
+  const markers = VERSIONS.filter(v => v.daysAgo <= firstAgo).map(v => ({ label: v.version, day: days[LOOKBACK - 1 - v.daysAgo].day }));
+  if (firstAgo < VERSIONS[0].daysAgo) markers.push({ label: "v1.0.0", day: days[firstIdx].day });
   const base30 = days.slice(-30).reduce((a, d) => a + d.sessions, 0);
   return { days, todayH, yestH, markers, base30, firstPublish: days[firstIdx].date };
 }
@@ -1082,7 +1094,7 @@ export function AgentAnalytics({ agentId, section, kind = "conversational", publ
 }) {
   const a = useAnalytics(agentId);
   const [params] = useSearchParams();
-  const demo = params.get("demo");
+  const demo = params.get("demo") ?? INSIGHTS_DEMO[agentId]?.state ?? null;
   const rangeKey = `${a.period.kind}-${a.period.start}-${a.period.end}`;
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [failed, setFailed] = useState(demo === "error");
