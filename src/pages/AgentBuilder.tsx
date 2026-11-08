@@ -180,8 +180,7 @@ const INSIGHTS_SUBTABS = [
   { id: "performance", label: "Tổng quan", icon: Analytics01Icon },
   { id: "usage", label: "Sử dụng", icon: UserMultipleIcon },
   { id: "feedback", label: "Chất lượng", icon: StarIcon },
-  { id: "topics", label: "Chủ đề", icon: FileQuestionMarkIcon },
-  { id: "operations", label: "Hiệu năng", icon: Activity01Icon },
+  // Chủ đề, Hiệu năng: cập nhật sau (wiki Insights v1.3) — link cũ mở Tổng quan.
   { id: "cost", label: "Chi phí", icon: CpuIcon },
   { id: "history", label: "History", icon: HistoryIcon },
 ];
