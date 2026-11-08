@@ -33,7 +33,7 @@ describe("Insights v1.3", () => {
     expect(screen.getByText("Số lượt Like")).toBeTruthy();
     expect(screen.getByText("CSAT")).toBeTruthy();
     expect(screen.getByText("Số lần Guardrail chặn")).toBeTruthy();
-    expect(screen.getByText("Tỷ lệ Like và tỷ lệ Dislike theo ngày")).toBeTruthy();
+    expect(screen.queryByText("Tỷ lệ Like và tỷ lệ Dislike theo ngày")).toBeNull();
   });
   it("Agent không phải hội thoại: Đang phát triển", async () => {
     await show("performance", "", { kind: "process" });

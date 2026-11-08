@@ -820,7 +820,6 @@ export function AnalyticsFeedback({ a }: { a: V }) {
   const { cur } = a;
   // Cột xếp chồng: Dislike ở dưới, Like ở trên; ngày không có lượt nào thì không có cột.
   const series = a.rows.map(d => (!a.dash && !d.blank && d.likes + d.dislikes ? { day: d.day, Dislike: d.dislikes, Like: d.likes } : { day: d.day }));
-  const rates = a.rows.map(d => (!a.dash && !d.blank && d.likes + d.dislikes ? { day: d.day, Like: pct(d.likes, d.likes + d.dislikes), Dislike: pct(d.dislikes, d.likes + d.dislikes) } : { day: d.day }));
   const g = GUARDRAIL.map(x => ({ ...x, count: Math.round(x.count * a.factor) }));
   const maxG = Math.max(1, ...g.map(x => x.count));
   return (
@@ -852,22 +851,6 @@ export function AnalyticsFeedback({ a }: { a: V }) {
               <Bar dataKey="Dislike" stackId="f" fill="hsl(var(--destructive))" maxBarSize={18} isAnimationActive={false} />
               <Bar dataKey="Like" stackId="f" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} maxBarSize={18} isAnimationActive={false} />
             </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </Card>
-      <Card title="Tỷ lệ Like và tỷ lệ Dislike theo ngày">
-        <div className="h-56" role="img" aria-label="Tỷ lệ Like và Dislike theo ngày">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={rates} margin={{ top: 16, right: 8, left: -16, bottom: 0 }}>
-              <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
-              <XAxis dataKey="day" tick={AXIS} tickLine={false} axisLine={false} interval={tickEvery(rates.length)} />
-              <YAxis tick={AXIS} tickLine={false} axisLine={false} unit="%" domain={[0, 100]} />
-              <Tooltip contentStyle={TT} formatter={(v: number, n: string) => [`${vn(v, 1)}%`, n]} />
-              <Legend iconType="circle" iconSize={8} wrapperStyle={LEGEND} />
-              {versionLines(a.markers)}
-              <Line type="linear" dataKey="Like" stroke="hsl(var(--success))" strokeWidth={2} dot={rates.length < 3} isAnimationActive={false} />
-              <Line type="linear" dataKey="Dislike" stroke="hsl(var(--destructive))" strokeWidth={2} dot={rates.length < 3} isAnimationActive={false} />
-            </LineChart>
           </ResponsiveContainer>
         </div>
       </Card>
