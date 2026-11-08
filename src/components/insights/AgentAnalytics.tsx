@@ -438,7 +438,6 @@ function Header({ a, title, desc, tag, badge }: { a: A; title: string; desc: str
       <p className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 tabular-nums">
         <span>Giờ cập nhật: {t.last}</span>
         <span aria-hidden="true">·</span><span>Lần cập nhật kế tiếp: {t.next}</span>
-        <span aria-hidden="true">·</span><span>Số của hôm nay là số tạm</span>
       </p>
       {tag && (
         <div role="status" className={`flex flex-col gap-3 rounded-lg border px-4 py-3 sm:flex-row sm:items-center sm:justify-between ${tag.tone === "warning" ? "border-warning/40 bg-warning/10" : "border-primary/20 bg-primary/5"}`}>
