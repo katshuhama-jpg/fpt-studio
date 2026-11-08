@@ -501,6 +501,34 @@ function MiniBars({ values, height = 44 }: { values: number[]; height?: number }
   );
 }
 
+/** Tooltip cursor for bar charts: a thin vertical line through the middle of the hovered column
+ * (instead of shading the whole band). Recharts passes the band's x/y/width/height. */
+function BarCenterLine(props: { x?: number; y?: number; width?: number; height?: number }) {
+  const { x = 0, y = 0, width = 0, height = 0 } = props;
+  const cx = x + width / 2;
+  return <line x1={cx} x2={cx} y1={y} y2={y + height} stroke="hsl(var(--muted-foreground))" strokeOpacity={0.6} strokeWidth={1} strokeDasharray="3 3" pointerEvents="none" />;
+}
+
+/** Mini stacked bars: Like (top, success) over Dislike (bottom, destructive). */
+function MiniStackBars({ likes, dislikes, height = 44 }: { likes: number[]; dislikes: number[]; height?: number }) {
+  const w = 200, h = height, n = Math.max(1, likes.length), bw = w / n;
+  const mx = Math.max(1, ...likes.map((l, i) => l + (dislikes[i] ?? 0)));
+  return (
+    <svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true">
+      {likes.map((l, i) => {
+        const d = dislikes[i] ?? 0, dh = (d / mx) * h, lh = (l / mx) * h;
+        const op = i === n - 1 ? 1 : 0.55;
+        return (
+          <g key={i} opacity={op}>
+            <rect x={i * bw + 0.8} y={h - dh} width={Math.max(0.5, bw - 1.6)} height={dh} fill="hsl(var(--destructive))" />
+            <rect x={i * bw + 0.8} y={h - dh - lh} width={Math.max(0.5, bw - 1.6)} height={lh} rx={1.5} fill="hsl(var(--success))" />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 function Kpi({ a, label, value, k, good, unit, info, sub }: {
   a: A; label: string; value: string; k: keyof Metrics; good: 1 | -1; unit?: "pp"; info: string; sub?: string;
 }) {
@@ -577,7 +605,7 @@ export function AnalyticsOverview({ a }: { a: V }) {
   const go = (section: AnalyticsSection) => setParams(p => { const n = new URLSearchParams(p); n.set("tab", "insights"); n.set("section", section); return n; });
   // Biểu đồ nhỏ theo ngày; ngày Agent chưa có mặt / "--" thì cột bằng 0.
   const per = (f: (d: Day) => number) => a.rows.map(d => (a.dash || d.blank ? 0 : f(d)));
-  const cards: { title: string; info: string; section: AnalyticsSection; tabLabel: string; value: string; foot: string; viz: number[] }[] = [
+  const cards: { title: string; info: string; section: AnalyticsSection; tabLabel: string; value: string; foot: string; viz: number[]; stack?: { likes: number[]; dislikes: number[] } }[] = [
     { title: "Số người dùng đang hoạt động", section: "usage", tabLabel: "Sử dụng",
       info: "Active users: số người dùng có ít nhất 1 phiên trong khoảng đang xem. Bằng Người dùng mới cộng Người dùng cũ.",
       value: real(a, vn(cur.users)), foot: a.dash ? "Người dùng mới -- · Người dùng cũ --" : `Người dùng mới ${vn(cur.newUsers)} · Người dùng cũ ${vn(cur.returningUsers)}`, viz: per(d => d.users) },
@@ -586,7 +614,8 @@ export function AnalyticsOverview({ a }: { a: V }) {
       value: real(a, vn(cur.sessions)), foot: `${ratio(a, cur.users, vn(cur.sessionsPerUser, 2))} phiên mỗi người dùng`, viz: per(d => d.sessions) },
     { title: "Tổng lượt tương tác", section: "feedback", tabLabel: "Chất lượng",
       info: "Ratings: số lượt Like cộng số lượt Dislike. Người dùng đổi đánh giá thì chỉ tính lượt cuối.",
-      value: real(a, vn(cur.likes + cur.dislikes)), foot: a.dash ? "-- Like : -- Dislike" : `${vn(cur.likes)} Like : ${vn(cur.dislikes)} Dislike`, viz: per(d => d.likes + d.dislikes) },
+      value: real(a, vn(cur.likes + cur.dislikes)), foot: a.dash ? "-- Like : -- Dislike" : `${vn(cur.likes)} Like : ${vn(cur.dislikes)} Dislike`, viz: per(d => d.likes + d.dislikes),
+      stack: { likes: per(d => d.likes), dislikes: per(d => d.dislikes) } },
     { title: "Token sử dụng", section: "cost", tabLabel: "Chi phí",
       info: "Token usage: token đầu vào cộng token đầu ra, tính cả kênh Chạy thử.",
       value: compact(cur.tokens), foot: `${ratio(a, cur.sessions, vn(cur.tokPerSession))} token trung bình mỗi phiên`, viz: a.rows.map(d => tokIn(d) + tokOut(d)) },
@@ -605,7 +634,8 @@ export function AnalyticsOverview({ a }: { a: V }) {
               </span>
             </div>
             <div className="font-display text-3xl font-semibold tracking-tight tabular-nums mt-2">{c.value}</div>
-            <div className="mt-3 h-11" title="Theo ngày trong khoảng đang xem">{c.viz.some(v => v > 0) ? <MiniBars values={c.viz} /> : <div className="h-full border-b border-dashed" aria-hidden="true" />}</div>
+            <div className="mt-3 h-11" title="Theo ngày trong khoảng đang xem">{!c.viz.some(v => v > 0) ? <div className="h-full border-b border-dashed" aria-hidden="true" />
+              : c.stack ? <MiniStackBars likes={c.stack.likes} dislikes={c.stack.dislikes} /> : <MiniBars values={c.viz} />}</div>
             <div className="text-xs text-muted-foreground mt-2 truncate tabular-nums">{c.foot}</div>
           </div>
         ))}
@@ -642,7 +672,7 @@ function TokenChart({ a }: { a: V }) {
           <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
           <XAxis dataKey="day" tick={AXIS} tickLine={false} axisLine={false} interval={tickEvery(series.length)} />
           <YAxis tick={AXIS} tickLine={false} axisLine={false} tickFormatter={compact} />
-          <Tooltip contentStyle={TT} formatter={(v: number, n: string) => [vn(v), n]} cursor={{ fill: "hsl(var(--surface-muted))" }} />
+          <Tooltip contentStyle={TT} formatter={(v: number, n: string) => [vn(v), n]} cursor={<BarCenterLine />} />
           <Legend iconType="circle" iconSize={8} wrapperStyle={LEGEND} />
           {versionLines(a.markers)}
           <Bar dataKey="Đầu vào" stackId="t" fill="hsl(var(--primary))" maxBarSize={16} isAnimationActive={false} />
@@ -810,7 +840,7 @@ export function AnalyticsFeedback({ a }: { a: V }) {
               <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
               <XAxis dataKey="day" tick={AXIS} tickLine={false} axisLine={false} interval={tickEvery(series.length)} />
               <YAxis tick={AXIS} tickLine={false} axisLine={false} allowDecimals={false} />
-              <Tooltip contentStyle={TT} cursor={{ fill: "hsl(var(--surface-muted))" }}
+              <Tooltip contentStyle={TT} cursor={<BarCenterLine />}
                 content={({ active, payload, label }) => {
                   const p = payload?.[0]?.payload as { Like?: number; Dislike?: number } | undefined;
                   if (!active || !p || p.Like === undefined) return null;
