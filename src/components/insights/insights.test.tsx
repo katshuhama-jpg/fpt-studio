@@ -51,9 +51,9 @@ describe("Insights demo theo từng Agent", () => {
       await act(async () => { await new Promise(res => setTimeout(res, 450)); });
       return r;
     };
-    let r = await one("sales-quote"); expect(screen.getByText("Chưa có phiên nào")).toBeTruthy(); r.unmount();
-    r = await one("finance-check"); expect(screen.getByText("Không có phiên trong khoảng thời gian này")).toBeTruthy(); r.unmount();
-    r = await one("legal-review"); expect(screen.getByText(/Unpublish từ/)).toBeTruthy(); r.unmount();
+    let r = await one("finance-check"); expect(screen.getByText("Chưa có phiên nào")).toBeTruthy(); r.unmount();
+    r = await one("legal-review"); expect(screen.getByText("Không có phiên trong khoảng thời gian này")).toBeTruthy(); r.unmount();
+    r = await one("three-way-match-agent"); expect(screen.getByText(/Unpublish từ/)).toBeTruthy(); r.unmount();
     r = await one("ops"); expect(screen.getByText("Không tải được số liệu. Vui lòng thử lại.")).toBeTruthy(); r.unmount();
     r = await one("policy-assistant"); expect(screen.getByText(/Agent bắt đầu có số liệu từ/)).toBeTruthy(); r.unmount();
   });

@@ -46,9 +46,9 @@ const FIRST_PUBLISH_DAYS_AGO = 49;
 /** Demo: mỗi Nhân sự số hội thoại thể hiện một trạng thái của Insights (4.3). ?demo= trên URL vẫn ghi đè.
  * Agent Draft tự ra "Chưa có số liệu"; Agent Quy trình / trigger tự ra "Đang phát triển". */
 export const INSIGHTS_DEMO: Record<string, { state?: "no-sessions" | "empty-range" | "unpublish" | "error"; firstPublishDaysAgo?: number }> = {
-  "sales-quote": { state: "no-sessions" },
-  "finance-check": { state: "empty-range" },
-  "legal-review": { state: "unpublish" },
+  "finance-check": { state: "no-sessions" },
+  "legal-review": { state: "empty-range" },
+  "three-way-match-agent": { state: "unpublish" },
   "ops": { state: "error" },
   "policy-assistant": { firstPublishDaysAgo: 3 },
 };
