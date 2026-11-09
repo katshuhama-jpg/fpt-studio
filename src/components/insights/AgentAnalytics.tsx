@@ -828,8 +828,8 @@ export function AnalyticsFeedback({ a }: { a: V }) {
     <Page>
       <Header a={a} title="Chất lượng" desc="Đánh giá của người dùng, trích dẫn nguồn và Guardrail." tag={a.tag} />
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <Stat label="Số lượt Like" value={real(a, vn(cur.likes))} sub={`Tỷ lệ Like ${ratio(a, cur.likes + cur.dislikes, `${vn(cur.likePct, 1)}%`)}`} info="Likes: số lượt Like trong khoảng đang xem. Người dùng đổi đánh giá thì chỉ tính lượt cuối. Tỷ lệ Like = số Like ÷ (Like + Dislike)." />
-        <Stat label="Số lượt Dislike" value={real(a, vn(cur.dislikes))} sub={`Tỷ lệ Dislike ${ratio(a, cur.likes + cur.dislikes, `${vn(cur.dislikePct, 1)}%`)}`} info="Dislikes: số lượt Dislike trong khoảng đang xem. Người dùng đổi đánh giá thì chỉ tính lượt cuối. Tỷ lệ Dislike = số Dislike ÷ (Like + Dislike)." />
+        <Stat label="Số lượt Like" value={real(a, vn(cur.likes))} info="Likes: số lượt Like trong khoảng đang xem. Người dùng đổi đánh giá thì chỉ tính lượt cuối." />
+        <Stat label="Số lượt Dislike" value={real(a, vn(cur.dislikes))} info="Dislikes: số lượt Dislike trong khoảng đang xem. Người dùng đổi đánh giá thì chỉ tính lượt cuối." />
         <Stat label="CSAT" badge="Phase 2" value={ratio(a, cur.sessions, `${vn(cur.csat, 2)}/5`)} info="Customer satisfaction score: điểm trung bình người dùng chấm cuối phiên, thang 1 – 5." />
         <Stat label="Tỷ lệ trích dẫn nguồn" badge="Phase 2" value={ratio(a, cur.messages, `${vn(cur.citedPct, 1)}%`)} info="Citation rate: câu trả lời có trích dẫn tài liệu nguồn ÷ tổng câu trả lời × 100." />
         <Stat label="Tỷ lệ phản hồi" badge="Phase 2" value={ratio(a, cur.messages, `${vn(cur.coveragePct, 1)}%`)} info="Feedback rate: (số Like + số Dislike) ÷ tổng câu trả lời × 100. Tỷ lệ thấp thì số lượt Like/Dislike chưa đại diện cho nhiều người dùng." />
