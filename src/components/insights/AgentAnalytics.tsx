@@ -626,9 +626,12 @@ export function AnalyticsOverview({ a }: { a: V }) {
         {cards.map(c => (
           <div key={c.title} role="button" tabIndex={0} onClick={() => go(c.section)} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(c.section); } }}
             className="surface-card p-5 text-left group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">{c.title} <InfoTip text={c.info} label={c.title} /></h3>
-              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground group-hover:text-primary transition-base whitespace-nowrap">
+            {/* Cố định 2 dòng cho tiêu đề để giá trị, biểu đồ và dòng dưới của 4 thẻ thẳng hàng. */}
+            <div className="flex min-h-10 items-start justify-between gap-3">
+              <h3 className="min-w-0 text-sm font-medium leading-5 text-muted-foreground line-clamp-2">
+                {c.title}<span className="ml-1.5 inline-flex align-middle"><InfoTip text={c.info} label={c.title} /></span>
+              </h3>
+              <span className="inline-flex shrink-0 items-center gap-1 leading-5 text-xs text-muted-foreground group-hover:text-primary transition-base whitespace-nowrap">
                 {c.tabLabel} <HugeiconsIcon icon={ArrowRight01Icon} size={13} />
               </span>
             </div>
