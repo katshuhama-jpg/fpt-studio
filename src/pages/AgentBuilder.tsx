@@ -226,7 +226,10 @@ export default function AgentBuilder() {
   // (Human Review assignees via @ search, Agent node picker with the live version).
   if (isProcess && typeof window !== "undefined") {
     (window as any).__qtPeople = collectMembers(agentBuilderOrgTree).map(m => `${m.name} · ${m.role}`);
-    (window as any).__qtAgents = AGENTS.filter(a => a.kind !== "process").flatMap(a => { const p = agentPublishStore.get(a.id); return p.placement ? [{ name: a.name, ver: p.version }] : []; });
+    // Nhân sự số chưa có bản live vẫn chọn được vào node Agent, canvas cảnh báo và chạy thử báo lỗi ở bước đó
+    (window as any).__qtAgents = AGENTS.filter(a => a.kind !== "process").map(a => { const p = agentPublishStore.get(a.id); return p.placement ? { name: a.name, ver: p.version, live: true } : { name: a.name, ver: "", live: false }; });
+    // Tên Quy trình phải khác các Quy trình khác trong Space
+    (window as any).__qtNames = AGENTS.filter(a => a.kind === "process" && a.id !== id).map(a => a.name.trim().toLowerCase());
   }
 
   // Same anti-bypass re-check as AgentsList, scoped to the single Agent being viewed here — a
@@ -668,7 +671,7 @@ export default function AgentBuilder() {
                   <span className="block mt-2 space-y-1">{processUsages.map(u => <a key={u.id} href={`/workforce/${u.id}`} className="block text-primary hover:underline">{u.name}</a>)}</span>
                 </>
               ) : isProcess
-                ? (published ? "Người dùng không mở được hồ sơ mới bằng lệnh / nữa. Hồ sơ đang chạy dừng lại, các việc đang chờ ở Action Center bị huỷ. Bản vẽ, phiên bản và lịch sử hồ sơ bị xoá hẳn, không khôi phục được." : "Bản vẽ, phiên bản và quyền đã cấp của Quy trình bị xoá hẳn, không khôi phục được.")
+                ? (published ? "Người dùng không mở được hồ sơ mới bằng lệnh / nữa. Hồ sơ đang chạy dở vẫn chạy tiếp đến khi xong và vẫn quản lý được như thường, nhưng builder không còn thấy Quy trình này. Bản vẽ và phiên bản bị xoá hẳn, không khôi phục được." : "Bản vẽ, phiên bản và quyền đã cấp của Quy trình bị xoá hẳn, không khôi phục được.")
                 : published
                 ? "Nhân sự số đang live sẽ dừng phục vụ người dùng ngay. Cấu hình, phiên bản, quyền đã cấp và lịch sử chat Refine với AI của mọi người sẽ bị xóa hẳn, không khôi phục được."
                 : "Cấu hình, phiên bản, quyền đã cấp và lịch sử chat Refine với AI của mọi người sẽ bị xóa hẳn, không khôi phục được."}

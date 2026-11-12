@@ -17,7 +17,10 @@ import { getAgentKind } from "@/components/configure/agentKindStore";
 import { agentPublishStore } from "@/components/configure/agentPublishStore";
 import { runsStore } from "@/components/configure/runsStore";
 import { triggerStore, triggerNeedsSetup, type TriggerType } from "@/components/configure/triggerStore";
-import { AGENTS as ALL_AGENTS } from "@/components/configure/agentStore";
+import { AGENTS as ALL_AGENTS, deleteAgent } from "@/components/configure/agentStore";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 import { processStore } from "@/components/process/processStore";
 import { processCasesOf } from "@/components/process/ProcessCasesTab";
 // Nhân sự số Quy trình are AgentRecords too (kind "process") - same tabs, counts and statuses,
@@ -293,8 +296,11 @@ function ConversationalCard({ a }: { a: typeof agents[number] }) {
 
 /** Same card anatomy as ConversationalCard (tile, name, version line, description, stat row,
  * updated line) so a Nhân sự số Quy trình reads as the same kind of thing in the list. */
-function ProcessCard({ p }: { p: typeof agents[number] }) {
+function ProcessCard({ p, onDeleted }: { p: typeof agents[number]; onDeleted: () => void }) {
   const g = processStore.getGraph(p.id);
+  const [confirm, setConfirm] = useState(false);
+  const live = agentPublishStore.isPublished(p.id);
+  const running = processCasesOf(p.id).filter((c: any) => c.status === "running" || c.status === "waiting").length;
   const steps = g ? g.nodes.filter((n: any) => n.type !== "note").length : ({ pr: 29, invoice: 11, "mbl-rules": 12 } as Record<string, number>)[p.processId ?? ""] ?? 1;
   return (
     <Link
@@ -311,7 +317,34 @@ function ProcessCard({ p }: { p: typeof agents[number] }) {
             <AgentVersionLines agentId={p.id} />
           </div>
           <AgentShareChip agentId={p.id} />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" aria-label={`Thao tác với ${p.name}`} onClick={e => { e.preventDefault(); e.stopPropagation(); }}
+                className="w-7 h-7 -mr-1 -mt-1 rounded-md flex items-center justify-center text-muted-foreground hover:bg-surface-muted hover:text-foreground shrink-0">⋯</button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" onClick={e => e.stopPropagation()}>
+              <DropdownMenuItem asChild><Link to={`/agents/${p.id}`}>Mở Quy trình</Link></DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setConfirm(true)}>Xoá Quy trình</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
+        <AlertDialog open={confirm} onOpenChange={setConfirm}>
+          <AlertDialogContent onClick={e => e.stopPropagation()}>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Xoá "{p.name}"?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {running > 0 && <span className="block mb-2 text-amber-700 font-medium">Quy trình đang có {running} hồ sơ chạy dở.</span>}
+                {live ? "Người dùng không mở được hồ sơ mới bằng lệnh / nữa. Hồ sơ đang chạy dở vẫn chạy tiếp đến khi xong và vẫn quản lý được như thường, nhưng builder không còn thấy Quy trình này. Bản vẽ và phiên bản bị xoá hẳn, không khôi phục được."
+                  : "Bản vẽ, phiên bản và quyền đã cấp của Quy trình bị xoá hẳn, không khôi phục được."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Huỷ</AlertDialogCancel>
+              <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => { if (live) agentPublishStore.unpublish(p.id); deleteAgent(p.id); setConfirm(false); toast.success(`Đã xoá "${p.name}".`); onDeleted(); }}>Xoá Quy trình</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <p className="text-xs text-muted-foreground leading-relaxed mb-4 line-clamp-2 min-h-[32px]">{p.desc}</p>
 
@@ -577,6 +610,7 @@ export default function AgentsList({ mode = "agents" }: { mode?: "agents" | "pro
   const shareVersion = useAgentShareVersion();
   const canCreateAgent = can("agents.create");
   const { tree: orgTree } = useOrg();
+  const [delTick, setDelTick] = useState(0);
 
   // Anti-bypass: re-check every Nhóm cộng tác-scoped Agent's live roster overlap on a normal
   // page visit (see collabGroupStore.recheckAgentGroupPublish's doc comment) — this is the
@@ -590,7 +624,7 @@ export default function AgentsList({ mode = "agents" }: { mode?: "agents" | "pro
   // that were shared with it, in every tab and count below — not just a "Shared with me" filter.
   const visibleAgents = useMemo(
     () => (access.canSeeAll ? agents : agents.filter(a => isOwnedOrShared(a, access.userId))).filter(a => isProcPage ? a.kind === "process" : a.kind !== "process"),
-    [access.canSeeAll, access.userId, shareVersion, isProcPage],
+    [access.canSeeAll, access.userId, shareVersion, isProcPage, delTick],
   );
   const sharedWithMe = useMemo(
     () => agents.filter(a => a.ownerId !== access.userId && isOwnedOrShared(a, access.userId) && (isProcPage ? a.kind === "process" : a.kind !== "process")),
@@ -880,7 +914,7 @@ export default function AgentsList({ mode = "agents" }: { mode?: "agents" | "pro
             />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {processAgents.map(p => <ProcessCard key={p.id} p={p} />)}
+              {processAgents.map(p => <ProcessCard key={p.id} p={p} onDeleted={() => setDelTick(x => x + 1)} />)}
             </div>
           )}
         </div>

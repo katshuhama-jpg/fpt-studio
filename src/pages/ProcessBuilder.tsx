@@ -77,7 +77,7 @@ var CSS = `
 .qt-cmi:hover{background:#f4f4f5}.qt-cmi:disabled{opacity:.45;cursor:default;background:transparent}
 .qt-pal{height:34px;font-size:14px;font-weight:500;gap:10px;padding:0 8px;color:#121216}
 .qt-palh{font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#686873;padding:8px 8px 2px}
-.qt-soon{font-size:10px;font-weight:600;color:#686873;background:#f1f1f4;border-radius:999px;padding:1px 6px;letter-spacing:0}
+.qt-soon{white-space:nowrap;font-size:10px;font-weight:600;color:#686873;background:#f1f1f4;border-radius:999px;padding:1px 6px;letter-spacing:0}
 .qt-rcard{display:flex;gap:8px;align-items:flex-start;text-align:left;border:1px solid #e3e1dc;border-radius:8px;padding:8px 10px;background:#fff;font:inherit;min-width:0}
 .qt-rcard:hover{border-color:#a5b4fc}
 .qt-rdot{width:14px;height:14px;border-radius:999px;border:1.5px solid #c4c4cc;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;box-sizing:border-box}
@@ -253,10 +253,14 @@ function roundPath(pts, r) {
 }
 // Thư mục tổ chức và Nhân sự số Năng suất đã publish do trang bao ngoài truyền vào (window.__qtPeople / __qtAgents).
 function dirPeople() { var w = (typeof window !== 'undefined' && window.__qtPeople) || []; return PEOPLE.concat(w.filter(function (x) { return PEOPLE.indexOf(x) < 0 && !PEOPLE.some(function (p) { return p.split(' · ')[0] === x.split(' · ')[0]; }); })); }
-function dirAgents() { var w = (typeof window !== 'undefined' && window.__qtAgents) || []; var names = w.map(function (a) { return a.name; }); var SV = { 'Trợ lý So sánh báo giá': 'v3.1.0', 'Trợ lý Mua sắm': 'v1.4.0', 'Trợ lý Kinh doanh': 'v2.0.0', 'Tư vấn khoản vay': 'v1.0.3' }; return AGENTS.filter(function (n) { return names.indexOf(n) < 0; }).map(function (n) { return { name: n, ver: SV[n] || '' }; }).concat(w); }
+function dirAgents() { var w = (typeof window !== 'undefined' && window.__qtAgents) || []; var names = w.map(function (a) { return a.name; }); var SV = { 'Trợ lý So sánh báo giá': 'v3.1.0', 'Trợ lý Mua sắm': 'v1.4.0', 'Trợ lý Kinh doanh': 'v2.0.0', 'Tư vấn khoản vay': 'v1.0.3' }; return AGENTS.filter(function (n) { return names.indexOf(n) < 0; }).map(function (n) { return { name: n, ver: SV[n] || '', live: true }; }).concat(w); }
+// Trạng thái Nhân sự số được chọn ở node Agent: live, chưa có bản live, hoặc đã bị gỡ khỏi Space
+function agentState(name) { if (!name) return ''; var a = dirAgents().filter(function (x) { return x.name === name; })[0]; return !a ? 'gone' : a.live === false ? 'nolive' : 'live'; }
+var AGENT_WARN = { nolive: 'Nhân sự số này chưa có bản live. Chạy thử sẽ báo lỗi ở bước này', gone: 'Nhân sự số này đã bị gỡ. Chạy thử sẽ báo lỗi ở bước này' };
 function norm(s) { return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd'); }
 function slug(s) { return norm(s).replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').replace(/^[0-9_]+/, ''); }
 function colOf(type) { return COL[TYPES[type].c]; }
+function nameTaken(v) { var w = (typeof window !== 'undefined' && window.__qtNames) || []; return w.indexOf(String(v || '').trim().toLowerCase()) >= 0; }
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
 function trigOf(c) { return TRIGGERS.filter(function (t) { return t.id === c.trigger; })[0] || TRIGGERS[4]; }
 
@@ -360,7 +364,7 @@ function issuesOf(n, s) {
       if (c.output === 'json' && !c.props.length) m.push('Kết quả có cấu trúc cần ít nhất một thuộc tính');
       break;
     case 'worker':
-      if (!c.worker) m.push('Cần chọn agent');
+      if (!c.worker) m.push('Cần chọn agent'); else if (agentState(c.worker) !== 'live') m.push('W:' + AGENT_WARN[agentState(c.worker)]);
       if (!String(c.task || '').trim()) m.push('Cần viết hướng dẫn cho agent');
       if (c.output === 'json' && !c.props.length) m.push('Kết quả có cấu trúc cần ít nhất một thuộc tính');
       if (!c.helpers.length) m.push('Cần chọn người hỗ trợ');
@@ -369,7 +373,7 @@ function issuesOf(n, s) {
       break;
     case 'human':
       if (!c.assignees.length) m.push('Cần chọn người được giao');
-      if (!c.via.length) m.push('Chọn ít nhất một cách gửi');
+      if (!c.via.length) m.push('Chọn ít nhất một cách gửi, nếu không người được giao không nhận được việc');
       if (!String(c.title || '').trim()) m.push('Cần tiêu đề');
       if (c.variant === 'choice' && c.choices.filter(function (x) { return x.name; }).length < 2) m.push('Choice cần ít nhất 2 lựa chọn');
       if (c.variant !== 'choice' && c.mode === 'all' && c.assignees.length < 2) m.push('Cách giao All cần ít nhất 2 người được giao');
@@ -1187,7 +1191,9 @@ class ProcessBuilderInner extends React.Component<any, any> {
     } else {
       switch (n.type) {
         case 'condition': out = c.cases.length; for (var i = 0; i < c.cases.length; i++) if (self.evalCase(c.cases[i], vars)) { out = i; break; } note = out < c.cases.length ? 'Đi nhánh "' + c.cases[out].name + '"' : 'Không điều kiện nào đúng, đi Else'; break;
-        case 'worker': outputsOf(n).forEach(function (v) { if (vars[v] === undefined) vars[v] = mockOf(v); }); note = c.worker + ' nộp kết quả đúng schema: ' + outputsOf(n).join(', '); break;
+        case 'worker':
+          if (agentState(c.worker) !== 'live') { var why = c.worker + (agentState(c.worker) === 'gone' ? ' đã bị gỡ' : ' chưa có bản live'); if (c.onErr === 'branch') { out = outsOf(n).indexOf('Failed'); note = why + '. Đi nhánh Khi lỗi.'; } else stop = why; break; }
+          outputsOf(n).forEach(function (v) { if (vars[v] === undefined) vars[v] = mockOf(v); }); note = c.worker + ' nộp kết quả đúng schema: ' + outputsOf(n).join(', '); break;
         case 'agent': outputsOf(n).forEach(function (v) { if (vars[v] === undefined) vars[v] = mockOf(v); }); note = c.model + ' trả lời' + (c.output === 'json' ? ': ' + nm(c.props).join(', ') : ''); break;
         case 'tool': outputsOf(n).forEach(function (v) { vars[v] = mockOf(v); }); note = c.tool + ' chạy xong' + (c.acc === 'initiator' ? ' bằng tài khoản của người khởi chạy' : ''); break;
         case 'variable': vars[c.name] = c.op === 'clear' ? '' : c.op === 'append' ? (vars[c.name] ? vars[c.name] + ', ' : '') + fill(c.value, vars) : fill(c.value, vars); note = ({ set: 'Gán', append: 'Thêm vào cuối', parse: 'Đọc JSON', clear: 'Xoá' }[c.op]) + ': ' + c.name + (c.op === 'clear' ? '' : ' = ' + vars[c.name]); break;
@@ -1476,7 +1482,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
         case 'worker':
           help = 'Giao một bước cho agent như một hộp đen. Agent có thể hỏi người hỗ trợ qua Action Center. Thứ cần đúng tuyệt đối thì đặt ở DMN Table, Code hoặc Human Review.';
           pf.push(R('kind', 'Loại agent', [{ v: 'platform', l: 'Platform Agent', d: 'Nhân sự số đã publish trong Space' }, { v: 'a2a', l: 'External Agent (A2A)', d: 'Agent bên ngoài nói chuyện qua giao thức A2A', soon: 1 }], { row: true }));
-          pf.push(P('worker', 'Agent', 'select', { req: true, options: [{ v: '', l: 'Chọn agent' }].concat(dirAgents().map(function (a) { return { v: a.name, l: a.name + (a.ver ? ' · ' + a.ver : '') }; })), hint: 'Mỗi lượt chạy dùng bản đã duyệt mới nhất của agent.' }));
+          pf.push(P('worker', 'Agent', 'select', { req: true, options: [{ v: '', l: 'Chọn agent' }].concat(dirAgents().map(function (a) { return { v: a.name, l: a.name + (a.live === false ? ' · chưa có bản live' : a.ver ? ' · ' + a.ver : '') }; })).concat(agentState(c.worker) === 'gone' ? [{ v: c.worker, l: c.worker + ' · đã bị gỡ' }] : []), hint: 'Mỗi lượt chạy dùng bản đã duyệt mới nhất của agent.' }));
           pf.push(P('task', 'Hướng dẫn', 'text', { req: true, ph: 'Gõ / để chèn dữ liệu. VD: Xin báo giá từ ít nhất 3 NCC cho @items và đề xuất NCC.', canVar: true }));
           OUTFMT();
           pf.push(SEC('NHỜ NGƯỜI HỖ TRỢ', 'Khi thiếu thông tin, agent gửi câu hỏi cho người hỗ trợ và chờ trả lời.'));
@@ -1505,7 +1511,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
           var curConn = c.conn || connOf(c.tool), tl0 = toolOf(c);
           pf.push(P('conn', 'Ứng dụng', 'select', { req: true, value: curConn, options: [{ v: '', l: 'Chọn ứng dụng' }].concat(CONNS.map(function (x) { return { v: x.name, l: x.name }; })), onChange: function (ev) { self.updateCfg({ conn: ev.target.value, tool: '', args: {} }); } }));
           pf.push(P('tool', 'Thao tác', 'select', { req: true, options: [{ v: '', l: curConn ? 'Chọn thao tác' : 'Chọn ứng dụng trước' }].concat(TOOLS.filter(function (x) { return connOf(x.name) === curConn; }).map(function (x) { return { v: x.name, l: actOf(x.name) + (x.write ? ' · Ghi' : ' · Đọc') }; })), hint: tl0 ? tl0.desc + (tl0.write ? '. Thao tác Ghi: cần Human Review duyệt ngay trước.' : '.') : '', onChange: function (ev) { self.setTool(n.id, ev.target.value); } }));
-          pf.push(R('acc', 'Credential', [{ v: 'process', l: 'Dùng chung', d: 'Tài khoản người dựng đã kết nối' }, { v: 'initiator', l: 'Cá nhân', d: 'Tài khoản của người khởi chạy' }], { row: true }));
+          pf.push(R('acc', 'Credential', [{ v: 'process', l: 'Dùng chung', d: 'Tài khoản đã kết nối ở tab Connectors trên Console' }, { v: 'initiator', l: 'Cá nhân', d: 'Tài khoản của người khởi chạy' }], { row: true }));
           if (tl0 && tl0.args.length) {
             pf.push(SEC('THAM SỐ'));
             tl0.args.forEach(function (a) { pf.push(P('arg-' + a, a, 'input', { req: true, value: (c.args || {})[a] || '', font: 'inherit', ph: 'Gõ / để chèn dữ liệu', canVar: true, vkey: a, vkind: 'arg', onChange: function (ev) { var a2 = Object.assign({}, self.byId(n.id).cfg.args || {}); a2[a] = ev.target.value; self.updateCfg({ args: a2 }); } })); });
@@ -1715,9 +1721,9 @@ class ProcessBuilderInner extends React.Component<any, any> {
       bannerLeft: (function () { var pw = building && (pmNode || showRun || (pmProcess && !s.panelHidden)) ? (s.expand ? 640 : 476) : 0, lw = s.palOpen && !ro ? (s.leftTab === 'ai' ? 356 : 232) : 0; return 'calc(' + lw + 'px + (100% - ' + (lw + pw) + 'px) / 2)'; })(),
       pendingBanner: building && !ro && (s.status === 'pending' || !!pendVer), pendingText: (pendVer || 'v1') + ' đang chờ duyệt. Bạn đang sửa bản nháp mới - Bản đã gửi duyệt giữ nguyên.',
       nameInput: s.name || '', desc: s.desc || '', descLen: (s.desc || '').length, nameLen: (s.name || '').length, nameInvalid: !!s.nameErr, nameBorder: s.nameErr ? '#dc2626' : '#e5e5e5',
-      nameHint: s.nameErr ? 'Nhập tên Quy trình để lưu.' : 'Tên hiện ở danh sách Nhân sự số.', nameHintColor: s.nameErr ? '#dc2626' : '#686873',
-      onName: function (e) { if (self.ro()) return; var v = e.target.value.slice(0, 100); self.setState({ name: v, nameErr: !v.trim(), savedName: v.trim() ? v.trim() : self.state.savedName }); },
-      onNameBlur: function () { if (!String(self.state.name || '').trim()) self.setState({ nameErr: true }); },
+      nameHint: s.nameErr === 'dup' ? 'Đã có Quy trình tên này. Đặt tên khác.' : s.nameErr ? 'Nhập tên Quy trình để lưu.' : 'Tên hiện ở danh sách Nhân sự số.', nameHintColor: s.nameErr ? '#dc2626' : '#686873',
+      onName: function (e) { if (self.ro()) return; var v = e.target.value.slice(0, 100), dup = nameTaken(v), bad = !v.trim() || dup; self.setState({ name: v, nameErr: !v.trim() ? 'empty' : dup ? 'dup' : false, savedName: !bad ? v.trim() : self.state.savedName }); },
+      onNameBlur: function () { if (!String(self.state.name || '').trim()) self.setState({ nameErr: 'empty' }); },
       onDesc: function (e) { if (self.ro()) return; self.setState({ desc: e.target.value.slice(0, 500) }); },
       triggerName: startNode ? trigOf(startNode.cfg).name : '-',
       collapseSide: function () { self.setState({ sideOpen: false }); }, expandSide: function () { self.setState({ sideOpen: true }); },
@@ -2252,7 +2258,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
       <div data-ui="1" role="status" style={S(`position: absolute; left: ${bannerLeft}; top: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 8px 12px; font-size: 12.5px; color: #92400e; max-width: 560px; z-index: 5`)}><span style={S('width: 6px; height: 6px; border-radius: 999px; background: #f59e0b; flex-shrink: 0')}></span><span>{pendingText}</span></div>
     </>)}
     {(roBanner) && (<>
-      <div data-ui="1" role="status" style={S(`position: absolute; left: ${bannerLeft}; top: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; background: #f5f3f0; border: 1px solid #e3e1dc; border-radius: 10px; padding: 8px 12px; font-size: 12.5px; color: #475569; z-index: 5`)}>Bạn chỉ xem được Quy trình này. Bấm vào bước để xem cấu hình.</div>
+      <div data-ui="1" role="status" style={S(`position: absolute; left: ${bannerLeft}; top: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; background: #f5f3f0; border: 1px solid #e3e1dc; border-radius: 10px; padding: 8px 12px; font-size: 12.5px; color: #475569; z-index: 5`)}>Bạn chỉ có quyền xem Quy trình này. Bấm vào bước để xem cấu hình.</div>
     </>)}
     {(panelReopen) && (<>
       <div data-ui="1" style={S('position: absolute; right: 16px; top: 16px; display: flex; gap: 4px; background: #fff; border: 1px solid #e3e1dc; border-radius: 10px; padding: 3px; box-shadow: 0 2px 8px rgba(15,23,42,.06); z-index: 6')}>
