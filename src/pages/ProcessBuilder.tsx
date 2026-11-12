@@ -411,6 +411,7 @@ function issuesOf(n, s) {
     if (fan.length > 1 && !joinAfter(fan.map(function (e) { return e.to; }), s)) m.push('Các nhánh song song tách từ bước này cần hợp lại ở cùng một Join');
   }
   var inBody = s.nodes.some(function (L) { return L.type === 'loop' && loopBody(L, s)[n.id]; });
+  if (n.type === 'end' && inBody) m.push('End không được đặt trong vòng lặp. Đặt End sau cổng XONG hoặc ĐẠT TỐI ĐA của vòng lặp');
   if (n.type !== 'start' && n.type !== 'note' && !n.parent && !s.edges.some(function (e) { return e.to === n.id; })) m.push('W:"' + n.title + '" không bao giờ được chạy (chưa có đường đi từ Start)');
   if (n.type !== 'condition' && n.type !== 'human' && s.edges.some(function (e) { return e.from === n.id && exitLoopOf(e, s); })) m.push('Chỉ nhánh của If/Else hoặc Human Review bên trong vòng lặp mới được nối ra ngoài');
   var o = outsOf(n);
@@ -428,6 +429,15 @@ function approvedBefore(id, s, depth) {
   var ins = s.edges.filter(function (e) { return e.to === id; }); if (!ins.length || depth > 8) return false;
   return ins.every(function (e) { var src = s.nodes.filter(function (x) { return x.id === e.from; })[0]; if (!src) return false; if (src.type === 'human') return true; return src.type === 'tool' && isWrite(src.cfg) && approvedBefore(src.id, s, depth + 1); });
 }
+// Bước mới thêm từ cổng này (hoặc chèn vào mũi tên này) có nằm trong thân một vòng lặp không
+function landsInLoop(s, from, edge) {
+  var inB = function (id) { return s.nodes.some(function (L) { return L.type === 'loop' && loopBody(L, s)[id]; }); };
+  var isL0 = function (id, out) { var x = s.nodes.filter(function (n) { return n.id === id; })[0]; return !!x && x.type === 'loop' && out === 0; };
+  if (edge) return isL0(edge.from, edge.out) || inB(edge.to);
+  if (from) return isL0(from.id, from.out) || inB(from.id);
+  return false;
+}
+var END_IN_LOOP = 'End không đặt được trong vòng lặp. Thêm End sau cổng XONG của vòng lặp.';
 function isWarn(msg) { return String(msg).indexOf('W:') === 0; }
 function msgText(msg) { return isWarn(msg) ? msg.slice(2) : msg; }
 function errsOf(n, s) { return issuesOf(n, s).filter(function (x) { return !isWarn(x); }); }
@@ -994,8 +1004,10 @@ class ProcessBuilderInner extends React.Component<any, any> {
     if (q) TOOLS.forEach(function (t) { if (match(t.name + ' ' + t.desc + ' tool connector ' + t.kind)) res.push({ g: 'Thao tác của connector', type: 'tool', preset: { tool: t.name, acc: 'process' }, title: actOf(t.name), name: t.name, desc: t.kind + ' · ' + t.desc, icon: ICON.tool, tile: COL.integ[0], tileBg: COL.integ[1], tag: t.write ? 'Ghi' : '', hasTag: !!t.write }); });
     else if (a.tab === 'tool' && String(a.level).indexOf('c:') === 0) { var cn = a.level.slice(2); TOOLS.forEach(function (t) { if (connOf(t.name) === cn) res.push({ g: 'Thao tác', type: 'tool', preset: { tool: t.name, acc: 'process' }, title: actOf(t.name), name: actOf(t.name), desc: t.desc + (t.write ? ' · tự chèn Human Review · Confirm trước' : ''), icon: ICON.tool, tile: COL.integ[0], tileBg: COL.integ[1], tag: t.write ? 'Ghi' : '' }); }); }
     else if (a.tab === 'tool') CONNS.forEach(function (cc) { res.push({ g: cc.kind, name: cc.name, desc: cc.n + ' thao tác', icon: ICON.tool, tile: COL.integ[0], tileBg: COL.integ[1], more: true, goLevel: 'c:' + cc.name }); });
+    var noEnd = landsInLoop(st, a.from, a.edge);
     if (a.tab === 'featured' || q) {
       PAL.forEach(function (k) {
+        if (k === 'end' && noEnd) return;
         if (match(TYPES[k].name + ' ' + TYPES[k].kw + ' ' + TYPES[k].desc + ' ' + VARIANT[k])) res.push(Object.assign(T(k, q ? 'Bước' : PAL_GROUP[k], { desc: VARIANT[k] }), k === 'tool' && !q ? { more: true, goTab: 'tool' } : {}));
       });
     }
@@ -1027,6 +1039,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
   capFull() { if (this.state.nodes.length >= 500) { this.showToast('Quy trình đã đủ 500 bước - Gộp hoặc bỏ bớt bước rồi thêm lại.'); return true; } return false; }
   addNode(type, from, preset, title) {
     if (this.capFull()) return;
+    if (type === 'end' && landsInLoop(this.state, from, null)) { this.showToast(END_IN_LOOP, 'bad'); this.setState({ add: null }); return; }
     if (this.roStop()) return;
     var s = this.state, node = this.makeNode(type, preset, title), src = from ? this.byId(from.id) : null;
     if (type === 'note') {
@@ -1039,6 +1052,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
   }
   insertOnEdge(type, e, preset, title) {
     if (this.capFull()) return;
+    if (type === 'end' && landsInLoop(this.state, null, e)) { this.showToast(END_IN_LOOP, 'bad'); this.setState({ add: null }); return; }
     if (this.roStop()) return;
     var s = this.state, node = this.makeNode(type, preset, title);
     var edges = s.edges.filter(function (x) { return !(x.from === e.from && x.out === e.out && x.to === e.to); });
