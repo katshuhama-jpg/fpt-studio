@@ -111,7 +111,7 @@ export default function ProcessCasesTab({ agentId, readOnly }: { agentId: string
     <div>
       <div className="mb-4">
         <h2 className="font-display text-xl font-semibold">Hồ sơ</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">Mỗi lần chạy Quy trình là một hồ sơ. Người dùng mở hồ sơ bằng lệnh / ở Workspace.</p>
+        <p className="text-sm text-muted-foreground mt-0.5">Mỗi lần chạy Quy trình là một hồ sơ. Hồ sơ được mở bằng lệnh / ở Workspace, hoặc tự tạo theo lịch (Định kỳ) hay khi nhận yêu cầu HTTP.</p>
       </div>
       <div className="flex items-center gap-1 flex-wrap mb-3">
         {FILTERS.map(f => (

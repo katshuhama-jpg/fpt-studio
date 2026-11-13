@@ -264,25 +264,38 @@ function nameTaken(v) { var w = (typeof window !== 'undefined' && window.__qtNam
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
 // Trigger Định kỳ và HTTP (theo Copilot Studio)
 var FREQS = ['Phút', 'Giờ', 'Ngày', 'Tuần', 'Tháng'], WDAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-var TZS = ['(UTC+07:00) Bangkok, Hà Nội, Jakarta', '(UTC) Giờ phối hợp quốc tế', '(UTC+08:00) Singapore, Kuala Lumpur', '(UTC+09:00) Tokyo, Osaka, Seoul'];
+var TZS = ['(UTC+07:00) Bangkok, Hà Nội, Jakarta', '(UTC) Giờ phối hợp quốc tế', '(UTC+00:00) London, Dublin, Lisbon', '(UTC+01:00) Paris, Berlin, Rome', '(UTC+05:30) Mumbai, New Delhi', '(UTC+08:00) Singapore, Kuala Lumpur', '(UTC+08:00) Bắc Kinh, Hồng Kông, Đài Bắc', '(UTC+09:00) Tokyo, Osaka, Seoul', '(UTC+10:00) Sydney, Melbourne', '(UTC-05:00) New York, Toronto', '(UTC-08:00) Los Angeles, Vancouver'];
 var HTTP_WHO = [{ v: 'tenant', l: 'Mọi người dùng trong tổ chức' }, { v: 'users', l: 'Người dùng cụ thể trong tổ chức' }, { v: 'anyone', l: 'Bất kỳ ai (không xác thực)' }];
 var SCHEMA0 = '{\n  "type": "object",\n  "properties": {\n    "name": { "type": "string" }\n  }\n}';
+function validDT(v) { var m = /^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})$/.exec(String(v || '').trim()); if (!m) return false; var d = new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5]); return d.getDate() === +m[1] && d.getMonth() === +m[2] - 1 && +m[4] < 24 && +m[5] < 60; }
 function numList(s, lo, hi) { var a = String(s || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean); return a.every(function (x) { return /^\d+$/.test(x) && +x >= lo && +x <= hi; }) ? a.map(Number) : null; }
 function schemaProps(c) { try { var o = JSON.parse(c.schema || ''); return Object.keys((o && o.properties) || {}).map(function (k) { var ty = o.properties[k].type; return { name: k, t: ty === 'number' || ty === 'integer' ? 'Số' : ty === 'boolean' ? 'True/False' : 'Văn bản', desc: o.properties[k].description || '', req: (o.required || []).indexOf(k) >= 0 }; }); } catch (e) { return null; } }
-function startInputs(c) { var tr = c.trigger || 'agent'; return tr === 'http' ? (schemaProps(c) || []) : tr === 'schedule' ? [] : (c.inputs || []); }
+function startInputs(c) { var tr = c.trigger || 'agent'; return tr === 'http' ? (c.method === 'GET' ? [] : (schemaProps(c) || [])) : tr === 'schedule' ? [] : (c.inputs || []); }
 function schedText(c) {
   var n = parseInt(c.every, 10) || 1, f = c.freq || 'Ngày', u = { 'Phút': 'phút', 'Giờ': 'giờ', 'Ngày': 'ngày', 'Tuần': 'tuần', 'Tháng': 'tháng' }[f];
   if (f === 'Tuần') return 'Mỗi ' + n + ' tuần, chạy một lần vào mỗi ngày đã chọn.';
   if (f === 'Tháng') return 'Mỗi ' + n + ' tháng, chạy một lần vào mỗi ngày đã chọn.';
   return 'Chạy một lần mỗi ' + n + ' ' + u + '.';
 }
+function schedNoTime(c) { return (c.freq === 'Ngày' || c.freq === 'Tuần') && !String(c.hours || '').trim(); }
 function schedShort(c) {
   var f = c.freq || 'Ngày', n = parseInt(c.every, 10) || 1, at = (f === 'Ngày' || f === 'Tuần') && String(c.hours || '').trim() ? ' lúc ' + c.hours + ' giờ' : '';
   if (f === 'Tuần') return 'Mỗi ' + n + ' tuần' + ((c.days || []).length ? ' vào ' + c.days.join(', ') : '') + at;
   if (f === 'Tháng') return 'Mỗi ' + n + ' tháng vào ngày ' + (c.mdays || '...');
   return 'Mỗi ' + n + ' ' + f.toLowerCase() + at;
 }
-function hookUrl(c, flowId) { return 'https://console-agents.fpt.ai/hooks/' + (flowId || 'qt') + (String(c.path || '').trim() ? '/' + String(c.path).trim().replace(/^\/+/, '') : ''); }
+function hookUrl(c, flowId) { return 'https://console-agents.fpt.ai/hooks/' + (c.hookId || flowId || 'qt') + (String(c.path || '').trim() ? '/' + String(c.path).trim().replace(/^\/+/, '') : ''); }
+function startOf(s) { return (s.nodes || []).filter(function (x) { return x.type === 'start'; })[0]; }
+function noInitiator(s) { var st = startOf(s); return !!st && (st.cfg.trigger === 'schedule' || st.cfg.trigger === 'http'); }
+// Dữ liệu trigger cũ đã khai báo nhưng trigger hiện tại không còn tạo ra
+function lostStartVars(s) {
+  var st = startOf(s); if (!st) return [];
+  var c = st.cfg, had = nm(c.inputs || []).concat(nm(schemaProps(c) || [])), now = nm(startInputs(c)), other = {};
+  s.nodes.forEach(function (x) { if (x.type !== 'start') outputsOf(x).forEach(function (v) { other[v] = 1; }); });
+  return had.filter(function (v, i) { return v && had.indexOf(v) === i && now.indexOf(v) < 0 && !other[v]; });
+}
+function usesVar(n, v) { return new RegExp('@' + v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![A-Za-z0-9_])').test(JSON.stringify(n.cfg)); }
+function newHookId() { return 'wh-' + Math.random().toString(36).slice(2, 10); }
 function trigOf(c) { return TRIGGERS.filter(function (t) { return t.id === c.trigger; })[0] || TRIGGERS[4]; }
 
 function defaultCfg(type) {
@@ -290,7 +303,7 @@ function defaultCfg(type) {
   switch (type) {
     case 'start': return { trigger: 'agent', cmd: '', hint: '', inputs: [], outputs: [], deadline: false, dAmount: '7', dUnit: 'ngày',
       freq: 'Ngày', every: '1', days: [], hours: '9, 17', mins: '0, 30', mdays: '1, 15', startAt: '', tz: TZS[0],
-      method: 'POST', who: 'tenant', users: '', path: '/api/trigger', schema: SCHEMA0, splitOn: '', concOn: false, concLimit: '25', concWait: '10', conds: '' };
+      method: 'POST', who: 'tenant', users: '', httpUsers: [], hookId: '', path: '/api/trigger', schema: SCHEMA0, splitOn: '', concOn: false, concLimit: '25', concWait: '10', conds: '' };
     case 'agent': return Object.assign(base, { model: '', system: '', instructions: '', output: 'text', props: [], retry: '0', onErr: 'none' });
     case 'worker': return Object.assign(base, { kind: 'platform', worker: '', task: '', output: 'text', props: [], helpers: [INIT], helpVia: [], tmoOn: false, tmo: '1', tmoUnit: 'ngày', onErr: 'none' });
     case 'human': return Object.assign(base, { variant: 'approval', allowReturn: true, choices: [{ name: 'Lựa chọn 1', desc: '' }, { name: 'Lựa chọn 2', desc: '' }], assignees: [INIT], mode: 'any', via: [], title: '', message: '', fields: [], tmoOn: false, tmo: '1', tmoUnit: 'ngày' });
@@ -367,6 +380,7 @@ var PORT_ISS = { Failed: 'Nhánh Khi lỗi chưa nối: bước lỗi thì hồ 
 // Thông báo bắt đầu bằng "W:" là cảnh báo (màu cam), không chặn publish
 function issuesOf(n, s) {
   var c = n.cfg, m = [];
+  if (n.type !== 'start' && n.type !== 'note') lostStartVars(s).forEach(function (v) { if (usesVar(n, v)) m.push('Dùng @' + v + ' nhưng trigger hiện tại không còn tạo dữ liệu này'); });
   if (n.type !== 'note') {
     var k = keyOf(n);
     if (!SNAKE.test(k)) m.push('Tên node chỉ gồm chữ thường, số và _, bắt đầu bằng chữ');
@@ -381,14 +395,16 @@ function issuesOf(n, s) {
       if ((c.trigger || 'agent') === 'agent') badName(c.inputs, 'biến đầu vào');
       if (c.trigger === 'schedule') {
         if (!(parseInt(c.every, 10) >= 1)) m.push('Khoảng cách phải là số nguyên từ 1');
+        else if (c.freq === 'Phút' && parseInt(c.every, 10) < 5) m.push('Tần suất Phút phải từ 5 phút trở lên');
+        if (String(c.startAt || '').trim() && !validDT(c.startAt)) m.push('Thời điểm bắt đầu phải theo dạng dd/mm/yyyy hh:mm');
         if ((c.freq === 'Ngày' || c.freq === 'Tuần') && !numList(c.hours, 0, 23)) m.push('Giờ chạy phải là các số 0-23, cách nhau bằng dấu phẩy');
         if ((c.freq === 'Ngày' || c.freq === 'Tuần') && !numList(c.mins, 0, 59)) m.push('Phút chạy phải là các số 0-59, cách nhau bằng dấu phẩy');
         if (c.freq === 'Tuần' && !(c.days || []).length) m.push('Chọn ít nhất một ngày trong tuần');
         if (c.freq === 'Tháng' && !numList(c.mdays, 1, 31)) m.push('Ngày trong tháng phải là các số 1-31, cách nhau bằng dấu phẩy');
       }
       if (c.trigger === 'http') {
-        if (!schemaProps(c)) m.push('JSON schema của body không hợp lệ');
-        if (c.who === 'users' && !String(c.users || '').trim()) m.push('Nhập ít nhất một người dùng được phép gọi');
+        if (c.method !== 'GET' && !schemaProps(c)) m.push('JSON schema của body không hợp lệ');
+        if (c.who === 'users' && !(c.httpUsers || []).length) m.push('Chọn ít nhất một người dùng được phép gọi');
         if (String(c.path || '').trim() && !/^\/[A-Za-z0-9_\-\/]*$/.test(String(c.path).trim())) m.push('Đường dẫn phải bắt đầu bằng / và chỉ gồm chữ, số, -, _');
         if (c.who === 'anyone') m.push('W:Ai có địa chỉ webhook cũng gọi được Quy trình này');
       }
@@ -1165,6 +1181,20 @@ class ProcessBuilderInner extends React.Component<any, any> {
     var w = this.withConfirm(nodes, this.state.edges, id);
     this.commit(w.nodes, w.edges, {}, id);
   }
+  // Đổi trigger: nếu trigger mới không còn tạo dữ liệu mà các bước sau đang dùng thì hỏi xác nhận trước
+  pickTrigger(id, to) {
+    var s = this.state, st = s.nodes.filter(function (x) { return x.id === id; })[0]; if (!st) return;
+    var sim = { nodes: s.nodes.map(function (x) { return x.id === id ? Object.assign({}, x, { cfg: Object.assign({}, x.cfg, { trigger: to }) }) : x; }), edges: s.edges };
+    var before = lostStartVars(s), lost = lostStartVars(sim).filter(function (v) { return before.indexOf(v) < 0; });
+    var steps = sim.nodes.filter(function (x) { return x.type !== 'start' && x.type !== 'note' && lost.some(function (v) { return usesVar(x, v); }); }).map(function (x) { return x.title; });
+    if (steps.length) { this.setState({ trigOpen: null, trigConfirm: { id: id, to: to, lost: lost.filter(function (v) { return sim.nodes.some(function (x) { return x.type !== 'start' && usesVar(x, v); }); }), steps: steps } }); return; }
+    this.applyTrigger(id, to);
+  }
+  applyTrigger(id, to) {
+    var st = this.state.nodes.filter(function (x) { return x.id === id; })[0], p = { trigger: to };
+    if (to === 'http' && st && !st.cfg.hookId) p.hookId = newHookId();
+    this.updateCfg(p, id); this.setState({ trigOpen: null });
+  }
   updateCfg(patch, nodeId) {
     if (this.ro()) return; var id = nodeId || this.state.sel, old = this.byId(id); if (!old) return;
     var nn = Object.assign({}, old, { cfg: Object.assign({}, old.cfg, patch) }), o1 = outsOf(old), o2 = outsOf(nn), st = { nodes: this.state.nodes.map(function (n) { return n.id === id ? nn : n; }) };
@@ -1234,8 +1264,8 @@ class ProcessBuilderInner extends React.Component<any, any> {
       else { this.setState({ run: Object.assign({}, r, { status: 'paused', tab: 'result', waitId: n.id, vars: vars }) }); return; }
     } else if (n.type === 'start') {
       vars.case_code = /mua s/i.test(c.cmd || '') ? 'PR-0142' : 'HS-2026-0193'; vars.initiator = 'Phạm Minh Khoa';
-      note = c.trigger === 'schedule' ? 'Hồ sơ ' + vars.case_code + ' được tạo theo lịch: ' + schedShort(c)
-        : c.trigger === 'http' ? 'Hồ sơ ' + vars.case_code + ' được tạo khi nhận yêu cầu ' + (c.method || 'POST') + ' ' + (c.path || '/') + ' · ' + startInputs(c).length + ' trường trong body'
+      note = c.trigger === 'schedule' ? 'Hồ sơ ' + vars.case_code + ' được tạo theo lịch: ' + schedShort(c) + ' · @Initiator là chủ Quy trình'
+        : c.trigger === 'http' ? 'Hồ sơ ' + vars.case_code + ' được tạo khi nhận yêu cầu ' + (c.method || 'POST') + ' ' + (c.path || '/') + ' · ' + startInputs(c).length + ' trường trong body · @Initiator là chủ Quy trình'
         : 'Hồ sơ ' + vars.case_code + ' được tạo khi Initiator bấm Nộp · ' + c.inputs.filter(function (f) { return f.name; }).length + ' biến đầu vào';
     } else if (issues.length && TYPES[n.type].err) {
       var rt = parseInt(c.retry, 10) || 0; st = rt ? 'Lỗi sau ' + (rt + 1) + ' lần chạy' : 'Lỗi'; ms += rt * 1000;
@@ -1482,9 +1512,11 @@ class ProcessBuilderInner extends React.Component<any, any> {
       var PPL = function (key, label, extra) {
         var arr = c[key] || [], pk = s.picking === n.id + ':' + key, q = norm(String(s.pickQ || '').replace(/^@/, '')).trim();
         var pool = [INIT].concat(dirPeople()).filter(function (p) { return arr.indexOf(p) < 0 && (!q || norm(p).indexOf(q) >= 0); }).slice(0, 12);
-        return Object.assign({}, BASEF, { id: 'f-' + key, label: label, isChips: true, req: !!(extra && extra.req), hint: (extra && extra.hint) || '', picking: pk, q: s.pickQ || '',
-          chips: arr.map(function (p, i) { return { l: p === INIT ? '@Initiator' : p.split(' · ')[0], t: p === INIT ? 'Người khởi chạy hồ sơ' : p, rm: function () { var pp = {}; pp[key] = arr.filter(function (_, j) { return j !== i; }); self.updateCfg(pp); }, rmAria: 'Bỏ ' + p }; }),
-          pickList: pool.map(function (p) { return { l: p === INIT ? '@Initiator' : p.split(' · ')[0], d: p === INIT ? 'Người khởi chạy hồ sơ' : p.split(' · ').slice(1).join(' · '), hasD: true, pick: function () { var pp = {}; pp[key] = (self.byId(n.id).cfg[key] || []).concat([p]); self.updateCfg(pp); self.setState({ picking: null, pickQ: '' }); } }; }),
+        var ih = noInitiator(s) && arr.indexOf(INIT) >= 0 && !(extra && extra.noInit) ? 'Quy trình chạy bằng Định kỳ/HTTP nên @Initiator là chủ Quy trình.' : '';
+        if (extra && extra.noInit) pool = pool.filter(function (p) { return p !== INIT; });
+        return Object.assign({}, BASEF, { id: 'f-' + key, label: label, isChips: true, req: !!(extra && extra.req), hint: [(extra && extra.hint) || '', ih].filter(Boolean).join(' '), picking: pk, q: s.pickQ || '',
+          chips: arr.map(function (p, i) { return { l: p === INIT ? '@Initiator' : p.split(' · ')[0], t: p === INIT ? (noInitiator(s) ? 'Chủ Quy trình (Quy trình chạy bằng Định kỳ/HTTP)' : 'Người khởi chạy hồ sơ') : p, rm: function () { var pp = {}; pp[key] = arr.filter(function (_, j) { return j !== i; }); self.updateCfg(pp); }, rmAria: 'Bỏ ' + p }; }),
+          pickList: pool.map(function (p) { return { l: p === INIT ? '@Initiator' : p.split(' · ')[0], d: p === INIT ? (noInitiator(s) ? 'Chủ Quy trình (Quy trình chạy bằng Định kỳ/HTTP)' : 'Người khởi chạy hồ sơ') : p.split(' · ').slice(1).join(' · '), hasD: true, pick: function () { var pp = {}; pp[key] = (self.byId(n.id).cfg[key] || []).concat([p]); self.updateCfg(pp); self.setState({ picking: null, pickQ: '' }); } }; }),
           noPick: !pool.length, togglePick: function () { self.setState({ picking: pk ? null : n.id + ':' + key, pickQ: '' }); }, onQ: function (ev) { self.setState({ pickQ: ev.target.value }); } });
       };
       var SEC = function (title, hint) { return Object.assign({}, BASEF, { isSec: true, hasLabel: false, label: title, hint: hint || '' }); };
@@ -1520,32 +1552,36 @@ class ProcessBuilderInner extends React.Component<any, any> {
         case 'start':
           c = Object.assign(defaultCfg('start'), c);
           var tr = c.trigger || 'agent', tObj = trigOf(c), tOpen = s.trigOpen === n.id;
-          help = tr === 'schedule' ? 'Hồ sơ tự bắt đầu theo lịch, không cần ai gọi.' : tr === 'http' ? 'Hồ sơ bắt đầu khi hệ thống khác gửi yêu cầu HTTP tới địa chỉ webhook của Quy trình. Các trường trong body dùng được ở các bước sau.' : 'Hồ sơ bắt đầu khi người dùng gọi Quy trình bằng / trong cuộc chat. Agent điền sẵn biến đầu vào từ cuộc chat, người dùng kiểm tra rồi bấm Nộp.';
+          help = tr === 'schedule' ? 'Hồ sơ tự bắt đầu theo lịch, không cần ai gọi. Quy trình không hiện trong menu / của Workspace. @Initiator là chủ Quy trình.' : tr === 'http' ? 'Hồ sơ bắt đầu khi hệ thống khác gửi yêu cầu HTTP tới địa chỉ webhook của Quy trình. Quy trình không hiện trong menu / của Workspace. @Initiator là chủ Quy trình.' : 'Hồ sơ bắt đầu khi người dùng gọi Quy trình bằng / trong cuộc chat. Agent điền sẵn biến đầu vào từ cuộc chat, người dùng kiểm tra rồi bấm Nộp.';
           pf.push(Object.assign({}, BASEF, { id: 'f-trigger', label: 'Loại trigger', isMenu: true, menuOpen: tOpen, curL: tObj.name, curD: tObj.desc,
             toggleMenu: function () { self.setState({ trigOpen: tOpen ? null : n.id }); },
             opts: TRIGGERS.map(function (x) { var on = x.id === tr; return { l: x.name, d: x.desc, hasD: true, soon: !!x.soon, on: on, dis: !!x.soon, cur: x.soon ? 'not-allowed' : 'pointer', fg: x.soon ? '#9a9aa3' : '#121216', bg: on ? '#f3f5fe' : '#fff',
-              pick: function () { if (x.soon) return; self.updateCfg({ trigger: x.id }); self.setState({ trigOpen: null }); } }; }) }));
+              pick: function () { if (x.soon || on) { self.setState({ trigOpen: null }); return; } self.pickTrigger(n.id, x.id); } }; }) }));
+          var tcf = s.trigConfirm && s.trigConfirm.id === n.id ? s.trigConfirm : null;
+          if (tcf) pf.push(Object.assign({}, BASEF, { isConfirm: true, hasLabel: false, cTitle: 'Đổi sang ' + trigOf({ trigger: tcf.to }).name + '?', cText: 'Trigger mới không tạo ' + tcf.lost.map(function (v) { return '@' + v; }).join(', ') + '. Các bước ' + tcf.steps.join(', ') + ' đang dùng dữ liệu này sẽ báo lỗi cho đến khi bạn sửa.', cOk: 'Đổi trigger',
+            cancel: function () { self.setState({ trigConfirm: null }); }, ok: function () { self.applyTrigger(n.id, tcf.to); self.setState({ trigConfirm: null }); } }));
           if (tr === 'schedule') {
             pf.push(Object.assign({}, BASEF, { isPair: true, hasLabel: false,
-              a: P('freq', 'Tần suất', 'select', { req: true, options: opt(FREQS) }), b: P('every', 'Khoảng cách', 'num', { req: true, min: 1, max: 1000 }) }));
-            pf.push(ST(schedText(c)));
+              a: P('freq', 'Tần suất', 'select', { req: true, options: opt(FREQS) }), b: P('every', 'Khoảng cách', 'num', { req: true, min: c.freq === 'Phút' ? 5 : 1, max: 1000 }) }));
+            pf.push(ST(schedText(c) + (c.freq === 'Phút' ? ' Tối thiểu 5 phút.' : '') + (schedNoTime(c) ? ' Không đặt giờ nên chạy theo giờ của Thời điểm bắt đầu (00:00 nếu để trống).' : '')));
             if (c.freq === 'Tuần') pf.push(CK('days', 'Vào các ngày', WDAYS.map(function (d) { return { v: d, l: d }; }), { f: { cols: 'repeat(4, minmax(0, 1fr))' } }));
-            if (c.freq === 'Tháng') pf.push(P('mdays', 'Vào các ngày trong tháng', 'input', { ph: '1, 15', hint: 'Nhập ngày, cách nhau bằng dấu phẩy, VD 1, 15' }));
+            if (c.freq === 'Tháng') pf.push(P('mdays', 'Vào các ngày trong tháng', 'input', { ph: '1, 15', hint: 'Nhập ngày, cách nhau bằng dấu phẩy, VD 1, 15. Tháng không có ngày đã chọn (VD 31) thì bỏ qua tháng đó.' }));
             if (c.freq === 'Ngày' || c.freq === 'Tuần') {
-              pf.push(P('hours', 'Vào các giờ', 'input', { ph: '9, 17', hint: 'Nhập giờ (0-23), cách nhau bằng dấu phẩy, VD 9, 17' }));
-              pf.push(P('mins', 'Vào các phút', 'input', { ph: '0, 30', hint: 'Nhập phút (0-59), cách nhau bằng dấu phẩy, VD 0, 30' }));
+              pf.push(P('hours', 'Vào các giờ', 'input', { ph: '9, 17', hint: 'Nhập giờ (0-23), cách nhau bằng dấu phẩy, VD 9, 17. Để trống thì chạy theo giờ của Thời điểm bắt đầu.' }));
+              pf.push(P('mins', 'Vào các phút', 'input', { ph: '0, 30', hint: 'Nhập phút (0-59), cách nhau bằng dấu phẩy, VD 0, 30. Để trống thì chạy theo phút của Thời điểm bắt đầu.' }));
             }
             pf.push(SEC('NÂNG CAO'));
-            pf.push(P('startAt', 'Thời điểm bắt đầu', 'input', { type: 'datetime-local', hint: 'Lịch bắt đầu chạy từ thời điểm này.' }));
+            pf.push(P('startAt', 'Thời điểm bắt đầu', 'input', { ph: 'dd/mm/yyyy hh:mm', hint: 'Lịch bắt đầu chạy từ thời điểm này, theo múi giờ bên dưới. Để trống thì chạy ngay khi publish.' }));
             pf.push(P('tz', 'Múi giờ', 'select', { options: opt(TZS) }));
           } else if (tr === 'http') {
             pf.push(ST('Chạy quy trình khi nhận một yêu cầu HTTP. Chọn phương thức được phép và cấu trúc dữ liệu gửi kèm.'));
             pf.push(P('method', 'Phương thức HTTP được phép', 'select', { req: true, options: opt(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']) }));
             pf.push(P('who', 'Ai được gọi Quy trình?', 'select', { options: HTTP_WHO, hint: 'Chọn ai được gọi địa chỉ này. Mặc định là người dùng trong tổ chức.' }));
-            if (c.who === 'users') pf.push(P('users', 'Người dùng được phép', 'input', { req: true, ph: 'lan@fpt.com; khoa@fpt.com', hint: 'Nhập email, cách nhau bằng dấu chấm phẩy.' }));
+            if (c.who === 'users') pf.push(PPL('httpUsers', 'Người dùng được phép', { req: true, noInit: true, hint: 'Chỉ chọn được người trong tổ chức của bạn.' }));
             pf.push(P('path', 'Đường dẫn', 'input', { ph: '/api/trigger', font: 'ui-monospace, SFMono-Regular, Menlo, monospace', hint: 'Không bắt buộc, nối thêm vào sau địa chỉ webhook.' }));
-            pf.push(P('schema', 'JSON schema của body', 'text', { rows: 7, font: 'ui-monospace, SFMono-Regular, Menlo, monospace', hint: 'Nhập JSON Schema hợp lệ để kiểm tra body gửi đến. Mỗi thuộc tính trong properties thành một dữ liệu dùng được ở các bước sau.' }));
-            var hu = hookUrl(c, 'qt-' + (norm(s.savedName || s.name || 'quy-trinh').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'quy-trinh'));
+            if (c.method === 'GET') pf.push(ST('Yêu cầu GET không gửi kèm body, nên các bước sau không có dữ liệu từ trigger. Cần dữ liệu thì chọn POST.'));
+            else pf.push(P('schema', 'JSON schema của body', 'text', { rows: 7, font: 'ui-monospace, SFMono-Regular, Menlo, monospace', hint: 'Nhập JSON Schema hợp lệ để kiểm tra body gửi đến. Mỗi thuộc tính trong properties thành một dữ liệu dùng được ở các bước sau.' }));
+            var hu = hookUrl(c, 'wh-' + n.id);
             pf.push(Object.assign({}, BASEF, { isUrl: true, hasLabel: true, label: 'Địa chỉ HTTP ' + (c.method || 'POST'), url: hu, copyUrl: function () { try { navigator.clipboard.writeText(hu); } catch (e) {} self.showToast('Đã sao chép địa chỉ webhook.'); } }));
           } else {
             pf.push(LE('inputs', 'BIẾN ĐẦU VÀO', { hasB: false, addLabel: '+ Thêm biến', req: true, edit: function (i) { openVar('inputs', i); }, add: function () { openVar('inputs', -1); }, note: 'Agent điền các biến này từ cuộc chat và hỏi phần còn thiếu. Biến bắt buộc phải có giá trị thì mới Nộp được.' }));
@@ -1557,8 +1593,8 @@ class ProcessBuilderInner extends React.Component<any, any> {
             var setOpen = s.trigSet === n.id, codeOpen = s.trigCode === n.id;
             pf.push(Object.assign({}, BASEF, { isFold: true, hasLabel: false, label: 'CÀI ĐẶT', open: setOpen, chev: setOpen ? '▾' : '▸', toggle: function () { self.setState({ trigSet: setOpen ? null : n.id }); } }));
             if (setOpen) {
-              pf.push(P('splitOn', 'Tách theo', 'input', { ph: '@triggerBody()', font: 'ui-monospace, SFMono-Regular, Menlo, monospace', hint: 'Body là một mảng thì mỗi phần tử chạy thành một hồ sơ riêng.' }));
-              pf.push(P('concOn', 'Giới hạn lượt chạy cùng lúc', 'toggle', { ph: 'Giới hạn số hồ sơ được bắt đầu cùng lúc. Khi chạm giới hạn, hồ sơ mới xếp hàng chờ đến khi có hồ sơ chạy xong.' }));
+              if (tr === 'http') pf.push(P('splitOn', 'Tách theo', 'input', { ph: '@triggerBody()', font: 'ui-monospace, SFMono-Regular, Menlo, monospace', hint: 'Body là một mảng thì mỗi phần tử chạy thành một hồ sơ riêng.' }));
+              pf.push(P('concOn', 'Giới hạn lượt chạy cùng lúc', 'toggle', { ph: 'Giới hạn số hồ sơ được bắt đầu cùng lúc. Khi chạm giới hạn, hồ sơ mới xếp hàng chờ đến khi có hồ sơ chạy xong. Hàng chờ đầy thì lượt mới bị từ chối, ghi vào Insights > History và báo chủ Quy trình.' }));
               if (c.concOn) { pf.push(P('concLimit', 'Số lượt chạy cùng lúc tối đa', 'num', { min: 1, max: 100, hint: 'Từ 1 đến 100.' })); pf.push(P('concWait', 'Số lượt chờ tối đa', 'num', { min: 10, max: 100, hint: 'Từ 10 đến 100.' })); }
               pf.push(P('conds', 'Điều kiện kích hoạt', 'text', { rows: 3, ph: "@equals(triggerBody()?['status'], 'active')", font: 'ui-monospace, SFMono-Regular, Menlo, monospace', hint: 'Mỗi dòng một biểu thức. Chỉ tạo hồ sơ khi mọi điều kiện đúng.' }));
             }
@@ -1566,7 +1602,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
             if (codeOpen) {
               var code = tr === 'schedule' ? { type: 'Recurrence', recurrence: { frequency: { 'Phút': 'Minute', 'Giờ': 'Hour', 'Ngày': 'Day', 'Tuần': 'Week', 'Tháng': 'Month' }[c.freq], interval: parseInt(c.every, 10) || 1, startTime: c.startAt || undefined, timeZone: c.tz,
                 schedule: c.freq === 'Tháng' ? { monthDays: numList(c.mdays, 1, 31) } : (c.freq === 'Ngày' || c.freq === 'Tuần') ? { weekDays: c.freq === 'Tuần' ? c.days : undefined, hours: numList(c.hours, 0, 23), minutes: numList(c.mins, 0, 59) } : undefined } }
-                : { type: 'Request', kind: 'Http', inputs: { method: c.method, relativePath: c.path || undefined, triggerAuthenticationType: { tenant: 'All', users: 'SpecificUsers', anyone: 'None' }[c.who], allowedUsers: c.who === 'users' ? c.users : undefined, schema: (function () { try { return JSON.parse(c.schema); } catch (e) { return c.schema; } })() } };
+                : { type: 'Request', kind: 'Http', inputs: { method: c.method, relativePath: c.path || undefined, triggerAuthenticationType: { tenant: 'All', users: 'SpecificUsers', anyone: 'None' }[c.who], allowedUsers: c.who === 'users' ? (c.httpUsers || []).map(function (p) { return p.split(' · ')[0]; }) : undefined, schema: c.method === 'GET' ? undefined : (function () { try { return JSON.parse(c.schema); } catch (e) { return c.schema; } })() } };
               if (c.splitOn) code.splitOn = c.splitOn; if (c.concOn) code.runtimeConfiguration = { concurrency: { runs: parseInt(c.concLimit, 10), maximumWaitingRuns: parseInt(c.concWait, 10) } };
               if (String(c.conds || '').trim()) code.conditions = String(c.conds).split('\n').filter(Boolean).map(function (x) { return { expression: x.trim() }; });
               pf.push(Object.assign({}, BASEF, { isCode: true, hasLabel: false, codeText: JSON.stringify(code, null, 2) }));
@@ -2683,7 +2719,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
                   <span style={S('flex: 1; min-width: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; color: #1d4ed8; word-break: break-all')}>{f.url}</span>
                   <button type="button" className={Q('btn')} onClick={f.copyUrl} style={S('height: 28px; font-size: 12px; flex-shrink: 0')}>Sao chép</button>
                 </div>
-                <p style={S('font-size: 11.5px; color: #64748b; margin: 4px 0 0')}>Địa chỉ được tạo khi lưu bản nháp. Mỗi lần gọi tạo một hồ sơ mới.</p>
+                <p style={S('font-size: 11.5px; color: #64748b; margin: 4px 0 0')}>Địa chỉ cố định, không đổi khi đổi tên Quy trình. Chỉ nhận yêu cầu sau khi Quy trình được publish; bản nháp chưa tạo hồ sơ. Mỗi lần gọi tạo một hồ sơ mới.</p>
               </>)}
               {(f.isFold) && (<>
                 <button type="button" onClick={f.toggle} aria-expanded={f.open} className={Q('sec')} style={S('display: flex; gap: 6px; align-items: center; width: 100%; margin-top: 20px; padding: 12px 0 0; border: 0; border-top: 1px solid #ececef; background: transparent; cursor: pointer; text-align: left')}>{f.chev} {f.label}</button>

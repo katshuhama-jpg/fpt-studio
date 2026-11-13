@@ -671,7 +671,7 @@ export default function AgentBuilder() {
                   <span className="block mt-2 space-y-1">{processUsages.map(u => <a key={u.id} href={`/workforce/${u.id}`} className="block text-primary hover:underline">{u.name}</a>)}</span>
                 </>
               ) : isProcess
-                ? (published ? "Người dùng không mở được hồ sơ mới bằng lệnh / nữa. Hồ sơ đang chạy dở vẫn chạy tiếp đến khi xong và vẫn quản lý được như thường, nhưng builder không còn thấy Quy trình này. Bản vẽ và phiên bản bị xoá hẳn, không khôi phục được." : "Bản vẽ, phiên bản và quyền đã cấp của Quy trình bị xoá hẳn, không khôi phục được.")
+                ? (published ? "Quy trình không nhận hồ sơ mới nữa (lệnh /, lịch Định kỳ hay webhook). Hồ sơ đang chạy dở vẫn chạy tiếp đến khi xong và vẫn quản lý được như thường, nhưng builder không còn thấy Quy trình này. Bản vẽ và phiên bản bị xoá hẳn, không khôi phục được." : "Bản vẽ, phiên bản và quyền đã cấp của Quy trình bị xoá hẳn, không khôi phục được.")
                 : published
                 ? "Nhân sự số đang live sẽ dừng phục vụ người dùng ngay. Cấu hình, phiên bản, quyền đã cấp và lịch sử chat Refine với AI của mọi người sẽ bị xóa hẳn, không khôi phục được."
                 : "Cấu hình, phiên bản, quyền đã cấp và lịch sử chat Refine với AI của mọi người sẽ bị xóa hẳn, không khôi phục được."}
@@ -3288,7 +3288,7 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish, onO
         </div>
         <div>
           <h1 className="text-xl font-semibold">Kênh triển khai</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{isProc ? "Quy trình mở cho ai trong Workspace và đang chạy phiên bản nào. Người dùng mở hồ sơ bằng lệnh / trong chat." : "Nhân sự số đang chạy ở đâu và người dùng đang dùng phiên bản nào."}</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{isProc ? "Quy trình mở cho ai trong Workspace và đang chạy phiên bản nào. Với trigger Agent khởi chạy, người dùng mở hồ sơ bằng lệnh / trong chat; với Định kỳ hoặc HTTP, hồ sơ tự tạo và Quy trình không hiện trong menu /." : "Nhân sự số đang chạy ở đâu và người dùng đang dùng phiên bản nào."}</p>
         </div>
       </div>
 

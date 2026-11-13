@@ -334,7 +334,7 @@ function ProcessCard({ p, onDeleted }: { p: typeof agents[number]; onDeleted: ()
               <AlertDialogTitle>Xoá "{p.name}"?</AlertDialogTitle>
               <AlertDialogDescription>
                 {running > 0 && <span className="block mb-2 text-amber-700 font-medium">Quy trình đang có {running} hồ sơ chạy dở.</span>}
-                {live ? "Người dùng không mở được hồ sơ mới bằng lệnh / nữa. Hồ sơ đang chạy dở vẫn chạy tiếp đến khi xong và vẫn quản lý được như thường, nhưng builder không còn thấy Quy trình này. Bản vẽ và phiên bản bị xoá hẳn, không khôi phục được."
+                {live ? "Quy trình không nhận hồ sơ mới nữa (lệnh /, lịch Định kỳ hay webhook). Hồ sơ đang chạy dở vẫn chạy tiếp đến khi xong và vẫn quản lý được như thường, nhưng builder không còn thấy Quy trình này. Bản vẽ và phiên bản bị xoá hẳn, không khôi phục được."
                   : "Bản vẽ, phiên bản và quyền đã cấp của Quy trình bị xoá hẳn, không khôi phục được."}
               </AlertDialogDescription>
             </AlertDialogHeader>
