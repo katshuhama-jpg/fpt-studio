@@ -49,6 +49,7 @@ const PROCESS_SUGGESTIONS = [
 
 
 const TRIGGER_TYPE_LABEL: Record<TriggerType, string> = {
+  manual: "Manual",
   scheduled: "Schedule",
   developer: "Webhook",
   external: "External app",

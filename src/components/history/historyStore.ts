@@ -55,8 +55,8 @@ export interface ToolCallInfo {
   callId: string;
   name: string;
   connector: string;
-  input: Record<string, string>;
-  output: Record<string, string>;
+  input: Record<string, unknown>;
+  output: Record<string, unknown>;
   /** Mirrors the real tracing spec's tool_call span `status` — whether this specific attempt
    * succeeded or failed. Optional and defaults to "success" wherever it's absent, since every
    * seed call written before this field existed doesn't set it. A failed call's `output` is

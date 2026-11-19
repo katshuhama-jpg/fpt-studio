@@ -21,6 +21,7 @@ const CHANNEL_NAME: Record<string, string> = {
 };
 
 const TRIGGER_TYPE_LABEL: Record<TriggerType, string> = {
+  manual: "Chạy thủ công",
   scheduled: "Lịch",
   developer: "Webhook",
   external: "Ứng dụng bên ngoài",

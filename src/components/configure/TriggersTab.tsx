@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Plus, Zap, Clock, Webhook, Globe, Pause, Play, MoreHorizontal, AlertTriangle,
+  Plus, Zap, Clock, Webhook, Globe, Pause, Play, MoreHorizontal, AlertTriangle, MessageSquare,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -19,6 +19,7 @@ import AppLogo from "./AppLogo";
 import { toast } from "sonner";
 
 export const TYPE_META: Record<TriggerType, { label: string; icon: any; chip: string }> = {
+  manual:    { label: "Chạy thủ công", icon: MessageSquare, chip: "chip-accent" },
   scheduled: { label: "Lịch", icon: Clock,   chip: "chip-accent" },
   developer: { label: "Webhook",   icon: Webhook, chip: "chip-warning" },
   external:  { label: "Ứng dụng bên ngoài",  icon: Globe,   chip: "chip-success" },

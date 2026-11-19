@@ -25,7 +25,7 @@ import RunHistoryTab from "@/components/workforce/RunHistoryTab";
 import ManualRunDialog, { type ManualRunTriggerOption } from "@/components/workforce/ManualRunDialog";
 import { DeleteNodeDialog } from "@/components/workforce/WorkforceDeleteDialogs";
 import { workforceStore } from "@/components/workforce/workforceStore";
-import { isConditionInvalid, type ConditionNodeData, type WorkforceNode, type WorkforceEdge, type WorkforceNodeData, type WorkforceStatus } from "@/components/workforce/types";
+import { isConditionInvalid, type AgentNodeData, type ConditionNodeData, type PersonNodeData, type WorkforceNode, type WorkforceEdge, type WorkforceNodeData, type WorkforceStatus } from "@/components/workforce/types";
 import { removeNodeCascade, removeRouteByConditionId, getRouteEndpoints, isDestinationNode, autoArrange, getNodesUnreachableFromTrigger } from "@/components/workforce/graphOps";
 import { useRunTrace } from "@/components/workforce/useRunTrace";
 import { runHistoryStore, buildConditionChoices, type RunStatus } from "@/components/workforce/runHistoryStore";
@@ -211,7 +211,7 @@ export default function WorkforceCanvasPage() {
       if (n.data.kind !== "trigger") continue;
       const outEdge = edges.find(e => e.source === n.id);
       const target = outEdge ? nodes.find(nn => nn.id === outEdge.target) : undefined;
-      map.set(n.id, target?.data.kind === "agent" ? target.data.agentId : null);
+      map.set(n.id, target?.data.kind === "agent" ? (target.data as AgentNodeData).agentId : null);
     }
     return map;
   }, [nodes, edges]);
@@ -225,9 +225,9 @@ export default function WorkforceCanvasPage() {
     const n = nodes.find(nn => nn.id === nodeId);
     if (!n) return "-";
     switch (n.data.kind) {
-      case "agent": return AGENTS.find(a => a.id === n.data.agentId)?.name ?? "Nhân sự số";
+      case "agent": return AGENTS.find(a => a.id === (n.data as AgentNodeData).agentId)?.name ?? "Nhân sự số";
       case "omni": return "Omni Supports";
-      case "person": return members.find(m => m.id === n.data.memberId)?.name ?? "Người trong tổ chức";
+      case "person": return members.find(m => m.id === (n.data as PersonNodeData).memberId)?.name ?? "Người trong tổ chức";
       case "subprocess": return (n.data.workforceId ? workforceStore.get(n.data.workforceId)?.name : undefined) ?? "Sub-process";
       case "code": return n.data.name || "Bước Code";
       case "trigger": {
@@ -726,8 +726,8 @@ export default function WorkforceCanvasPage() {
       {configuringNode?.data.kind === "condition" && (() => {
         const { source, destination } = getRouteEndpoints(configuringNode.id, nodes as any, edges);
         const sourceLabel =
-          source?.data.kind === "agent" ? AGENTS.find(a => a.id === source.data.agentId)?.name ?? "Nhân sự số" :
-          source?.data.kind === "person" ? members.find(m => m.id === source.data.memberId)?.name ?? "Người trong tổ chức" :
+          source?.data.kind === "agent" ? AGENTS.find(a => a.id === (source.data as AgentNodeData).agentId)?.name ?? "Nhân sự số" :
+          source?.data.kind === "person" ? members.find(m => m.id === (source.data as PersonNodeData).memberId)?.name ?? "Người trong tổ chức" :
           source?.data.kind === "subprocess" ? (source.data.workforceId ? workforceStore.get(source.data.workforceId)?.name : undefined) ?? "Sub-process" :
           source?.data.kind === "code" ? source.data.name || "Bước Code" :
           "-";
@@ -738,14 +738,15 @@ export default function WorkforceCanvasPage() {
           ? destination.data.kind
           : "omni";
         const destinationLabel = !destination ? "-" :
-          destination.data.kind === "agent" ? AGENTS.find(a => a.id === destination.data.agentId)?.name ?? "Nhân sự số" :
+          destination.data.kind === "agent" ? AGENTS.find(a => a.id === (destination.data as AgentNodeData).agentId)?.name ?? "Nhân sự số" :
           destination.data.kind === "omni" ? "Omni Supports" :
-          destination.data.kind === "person" ? members.find(m => m.id === destination.data.memberId)?.name ?? "Người trong tổ chức" :
+          destination.data.kind === "person" ? members.find(m => m.id === (destination.data as PersonNodeData).memberId)?.name ?? "Người trong tổ chức" :
           destination.data.kind === "subprocess" ? (destination.data.workforceId ? workforceStore.get(destination.data.workforceId)?.name : undefined) ?? "Sub-process" :
           destination.data.kind === "code" ? destination.data.name || "Bước Code" : "-";
         const destAgentKeepContext = destination?.data.kind === "agent" ? destination.data.keepContext : undefined;
-        const approvalAssignee = configuringNode.data.kind === "condition" && configuringNode.data.approval?.assigneeId
-          ? members.find(m => m.id === configuringNode.data.approval!.assigneeId)
+        const conditionApproval = "approval" in configuringNode.data ? configuringNode.data.approval : null;
+        const approvalAssignee = conditionApproval?.assigneeId
+          ? members.find(m => m.id === conditionApproval.assigneeId)
           : undefined;
 
         return (

@@ -357,7 +357,7 @@ export default function AgentBuilder() {
   // Quy trình canvas state reported up by ProcessCanvas: the "Sẵn sàng publish" checklist, the
   // issue count (blocks publish) and a command channel back down (open issues / open Test run).
   const [processReady, setProcessReady] = useState<{ items: { label: string; done: boolean; failed?: boolean }[]; pick: (() => void)[]; issueCount: number; stepCount: number } | null>(null);
-  const [processCmd, setProcessCmd] = useState<{ kind: "issues" | "run"; t: number } | null>(null);
+  const [processCmd, setProcessCmd] = useState<{ kind: "issues" | "run" | "details" | "explain" | "refine" | "hide"; t: number } | null>(null);
   const processGraph = useMemo(() => (isProcess ? processStore.getGraph(id) : null), [isProcess, id]);
   const processUsages: { id: string; name: string }[] = []; // Workforce đã bỏ: Quy trình không còn nằm trong Workforce nào
   const currentSectionLabel =
@@ -3615,7 +3615,7 @@ function ConnectorItem({ logo, name, connected, color }: { logo: string; name: s
   );
 }
 
-function RightConfigPanel({ embedded, model, onModelChange }: { embedded?: boolean; model?: string; onModelChange?: (id: string) => void }) {
+function RightConfigPanel({ agentId, embedded, model, onModelChange }: { agentId: string; embedded?: boolean; model?: string; onModelChange?: (id: string) => void }) {
   const inner = (
     <div className="flex flex-col gap-2 p-3">
       {/* Model */}
@@ -3651,7 +3651,7 @@ function RightConfigPanel({ embedded, model, onModelChange }: { embedded?: boole
         <button className="flex items-center gap-1 text-xs text-primary hover:underline mt-1"><HugeiconsIcon icon={Add01Icon} size={12} /> Add connection</button>
       </ConfigSection>
       {/* Guardrails */}
-      <GuardrailsConfigSection />
+      <GuardrailsConfigSection agentId={agentId} />
       {/* Schedules */}
       <ConfigSection icon={Clock01Icon} title="Schedules" badge={<span className="text-xs text-warning font-medium mr-1">Not set</span>}>
         <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Chạy Nhân sự số này tự động - Ví dụ bản tóm tắt hằng ngày.</p>
@@ -3819,13 +3819,13 @@ function SubAgentsCard() {
 }
 
 
-function GuardrailsConfigSection() {
+function GuardrailsConfigSection({ agentId }: { agentId: string }) {
   return (
     <ConfigSection
       icon={Shield01Icon}
       title="Guardrails"
     >
-      <GuardrailsInner />
+      <GuardrailsInner agentId={agentId} />
     </ConfigSection>
   );
 }
@@ -5156,7 +5156,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
             disabled={
               evalStatus === "running" || evalStatus === "blocked" ||
               (publishToOpen && effectiveAudience === "org" && orgSelection.size === 0) ||
-              (publishToOpen && effectiveAudience === "quick_share" && quickShareSelection.size === 0) ||
+              (publishToOpen && audience === "quick_share" && quickShareSelection.size === 0) ||
               (effectiveAudience === "group" && !groupSelectionValid)
             }
           >

@@ -9,6 +9,7 @@ import { useOrg } from "@/pages/organization/orgStore";
 import Canvas from "@/components/workforce/Canvas";
 import { workforceStore } from "@/components/workforce/workforceStore";
 import { runHistoryStore } from "@/components/workforce/runHistoryStore";
+import type { AgentNodeData, PersonNodeData } from "@/components/workforce/types";
 import { getNodesUnreachableFromTrigger } from "@/components/workforce/graphOps";
 import type { WorkforceNodeActions } from "@/components/workforce/nodes/nodeActionsContext";
 import type { RunNodeStatus } from "@/components/workforce/useRunTrace";
@@ -55,7 +56,7 @@ export default function WorkforceTracePage() {
       if (n.data.kind !== "trigger") continue;
       const outEdge = edges.find(e => e.source === n.id);
       const target = outEdge ? nodes.find(nn => nn.id === outEdge.target) : undefined;
-      map.set(n.id, target?.data.kind === "agent" ? target.data.agentId : null);
+      map.set(n.id, target?.data.kind === "agent" ? (target.data as AgentNodeData).agentId : null);
     }
     return map;
   }, [nodes, edges]);
@@ -64,9 +65,9 @@ export default function WorkforceTracePage() {
     const n = nodes.find(nn => nn.id === nodeId);
     if (!n) return "-";
     switch (n.data.kind) {
-      case "agent": return AGENTS.find(a => a.id === n.data.agentId)?.name ?? "Nhân sự số";
+      case "agent": return AGENTS.find(a => a.id === (n.data as AgentNodeData).agentId)?.name ?? "Nhân sự số";
       case "omni": return "Omni Supports";
-      case "person": return members.find(m => m.id === n.data.memberId)?.name ?? "Người trong tổ chức";
+      case "person": return members.find(m => m.id === (n.data as PersonNodeData).memberId)?.name ?? "Người trong tổ chức";
       case "subprocess": return (n.data.workforceId ? workforceStore.get(n.data.workforceId)?.name : undefined) ?? "Sub-process";
       case "code": return n.data.name || "Bước Code";
       case "trigger": {

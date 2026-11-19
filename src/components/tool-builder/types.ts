@@ -123,7 +123,7 @@ export interface BuiltinToolSet {
   setId: string;
   name: string;
   description: string;
-  category: "Communication" | "Data" | "Banking" | "AI" | "Productivity" | "Web";
+  category: "Communication" | "Data" | "Banking" | "AI" | "Productivity" | "Web" | "Operations" | "Insurance";
   pluginAvatar: string; // emoji as cheap visual
   toolCount: number;
   requiresAuth: boolean;

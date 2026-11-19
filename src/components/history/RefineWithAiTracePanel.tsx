@@ -4,6 +4,7 @@ import {
   Sparkles, X, Wrench, ShieldAlert, UserCheck, XCircle, Clock, CheckCircle2, ChevronRight,
   SendHorizontal, SquarePen, Loader2,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ConversationTrace, TraceTurn } from "@/components/history/traceStore";
 import { detectTraceIssues, type TraceIssue, type TraceIssueKind } from "@/components/history/refineTraceStore";
@@ -26,7 +27,7 @@ import { detectTraceIssues, type TraceIssue, type TraceIssueKind } from "@/compo
 
 const KIND_ORDER: TraceIssueKind[] = ["turn_failed", "tool_call", "guardrail", "hitl", "latency"];
 
-const KIND_META: Record<TraceIssueKind, { label: string; icon: React.ComponentType<{ size?: number; className?: string }> }> = {
+const KIND_META: Record<TraceIssueKind, { label: string; icon: LucideIcon }> = {
   turn_failed: { label: "Turn thất bại", icon: XCircle },
   tool_call: { label: "Tool call lỗi", icon: Wrench },
   guardrail: { label: "Guardrail chặn", icon: ShieldAlert },
