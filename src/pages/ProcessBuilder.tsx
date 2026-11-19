@@ -950,7 +950,6 @@ class ProcessBuilderInner extends React.Component<any, any> {
     var self = this;
     this.canvasRef = function (el) { self.canvasEl = el; };
   }
-  componentWillUnmount() { clearTimeout(this.timer); clearTimeout(this.toastT); }
   showToast(text, tone) { clearTimeout(this.toastT); this.setState({ toast: { text: text, tone: tone || 'dark' } }); var self = this; this.toastT = setTimeout(function () { self.setState({ toast: null }); }, 4200); }
   snap() { var s = this.state; return { hist: s.hist.concat([{ nodes: clone(s.nodes), edges: clone(s.edges) }]).slice(-40), fut: [] }; }
   undo() { if (this.ro()) return; var s = this.state, h = s.hist; if (!h.length) return; var p = h[h.length - 1]; this.setState({ nodes: p.nodes, edges: p.edges, hist: h.slice(0, -1), fut: (s.fut || []).concat([{ nodes: clone(s.nodes), edges: clone(s.edges) }]), sel: null, add: null, ctx: null }); }
@@ -2081,7 +2080,7 @@ class ProcessBuilderInner extends React.Component<any, any> {
       if (key !== this._readyKey) { this._readyKey = key; p.onReady({ items: v.readyItems.map(function (r) { return { label: r.label, done: r.done, failed: r.failed }; }), pick: v.readyItems.map(function (r) { return r.pick; }), issueCount: v.issueCount, stepCount: v.stepCount }); }
     }
   }
-  componentWillUnmount() { clearTimeout(this.timer); clearTimeout(this.saveTimer); }
+  componentWillUnmount() { clearTimeout(this.timer); clearTimeout(this.toastT); clearTimeout(this.saveTimer); }
   render() {
     var self = this, emb = !!this.props.embedded;
     if (this.state.screen !== 'builder') {
