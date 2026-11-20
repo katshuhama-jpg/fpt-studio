@@ -553,7 +553,7 @@ document.addEventListener('click',function(e){var m=$('#menu');if(!m.hidden&&!m.
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!$('#menu').hidden){setMenu(false);$('#avbtn').focus()}});
 
 /* ---------- routing ---------- */
-var PANES=[['principal','Người & nhóm','users',1,'Truy cập'],['roles','Vai trò','shield',1],['res','Phạm vi','layers',1],['cocau','Cơ cấu','structure',0,'Tổ chức'],['tien','Ví & hạn mức','wallet',1],['trienkhai','Triển khai','chat',1]];
+var PANES=[['cocau','Cơ cấu','structure',0,'Tổ chức'],['principal','Người & nhóm','users',1,'Truy cập'],['roles','Vai trò','shield',1],['res','Phạm vi','layers',1],['tien','Ví & hạn mức','wallet',1],['trienkhai','Triển khai','chat',1]];
 function cur(){var h=location.hash.slice(1);return PANES.some(function(p){return p[0]===h})?h:'principal'}
 var rc=false;
 function rail(){
@@ -2153,7 +2153,7 @@ Q.wallet2={name:'Ví riêng Công ty A',limit:3000,used:400};
 var WORDER=['wallet','wallet2'],WLOCK=false,QUNIT={wallet:'b',co:'a',eos:'eos',sales:'sales',cskh:'cskh'},KUNIT={co:'a',eos:'eos',sales:'sales',cskh:'cskh'};
 var SPACEADMINS=['Nguyễn Hà'],FBM='Cảm ơn bạn đã nhắn tin. Hiện chúng tôi đang quá tải, nhân viên sẽ phản hồi bạn sớm nhất.',FEE={Zalo:'200 credit / tháng',Facebook:'200 credit / tháng',Website:'100 credit / tháng'};
 CH.forEach(function(c){c.owner='cskh';c.agent='ag1';c.per=40;c.by='Võ Hà'});
-PANES.splice(3,0,['audit','Nhật ký kiểm toán','book',1]);
+PANES.splice(4,0,['audit','Nhật ký kiểm toán','book',1]);
 
 /* ---------- engine: principal agent, ngoại trừ nhiều người, điều kiện theo nhãn ---------- */
 function inWho(p,w){if(!w||w==='none')return false;if(Array.isArray(w))return w.some(function(x){return inWho(p,x)});if(w==='all')return true;
