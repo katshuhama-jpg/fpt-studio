@@ -826,12 +826,12 @@ export function AnalyticsFeedback({ a }: { a: V }) {
   const maxG = Math.max(1, ...g.map(x => x.count));
   return (
     <Page>
-      <Header a={a} title="Chất lượng" desc="Đánh giá của người dùng và Guardrail." tag={a.tag} />
+      <Header a={a} title="Chất lượng" desc="Đánh giá của người dùng, trích dẫn nguồn và Guardrail." tag={a.tag} />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Stat label="Số lượt Like" value={real(a, vn(cur.likes))} info="Likes: số lượt Like trong khoảng đang xem. Người dùng đổi đánh giá thì chỉ tính lượt cuối." />
         <Stat label="Số lượt Dislike" value={real(a, vn(cur.dislikes))} info="Dislikes: số lượt Dislike trong khoảng đang xem. Người dùng đổi đánh giá thì chỉ tính lượt cuối." />
         <Stat label="CSAT" badge="Phase 2" value={ratio(a, cur.sessions, `${vn(cur.csat, 2)}/5`)} info="Customer satisfaction score: điểm trung bình người dùng chấm cuối phiên, thang 1 – 5." />
-        <Stat label="Tỷ lệ phản hồi" badge="Phase 2" value={ratio(a, cur.messages, `${vn(cur.coveragePct, 1)}%`)} info="Feedback rate: (số Like + số Dislike) ÷ tổng câu trả lời × 100. Tỷ lệ thấp thì số lượt Like/Dislike chưa đại diện cho nhiều người dùng." />
+        <Stat label="Tỷ lệ trích dẫn nguồn" badge="Phase 2" value={ratio(a, cur.messages, `${vn(cur.citedPct, 1)}%`)} info="Citation rate: câu trả lời có trích dẫn tài liệu nguồn ÷ tổng câu trả lời × 100." />
       </div>
       <Card title="Like / Dislike theo ngày" note="Chiều cao cột là tổng lượt tương tác trong ngày">
         <div className="h-64" role="img" aria-label="Số lượt Like và Dislike theo ngày">
