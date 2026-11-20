@@ -423,7 +423,7 @@ tr.rowbtn td:last-child svg{color:var(--text-muted)}
 
 <div class="app">
   <header class="top">
-    <button class="ibtn" type="button" aria-label="Quay lại Console" title="Quay lại Console" onclick="toast('Prototype không điều hướng ra ngoài')"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
+    <button class="ibtn" type="button" aria-label="Quay lại Console" title="Quay lại Console" onclick="if(window.parent!==window){window.parent.postMessage('eos-back',location.origin)}else{toast('Prototype không điều hướng ra ngoài')}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
     <span class="hlogo" aria-hidden="true"><svg class="i" viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-4h6v4M9 10h.01M15 10h.01M9 13h.01M15 13h.01"/></svg></span>
     <h1 id="orgname">Tập đoàn B</h1>
     <span class="pill"><svg class="i xs" viewBox="0 0 24 24" aria-hidden="true" style="width:14px;height:14px"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M21 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg><span id="orgcount">38 nhân viên</span></span>

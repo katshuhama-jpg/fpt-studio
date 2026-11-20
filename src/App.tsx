@@ -21,11 +21,7 @@ import ToolBuilder from "./pages/ToolBuilder";
 import ProcessBuilder from "./pages/ProcessBuilder";
 import CreateToolkit from "./pages/CreateToolkit";
 import ConversationTrace from "./pages/ConversationTrace";
-import OrgGeneral from "./pages/organization/General";
-import OrgStructure from "./pages/organization/Structure";
-import OrgChart from "./pages/organization/OrgChart";
-import OrgMembers from "./pages/organization/Members";
-import OrgRoles from "./pages/organization/Roles";
+import OrgPortalPrototype from "./pages/OrgPortalPrototype";
 import { RolesProvider } from "./pages/organization/rolesStore";
 import { OrgProvider, useOrg } from "./pages/organization/orgStore";
 import OrgSetupWizard from "./pages/organization/OrgSetupWizard";
@@ -145,6 +141,9 @@ const App = () => (
             <Route path="/process/:id" element={<RequireAuth><ProcessBuilder /></RequireAuth>} />
             <Route path="/inventor" element={<RequireAuth><Inventor /></RequireAuth>} />
             <Route path="/plans" element={<RequireAuth><PlansPage /></RequireAuth>} />
+            {/* Quản lý Org: giao diện mới (prototype EOS Portal), thay toàn bộ trang Organization cũ */}
+            <Route path="/organization" element={<RequireAuth><OrgPortalPrototype /></RequireAuth>} />
+            <Route path="/organization/*" element={<Navigate to="/organization" replace />} />
             <Route path="/usage" element={<Navigate to="/plans?tab=usage" replace />} />
             <Route path="/connectors/custom/toolkits/new" element={<RequireAuth><CreateToolkit /></RequireAuth>} />
             <Route path="/agents/:id/tools/new" element={<RequireAuth><ToolBuilder /></RequireAuth>} />
@@ -156,11 +155,8 @@ const App = () => (
               <Route path="/workforce" element={<Navigate to="/processes" replace />} />
               <Route path="/workforce/:id" element={<Navigate to="/processes" replace />} />
               <Route path="/workforce/:id/trace/:runId" element={<Navigate to="/processes" replace />} />
-              <Route path="/members" element={<RequireOrgConfigured><OrgMembers /></RequireOrgConfigured>} />
-              <Route path="/roles" element={<RequireOrgConfigured><OrgRoles /></RequireOrgConfigured>} />
-              <Route path="/organization" element={<RequireOrgConfigured><OrgGeneral /></RequireOrgConfigured>} />
-              <Route path="/organization/structure" element={<RequireOrgConfigured><OrgStructure /></RequireOrgConfigured>} />
-              <Route path="/organization/chart" element={<RequireOrgConfigured><OrgChart /></RequireOrgConfigured>} />
+              <Route path="/members" element={<Navigate to="/organization" replace />} />
+              <Route path="/roles" element={<Navigate to="/organization" replace />} />
               <Route path="/super-admin/organizations" element={<SuperAdminOrgs />} />
               <Route path="/connectors" element={<WorkspaceConnectors />} />
               <Route path="/tools" element={<Skills />} />
