@@ -2660,6 +2660,69 @@ function xDrawerBind(){var d=$('#drawer');if(!d||d.hidden)return;
 commonBind=(function(o){return function(root){o(root);xCommon(root)}})(commonBind);
 bind=(function(o){return function(){o();xBind()}})(bind);
 drawerBind=(function(o){return function(){o();xDrawerBind()}})(drawerBind);
+/* ==================== Phạm vi hiển thị theo vai trò quản trị cơ cấu ====================
+   Org Admin, Dept Admin, Group Owner chỉ thấy cây tổ chức và nhóm người từ đơn vị được gán trở xuống.
+   Người chưa có vai trò quản trị cơ cấu chỉ thấy đơn vị mình thuộc. */
+function visRoots(){
+  if(orgId!=='b')return [TREE.id];
+  var p=actorP();if(!p)return [TREE.id];
+  var us=DIRASSIGN.filter(function(a){return inWho(p,a.who)}).map(function(a){return a.unit});
+  if(!us.length)us=p.units.slice();
+  us=us.filter(function(u,i){return pathTo(u)&&us.indexOf(u)===i});
+  if(!us.length)return [TREE.id];
+  var ord=allNodes(TREE).map(function(n){return n.id});
+  return us.filter(function(u){var anc=pathTo(u);return !us.some(function(v){return v!==u&&anc.indexOf(v)>=0})}).sort(function(x,y){return ord.indexOf(x)-ord.indexOf(y)})}
+function visIn(id,rs){var anc=pathTo(id)||[];return (rs||visRoots()).some(function(r){return anc.indexOf(r)>=0})}
+function visFull(rs){rs=rs||visRoots();return rs.length===1&&rs[0]===TREE.id}
+function visPerson(p,rs){rs=rs||visRoots();return visFull(rs)||p.units.some(function(u){return visIn(u,rs)})}
+function visGroup(g,rs){rs=rs||visRoots();return visFull(rs)||visIn(groupHome(g),rs)}
+function visFix(){var rs=visRoots();if(!visIn(path[path.length-1],rs))path=pathTo(rs[0]);rs.forEach(function(r){exp[r]=true})}
+function visNote(){var rs=visRoots();if(visFull(rs))return '';var p=actorP(),dr=p?dirRolesOf(p.n):[];
+  return '<div class="note" style="margin-bottom:16px">'+ic('info','s')+'<span>'+(dr.length
+    ?'Bạn đang xem theo phạm vi quản trị cơ cấu: <b>'+esc(dr.join(' · '))+'</b>. Cây tổ chức và nhóm người chỉ hiện từ đơn vị này trở xuống; đơn vị ngoài phạm vi được ẩn.'
+    :'Bạn chưa có vai trò quản trị cơ cấu nên chỉ xem được đơn vị mình thuộc: <b>'+esc(rs.map(nName).join(', '))+'</b>.')+'</span></div>'}
+function visNodes(){return visRoots().map(function(id){return find(pathTo(id))})}
+
+/* Cây (kiểu xem Cây) và Sơ đồ: gốc là các đơn vị trong phạm vi */
+function treeHtml(o){
+  var q=tq.trim().toLowerCase(),rs=visNodes();
+  function li(n){
+    if(q&&!subMatch(n,q))return '';
+    var has=(n.kids||[]).length,open=q?true:exp[n.id],sel=path[path.length-1]===n.id;
+    return '<li><div class="trow">'+(has?'<button class="tg'+(open?' o':'')+'" data-tg="'+n.id+'" tabindex="-1" aria-label="'+(open?'Thu gọn ':'Mở rộng ')+esc(n.name)+'">'+ic('chev','xs')+'</button>':'<span class="tgs"></span>')+
+     '<button class="tn" role="treeitem" data-sel="'+n.id+'" aria-selected="'+sel+'"'+(has?' aria-expanded="'+!!open+'"':'')+'><span class="tnm">'+esc(n.name)+'</span>'+ovHtml(n,o)+'</button></div>'+
+     (has&&open?'<ul role="group">'+n.kids.map(li).join('')+'</ul>':'')+'</li>';
+  }
+  return '<ul class="tree" role="tree" aria-label="Cây tổ chức">'+rs.map(li).join('')+'</ul>'+(q&&!rs.some(function(r){return subMatch(r,q)})?'<div class="empty" style="margin:8px">'+ic('search','s')+'<span>Không có đơn vị khớp.</span></div>':'');
+}
+function chartHtml(){return '<div class="oc"><ul>'+visNodes().map(chartNode).join('')+'</ul></div>'}
+
+/* Breadcrumb bắt đầu từ đơn vị gốc trong phạm vi, kèm ghi chú phạm vi */
+pCoCauInner=(function(o){return function(){visFix();var s=o(),rs=visRoots();if(visFull(rs))return s;
+  var k=0;path.forEach(function(id,i){if(rs.indexOf(id)>=0)k=i});
+  function cr(from){var c='';path.forEach(function(id,i){if(i<from)return;var node=find(path.slice(0,i+1));
+    c+=(i>from?ic('arrow','xs'):'')+'<button data-crumb="'+i+'"'+(i===path.length-1?' aria-current="true"':'')+'>'+esc(node.name)+'</button>'});return c}
+  var a='<div class="crumbs">'+cr(0)+'</div>',b=visNote()+'<div class="crumbs">'+cr(k)+'</div>';
+  return s.replace(a,function(){return b})}})(pCoCauInner);
+
+/* Người & nhóm: chỉ nhóm thuộc đơn vị trong phạm vi */
+function prLeft(me,direct){var q=Qs.g,rs=visRoots(),G=GROUPS.filter(function(g){return visGroup(g,rs)}),h='<div class="card cardp"><div class="sec-h" style="margin-top:0"><h3>Nhóm theo tổ chức ('+G.length+')</h3></div>'+searchBox('qg',q,'Tìm nhóm…')+'<div class="gl" style="margin-top:8px">';
+  if(q){var gs=G.filter(function(g){return mq(q,g.name+' '+g.desc)});h+=gs.map(function(g){return prGli(g,0,true)}).join('')||'<div class="empty">'+ic('search')+'<span>Không có nhóm nào khớp.</span></div>'}
+  else visNodes().forEach(function(root){(function walk(n,d){var open=prUO[n.id]!==false,gs=G.filter(function(g){return groupHome(g)===n.id}).sort(function(x,y){return (y.unit?1:0)-(x.unit?1:0)}),canG=dirCan(me.n,'dir/groups/write',n.id);
+    h+='<div class="glu" data-pru="'+n.id+'" style="padding-left:'+(4+d*18)+'px"><button class="rmt" data-pruo="'+n.id+'" aria-expanded="'+open+'"><span class="car">'+ic('chev','xs')+'</span><b style="font-weight:600">'+esc(n.name)+'</b> <small>'+gs.length+' nhóm</small></button><span style="flex:1"></span><button class="gadd" data-prnewg="'+n.id+'" title="'+esc(canG?'Thêm nhóm con trong «'+n.name+'»':'Cần Org Admin hoặc Group Owner tại '+n.name)+'" aria-label="'+esc('Thêm nhóm con trong '+n.name)+'"'+(canG?'':' disabled')+'>'+ic('plus','xs')+'</button></div>';
+    if(open){gs.forEach(function(g){h+=prGli(g,d+1)});(n.kids||[]).forEach(function(k){walk(k,d+1)})}})(root,0)});
+  h+='<button class="gli" data-prg="__direct" aria-current="'+(prG==='__direct')+'" style="border-top:1px solid var(--border);border-radius:0;margin-top:6px;padding-top:12px"><span class="ulogo" style="width:30px;height:30px;flex:none">'+ic('user','s')+'</span><span style="flex:1;min-width:0"><b style="font-weight:500">Gán trực tiếp cho người</b><small>Ngoại lệ · '+direct.length+' người</small></span></button></div></div>';
+  return h}
+/* Người & nhóm: tìm người, gán trực tiếp, gợi ý thêm thành viên chỉ trong phạm vi */
+pPrinByGroup=(function(o){return function(){ensureUnitGroups();var rs=visRoots();if(visFull(rs))return o();
+  var g=groupBy(prG);if(prG!=='__direct'&&prG!=='__agents'&&(!g||!visGroup(g,rs))){var f=GROUPS.filter(function(x){return visGroup(x,rs)})[0];prG=f?f.name:'__direct'}
+  var P=PEOPLE,pb=personBy,s;PEOPLE=P.filter(function(p){return visPerson(p,rs)});personBy=function(n){return P.filter(function(p){return p.n===n})[0]};
+  try{s=o()}finally{PEOPLE=P;personBy=pb}
+  var i=s.indexOf('<div class="toolbar">');return i<0?visNote()+s:s.slice(0,i)+visNote()+s.slice(i)}})(pPrinByGroup);
+
+render=(function(o){return function(){visFix();o();var rs=visRoots();
+  if(!visFull(rs)){var c=0;visNodes().forEach(function(n){c+=count(n)});$('#orgcount').textContent=c+' nhân viên trong phạm vi'}}})(render);
+
 auDiff();render();
 
 </script>
