@@ -2227,8 +2227,13 @@ function pCoCauInner(){
   var canM=dirCan(me.n,'dir/members/write',n.id);
   h+='<div class="sec-h"><h3>Nhân viên trong đơn vị ('+n.people.length+')</h3></div>';
   if(!n.people.length)h+='<div class="empty">'+ic('users')+'<span>Chưa có nhân viên nào ở cấp này.</span></div>';
-  else{h+='<div class="grid">';n.people.forEach(function(p){var x=personBy(p.n);
-    h+='<div class="card cardp row"><span class="av">'+ini(p.n)+'</span><span class="t"><b style="font-weight:500">'+esc(p.n)+'</b><small>'+esc(p.e)+(x&&x.units.length>1?' · thuộc '+x.units.length+' đơn vị':'')+'</small>'+(canM&&x&&orgId==='b'?'<button class="lnk" data-rmunit="'+esc(p.n)+'" title="Gỡ khỏi đơn vị này" style="color:var(--danger);font-size:12px;white-space:nowrap">Gỡ</button>':'')+'</span>'+(x?viewBtn('user:'+p.n):'')+''+'</div>'});h+='</div>'}
+  else{h+='<div class="tw"><table><thead><tr><th>Nhân viên</th><th>Email</th><th>Thuộc đơn vị</th><th></th></tr></thead><tbody>';
+    n.people.forEach(function(p){var x=personBy(p.n),us=x?x.units:[];
+      h+='<tr><td><div class="row"><span class="av">'+ini(p.n)+'</span><b style="font-weight:500">'+esc(p.n)+'</b></div></td>'+
+        '<td>'+esc(p.e)+'</td>'+
+        '<td>'+(us.length?esc(us.map(nName).join(', ')):esc(n.name))+'</td>'+
+        '<td style="text-align:right;white-space:nowrap"><div style="display:inline-flex;gap:8px;align-items:center">'+(x?viewBtn('user:'+p.n):'')+(canM&&x&&orgId==='b'?'<button class="btn out sm" data-rmunit="'+esc(p.n)+'" title="Gỡ khỏi đơn vị này">Gỡ</button>':'')+'</div></td></tr>'});
+    h+='</tbody></table></div>'}
   return h}
 function delUnit(id){var n=find(pathTo(id)),why=[];
   if(n.people.length)why.push(n.people.length+' nhân viên');
