@@ -656,7 +656,6 @@ function pCoCauInner(){
   path.forEach(function(id,i){var node=find(path.slice(0,i+1));
     cr+=(i?ic('arrow','xs'):'')+'<button data-crumb="'+i+'"'+(i===path.length-1?' aria-current="true"':'')+'>'+esc(node.name)+'</button>'});
   var h=head('Cơ cấu','Cây tổ chức chỉ chứa người: công ty, phòng ban, nhân viên và nhóm. Cây này không chứa tài nguyên và không cấp quyền. Phòng ban là thuộc tính của người dùng, dùng để tạo nhóm động; tài nguyên quản ở mục Tài nguyên. Ai sửa được cây này do vai trò quản trị cơ cấu quyết định (xem ở thẻ «Quản trị đơn vị này» bên dưới).');
-  h+='<div class="note" style="margin-bottom:16px">'+ic('info','s')+'<span>Muốn cả phòng dùng một agent: vào Tài nguyên, mở agent hoặc nhóm tài nguyên, bấm Gán vai trò và chọn nhóm động của phòng (ví dụ «Toàn Phòng EOS»). Đổi phòng thì nhóm đổi, quyền đổi theo.</span></div>';
   h+='<div class="crumbs">'+cr+'</div>';
   h+=focusHeader(n);
   h+=dirAdminCard(n);
@@ -2215,7 +2214,6 @@ function pCoCauInner(){
   path.forEach(function(id,i){var node=find(path.slice(0,i+1));
     cr+=(i?ic('arrow','xs'):'')+'<button data-crumb="'+i+'"'+(i===path.length-1?' aria-current="true"':'')+'>'+esc(node.name)+'</button>'});
   var h=head('Cơ cấu','Cây tổ chức chỉ chứa người: công ty, phòng ban, nhân viên và nhóm. Cây này không chứa tài nguyên và không cấp quyền. Phòng ban là thuộc tính của người dùng, dùng để tạo nhóm động; tài nguyên quản ở mục Phạm vi. Ai sửa được cây này do vai trò quản trị cơ cấu quyết định (xem ở thẻ «Quản trị đơn vị này» bên dưới).');
-  h+='<div class="note" style="margin-bottom:16px">'+ic('info','s')+'<span>Muốn cả phòng dùng một agent: vào Phạm vi, mở agent hoặc nhóm tài nguyên, bấm <b>Chia sẻ</b> và chọn phòng. Chia sẻ là một lượt gán cho nhóm động của phòng (ví dụ «Toàn Phòng EOS»). Đổi phòng thì nhóm đổi, quyền đổi theo.</span></div>';
   h+='<div class="crumbs">'+cr+'</div>';
   h+=focusHeader(n);
   h+=dirAdminCard(n);
