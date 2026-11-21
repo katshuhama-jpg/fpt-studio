@@ -2319,7 +2319,7 @@ function drRes(){
   pscope=s;var anc=scAnc(s);if(!isOrg&&!isColl&&r.parent)return drCred(r,me,s);
   if(isOrg){DR=null;return ''}
   var canG=canWrite(me,GP,s),own=isColl?collOwner(r):resOwner(r),c0=isColl?null:collBy(tagsOf(r)[0]);
-  var acts='<button class="btn out sm" data-assign="||'+s+'"'+(canG?'':' disabled title="Bạn không có quyền gán vai trò tại đây"')+'>'+ic('plus','s')+'Gán vai trò ở đây</button><button class="btn out sm" data-share="'+s+'">'+ic('users','s')+'Chia sẻ</button>'+(isColl?'<button class="btn out sm" data-chown="'+r.id+'">Chuyển chủ</button>':'')+(!isColl&&r.t==='agent'?'<button class="btn sec sm" data-dr="agent:'+r.id+'">'+ic('bot','s')+'Danh tính agent</button>':'');
+  var acts='<button class="btn out sm" data-assign="||'+s+'"'+(canG?'':' disabled title="Bạn không có quyền gán vai trò tại đây"')+'>'+ic('plus','s')+'Gán vai trò ở đây</button>'+(isColl?'':'<button class="btn out sm" data-share="'+s+'">'+ic('users','s')+'Chia sẻ</button>')+(!isColl&&r.t==='agent'?'<button class="btn sec sm" data-dr="agent:'+r.id+'">'+ic('bot','s')+'Danh tính agent</button>':'');
   var h=dhead(ic(isColl?'folder':RTI[r.t]),esc(r.name),'<span class="badge">'+(isColl?'Nhóm tài nguyên':RTN[r.t])+'</span>'+(isColl?'':' '+lblChips(r)),
     (isColl?esc(r.desc)+' · '+RES.filter(function(x){return inColl(x,r.id)}).length+' tài nguyên':'Thuộc nhóm '+tagLinks(r))+'<br>Đơn vị chủ: <b style="font-weight:500">'+esc(nName(own))+'</b>'+(c0?' (theo nhóm «'+esc(c0.name)+'»)':''),acts);
   var tabs=isColl?[['items','Tài nguyên'],['access','Ai có quyền']]:[['loc','Nhóm & nhãn ('+tagsOf(r).length+')'],['access','Ai có quyền']];
