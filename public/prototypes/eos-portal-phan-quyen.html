@@ -2938,11 +2938,11 @@ function drRes(){
   var me=actorP(),isColl=DR.kind==='coll',s=DR.kind+':'+DR.id,r=isColl?collBy(DR.id):resBy(DR.id);if(DR.kind==='org'||!r){DR=null;return ''}
   pscope=s;var anc=scAnc(s);if(!isColl&&r.parent)return drCred(r,me,s);
   var canG=canWrite(me,GP,s),dis=canG?'':' disabled title="Bạn không có quyền gán vai trò tại đây"',canU=!isColl&&canManageRes(me,r)&&branchUnits(me.n).length>0;
-  var acts='<button class="btn out sm" data-assign="||'+s+'"'+dis+'>'+ic('plus','s')+'Gán vai trò ở đây</button>'+(isColl?'':'<button class="btn out sm" data-unitdlg="'+r.id+'"'+(canU?'':' disabled title="Cần là admin một đơn vị của tài nguyên hoặc admin cấp trên"')+'>'+ic('org','s')+'Gán cho đơn vị</button>')+(!isColl&&r.t==='agent'?'<button class="btn sec sm" data-dr="agent:'+r.id+'">'+ic('bot','s')+'Danh tính agent</button>':'');
+  var acts='<button class="btn out sm" data-assign="||'+s+'"'+dis+'>'+ic('plus','s')+'Gán vai trò ở đây</button>'+(isColl?'':'<button class="btn out sm" data-unitdlg="'+r.id+'"'+(canU?'':' disabled title="Cần là admin một đơn vị của tài nguyên hoặc admin cấp trên"')+'>'+ic('org','s')+'Gán cho đơn vị</button>');
   var sub=isColl?esc(r.desc)+' · '+RES.filter(function(x){return inColl(x,r.id)}).length+' tài nguyên':'Đơn vị: <b style="font-weight:500">'+esc(unitsTxt(me,r))+'</b> · '+(tagsOf(r).length?'nhóm '+tagLinks(r):'chưa thuộc nhóm tài nguyên nào');
   var h=dhead(ic(isColl?'folder':RTI[r.t]),esc(r.name),'<span class="badge">'+(isColl?'Nhóm tài nguyên':RTN[r.t])+'</span>'+(isColl?'':' '+lblChips(r)),sub,acts);
   var tabs=isColl?[['items','Tài nguyên'],['access','Ai có quyền']]:[['loc','Đơn vị & nhóm'],['access','Ai có quyền']];
-  if(!isColl&&r.t==='agent')tabs.push(['comp','Thành phần ('+(REFS[r.id]||[]).length+')']);
+  if(DR.tab==='comp')DR.tab='';
   if(!isColl&&r.t==='connector')tabs.push(['creds','Credential ('+credsOf(r).length+')']);
   h+=dtabs(tabs);var b='';
   if(DR.tab==='access'){
@@ -3046,7 +3046,7 @@ showAssign=(function(o){return function(f){o(f);var l=$('#layer');
 assignBody=(function(o){return function(){var h=o();
   h=h.replace('Mặc định là Tất cả tài nguyên. Bỏ tích gốc rồi tích nhóm tài nguyên hoặc tài nguyên khi cần hẹp hơn. Tích một nhóm là gồm mọi tài nguyên con, kể cả tài nguyên thêm vào sau.','Mặc định là «Tất cả tài nguyên» của một đơn vị bạn quản trị (chỉ Builder, Viewer). Khi cần giới hạn, bỏ chọn rồi tích nhóm tài nguyên hoặc từng tài nguyên. Tích một nhóm là gồm cả tài nguyên thêm vào sau (BR-13).');
   h=h.replace(/<small>nhóm động<\/small>/g,'<small>nhóm cố định</small>').replace(/<div class="field"><label class="lbl" for="afDeleg">[\s\S]*?<\/select><\/div>/,'');
-  if(AF.mode==='all'){h=h.replace(/<option value="admin"[^>]*>Admin<\/option>/,'');
+  if(AF.mode==='all'){h=h.replace(/<option value="admin"[^>]*>Admin<\/option>/,'<option value="admin" disabled>Admin · chỉ gán ở nhóm tài nguyên hoặc tài nguyên</option>');
     h=h.replace('<label class="lbl" for="afRole">2. Vai trò</label>','<label class="lbl" for="afRole">2. Vai trò</label><div class="afhint">Ở «Tất cả tài nguyên» chỉ chọn được Builder, Viewer (AC-34). Muốn gán Admin, bỏ chọn «Tất cả tài nguyên» rồi chọn nhóm tài nguyên hoặc tài nguyên.</div>')}
   return h}})(assignBody);
 
@@ -3081,13 +3081,13 @@ function prGli2(g){var na=ASSIGN.filter(function(a){return a.who==='group:'+g.na
   return '<button class="gli" data-prg="'+esc(g.name)+'" aria-current="'+(prG===g.name)+'"><span class="ulogo" style="width:30px;height:30px;flex:none">'+ic(g.unit?'structure':'users','s')+'</span><span style="flex:1;min-width:0"><b style="font-weight:500">'+esc(g.name)+'</b>'+(g.unit?' <span class="badge">Tự động</span>':'')+'<small>'+groupMembers(g).length+' người · '+(na?na+' vai trò':'chưa có vai trò')+'</small></span></button>'}
 function prGroupsView(me,rs){var full=visFull(rs);
   var G=GROUPS.filter(function(g){return g.unit?(full||visIn(g.unit,rs)):(full||groupMembers(g).some(function(m){var x=personBy(m);return x&&visPerson(x,rs)}))});
-  if(prG!=='__agents'&&!G.some(function(g){return g.name===prG}))prG=G.length?G[0].name:'__agents';
+  if(!G.some(function(g){return g.name===prG}))prG=G.length?G[0].name:'';
   var q=Qs.g,fx=G.filter(function(g){return g.unit&&mq(q,g.name)}),cu=G.filter(function(g){return !g.unit&&mq(q,g.name+' '+g.desc)});
   var L='<div class="card cardp"><div class="sec-h" style="margin-top:0"><h3>Nhóm người ('+G.length+')</h3></div>'+searchBox('qg',q,'Tìm nhóm…')+'<div class="gl" style="margin-top:8px">';
   L+='<div class="pgh" style="padding:6px 10px 2px">Nhóm cố định của đơn vị ('+fx.length+')</div>'+(fx.map(prGli2).join('')||'<div class="empty">'+ic('search')+'<span>Không có nhóm nào khớp.</span></div>');
   L+='<div class="pgh" style="padding:10px 10px 2px">Nhóm người tự tạo ('+cu.length+')</div>'+(cu.map(prGli2).join('')||'<div class="empty">'+ic('users')+'<span>'+(q?'Không có nhóm nào khớp.':'Chưa có nhóm người tự tạo.')+'</span></div>');
-  L+='<button class="gli" data-prg="__agents" aria-current="'+(prG==='__agents')+'" style="border-top:1px solid var(--border);border-radius:0;margin-top:6px;padding-top:12px"><span class="ulogo" style="width:30px;height:30px;flex:none">'+ic('bot','s')+'</span><span style="flex:1;min-width:0"><b style="font-weight:500">Danh tính agent</b><small>Phase sau · '+agents().length+' agent</small></span></button></div></div>';
-  return '<div class="pr2">'+L+'<div>'+(prG==='__agents'?prAgentsPanel():prGroupPanel(me,groupBy(prG)))+'</div></div>'}
+  L+='</div></div>';
+  return '<div class="pr2">'+L+'<div>'+(groupBy(prG)?prGroupPanel(me,groupBy(prG)):'')+'</div></div>'}
 prGroupPanel=(function(o){return function(me,g){var h=o(me,g),pk='group:'+g.name;
   h=h.replace('<span class="badge brand">Toàn bộ nhân viên đơn vị</span>','<span class="badge brand">Nhóm cố định của đơn vị</span> <span class="badge">Tự động</span>').replace('<span class="badge">Nhóm con</span>','<span class="badge">Nhóm người tự tạo</span>');
   h=h.replace('toàn bộ nhân viên của đơn vị, tự cập nhật','toàn bộ người của đơn vị và đơn vị con').replace('nhóm con, thành viên thêm bằng tay','gom người từ nhiều đơn vị, Org Admin thêm, bớt thành viên (BR-03)');
@@ -3175,7 +3175,12 @@ drawerBind=(function(o){return function(){o();var d=$('#drawer');if(!d||d.hidden
   d.querySelectorAll('[data-unitdlg]').forEach(function(b){b.onclick=function(e){e.stopPropagation();unitDlg(b.dataset.unitdlg)}});
   d.querySelectorAll('[data-runit]').forEach(function(b){b.onclick=function(e){e.stopPropagation();var x=b.dataset.runit.split('|');rmResUnit(x[0],x[1])}});
   var dg=d.querySelector('[data-delgroup]');if(dg)dg.onclick=function(){delGroup(DR.id)}}})(drawerBind);
-goDr=(function(o){return function(k,id){if(k==='unitsc'){drawerOpen('unitsc',id,'');return}return o(k,id)}})(goDr);
+goDr=(function(o){return function(k,id){if(k==='unitsc'){drawerOpen('unitsc',id,'');return}if(k==='agent')return;return o(k,id)}})(goDr);
+
+/* ---------- Danh tính agent và gắn thành phần: phase sau (Luồng 7), ẩn khỏi bản đầu ---------- */
+ASSIGN=ASSIGN.filter(function(a){return whoKind(a.who)!=='agent'});
+agents=function(){return []};
+assignBody=(function(o){return function(){return o().replace('<div class="pkh">Danh tính agent</div>','').replace('Tìm nhóm, người hoặc agent…','Tìm nhóm hoặc người…').replace('Chọn ít nhất một người, nhóm hoặc danh tính agent.','Chọn ít nhất một người hoặc nhóm.').replace(/Ẩn (\d+) vai trò bạn không gán được ở đâu, hoặc chỉ dành cho danh tính agent \(AC-03\)\./,function(m,n){var k=+n-1;return k>0?'Ẩn '+k+' vai trò bạn không gán được ở đâu.':''})}})(assignBody);
 
 render();
 </script>
