@@ -2837,8 +2837,10 @@ function allWho(){return PEOPLE.map(function(p){return ['user:'+p.n,p.n,'Ngườ
   .concat([['all','Mọi người','Hệ thống']])}
 
 /* ---------- đánh giá quyền: lượt gán + quyền quản trị của admin đơn vị (BR-24, BR-33) ---------- */
+/* admin đơn vị quản trị một nhóm tài nguyên khi mọi tài nguyên trong nhóm đều thuộc nhánh của mình */
+function collInUnit(cid,u){var rs=RES.filter(function(r){return !r.parent&&inColl(r,cid)});return rs.length>0&&rs.every(function(r){return resInUnit(r,u)})}
 function uaGrant(p,t){var us=adminUnitsP(p);
-  for(var i=0;i<us.length;i++){var u=us[i],ok=t.k==='res'?resInUnit(resBy(t.id),u):t.k==='unit'?under(t.id,u):u===TREE.id;
+  for(var i=0;i<us.length;i++){var u=us[i],ok=t.k==='res'?resInUnit(resBy(t.id),u):t.k==='unit'?under(t.id,u):t.k==='coll'?(u===TREE.id||collInUnit(t.id,u)):u===TREE.id;
     if(ok)return {id:'ua-'+u,who:'user:'+p.n,role:'admin',scope:uScope(u),ua:u}}
   return null}
 function evalAccess(p,perm,t){
@@ -3016,7 +3018,7 @@ function assignDlg(pre){pre=pre||{};var me=actorP();afOpen={};
   if(!AF.role||!roleBy(AF.role)){var u=ROLEDEFS.filter(function(r){return !r.agentOnly&&roleUsable(me,r)});AF.role=(u.filter(function(r){return r.id==='viewer'})[0]||u[0]||ROLEDEFS[0]).id}
   afFix();showAssign()}
 function afFix(){var me=actorP(),r=roleBy(AF.role);
-  if(AF.mode==='all'&&!(AF.us&&scopeOk(me,r,AF.us))){var alt=myUnitScopes(me).filter(function(x){return scopeOk(me,r,x)})[0];if(alt)AF.us=alt;else AF.mode='pick'}
+  AF.auto=false;if(AF.mode==='all'&&!(AF.us&&scopeOk(me,r,AF.us))){var alt=myUnitScopes(me).filter(function(x){return scopeOk(me,r,x)})[0];if(alt)AF.us=alt;else{AF.mode='pick';AF.auto=r.id==='admin'}}
   AF.scopes=AF.scopes.filter(function(x){var k=scParse(x).k;return k!=='root'&&k!=='unit'&&scopeOk(me,r,x)});
   AF.scopes=AF.scopes.filter(function(x){var p=scParse(x);return p.k!=='res'||(!tagsOf(resBy(p.id)).some(function(c){return AF.scopes.indexOf('coll:'+c)>=0})&&!(resBy(p.id).parent&&AF.scopes.indexOf('res:'+resBy(p.id).parent)>=0))})}
 function afTargets(){return AF.mode==='all'?[AF.us]:AF.scopes}
@@ -3044,10 +3046,9 @@ function afScopeTable(me,r){var T=afTargets(),all=AF.mode==='all',U=myUnitScopes
 showAssign=(function(o){return function(f){o(f);var l=$('#layer');
   l.querySelectorAll('[data-afunit]').forEach(function(b){b.onchange=function(){if(b.checked){AF.mode='all';AF.us=b.dataset.afunit}else AF.mode='pick';AF.scopes=[];afFix();showAssign('[data-afunit="'+b.dataset.afunit+'"]')}})}})(showAssign);
 assignBody=(function(o){return function(){var h=o();
-  h=h.replace('Mặc định là Tất cả tài nguyên. Bỏ tích gốc rồi tích nhóm tài nguyên hoặc tài nguyên khi cần hẹp hơn. Tích một nhóm là gồm mọi tài nguyên con, kể cả tài nguyên thêm vào sau.','Mặc định là «Tất cả tài nguyên» của một đơn vị bạn quản trị (chỉ Builder, Viewer). Khi cần giới hạn, bỏ chọn rồi tích nhóm tài nguyên hoặc từng tài nguyên. Tích một nhóm là gồm cả tài nguyên thêm vào sau (BR-13).');
+  h=h.replace('Mặc định là Tất cả tài nguyên. Bỏ tích gốc rồi tích nhóm tài nguyên hoặc tài nguyên khi cần hẹp hơn. Tích một nhóm là gồm mọi tài nguyên con, kể cả tài nguyên thêm vào sau.','Mặc định là «Tất cả tài nguyên» của một đơn vị bạn quản trị (Builder, Viewer). Admin gán ở nhóm tài nguyên hoặc từng tài nguyên. Khi cần giới hạn, bỏ chọn rồi tích nhóm tài nguyên hoặc từng tài nguyên. Tích một nhóm là gồm cả tài nguyên thêm vào sau (BR-13).');
   h=h.replace(/<small>nhóm động<\/small>/g,'<small>nhóm cố định</small>').replace(/<div class="field"><label class="lbl" for="afDeleg">[\s\S]*?<\/select><\/div>/,'');
-  if(AF.mode==='all'){h=h.replace(/<option value="admin"[^>]*>Admin<\/option>/,'<option value="admin" disabled>Admin · chỉ gán ở nhóm tài nguyên hoặc tài nguyên</option>');
-    h=h.replace('<label class="lbl" for="afRole">2. Vai trò</label>','<label class="lbl" for="afRole">2. Vai trò</label><div class="afhint">Ở «Tất cả tài nguyên» chỉ chọn được Builder, Viewer (AC-34). Muốn gán Admin, bỏ chọn «Tất cả tài nguyên» rồi chọn nhóm tài nguyên hoặc tài nguyên.</div>')}
+  if(AF.auto)h=h.replace('<span class="lbl">3. Phạm vi</span>','<span class="lbl">3. Phạm vi</span><div class="note" style="margin:6px 0">'+ic('info','s')+'<span>Admin không gán ở «Tất cả tài nguyên», nên đã bỏ chọn phạm vi này. Tích nhóm tài nguyên hoặc tài nguyên bạn muốn giao toàn quyền, ví dụ «Chăm sóc khách».</span></div>');
   return h}})(assignBody);
 
 /* ---------- Người & nhóm (mục 6) ---------- */
