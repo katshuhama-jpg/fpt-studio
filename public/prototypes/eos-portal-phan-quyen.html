@@ -428,12 +428,12 @@ tr.rowbtn td:last-child svg{color:var(--text-muted)}
   <header class="top">
     <button class="ibtn" type="button" aria-label="Quay lại Console" title="Quay lại Console" onclick="if(window.parent!==window){window.parent.postMessage('eos-back',location.origin)}else{toast('Prototype không điều hướng ra ngoài')}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
     <span class="hlogo" aria-hidden="true"><svg class="i" viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-4h6v4M9 10h.01M15 10h.01M9 13h.01M15 13h.01"/></svg></span>
-    <h1 id="orgname">Tập đoàn B</h1>
+    <h1 id="orgname">Tập đoàn F</h1>
     <span class="pill"><svg class="i xs" viewBox="0 0 24 24" aria-hidden="true" style="width:14px;height:14px"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M21 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg><span id="orgcount">38 nhân viên</span></span>
     <span class="pill">Bản Principal · Vai trò · Phạm vi</span>
     <span class="pill actorpill" title="Thao tác với tư cách"><span>Với tư cách</span><select id="actor" aria-label="Thao tác với tư cách"></select></span>
     <span class="spacer"></span>
-    <button class="avbtn" id="avbtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menu" aria-label="Tài khoản và không gian" title="Tài khoản và không gian"><span class="av">TM</span><span class="avt"><b>Trần Minh</b><small id="avorg">Tập đoàn B</small></span><svg class="i xs" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg></button>
+    <button class="avbtn" id="avbtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menu" aria-label="Tài khoản và không gian" title="Tài khoản và không gian"><span class="av">CH</span><span class="avt"><b>Chị Hà</b><small id="avorg">Tập đoàn F</small></span><svg class="i xs" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg></button>
   </header>
   <div class="body">
     <nav class="rail" id="rail" aria-label="Cài đặt tổ chức"></nav>
@@ -479,13 +479,13 @@ function fmt(n){return n.toLocaleString('vi-VN')}
 function toast(t){var e=document.createElement('div');e.className='toast';e.setAttribute('role','status');e.innerHTML='<i></i><span>'+esc(t)+'</span>';document.body.appendChild(e);setTimeout(function(){e.remove()},3500)}
 
 /* ---------- data ---------- */
-var TREE={ id:'b',name:'Tập đoàn B',kind:'Tập đoàn',manual:false,
- people:[{n:'Nguyễn Hà',e:'ha.nguyen@b.vn',r:'Org Owner'}],
+var TREE={ id:'b',name:'Tập đoàn F',kind:'Tập đoàn',manual:false,
+ people:[{n:'Nguyễn An',e:'an.nguyen@f.vn',r:'Org Admin'}],
  kids:[
   {id:'a',name:'Công ty A',kind:'Công ty con',isNew:true,
-   people:[{n:'Trần Minh',e:'minh.tran@a.vn',r:'Org Admin'}],
+   people:[{n:'Chị Hà',e:'ha.tran@a.vn',r:'Org Admin'}],
    kids:[{id:'eos',name:'Phòng EOS',kind:'Phòng ban',manual:false,kids:[],
-     people:[{n:'Nhân viên X',e:'x@a.vn',r:'Runner'},{n:'Nhân viên Y',e:'y@a.vn',r:'Builder'},{n:'Lê Thu',e:'thu.le@a.vn',r:'Dept Admin'}]}]},
+     people:[{n:'Nhân viên X',e:'x@a.vn',r:'Runner'},{n:'Minh',e:'minh@a.vn',r:'Builder'},{n:'Lê Thu',e:'thu.le@a.vn',r:'Dept Admin'}]}]},
   {id:'sales',name:'Phòng Sales',kind:'Phòng ban',manual:true,kids:[],
    people:[{n:'Nhân viên Z',e:'z@b.vn',r:'Runner'},{n:'Phạm Lan',e:'lan.pham@b.vn',r:'Dept Admin'}]},
   {id:'cskh',name:'Phòng CSKH',kind:'Phòng ban',manual:false,kids:[],
@@ -504,29 +504,29 @@ var GROUPS=[{name:'Dự án Chatbot',desc:'Cùng xây và dùng agent Hỗ trợ
  {name:'Toàn Phòng CSKH',desc:'Mọi nhân viên Phòng CSKH',unit:'cskh',rule:'user.department -eq "Phòng CSKH"',src:'Động'}];
 
 var Q={ /* credit, tháng này */
- wallet:{name:'Ví Tập đoàn B',limit:12000,used:7420},
+ wallet:{name:'Ví Tập đoàn F',limit:12000,used:7420},
  co:{name:'Công ty A',limit:5000,used:3100},
  eos:{name:'Phòng EOS',limit:2000,used:1880},
  sales:{name:'Phòng Sales',limit:1500,used:1460},
  cskh:{name:'Phòng CSKH',limit:1200,used:640}
 };
-var U={x:{name:'Nhân viên X',dept:'eos',used:38,limit:300},y:{name:'Nhân viên Y',dept:'eos',used:290,limit:300},z:{name:'Nhân viên Z',dept:'sales',used:120,limit:300}};
+var U={x:{name:'Nhân viên X',dept:'eos',used:38,limit:300},y:{name:'Minh',dept:'eos',used:290,limit:300},z:{name:'Nhân viên Z',dept:'sales',used:120,limit:300}};
 var AG={support:{name:'Hỗ trợ khách',owner:'eos',reserve:50,actual:38},report:{name:'Soạn báo cáo',owner:'sales',reserve:80,actual:61}};
 
 /* ---------- profile menu: switch organisation ---------- */
 var BTREE=TREE;
 var ORGS=[
- {id:'b',name:'Tập đoàn B',sub:'Access Administrator · Tập đoàn B',tree:BTREE},
+ {id:'b',name:'Tập đoàn F',sub:'Access Administrator · Tập đoàn F',tree:BTREE},
  {id:'x',name:'Không gian cá nhân',sub:'Chủ sở hữu · chỉ mình bạn',personal:true,
-  tree:{id:'x',name:'Không gian cá nhân',kind:'Cá nhân',manual:false,kids:[],people:[{n:'Trần Minh',e:'minh.tran@a.vn',r:'Org Owner'}]}},
+  tree:{id:'x',name:'Không gian cá nhân',kind:'Cá nhân',manual:false,kids:[],people:[{n:'Chị Hà',e:'ha.tran@a.vn',r:'Org Admin'}]}},
  {id:'c',name:'Công ty C',sub:'Runner · Phòng Kỹ thuật',
-  tree:{id:'c',name:'Công ty C',kind:'Công ty',manual:false,people:[{n:'Đỗ Hải',e:'hai.do@c.vn',r:'Org Owner'}],
-   kids:[{id:'ct',name:'Phòng Kỹ thuật',kind:'Phòng ban',manual:false,kids:[],people:[{n:'Trần Minh',e:'minh.tran@c.vn',r:'Runner'}]}]}}
+  tree:{id:'c',name:'Công ty C',kind:'Công ty',manual:false,people:[{n:'Đỗ Hải',e:'hai.do@c.vn',r:'Org Admin'}],
+   kids:[{id:'ct',name:'Phòng Kỹ thuật',kind:'Phòng ban',manual:false,kids:[],people:[{n:'Chị Hà',e:'minh.tran@c.vn',r:'Runner'}]}]}}
 ];
 var orgId='b';
 function curOrg(){return ORGS.filter(function(o){return o.id===orgId})[0]}
 function menuHtml(){
-  var h='<div class="mh"><span class="av">TM</span><div class="t"><b>Trần Minh</b><small>minh.tran@a.vn</small></div></div><div class="ml">Chuyển không gian</div>';
+  var h='<div class="mh"><span class="av">CH</span><div class="t"><b>Chị Hà</b><small>ha.tran@a.vn</small></div></div><div class="ml">Chuyển không gian</div>';
   ORGS.forEach(function(o){
     h+='<button class="mi" type="button" role="menuitemradio" aria-checked="'+(o.id===orgId)+'" data-org="'+o.id+'"><span class="ulogo">'+ic(o.personal?'users':'org','s')+'</span><span class="t"><span class="n">'+esc(o.name)+'</span><small>'+esc(o.sub)+'</small></span>'+(o.id===orgId?'<span class="tick">'+ic('check','s')+'</span>':'')+'</button>';
   });
@@ -548,7 +548,7 @@ function switchOrg(id){
 }
 function pNoDemo(){
   var p=PANES.filter(function(x){return x[0]===cur()})[0];
-  return head(p[1],'Phần này hiển thị đầy đủ ở Tập đoàn B.')+'<div class="empty">'+ic('info')+'<span>'+esc(curOrg().name)+' chưa có dữ liệu cho mục này. Chuyển sang Tập đoàn B từ menu tài khoản để xem.</span></div>';
+  return head(p[1],'Phần này hiển thị đầy đủ ở Tập đoàn F.')+'<div class="empty">'+ic('info')+'<span>'+esc(curOrg().name)+' chưa có dữ liệu cho mục này. Chuyển sang Tập đoàn F từ menu tài khoản để xem.</span></div>';
 }
 $('#avbtn').onclick=function(e){e.stopPropagation();setMenu($('#menu').hidden)};
 document.addEventListener('click',function(e){var m=$('#menu');if(!m.hidden&&!m.contains(e.target))setMenu(false)});
@@ -578,7 +578,7 @@ var exp={b:true,a:true},ovl='count',gmode='eff',tq='',view='chart';
 var QMAP={b:'wallet',a:'co',eos:'eos',sales:'sales',cskh:'cskh'};
 function wide(){return window.matchMedia('(min-width:900px)').matches}
 function pathTo(id,n,acc){n=n||TREE;acc=(acc||[]).concat(n.id);if(n.id===id)return acc;var ks=n.kids||[];for(var i=0;i<ks.length;i++){var r=pathTo(id,ks[i],acc);if(r)return r}return null}
-function nodeOf(label){var m={'Tập đoàn B':'b','Công ty A':'a','Phòng EOS':'eos','Phòng Sales':'sales','Phòng CSKH':'cskh'};return m[label]||'eos'}
+function nodeOf(label){var m={'Tập đoàn F':'b','Công ty A':'a','Phòng EOS':'eos','Phòng Sales':'sales','Phòng CSKH':'cskh'};return m[label]||'eos'}
 function subMatch(n,q){if(n.name.toLowerCase().indexOf(q)>=0)return true;return (n.kids||[]).some(function(k){return subMatch(k,q)})}
 function ovHtml(n,o){
   if(o==='role'){var rs=[];ASSIGN.forEach(function(g){if(g.scope==='node:'+n.id){var nm=roleBy(g.role).name;if(rs.indexOf(nm)<0)rs.push(nm)}});
@@ -717,9 +717,9 @@ function setLimit(k){
 }
 /* ---------- Phân bổ hạn mức (dedicated screen) ---------- */
 var PQ={eos:300,sales:300};
-var LOGS=[{who:'Lê Thu',what:'Đặt hạn mức cá nhân mặc định Phòng EOS: 200 → 300',t:'08/11 14:20'},{who:'Trần Minh',what:'Đặt hạn mức Phòng EOS: 1.500 → 2.000',t:'05/11 09:05'},{who:'Nguyễn Hà',what:'Đặt hạn mức Công ty A: 4.000 → 5.000',t:'01/11 08:30'}];
+var LOGS=[{who:'Lê Thu',what:'Đặt hạn mức cá nhân mặc định Phòng EOS: 200 → 300',t:'08/11 14:20'},{who:'Chị Hà',what:'Đặt hạn mức Phòng EOS: 1.500 → 2.000',t:'05/11 09:05'},{who:'Nguyễn An',what:'Đặt hạn mức Công ty A: 4.000 → 5.000',t:'01/11 08:30'}];
 function two(n){return ('0'+n).slice(-2)}
-function logChange(w){var d=new Date();LOGS.unshift({who:'Trần Minh',what:w,t:two(d.getDate())+'/'+two(d.getMonth()+1)+' '+two(d.getHours())+':'+two(d.getMinutes())})}
+function logChange(w){var d=new Date();LOGS.unshift({who:'Chị Hà',what:w,t:two(d.getDate())+'/'+two(d.getMonth()+1)+' '+two(d.getHours())+':'+two(d.getMinutes())})}
 function limRow(k,depth){
   var q=Q[k],alloc=kidsAlloc(k),free=q.limit-alloc;
   return '<tr><td style="padding-left:'+(14+depth*22)+'px">'+(depth?ic('arrow','xs')+' ':'')+'<b style="font-weight:500">'+esc(q.name)+'</b></td><td class="num">'+fmt(q.limit)+'</td><td class="num">'+fmt(alloc)+'</td><td class="num">'+fmt(free)+'</td><td style="min-width:150px">'+bar(q.used,q.limit)+'<div class="mono" style="font-size:12px;color:var(--fg2);margin-top:2px">'+fmt(q.used)+' đã dùng</div></td><td style="text-align:right">'+(k==='wallet'?'<span style="color:var(--fg2);font-size:12px">Theo gói</span>':'<button class="btn out sm" data-setlimit="'+k+'">Đặt hạn mức</button>')+'</td></tr>';
@@ -810,7 +810,7 @@ var CH=[{n:'Zalo OA «B Care»',t:'Zalo',st:'ok',day:400,dmax:500,mon:7800,mmax:
  {n:'Website b.vn (widget)',t:'Website',st:'ok',day:96,dmax:800,mon:2100,mmax:15000,fee:'100 credit / tháng',fb:false}];
 function pKenh(){
   var h=head('Kênh triển khai','Mỗi kênh là một tài nguyên thuộc một đơn vị. Đơn vị sở hữu kênh trả tiền, khách hàng bên ngoài không có tài khoản và không có seat.');
-  h+='<div class="card cardp row" style="margin-bottom:16px"><span class="ulogo">'+ic('org')+'</span><span class="t"><b style="font-weight:500">Phòng CSKH sở hữu 3 kênh</b><small>Agent «Hỗ trợ khách» · bản đã phát hành v4 · ví Tập đoàn B</small></span><span class="badge brand">Đơn vị trả tiền</span></div>';
+  h+='<div class="card cardp row" style="margin-bottom:16px"><span class="ulogo">'+ic('org')+'</span><span class="t"><b style="font-weight:500">Phòng CSKH sở hữu 3 kênh</b><small>Agent «Hỗ trợ khách» · bản đã phát hành v4 · ví Tập đoàn F</small></span><span class="badge brand">Đơn vị trả tiền</span></div>';
   h+='<div class="tw"><table style="min-width:760px"><thead><tr><th>Kênh</th><th>Trạng thái duyệt</th><th style="width:20%">Hôm nay</th><th style="width:20%">Tháng này</th><th>Phí duy trì</th><th>Khi chạm trần</th></tr></thead><tbody>';
   CH.forEach(function(c,i){h+='<tr><td><b style="font-weight:500">'+esc(c.n)+'</b></td><td>'+(c.st==='ok'?'<span class="badge ok">Đã duyệt</span>':'<span class="badge warn">Chờ duyệt</span>')+'</td><td>'+bar(c.day,c.dmax)+'<div class="mono" style="font-size:12px;color:var(--fg2)">'+c.day+' / '+c.dmax+' hội thoại</div></td><td>'+bar(c.mon,c.mmax)+'<div class="mono" style="font-size:12px;color:var(--fg2)">'+fmt(c.mon)+' / '+fmt(c.mmax)+'</div></td><td>'+c.fee+'</td><td><label class="row" style="gap:8px"><span class="sw"><input type="checkbox" data-fb="'+i+'"'+(c.fb?' checked':'')+' aria-label="Trả tin mặc định khi chạm trần"><i></i></span><span style="font-size:12px;color:var(--fg2)">'+(c.fb?'Trả tin mặc định':'Chuyển nhân viên')+'</span></label></td></tr>'});
   h+='</tbody></table></div>';
@@ -898,7 +898,7 @@ function isPriv(r){return roleHas(r,GP)}
 function privGroup(r){return r.type==='builtin'&&isPriv(r)}
 
 /* ---------- cây tài nguyên: org (gốc) > nhóm tài nguyên > tài nguyên ---------- */
-var ORGRES={id:'b',name:'Tập đoàn B',wallet:'wallet'};
+var ORGRES={id:'b',name:'Tập đoàn F',wallet:'wallet'};
 var COLLS=[{id:'c1',name:'Chăm sóc khách',desc:'Tài nguyên phục vụ chăm sóc khách'},{id:'c7',name:'Thử nghiệm',desc:'Nơi thử trước khi đưa vào nhóm tài nguyên chính'},{id:'c5',name:'Bán hàng',desc:'Agent tư vấn và skill cho đội bán hàng'},{id:'c3',name:'Báo cáo',desc:'Agent soạn báo cáo và dữ liệu giá'},{id:'c2',name:'Dữ liệu khách hàng',desc:'CRM và hợp đồng, dữ liệu nhạy cảm'},{id:'c4',name:'Kênh',desc:'Connector tới kênh ngoài'},{id:'c8',name:'Nền tảng',desc:'Model dùng chung cho cả org'}];
 var RES=[
  {id:'ag1',t:'agent',name:'Agent A · Hỗ trợ khách',coll:'c1'},
@@ -945,7 +945,7 @@ function resIn(s){var p=scParse(s);return RES.filter(function(r){return p.k==='r
 function scopeQuota(s){var p=scParse(s);if(p.k!=='root')return null;return {n:ASSIGN.length,max:4000,what:'trong org này, gồm cả nhóm tài nguyên và tài nguyên'}}
 
 /* ---------- principal: người dùng, nhóm (gán tay hoặc động) ---------- */
-var PEOPLE=[{n:'Nguyễn Hà',units:['b'],groups:[]},{n:'Trần Minh',units:['a'],groups:[]},{n:'Lê Thu',units:['eos'],groups:['Trưởng nhóm']},{n:'Võ Hà',units:['cskh'],groups:[]},{n:'Nhân viên X',units:['eos'],groups:['Dự án Chatbot']},{n:'Nhân viên Z',units:['sales'],groups:['Dự án Chatbot']},{n:'Nhân viên Y',units:['eos'],groups:[]},{n:'Phạm Lan',units:['sales'],groups:['Trưởng nhóm']},{n:'Ngô Bình',units:['cskh'],groups:[]}];
+var PEOPLE=[{n:'Nguyễn An',units:['b'],groups:[]},{n:'Chị Hà',units:['a'],groups:[]},{n:'Lê Thu',units:['eos'],groups:['Trưởng nhóm']},{n:'Võ Hà',units:['cskh'],groups:[]},{n:'Nhân viên X',units:['eos'],groups:['Dự án Chatbot']},{n:'Nhân viên Z',units:['sales'],groups:['Dự án Chatbot']},{n:'Minh',units:['eos'],groups:[]},{n:'Phạm Lan',units:['sales'],groups:['Trưởng nhóm']},{n:'Ngô Bình',units:['cskh'],groups:[]}];
 function personBy(n){return PEOPLE.filter(function(p){return p.n===n})[0]}
 function groupBy(n){return GROUPS.filter(function(g){return g.name===n})[0]}
 function groupsOf(name){return GROUPS.filter(function(g){return !g.unit&&groupMembers(g).indexOf(name)>=0}).map(function(g){return g.name})}
@@ -961,14 +961,14 @@ function inWho(p,w){if(!w||w==='none')return false;if(w==='all')return true;var 
 
 /* ---------- role assignments. deleg: ràng buộc ủy quyền trên vai trò có quyền gán vai trò ---------- */
 var ASSIGN=[
- {id:'s1',who:'user:Nguyễn Hà',role:'admin',scope:'root'},
- {id:'s2',who:'user:Trần Minh',role:'admin',scope:'root'},
- {id:'s3',who:'user:Trần Minh',role:'viewer',scope:'coll:c1'},
+ {id:'s1',who:'user:Nguyễn An',role:'admin',scope:'root'},
+ {id:'s2',who:'user:Chị Hà',role:'admin',scope:'root'},
+ {id:'s3',who:'user:Chị Hà',role:'viewer',scope:'coll:c1'},
  {id:'s4',who:'user:Lê Thu',role:'builder',scope:'coll:c1'},
  {id:'s5',who:'user:Lê Thu',role:'admin',scope:'coll:c1',deleg:{roles:['builder','viewer'],kinds:['user','group']}},
  {id:'s6',who:'user:Lê Thu',role:'builder',scope:'coll:c7'},
  {id:'s7',who:'user:Nhân viên X',role:'builder',scope:'coll:c1'},
- {id:'s8',who:'user:Nhân viên Y',role:'builder',scope:'coll:c7'},
+ {id:'s8',who:'user:Minh',role:'builder',scope:'coll:c7'},
  {id:'s9',who:'group:Dự án Chatbot',role:'builder',scope:'coll:c1'},
  {id:'s10',who:'group:Toàn Phòng CSKH',role:'viewer',scope:'coll:c1'},
  {id:'s11',who:'user:Phạm Lan',role:'admin',scope:'coll:c5'},
@@ -986,12 +986,12 @@ var ASSIGN=[
 ];
 /* deny assignments do admin tạo: thắng mọi lượt gán vai trò */
 var DENIES=[
- {id:'d1',name:'Chặn cài agent từ Cộng đồng',perms:['community/install'],who:'all',except:'none',scope:'root',on:true,by:'Nguyễn Hà'},
- {id:'d2',name:'Sales không xem credential CRM',perms:['connector/credential'],who:'group:Toàn Phòng Sales',except:'group:Trưởng nhóm',scope:'coll:c2',on:true,by:'Trần Minh'},
- {id:'d3',name:'Không ai gỡ model dùng chung',perms:['model/delete'],who:'all',except:'none',scope:'coll:c8',on:true,by:'Nguyễn Hà'}
+ {id:'d1',name:'Chặn cài agent từ Cộng đồng',perms:['community/install'],who:'all',except:'none',scope:'root',on:true,by:'Nguyễn An'},
+ {id:'d2',name:'Sales không xem credential CRM',perms:['connector/credential'],who:'group:Toàn Phòng Sales',except:'group:Trưởng nhóm',scope:'coll:c2',on:true,by:'Chị Hà'},
+ {id:'d3',name:'Không ai gỡ model dùng chung',perms:['model/delete'],who:'all',except:'none',scope:'coll:c8',on:true,by:'Nguyễn An'}
 ];
 var nid=100;
-var actor='Trần Minh';
+var actor='Chị Hà';
 function actorP(){return personBy(actor)}
 
 /* ---------- đánh giá: deny trước, rồi hợp các role assignment, mặc định từ chối ---------- */
@@ -1034,8 +1034,8 @@ var DIRROLES=[
 ];
 /* who là principal: user:… hoặc group:… (nhóm gán tay, như role-assignable group của Entra) */
 var DIRASSIGN=[
- {id:'g1',who:'user:Nguyễn Hà',role:'orgadmin',unit:'b'},
- {id:'g2',who:'user:Trần Minh',role:'orgadmin',unit:'a'},
+ {id:'g1',who:'user:Nguyễn An',role:'orgadmin',unit:'b'},
+ {id:'g2',who:'user:Chị Hà',role:'orgadmin',unit:'a'},
  {id:'g3',who:'user:Lê Thu',role:'deptadmin',unit:'eos'},
  {id:'g4',who:'group:Admin Phòng Sales',role:'deptadmin',unit:'sales'},
  {id:'g5',who:'user:Võ Hà',role:'groupowner',unit:'cskh'}
@@ -1120,8 +1120,8 @@ function ensureUnitGroups(){allNodes(TREE).forEach(function(n){if(!GROUPS.some(f
 /* dữ liệu mẫu: nhóm con của Phòng EOS */
 ensureUnitGroups();
 [['Admin Phòng EOS','Quản trị tài nguyên của Phòng EOS',['Lê Thu'],[['admin','coll:c7']]],
- ['Builder Phòng EOS','Xây agent và skill của Phòng EOS',['Nhân viên X','Nhân viên Y'],[['builder','coll:c7'],['builder','coll:c8']]],
- ['Tester Phòng EOS','Chạy thử agent trước khi phát hành',['Nhân viên Y'],[['builder','coll:c8']]]].forEach(function(x){if(groupBy(x[0]))return;
+ ['Builder Phòng EOS','Xây agent và skill của Phòng EOS',['Nhân viên X','Minh'],[['builder','coll:c7'],['builder','coll:c8']]],
+ ['Tester Phòng EOS','Chạy thử agent trước khi phát hành',['Minh'],[['builder','coll:c8']]]].forEach(function(x){if(groupBy(x[0]))return;
   GROUPS.push({name:x[0],desc:x[1],members:x[2],src:'Thủ công',home:'eos'});x[3].forEach(function(a,i){ASSIGN.push({id:'sg'+slug(x[0])+i,who:'group:'+x[0],role:a[0],scope:a[1]})})});
 function prGli(g,d,path){var na=ASSIGN.filter(function(a){return a.who==='group:'+g.name}).length;
   return '<button class="gli" data-prg="'+esc(g.name)+'" aria-current="'+(prG===g.name)+'" style="padding-left:'+(10+d*18)+'px"><span class="ulogo" style="width:30px;height:30px;flex:none">'+ic(g.unit?'structure':'users','s')+'</span><span style="flex:1;min-width:0"><b style="font-weight:500">'+esc(g.name)+'</b><small>'+(path?esc(prPath(groupHome(g)))+' · ':'')+(g.unit?'Toàn bộ nhân viên':'Nhóm con')+' · '+groupMembers(g).length+' người · '+na+' vai trò</small></span></button>'}
@@ -1156,7 +1156,7 @@ function prRoleRes(me,g,pk){
   as.forEach(function(a){var ro=roleBy(a.role),T=[a.scope],cov=RES.filter(function(x){return afSrc(T,x)}),xs=cov.filter(function(x){return prGives(ro,x)}),rest=cov.length-xs.length,k=scParse(a.scope).k;
     var open=prRO[a.id]!==undefined?prRO[a.id]:(as.length===1||xs.length<=6),can=!lastOwner(a)&&grantCheck(me,a.role,a.scope,a.who).ok;
     var gen=rolePerms(ro).filter(function(id){return !RTN[permBy(id).cat]});
-    h+='<tr class="rmc" data-prrorow="'+a.id+'"><td><button class="rmt" data-prro="'+a.id+'" aria-expanded="'+open+'"><span class="car">'+ic('chev','xs')+'</span><span class="rchip'+(ro.type==='custom'?' brand':privGroup(ro)?' warn':'')+'">'+esc(ro.name)+'</span><span>tại <b style="font-weight:500">'+esc(scLabel(a.scope))+'</b></span></button><small>'+(k==='root'?'Gốc':k==='coll'?'Nhóm tài nguyên':'Tài nguyên')+' · '+xs.length+' tài nguyên nhận quyền'+(k==='res'?'':' · gồm cả tài nguyên thêm vào sau')+(a.deleg?' · '+esc(delegTxt(a.deleg)):'')+'</small></td>'+
+    h+='<tr class="rmc" data-prrorow="'+a.id+'"><td><button class="rmt" data-prro="'+a.id+'" aria-expanded="'+open+'"><span class="car">'+ic('chev','xs')+'</span><span class="rchip'+(ro.type==='custom'?' brand':privGroup(ro)?' warn':'')+'">'+esc(ro.name)+'</span><span>tại <b style="font-weight:500">'+esc(scLabel(a.scope))+'</b></span></button><small>'+(k==='root'||k==='unit'?'Tất cả tài nguyên':k==='coll'?'Nhóm tài nguyên':'Tài nguyên')+' · '+xs.length+' tài nguyên nhận quyền'+(k==='res'?'':' · gồm cả tài nguyên thêm vào sau')+(a.deleg?' · '+esc(delegTxt(a.deleg)):'')+'</small></td>'+
       AFC.map(function(c){return '<td class="c">'+(xs.length?afCell(afAgg(ro,T,xs,c[0])):'')+'</td>'}).join('')+'<td></td><td style="text-align:right;white-space:nowrap">'+(lastOwner(a)?'<span class="badge out">Admin cuối cùng</span>':can?'<button class="btn dgh sm" data-delas="'+a.id+'">Thu hồi</button>':'<span style="color:var(--fg3)" title="'+esc(grantWhy(grantCheck(me,a.role,a.scope,a.who)))+'">'+ic('lock','xs')+'</span>')+'</td></tr>';
     if(!open)return;
     if(gen.length)h+='<tr class="rmp"><td colspan="'+(AFC.length+3)+'" style="padding-left:34px;color:var(--fg2);font-size:12px">Quyền chung, không gắn với một tài nguyên: '+gen.map(function(id){return esc(permLbl(id))}).join(', ')+'.</td></tr>';
@@ -2139,13 +2139,13 @@ COLLS.forEach(function(c){c.owner=c.owner||COWN[c.id]||'b'});
 ensureUnitGroups();
 ASSIGN.forEach(function(a){if(a.id==='s10')a.share={payer:'owner'};if(a.id==='s19'||a.id==='s20')a.share={payer:'user'}});
 ASSIGN.push({id:'s24',who:'group:Toàn Phòng Sales',role:'viewer',scope:'coll:c2',cond:{mode:'not',label:'Mật'}});
-DENIES.push({id:'d4',name:'Không chia sẻ tài nguyên Mật',perms:['org/share'],who:'all',except:'none',scope:'root',on:true,by:'Nguyễn Hà',cond:{mode:'has',label:'Mật'}});
+DENIES.push({id:'d4',name:'Không chia sẻ tài nguyên Mật',perms:['org/share'],who:'all',except:'none',scope:'root',on:true,by:'Nguyễn An',cond:{mode:'has',label:'Mật'}});
 /* danh tính agent: Component User trên thành phần đang gắn. Cố ý bỏ trống Knowledge C của Agent B để thấy AC-12 */
 Object.keys(REFS).forEach(function(aid){REFS[aid].forEach(function(cid){if(aid==='ag2'&&cid==='kb3')return;ASSIGN.push({id:'ai'+aid+cid,who:'agent:'+aid,role:'compuser',scope:'res:'+cid,auto:true})})});
 LOGS.forEach(function(l){var m=/^(\d\d)\/(\d\d) (\d\d:\d\d)$/.exec(l.t);if(m)l.t=m[3]+' '+m[1]+'/'+m[2]+'/2026'});
 Q.wallet2={name:'Ví riêng Công ty A',limit:3000,used:400};
 var WORDER=['wallet','wallet2'],WLOCK=false,QUNIT={wallet:'b',co:'a',eos:'eos',sales:'sales',cskh:'cskh'},KUNIT={co:'a',eos:'eos',sales:'sales',cskh:'cskh'};
-var SPACEADMINS=['Nguyễn Hà'],FBM='Cảm ơn bạn đã nhắn tin. Hiện chúng tôi đang quá tải, nhân viên sẽ phản hồi bạn sớm nhất.',FEE={Zalo:'200 credit / tháng',Facebook:'200 credit / tháng',Website:'100 credit / tháng'};
+var SPACEADMINS=['Nguyễn An'],FBM='Cảm ơn bạn đã nhắn tin. Hiện chúng tôi đang quá tải, nhân viên sẽ phản hồi bạn sớm nhất.',FEE={Zalo:'200 credit / tháng',Facebook:'200 credit / tháng',Website:'100 credit / tháng'};
 CH.forEach(function(c){c.owner='cskh';c.agent='ag1';c.per=40;c.by='Võ Hà'});
 PANES.splice(4,0,['audit','Nhật ký kiểm toán','book',1,0,1]);
 
@@ -2518,9 +2518,9 @@ function denySave(){
 function logChange(w){LOGS.unshift({who:actor,what:w,t:nowTxt()})}
 function coWallets(owner){return (pathTo(QUNIT[owner])||[]).indexOf('a')>=0?WORDER.slice():['wallet']}
 function walletCard(){var me=actorP(),canO=dirCan(me.n,'dir/wallet/write','a'),canL=dirCan(me.n,'dir/wallet/write','b');
-  var h='<div class="card cardp" style="margin:16px 0;display:flex;flex-direction:column;gap:12px"><div class="row"><span class="ulogo">'+ic('wallet')+'</span><span class="t"><b style="font-weight:600;font-size:16px">Nguồn tiền của Công ty A</b><small>Hai ví: gói mẹ chia sẻ xuống và gói riêng công ty tự mua (D12 · P1, chờ Q1, Q2)</small></span><button class="btn out sm" data-worder'+(canO&&!WLOCK?'':' disabled title="'+(WLOCK?'Tập đoàn B đã khóa thứ tự ví':'Cần Org Admin hoặc quản trị ví Công ty A')+'"')+'>Đổi thứ tự</button></div>';
+  var h='<div class="card cardp" style="margin:16px 0;display:flex;flex-direction:column;gap:12px"><div class="row"><span class="ulogo">'+ic('wallet')+'</span><span class="t"><b style="font-weight:600;font-size:16px">Nguồn tiền của Công ty A</b><small>Hai ví: gói mẹ chia sẻ xuống và gói riêng công ty tự mua (D12 · P1, chờ Q1, Q2)</small></span><button class="btn out sm" data-worder'+(canO&&!WLOCK?'':' disabled title="'+(WLOCK?'Tập đoàn F đã khóa thứ tự ví':'Cần Org Admin hoặc quản trị ví Công ty A')+'"')+'>Đổi thứ tự</button></div>';
   h+=WORDER.map(function(k,i){var w=Q[k];return '<div class="lvl"><span><b style="font-weight:500">'+(i+1)+'. '+esc(w.name)+'</b> <span style="color:var(--fg2);font-size:12px">· '+(k==='wallet'?'gói mẹ chia sẻ':'gói riêng tự mua')+'</span></span><span class="mono">còn '+fmt(w.limit-w.used)+'</span>'+bar(w.used,w.limit)+'</div>'}).join('');
-  h+='<label class="row" style="gap:8px"><span class="sw"><input type="checkbox" data-wlock'+(WLOCK?' checked':'')+(canL?'':' disabled')+' aria-label="Khóa thứ tự ví"><i></i></span><span style="font-size:13px">Tập đoàn B khóa thứ tự, công ty con không đổi được'+(canL?'':' · chỉ Org Admin Tập đoàn B bật được')+'</span></label>';
+  h+='<label class="row" style="gap:8px"><span class="sw"><input type="checkbox" data-wlock'+(WLOCK?' checked':'')+(canL?'':' disabled')+' aria-label="Khóa thứ tự ví"><i></i></span><span style="font-size:13px">Tập đoàn F khóa thứ tự, công ty con không đổi được'+(canL?'':' · chỉ Org Admin Tập đoàn F bật được')+'</span></label>';
   h+='<div class="note">'+ic('info','s')+'<span>Một lượt chạy chỉ trừ <b>một ví</b>. Ví ưu tiên 1 không đủ giữ tạm cho cả lượt thì trừ nguyên lượt vào ví tiếp theo, không tách đôi. Ví chỉ quyết định tiền lấy từ đâu; hạn mức các cấp vẫn kiểm tra như nhau (BR-29, BR-30).</span></div><div><button class="btn sec sm" data-wsim30>Giả lập: ví mẹ chỉ còn 30 credit</button></div></div>';
   return h}
 function personCost(){var ks=Object.keys(U);
@@ -2594,7 +2594,7 @@ function auSnap(){var s={};
   Object.keys(Q).forEach(function(k){s['L|'+k]=['Hạn mức','Hạn mức '+Q[k].name+': '+fmt(Q[k].limit)+' credit']});
   Object.keys(U).forEach(function(k){s['P|'+k]=['Hạn mức','Hạn mức cá nhân '+U[k].name+': '+fmt(U[k].limit)+' credit']});
   Object.keys(PQ).forEach(function(k){s['M|'+k]=['Hạn mức','Mặc định cá nhân '+Q[k].name+': '+fmt(PQ[k])+' credit']});
-  s['W|a']=['Hạn mức','Thứ tự ví Công ty A: '+WORDER.map(function(k){return Q[k].name}).join(' → ')+(WLOCK?' · Tập đoàn B khóa':'')];
+  s['W|a']=['Hạn mức','Thứ tự ví Công ty A: '+WORDER.map(function(k){return Q[k].name}).join(' → ')+(WLOCK?' · Tập đoàn F khóa':'')];
   COLLS.forEach(function(c){s['O|'+c.id]=['Nhóm tài nguyên',c.name+' · chủ '+nName(collOwner(c))+' · '+RES.filter(function(x){return inColl(x,c.id)}).map(function(x){return x.name}).join(', ')]});
   RES.forEach(function(r){if(!r.parent&&(r.labels||[]).length)s['N|'+r.id]=['Nhãn',r.name+': '+r.labels.join(', ')]});
   CH.forEach(function(c){s['K|'+c.n]=['Kênh',c.n+' · '+(c.st==='ok'?'đã duyệt':c.st==='rej'?'từ chối':'chờ duyệt')+' · trần '+fmt(c.dmax)+'/ngày, '+fmt(c.mmax)+'/tháng, '+c.per+' tin/giờ mỗi khách']});
@@ -2607,10 +2607,10 @@ function auDiff(){try{
   Object.keys(AUS).forEach(function(k){if(!n[k])add.push({t:t,who:who,k:AUS[k][0],act:k[0]==='A'?'Thu hồi':'Xóa',b:AUS[k][1],a:'–'})});
   AUDIT=add.concat(AUDIT);AUS=n;AUP=PEOPLE.length}catch(e){console.warn(e)}}
 AUDIT=[
- {t:'09:12 18/11/2026',who:'Nguyễn Hà',k:'Quy định chặn',act:'Thêm',b:'–',a:denyTxt(DENIES.filter(function(d){return d.id==='d4'})[0])},
+ {t:'09:12 18/11/2026',who:'Nguyễn An',k:'Quy định chặn',act:'Thêm',b:'–',a:denyTxt(DENIES.filter(function(d){return d.id==='d4'})[0])},
  {t:'16:40 14/11/2026',who:'Lê Thu',k:'Chia sẻ',act:'Gán',b:'–',a:asTxt(ASSIGN.filter(function(a){return a.id==='s10'})[0])},
- {t:'10:05 12/11/2026',who:'Trần Minh',k:'Thành viên nhóm',act:'Sửa',b:'Dự án Chatbot: Nhân viên X',a:'Dự án Chatbot: Nhân viên X, Nhân viên Z'},
- {t:'08:30 01/11/2026',who:'Nguyễn Hà',k:'Hạn mức',act:'Sửa',b:'Hạn mức Công ty A: 4.000 credit',a:'Hạn mức Công ty A: 5.000 credit'}];
+ {t:'10:05 12/11/2026',who:'Chị Hà',k:'Thành viên nhóm',act:'Sửa',b:'Dự án Chatbot: Nhân viên X',a:'Dự án Chatbot: Nhân viên X, Nhân viên Z'},
+ {t:'08:30 01/11/2026',who:'Nguyễn An',k:'Hạn mức',act:'Sửa',b:'Hạn mức Công ty A: 4.000 credit',a:'Hạn mức Công ty A: 5.000 credit'}];
 function pAudit(){var ks=[];AUDIT.forEach(function(x){if(ks.indexOf(x.k)<0)ks.push(x.k)});
   var h=head('Nhật ký kiểm toán','Ghi mọi thay đổi về lượt gán, vai trò, quy định chặn, thành viên nhóm, quản trị cơ cấu, chia sẻ, chuyển chủ, nhãn, hạn mức, kênh. Mỗi dòng ghi ai đổi, lúc nào, nội dung trước và sau. Nhật ký chỉ ghi thêm: không sửa, không xóa được (BR-15).');
   h+=toolbar('<div class="search">'+ic('search','s')+'<input class="inp" id="qau" value="'+esc(AUQ)+'" placeholder="Tìm theo người hoặc nội dung…" aria-label="Tìm trong nhật ký"></div><select class="inp" id="auK" style="width:auto;min-width:180px" aria-label="Lọc loại thay đổi"><option value="all">Mọi loại thay đổi</option>'+ks.map(function(k){return '<option'+(AUK===k?' selected':'')+'>'+esc(k)+'</option>'}).join('')+'</select><span style="flex:1"></span><span class="badge out">'+ic('lock','xs')+'Chỉ ghi thêm</span>');
@@ -2638,7 +2638,7 @@ function xCommon(root){
   root.querySelectorAll('[data-chno]').forEach(function(b){b.onclick=function(){keep(function(){var c=CH[+b.dataset.chno];c.st='rej';toast('Đã từ chối '+c.n)})}});
   root.querySelectorAll('[data-chcap]').forEach(function(b){b.onclick=function(){chCapDlg(+b.dataset.chcap)}});
   root.querySelectorAll('[data-worder]').forEach(function(b){b.onclick=function(){keep(function(){WORDER.reverse();toast('Thứ tự ví: '+WORDER.map(function(k){return Q[k].name}).join(' → '))})}});
-  root.querySelectorAll('[data-wlock]').forEach(function(b){b.onchange=function(){keep(function(){WLOCK=b.checked;toast(WLOCK?'Tập đoàn B đã khóa thứ tự ví':'Đã mở khóa thứ tự ví')})}});
+  root.querySelectorAll('[data-wlock]').forEach(function(b){b.onchange=function(){keep(function(){WLOCK=b.checked;toast(WLOCK?'Tập đoàn F đã khóa thứ tự ví':'Đã mở khóa thứ tự ví')})}});
   root.querySelectorAll('[data-wsim30]').forEach(function(b){b.onclick=function(){keep(function(){Q.wallet.used=Q.wallet.limit-30;toast('Ví mẹ còn 30 credit. Chạy agent «Hỗ trợ khách» của Phòng EOS để xem')})}})}
 function roleDel(id){var r=roleBy(id);if(!r)return;if(r.type!=='custom'){toast('Vai trò có sẵn không xóa được');return}
   if(!canWrite(actorP(),'org/roleDefinitions/write',r.at)){toast('Bạn không có quyền xóa vai trò này');return}
@@ -2725,6 +2725,459 @@ render=(function(o){return function(){visFix();o();var rs=visRoots();
 
 auDiff();render();
 
+</script>
+<script>
+/* ==================== portal6: theo Wiki «Phân quyền tổ chức trên FPT AI EOS» (122530306 v88, 22/11/2026) ====================
+   - Tài nguyên được gán cho đơn vị, ít nhất một đơn vị, các đơn vị ngang nhau, không có đơn vị chủ (BR-08, BR-33).
+   - «Tất cả tài nguyên» là phạm vi theo từng đơn vị, hiện theo đơn vị người xem quản trị (BR-27).
+   - Nhóm tài nguyên dùng khi cần giới hạn; thêm, bớt cần Admin trên nhóm và quyền quản trị tài nguyên (BR-09).
+   - Org Admin chỉ ở gốc, Dept Admin ở công ty, phòng ban bên dưới; chỉ định ở Cơ cấu (BR-31). Admin đơn vị quản trị tài nguyên của nhánh (BR-33).
+   - Vai trò có sẵn Admin, Builder, Viewer theo mục 4.4. Vai trò tùy chỉnh, quy định chặn, chia sẻ, Cộng đồng: phase sau. */
+(function(){var p=document.querySelectorAll('header.top .pill');if(p[1])p[1].textContent='Bản theo Wiki v88'})();
+
+/* ---------- dữ liệu: cây tổ chức theo ví dụ mục 4.1 ---------- */
+(function(){
+  var A=TREE.kids.filter(function(k){return k.id==='a'})[0],mv=TREE.kids.filter(function(k){return k.id!=='a'});
+  A.kids=A.kids.concat(mv);
+  TREE.kids=[A,{id:'cb',name:'Công ty B',kind:'Công ty con',manual:true,kids:[],people:[]}];
+  A.people.forEach(function(x){if(x.n==='Chị Hà')x.r='Dept Admin'});
+  find(['b','a','sales']).people.forEach(function(x){if(x.n==='Phạm Lan')x.r='Dept Admin'});
+})();
+if(ORGS&&ORGS[0])ORGS[0].sub='Dept Admin · Công ty A';
+GROUPS=GROUPS.filter(function(g){return g.name!=='Admin Phòng Sales'});
+GROUPS.forEach(function(g){if(g.unit){g.src='Tự động';g.desc='Toàn bộ người của '+nName(g.unit)+((find(pathTo(g.unit)).kids||[]).length?' và các đơn vị con':'')}else{g.src='Thủ công';delete g.home}});
+ensureUnitGroups();
+GROUPS.forEach(function(g){if(g.unit&&g.src!=='Tự động'){g.src='Tự động'}});
+
+/* ---------- quản trị tổ chức: chỉ Org Admin (gốc) và Dept Admin (bên dưới) ---------- */
+DIRROLES=[
+ {id:'orgadmin',name:'Org Admin',perms:['dir/units/write','dir/members/write','dir/groups/write','dir/wallet/write','dir/roles/write'],desc:'Quản trị toàn bộ tổ chức, gồm mọi tài nguyên. Chỉ ở đơn vị gốc, không gỡ được từ giao diện.'},
+ {id:'deptadmin',name:'Dept Admin',perms:['dir/units/write','dir/members/write','dir/wallet/write','dir/roles/write'],desc:'Quản trị một nhánh bên dưới gốc: cơ cấu, người, chỉ định Dept Admin cho đơn vị con, và mọi tài nguyên được gán cho các đơn vị trong nhánh.'}];
+DIRASSIGN=[{id:'g1',who:'user:Nguyễn An',role:'orgadmin',unit:TREE.id},{id:'g2',who:'user:Chị Hà',role:'deptadmin',unit:'a'},{id:'g3',who:'user:Lê Thu',role:'deptadmin',unit:'eos'},{id:'g4',who:'user:Phạm Lan',role:'deptadmin',unit:'sales'}];
+
+/* ---------- danh mục permission và vai trò có sẵn (mục 4.4) ---------- */
+(function(){var keep=function(id){return PCATS.filter(function(c){return c[0]===id})[0]};
+  PCATS=[['org','Quản lý truy cập',[['org/roleAssignments/write','Gán vai trò']]],
+    ['rg','Nhóm tài nguyên',[['rg/read','Xem'],['rg/write','Sửa, thêm, bớt tài nguyên'],['rg/delete','Xóa']]],
+    ['channel','Kênh',[['channel/enable','Bật kênh ngoài']]],
+    keep('agent'),keep('skill'),keep('connector'),keep('knowledge'),keep('model')];
+  PERMS=[];PCATS.forEach(function(c){c[2].forEach(function(p){PERMS.push({id:p[0],name:p[1],cat:c[0]})})})})();
+PDESC['rg/write']='Đổi tên nhóm, thêm hoặc bớt tài nguyên. Thêm, bớt tài nguyên còn cần quyền quản trị chính tài nguyên đó (BR-09).';
+(function(){var R=function(id){return roleBy(id)};
+  var a=R('admin');a.perms=['*'];a.data=DATAP.slice();a.desc='Quản trị tài nguyên được gán: sửa, giao quyền, tạo nhóm tài nguyên và thêm tài nguyên mình quản trị vào nhóm mình làm Admin, phát hành agent. Chỉ gán ở nhóm tài nguyên hoặc từng tài nguyên.';
+  var b=R('builder');b.perms=['rg/read','agent/read','agent/write','skill/read','skill/write','connector/read','knowledge/read','model/read','channel/enable'];b.data=DATAP.slice();b.desc='Người xây agent: tạo, sửa agent và skill; dùng connector, knowledge, model; chạy thử. Không phát hành, không xóa, không giao quyền.';
+  var v=R('viewer');v.perms=['*/read'];v.data=[];v.desc='Người xem: chỉ xem tài nguyên trên Console. Không chạy, không sửa, không giao quyền.'})();
+DENIES=[];
+
+/* ---------- đơn vị của tài nguyên (BR-08, BR-33) ---------- */
+var RUNITS={ag1:['eos'],ag2:['sales'],ag3:['sales'],sk1:['eos'],sk2:['eos'],sk3:['sales'],cn1:['cskh'],cn2:['sales'],cn3:['eos'],kb1:['eos'],kb2:['sales'],kb3:['sales'],md1:[TREE.id],md2:[TREE.id]};
+RES.forEach(function(r){if(!r.parent)r.units=(RUNITS[r.id]||[TREE.id]).slice()});
+COLLS.forEach(function(c){delete c.owner});
+
+/* ---------- lượt gán mẫu theo AC ---------- */
+ASSIGN=ASSIGN.filter(function(a){return ['s1','s2','s3'].indexOf(a.id)<0});
+ASSIGN.forEach(function(a){delete a.deleg;delete a.share});
+ASSIGN.push({id:'s30',who:'group:Toàn Phòng EOS',role:'viewer',scope:'unit:eos'},
+  {id:'s31',who:'group:Toàn Phòng EOS',role:'viewer',scope:'coll:c1'},
+  {id:'s32',who:'user:Minh',role:'builder',scope:'res:ag1'});
+SUB.pr='people';
+
+/* ---------- tiện ích ---------- */
+function uScope(u){return u===TREE.id?'root':'unit:'+u}
+function scUnit(s){if(s==='root')return TREE.id;var p=scParse(s);return p.k==='unit'?p.id:null}
+function under(u,anc){return (pathTo(u)||[]).indexOf(anc)>=0}
+function resUnits(r){if(!r)return [];if(r.parent)return resUnits(resBy(r.parent));return r.units||(r.units=[TREE.id])}
+function resInUnit(r,u){return resUnits(r).some(function(x){return under(x,u)})}
+function adminUnitsP(p){if(!p||p.asAgent||p.asGroup)return [];return DIRASSIGN.filter(function(a){return inWho(p,a.who)}).map(function(a){return a.unit}).filter(function(u){return !!pathTo(u)})}
+function adminUnits(name){return adminUnitsP(personBy(name))}
+function branchUnits(name){var us=adminUnits(name);return allNodes(TREE).filter(function(n){return us.some(function(u){return under(n.id,u)})}).map(function(n){return n.id})}
+function isUnitAdmin(name){return adminUnits(name).length>0}
+function isOrgAdmin(name){return adminUnits(name).indexOf(TREE.id)>=0}
+function unitsTxt(me,r){var b=me?branchUnits(me.n):[],us=resUnits(r),inb=b.length?us.filter(function(u){return b.indexOf(u)>=0}):us,n=us.length-inb.length;
+  return inb.map(nName).join(', ')+(n?(inb.length?' ':'')+'+'+n+' đơn vị khác':'')}
+function canManageRes(me,r){if(r&&r.parent)r=resBy(r.parent);return !!r&&evalAccess(me,GP,{k:'res',id:r.id}).dec==='allow'}
+function canNewRg(me){return isUnitAdmin(me.n)||ASSIGN.some(function(a){return a.role==='admin'&&inWho(me,a.who)})}
+
+/* ---------- phạm vi: «Tất cả tài nguyên» theo đơn vị ---------- */
+function scName(s){var p=scParse(s);return p.k==='root'?'Tất cả tài nguyên · '+TREE.name:p.k==='unit'?'Tất cả tài nguyên · '+nName(p.id):p.k==='coll'?collBy(p.id).name:resBy(p.id).name}
+function scLabel(s){return scName(s)}
+function scShort(s){return scParse(s).k==='root'?'':scName(s)}
+function scTag(s){var p=scParse(s);return p.k==='root'||p.k==='unit'?scName(s):p.k==='coll'?'Nhóm tài nguyên '+scName(s):RTN[resBy(p.id).t]+' '+scName(s)}
+function scKind(s){var p=scParse(s);return p.k==='root'||p.k==='unit'?'Tất cả tài nguyên':p.k==='coll'?'Nhóm tài nguyên':RTN[resBy(p.id).t]}
+function scIcon(s){var p=scParse(s);return p.k==='root'||p.k==='unit'?'layers':p.k==='coll'?'folder':RTI[resBy(p.id).t]}
+function placeIcon(s){return scIcon(s)}
+function placeDr(s){var p=scParse(s);return p.k==='root'?'unitsc:'+TREE.id:p.k==='unit'?'unitsc:'+p.id:p.k+':'+p.id}
+function scOrd(s){var k=scParse(s).k;return k==='root'||k==='unit'?0:k==='coll'?1:2}
+function scAnc(s){var p=scParse(s),o=[];
+  if(p.k==='root')return ['root'];
+  if(p.k==='unit')return (pathTo(p.id)||[]).map(uScope);
+  if(p.k==='coll')return [s];
+  var r=resBy(p.id),base=r&&r.parent?resBy(r.parent):r;
+  resUnits(base).forEach(function(u){(pathTo(u)||[]).forEach(function(a){var x=uScope(a);if(o.indexOf(x)<0)o.push(x)})});
+  tagsOf(base).forEach(function(c){o.push('coll:'+c)});if(r&&r.parent)o.push('res:'+r.parent);o.push(s);return o}
+function scMatch(s,t){var p=scParse(s);
+  if(p.k==='root'||p.k==='unit'){var u=p.k==='root'?TREE.id:p.id;
+    if(t.k==='res')return resInUnit(resBy(t.id),u);
+    if(t.k==='unit')return under(t.id,u);
+    if(t.k==='root')return u===TREE.id;
+    return false}
+  if(p.k==='coll')return (t.k==='coll'&&t.id===p.id)||(t.k==='res'&&inTree(resBy(t.id),p.id));
+  return t.k==='res'&&(t.id===p.id||resBy(t.id).parent===p.id)}
+function resIn(s){var p=scParse(s);
+  if(p.k==='root'||p.k==='unit'){var u=scUnit(s);return RES.filter(function(r){return resInUnit(r,u)})}
+  return RES.filter(function(r){return (p.k==='coll'&&inTree(r,p.id))||(p.k==='res'&&(r.id===p.id||r.parent===p.id))})}
+function allScopes(){var o=['root'];allNodes(TREE).forEach(function(n){if(n.id!==TREE.id)o.push('unit:'+n.id)});COLLS.forEach(function(c){o.push('coll:'+c.id)});RES.forEach(function(r){if(!r.parent)o.push('res:'+r.id)});return o}
+function afSrc(T,x){if(T.indexOf('res:'+x.id)>=0)return 'chọn trực tiếp';
+  if(x.parent&&T.indexOf('res:'+x.parent)>=0)return 'kế thừa từ connector «'+resBy(x.parent).name+'»';
+  var cs=tagsOf(x).filter(function(c){return T.indexOf('coll:'+c)>=0});if(cs.length)return 'kế thừa từ nhóm '+cs.map(function(c){return '«'+collBy(c).name+'»'}).join(', ');
+  var us=T.filter(function(s){var u=scUnit(s);return u&&resInUnit(x,u)});if(us.length)return 'qua «'+scName(us[0])+'»';return ''}
+function allWho(){return PEOPLE.map(function(p){return ['user:'+p.n,p.n,'Người dùng']})
+  .concat(GROUPS.map(function(g){return ['group:'+g.name,'Nhóm '+g.name,g.unit?'Nhóm cố định của đơn vị':'Nhóm người tự tạo']}))
+  .concat(agents().map(function(r){return ['agent:'+r.id,'Danh tính '+r.name,'Danh tính agent']}))
+  .concat([['all','Mọi người','Hệ thống']])}
+
+/* ---------- đánh giá quyền: lượt gán + quyền quản trị của admin đơn vị (BR-24, BR-33) ---------- */
+function uaGrant(p,t){var us=adminUnitsP(p);
+  for(var i=0;i<us.length;i++){var u=us[i],ok=t.k==='res'?resInUnit(resBy(t.id),u):t.k==='unit'?under(t.id,u):u===TREE.id;
+    if(ok)return {id:'ua-'+u,who:'user:'+p.n,role:'admin',scope:uScope(u),ua:u}}
+  return null}
+function evalAccess(p,perm,t){
+  var res={dec:'none',deny:null,grants:[],skRole:[],skCond:[]},ua=uaGrant(p,t);if(ua)res.grants.push(ua);
+  ASSIGN.forEach(function(a){
+    if(!inWho(p,a.who)||!scMatch(a.scope,t))return;
+    if(!roleHas(roleBy(a.role),perm)){res.skRole.push(a);return}
+    if(a.cond&&!condOk(a.cond,t)){res.skCond.push(a);return}
+    res.grants.push(a)});
+  res.dec=res.grants.length?'allow':'none';return res}
+/* chống leo thang (BR-14): có quyền giao quyền tại Y và có toàn bộ permission của vai trò tại Y */
+function grantCheck(p,roleId,scope,who){
+  var t=scTarget(scope),e=evalAccess(p,GP,t);
+  if(e.dec!=='allow')return {ok:false,why:'perm',miss:[GP]};
+  var k=scParse(scope).k;if((k==='root'||k==='unit')&&!uaGrant(p,t))return {ok:false,why:'unit'};
+  var miss=rolePerms(roleBy(roleId)).filter(function(x){return evalAccess(p,x,t).dec!=='allow'});
+  return miss.length?{ok:false,why:'perm',miss:miss}:{ok:true,why:''}}
+function grantWhy(c){if(c.why==='unit')return 'Chỉ admin của đơn vị, admin cấp trên và Org Admin gán được ở «Tất cả tài nguyên» của đơn vị (BR-14).';
+  if(c.miss&&c.miss.length){var m=c.miss.map(permLbl);return 'Thiếu '+m.length+' quyền: '+m.slice(0,4).join(', ')+(m.length>4?' và '+(m.length-4)+' quyền khác':'')+' (BR-14).'}
+  return 'Bạn không có quyền gán vai trò tại phạm vi này.'}
+function roleOrgOnly(){return false}
+function canAssignAt(r,s){var k=scParse(s).k;if(r.agentOnly)return k==='res';if(r.id==='admin'&&(k==='root'||k==='unit'))return false;return true}
+function scopeWhy(me,r,s){var k=scParse(s).k;if(r.id==='admin'&&(k==='root'||k==='unit'))return 'Admin không gán ở «Tất cả tài nguyên»: admin của đơn vị đã quản trị mọi tài nguyên của đơn vị (BR-27).';
+  var c=grantCheck(me,r.id,s);return c.ok?'':grantWhy(c)}
+
+/* ---------- nhóm tài nguyên (BR-09) ---------- */
+function tagWhy(me,r,cid,removing){
+  if(r.parent)return 'Credential đi theo nhóm của connector «'+resBy(r.parent).name+'».';
+  if(!canWrite(me,'rg/write','coll:'+cid))return 'Cần vai trò Admin trên nhóm tài nguyên «'+collBy(cid).name+'» (BR-09).';
+  if(!canManageRes(me,r))return 'Cần quyền quản trị «'+r.name+'»: Admin trên tài nguyên, hoặc admin một đơn vị của tài nguyên (BR-09).';
+  return ''}
+function rgDlg(){var me=actorP();if(!canNewRg(me)){toast('Cần là admin đơn vị hoặc Admin của một nhóm tài nguyên, tài nguyên');return}
+  var cand=RES.filter(function(r){return !r.parent&&canManageRes(me,r)});
+  dlg('Tạo nhóm tài nguyên','Dùng khi cần giới hạn một người hoặc nhóm người chỉ trên một phần tài nguyên. Bạn tự được gán Admin trên nhóm, và chỉ thêm được tài nguyên mình có quyền quản trị (BR-09).',
+    '<div class="field"><label for="gn2">Tên</label><input class="inp" id="gn2" placeholder="Ví dụ: Chăm sóc khách"></div><div class="field"><label for="gd2">Mô tả</label><input class="inp" id="gd2"></div>'+
+    '<div class="field"><span class="lbl">Tài nguyên bạn quản trị ('+cand.length+')</span><div class="pickbox">'+(cand.length?cand.map(function(r){return pickRow('rgn',r.id,esc(r.name)+' <small>'+RTN[r.t]+' · '+esc(unitsTxt(me,r))+'</small>',false)}).join(''):'<div class="pkr dis">Bạn chưa quản trị tài nguyên nào. Tạo nhóm trống rồi thêm sau.</div>')+'</div></div><div id="gerr" aria-live="polite"></div>','Tạo nhóm',function(){
+    var nm=$('#gn2').value.trim();if(!nm){errNote('gerr','Nhập tên.');return false}
+    if(COLLS.some(function(c){return c.name.toLowerCase()===nm.toLowerCase()})){errNote('gerr','Tên nhóm đã có.');return false}
+    var ids=[].map.call(document.querySelectorAll('#layer [data-rgn]:checked'),function(b){return b.dataset.rgn});
+    var c={id:'c'+(++nid),name:nm,desc:$('#gd2').value.trim()||'Nhóm tài nguyên mới'};COLLS.push(c);
+    ASSIGN.push({id:'s'+(++nid),who:'user:'+me.n,role:'admin',scope:'coll:'+c.id});
+    ids.forEach(function(id){setTag(resBy(id),c.id,true)});
+    toast('Đã tạo «'+nm+'»'+(ids.length?' với '+ids.length+' tài nguyên':'')+'. Bạn là Admin của nhóm');drawerOpen('coll',c.id,'items');render()});
+  var f=$('#gn2');if(f)f.focus()}
+function rgDelDlg(){var k=scParse(pscope);if(k.k!=='coll')return;var c=collBy(k.id),me=actorP(),s=pscope;
+  if(!canWrite(me,'rg/delete',s)){toast('Cần vai trò Admin trên nhóm tài nguyên này');return}
+  var as=ASSIGN.filter(function(a){return a.scope===s}),rs=RES.filter(function(r){return inColl(r,c.id)});
+  if(as.length){dlg('Không xóa được nhóm tài nguyên','','<div class="note bad">'+ic('lock','s')+'<span><b>Thu hồi hết lượt gán trên nhóm tài nguyên trước khi xóa</b> (EN: Revoke all role assignments on this resource scope before deleting). Còn '+as.length+' lượt gán:</span></div><ul style="margin:8px 0 0;padding-left:18px;color:var(--fg2)">'+as.map(function(a){return '<li>'+esc(whoBy(a.who)[1])+' · '+esc(roleBy(a.role).name)+'</li>'}).join('')+'</ul>','Mở danh sách lượt gán',function(){DR={kind:'coll',id:c.id,tab:'access',form:null};render()});return}
+  dlg('Xóa nhóm tài nguyên','Xóa «'+esc(c.name)+'». '+rs.length+' tài nguyên bên trong giữ nguyên đơn vị của mình.','','Xóa nhóm',function(){
+    rs.forEach(function(r){setTag(r,c.id,false)});COLLS=COLLS.filter(function(x){return x!==c});DR=null;toast('Đã xóa nhóm «'+c.name+'»');render()})}
+
+/* ---------- gán tài nguyên cho đơn vị (BR-33) ---------- */
+function unitWhy(me,r,u,removing){if(!canManageRes(me,r))return 'Cần quyền quản trị «'+r.name+'».';
+  if(branchUnits(me.n).indexOf(u)<0)return 'Đơn vị ngoài nhánh bạn quản trị (BR-33).';
+  if(removing&&resUnits(r).length<2)return 'Tài nguyên phải được gán cho ít nhất một đơn vị (EN: A resource must be assigned to at least one unit).';return ''}
+function unitDlg(rid){var r=resBy(rid),me=actorP(),B=branchUnits(me.n);if(!r||!canManageRes(me,r)||!B.length){toast('Cần là admin một đơn vị của tài nguyên hoặc admin cấp trên');return}
+  var cur=resUnits(r).slice(),out=cur.filter(function(u){return B.indexOf(u)<0}).length,d0=Math.min.apply(null,B.map(function(u){return (pathTo(u)||[]).length}));
+  dlg('Gán «'+esc(r.name)+'» cho đơn vị','Chọn một hoặc nhiều đơn vị. Danh sách chỉ có các đơn vị trong nhánh bạn quản trị. Mọi đơn vị của tài nguyên có quyền ngang nhau, không có đơn vị chủ (BR-33).',
+    '<div class="pickbox">'+B.map(function(u){var n=find(pathTo(u));return pickRow('ugn',u,esc(n.name)+' <small>'+esc(n.kind||'')+'</small>',cur.indexOf(u)>=0,false,'',(pathTo(u)||[]).length-d0)}).join('')+'</div>'+
+    (out?'<p class="afhint">Tài nguyên còn thuộc '+out+' đơn vị khác ngoài nhánh của bạn, giữ nguyên.</p>':'')+'<div id="ugErr" aria-live="polite"></div>','Lưu',function(){
+      var on=[].map.call(document.querySelectorAll('#layer [data-ugn]:checked'),function(b){return b.dataset.ugn});
+      var nx=cur.filter(function(u){return B.indexOf(u)<0}).concat(on);
+      if(!nx.length){errNote('ugErr','Tài nguyên phải được gán cho ít nhất một đơn vị (EN: A resource must be assigned to at least one unit).');return false}
+      var add=on.filter(function(u){return cur.indexOf(u)<0}).length,rm=cur.filter(function(u){return B.indexOf(u)>=0&&on.indexOf(u)<0}).length;
+      r.units=nx;toast(add||rm?'Đã lưu đơn vị của '+r.name+(add?' · thêm '+add:'')+(rm?' · bớt '+rm:''):'Không có thay đổi');render()})}
+function rmResUnit(rid,u){var r=resBy(rid),me=actorP(),w=unitWhy(me,r,u,true);if(w){toast(w);return}
+  keep(function(){r.units=resUnits(r).filter(function(x){return x!==u});toast('Đã bớt '+nName(u)+' khỏi '+r.name)})}
+
+/* ---------- màn Phạm vi ---------- */
+var PVU=null;
+function pvUnits(me){var b=branchUnits(me.n);return b.length?b:me.units.filter(function(u){return !!pathTo(u)})}
+function pResources(){
+  var me=actorP(),q=Qs.rs,UU=pvUnits(me),adm=isUnitAdmin(me.n);if(!PVU||UU.indexOf(PVU)<0)PVU=UU[0]||TREE.id;var us=uScope(PVU),canRg=canNewRg(me);
+  var h=head('Phạm vi','Chỉ dùng để phân quyền, không tạo, sửa, xóa tài nguyên. «Tất cả tài nguyên» của một đơn vị gồm mọi tài nguyên được gán cho đơn vị đó và các đơn vị con, hệ thống tự cập nhật. Khi cần giới hạn, gom tài nguyên vào nhóm tài nguyên rồi gán vai trò ở nhóm. Một tài nguyên nằm được trong nhiều nhóm.',
+    '<button class="btn" data-dlg="newrg"'+(canRg?'':' disabled title="Cần là admin đơn vị hoặc Admin của một nhóm tài nguyên, tài nguyên"')+'>'+ic('plus','s')+'Tạo nhóm tài nguyên</button>');
+  var canAll=!!uaGrant(me,scTarget(us));
+  var sel='<label class="row" style="gap:8px;flex:none"><span style="font-size:13px;color:var(--fg2)">Tất cả tài nguyên của</span><select class="inp" id="pvU" style="width:auto">'+UU.map(function(u){return '<option value="'+u+'"'+(u===PVU?' selected':'')+'>'+indentName(find(pathTo(u)))+'</option>'}).join('')+'</select></label>';
+  h+=toolbar(sel+searchBox('qrs',q,'Tìm tài nguyên…')+'<button class="btn sec sm" data-tgall="1">Mở hết</button><button class="btn sec sm" data-tgall="0">Thu gọn</button><span class="spacer" style="flex:1"></span><button class="btn out sm" data-assign="||'+us+'"'+(canAll?'':' disabled title="Chỉ admin của đơn vị, admin cấp trên và Org Admin gán được ở đây"')+'>'+ic('plus','s')+'Gán vai trò ở Tất cả tài nguyên</button>');
+  if(!adm)h+='<div class="note" style="margin-bottom:12px">'+ic('info','s')+'<span>Bạn đang thao tác với tư cách <b>'+esc(me.n)+'</b>, không là admin đơn vị nào nên chỉ xem tài nguyên của đơn vị mình thuộc. Gán tài nguyên cho đơn vị do Org Admin, Dept Admin làm (BR-33).</span></div>';
+  var C=COLLS,nu=ASSIGN.filter(function(a){return a.scope===us}).length,any=0;
+  h+='<div class="tw rmx"><table><thead><tr><th class="rmq">Tài nguyên</th><th><button class="rmh" data-dr="unitsc:'+PVU+'" title="Xem tài nguyên và lượt gán ở phạm vi này">Tất cả tài nguyên'+ic('lock','xs')+'</button><small>'+esc(nName(PVU))+' · '+nu+' lượt gán</small></th>'+
+    C.map(function(c){var n=RES.filter(function(r){return inColl(r,c.id)}).length,na=ASSIGN.filter(function(a){return a.scope==='coll:'+c.id}).length;
+      return '<th><button class="rmh cu" data-tgcol="'+c.id+'" title="'+esc(c.desc)+'">'+esc(c.name)+'</button><small>'+n+' tài nguyên · '+na+' lượt gán</small></th>'}).join('')+'</tr></thead><tbody>';
+  RTYPES.forEach(function(t){var rs=RES.filter(function(r){return r.t===t&&!r.parent&&resInUnit(r,PVU)&&mq(q,r.name)});if(!rs.length)return;any++;
+    var open=!!q||tgOpen[t]!==false;
+    h+='<tr class="rmc"><td class="rmq"><button class="rmt" data-tgcat="'+t+'" aria-expanded="'+open+'"><span class="car">'+ic('chev','xs')+'</span>'+ic(RTI[t],'xs')+'<b style="font-weight:500">'+RTN[t]+'</b> <small>'+rs.length+' tài nguyên</small></button></td><td>'+rmBox('on',true,'data-tgroot="1"','Tự cập nhật theo đơn vị của tài nguyên')+'</td>'+
+      C.map(function(c){var on=rs.filter(function(r){return inColl(r,c.id)}).length,st=on===0?'off':on===rs.length?'on':'part',ed=rs.some(function(r){return !tagWhy(me,r,c.id,inColl(r,c.id))});
+        return '<td>'+rmBox(st,!ed,'data-tgcell="'+rs.map(function(r){return r.id}).join(',')+'|'+c.id+'"',RTN[t]+' · '+c.name)+'</td>'}).join('')+'</tr>';
+    if(open)withCreds(rs).forEach(function(r){var tg=tagsOf(r);
+      h+='<tr class="rmp'+(r.parent?' cred':'')+'"><td class="rmq">'+(r.parent?ic('key','xs')+' ':'')+'<button class="lnk" data-dr="res:'+r.id+'" style="text-align:left"><b style="font-weight:500">'+esc(r.parent?r.short:r.name)+'</b></button><small>'+(r.parent?'Credential · đi theo connector':'Đơn vị: '+esc(unitsTxt(me,r))+' · '+(tg.length?tg.length+' nhóm':'chưa thuộc nhóm nào')+(r.t==='connector'?' · '+credsOf(r).length+' credential':''))+'</small></td><td>'+rmBox('on',true,'data-tgroot="1"','Thuộc «Tất cả tài nguyên» của '+nName(PVU))+'</td>'+
+        C.map(function(c){var on=tg.indexOf(c.id)>=0,why=tagWhy(me,r,c.id,on);return '<td>'+rmBox(on?'on':'off',!!why,'data-tgcell="'+r.id+'|'+c.id+'"',r.name+' · '+c.name+(why?' · '+why:''))+'</td>'}).join('')+'</tr>'})});
+  if(!any)h+='<tr><td colspan="'+(C.length+2)+'"><div class="empty">'+ic('search')+'<span>'+(q?'Không có tài nguyên nào khớp.':'Chưa có tài nguyên nào được gán cho '+esc(nName(PVU))+'.')+'</span></div></td></tr>';
+  return h+'</tbody></table></div><p class="afhint" style="margin-top:8px">Ô tích: tài nguyên thuộc nhóm. Ổ khóa: không đổi được vì thiếu quyền. Thêm, bớt tài nguyên trong nhóm cần là Admin của nhóm và quản trị được tài nguyên (BR-09). Đơn vị của tài nguyên đổi ở chi tiết tài nguyên, nút «Gán cho đơn vị».</p>'}
+
+/* ---------- ngăn chi tiết: tài nguyên, nhóm tài nguyên, Tất cả tài nguyên của đơn vị ---------- */
+function drRes(){
+  var me=actorP(),isColl=DR.kind==='coll',s=DR.kind+':'+DR.id,r=isColl?collBy(DR.id):resBy(DR.id);if(DR.kind==='org'||!r){DR=null;return ''}
+  pscope=s;var anc=scAnc(s);if(!isColl&&r.parent)return drCred(r,me,s);
+  var canG=canWrite(me,GP,s),dis=canG?'':' disabled title="Bạn không có quyền gán vai trò tại đây"',canU=!isColl&&canManageRes(me,r)&&branchUnits(me.n).length>0;
+  var acts='<button class="btn out sm" data-assign="||'+s+'"'+dis+'>'+ic('plus','s')+'Gán vai trò ở đây</button>'+(isColl?'':'<button class="btn out sm" data-unitdlg="'+r.id+'"'+(canU?'':' disabled title="Cần là admin một đơn vị của tài nguyên hoặc admin cấp trên"')+'>'+ic('org','s')+'Gán cho đơn vị</button>')+(!isColl&&r.t==='agent'?'<button class="btn sec sm" data-dr="agent:'+r.id+'">'+ic('bot','s')+'Danh tính agent</button>':'');
+  var sub=isColl?esc(r.desc)+' · '+RES.filter(function(x){return inColl(x,r.id)}).length+' tài nguyên':'Đơn vị: <b style="font-weight:500">'+esc(unitsTxt(me,r))+'</b> · '+(tagsOf(r).length?'nhóm '+tagLinks(r):'chưa thuộc nhóm tài nguyên nào');
+  var h=dhead(ic(isColl?'folder':RTI[r.t]),esc(r.name),'<span class="badge">'+(isColl?'Nhóm tài nguyên':RTN[r.t])+'</span>'+(isColl?'':' '+lblChips(r)),sub,acts);
+  var tabs=isColl?[['items','Tài nguyên'],['access','Ai có quyền']]:[['loc','Đơn vị & nhóm'],['access','Ai có quyền']];
+  if(!isColl&&r.t==='agent')tabs.push(['comp','Thành phần ('+(REFS[r.id]||[]).length+')']);
+  if(!isColl&&r.t==='connector')tabs.push(['creds','Credential ('+credsOf(r).length+')']);
+  h+=dtabs(tabs);var b='';
+  if(DR.tab==='access'){
+    var as=ASSIGN.filter(function(a){return anc.indexOf(a.scope)>=0}).sort(function(x,y){return anc.indexOf(y.scope)-anc.indexOf(x.scope)});
+    b+='<div class="sec-h" style="margin-top:0"><h3>Lượt gán ('+as.length+')</h3><button class="btn sm" data-assign="||'+s+'"'+dis+'>'+ic('plus','s')+'Gán vai trò</button></div><p class="afhint" style="margin:0 0 8px">'+(isColl?'Lượt gán ở nhóm áp cho mọi tài nguyên đang có và sẽ được thêm vào nhóm (BR-13).':'Tách «tại đây», «qua nhóm tài nguyên» và «qua Tất cả tài nguyên» của đơn vị.')+'</p>';
+    if(!as.length)b+='<div class="empty">'+ic('key')+'<span>Chưa có vai trò nào</span></div>';
+    as.forEach(function(a){var here=a.scope===s,k=scParse(a.scope).k,can=grantCheck(me,a.role,a.scope,a.who).ok;
+      b+='<div class="drow"><div class="row" style="flex:1;min-width:0">'+whoAvatar(a.who)+'<span class="t"><button class="lnk" data-dr="'+esc(a.who)+'"><b style="font-weight:500">'+esc(whoBy(a.who)[1])+'</b></button><small><span class="rchip">'+esc(roleBy(a.role).name)+'</span> '+(here?'<span class="badge brand">tại đây</span>':'<span style="color:var(--fg2)">'+(k==='coll'?'qua nhóm ':'qua ')+'<button class="lnk" data-dr="'+placeDr(a.scope)+'">'+esc(scLabel(a.scope))+'</button></span>')+(a.auto?' <span class="badge out">tự gán khi gắn thành phần</span>':'')+(a.cond?'<br>'+ic('tag','xs')+' '+esc(condTxt(a.cond)):'')+'</small></span></div>'+(can?'<button class="btn dgh sm" data-delas="'+a.id+'">Thu hồi</button>':'')+'</div>'});
+    if(!isColl){var ad=DIRASSIGN.filter(function(a){return resUnits(r).some(function(u){return under(u,a.unit)})});
+      b+='<div class="sec-h"><h3>Quản trị qua đơn vị ('+ad.length+')</h3></div><p class="afhint" style="margin:0 0 8px">Admin của mọi đơn vị của tài nguyên, admin cấp trên và Org Admin quản trị được tài nguyên mà không cần lượt gán (BR-33).</p>'+
+        ad.map(function(a){return '<div class="drow"><div class="row" style="flex:1;min-width:0">'+whoAvatar(a.who)+'<span class="t"><button class="lnk" data-dr="'+esc(a.who)+'"><b style="font-weight:500">'+esc(whoBy(a.who)[1])+'</b></button><small><span class="rchip warn">'+esc(dirRoleBy(a.role).name)+'</span> · '+esc(nName(a.unit))+'</small></span></div></div>'}).join('');
+      var up=usePerm(r),who=PEOPLE.filter(function(p){return !p.fake&&evalAccess(p,up,{k:'res',id:r.id}).dec==='allow'});
+      b+='<div class="sec-h"><h3>Người dùng được «'+esc(permBy(up).name)+'» ('+who.length+')</h3></div>'+(who.length?'<div class="tags">'+who.map(function(p){return '<button class="rchip out" style="cursor:pointer" data-dr="user:'+esc(p.n)+'">'+esc(p.n)+'</button>'}).join('')+'</div>':'<div class="empty">'+ic('users')+'<span>Chưa ai có quyền này.</span></div>')+'<p class="afhint">Đã cộng mọi lượt gán, lọc điều kiện và quyền quản trị của admin đơn vị. Bấm một người để xem vì sao.</p>'}}
+  else if(DR.tab==='comp')b+=compTab(r);
+  else if(DR.tab==='creds')b+=credTab(r,me);
+  else if(isColl){var rs=RES.filter(function(x){return inColl(x,r.id)}),canW2=canWrite(me,'rg/write',s);
+    b+='<div class="sec-h" style="margin-top:0"><h3>Tài nguyên trong nhóm ('+rs.length+')</h3><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn out sm" data-dlg="rgadd"'+(canW2?'':' disabled title="Cần vai trò Admin trên nhóm này"')+'>'+ic('plus','s')+'Thêm tài nguyên có sẵn</button><button class="btn dgh sm" data-dlg="rgdel"'+(canWrite(me,'rg/delete',s)?'':' disabled title="Cần vai trò Admin trên nhóm này"')+'>Xóa nhóm</button></div></div>';
+    if(!canW2)b+='<div class="note" style="margin-bottom:12px">'+ic('lock','s')+'<span>Bạn đang thao tác với tư cách <b>'+esc(me.n)+'</b>, không là Admin của nhóm này nên không thêm, bớt tài nguyên được (BR-09).</span></div>';
+    else b+='<p class="afhint" style="margin:0 0 8px">Chỉ thêm, bớt được tài nguyên bạn có quyền quản trị (BR-09). Thêm tài nguyên vào nhóm là cấp cho tài nguyên đó mọi lượt gán của nhóm.</p>';
+    if(!rs.length)b+='<div class="empty">'+ic('layers')+'<span>Nhóm tài nguyên trống.</span></div>';
+    rs.forEach(function(x){var why=tagWhy(me,x,r.id,true);b+='<div class="drow"><div class="row" style="flex:1"><span class="ulogo" style="width:28px;height:28px">'+ic(RTI[x.t],'xs')+'</span><span class="t"><button class="lnk" data-dr="res:'+x.id+'"><b style="font-weight:500">'+esc(x.name)+'</b></button> '+lblChips(x)+'<small>'+RTN[x.t]+' · '+esc(unitsTxt(me,x))+(tagsOf(x).length>1?' · cũng thuộc '+esc(tagsOf(x).filter(function(c){return c!==r.id}).map(function(c){return collBy(c).name}).join(', ')):'')+'</small></span></div><button class="btn dgh sm" data-untag="'+x.id+'|'+r.id+'"'+(why?' disabled title="'+esc(why)+'"':'')+'>Gỡ khỏi nhóm</button></div>'})}
+  else{var tg=tagsOf(r),canL=evalAccess(me,r.t+'/write',{k:'res',id:r.id}).dec==='allow',B=branchUnits(me.n),us=resUnits(r),vis=B.length?us.filter(function(u){return B.indexOf(u)>=0}):us,other=us.length-vis.length;
+    b+='<div class="sec-h" style="margin-top:0"><h3>Đơn vị ('+us.length+')</h3><button class="btn sm" data-unitdlg="'+r.id+'"'+(canU?'':' disabled title="Cần là admin một đơn vị của tài nguyên hoặc admin cấp trên"')+'>'+ic('plus','s')+'Gán cho đơn vị</button></div>';
+    b+='<p class="afhint" style="margin:0 0 8px">Tài nguyên không có chủ. Mọi đơn vị của tài nguyên có quyền ngang nhau: admin của đơn vị nào cũng quản trị được tài nguyên (BR-33).</p>';
+    vis.forEach(function(u){var w=unitWhy(me,r,u,true);b+='<div class="drow"><span class="ulogo" style="width:28px;height:28px">'+ic('org','xs')+'</span><div style="flex:1;min-width:0"><b style="font-weight:500">'+esc(nName(u))+'</b><div style="font-size:12px;color:var(--fg2)">'+esc(prPath(u))+'</div></div><button class="btn dgh sm" data-runit="'+r.id+'|'+u+'"'+(w?' disabled title="'+esc(w)+'"':'')+'>Bớt</button></div>'});
+    if(other)b+='<div class="drow" style="color:var(--fg2)"><span class="ulogo" style="width:28px;height:28px">'+ic('org','xs')+'</span><span>+'+other+' đơn vị khác, ngoài nhánh bạn quản trị</span></div>';
+    b+='<div class="sec-h"><h3>Nhóm tài nguyên ('+tg.length+')</h3></div><p class="afhint" style="margin:0 0 8px">Không bắt buộc. Gắn tài nguyên vào nhóm khi cần giới hạn quyền cho một người hoặc nhóm người.</p>';
+    if(!COLLS.length)b+='<div class="empty">'+ic('folder')+'<span>Chưa có nhóm tài nguyên nào.</span></div>';
+    COLLS.forEach(function(c){var on=tg.indexOf(c.id)>=0,why=tagWhy(me,r,c.id,on),na=ASSIGN.filter(function(a){return a.scope==='coll:'+c.id}).length;
+      b+='<label class="drow" style="cursor:'+(why?'not-allowed':'pointer')+'"'+(why?' title="'+esc(why)+'"':'')+'><input type="checkbox" data-rtag="'+r.id+'|'+c.id+'"'+(on?' checked':'')+(why?' disabled':'')+'><span style="flex:1"><b style="font-weight:500">'+esc(c.name)+'</b><small style="display:block;color:var(--fg2);font-size:12px">'+esc(c.desc)+' · '+na+' lượt gán ở nhóm này'+(why?' · '+esc(why):'')+'</small></span></label>'});
+    b+='<div class="sec-h"><h3>Nhãn <span class="brtag">P1</span></h3></div><p style="color:var(--fg2);font-size:13px;margin:0 0 8px">Nhãn dùng cho điều kiện của lượt gán, ví dụ «chỉ tài nguyên không có nhãn Mật». Gắn nhãn cần quyền Sửa '+RTN[r.t].toLowerCase()+' này.</p>';
+    LABELS.forEach(function(l){var on=resLabels(r).indexOf(l)>=0;
+      b+='<label class="drow" style="cursor:'+(canL?'pointer':'not-allowed')+'"><input type="checkbox" data-rlabel="'+r.id+'|'+esc(l)+'"'+(on?' checked':'')+(canL?'':' disabled')+'><span style="flex:1"><span class="lblc">'+ic('tag','xs')+esc(l)+'</span><small style="display:block;color:var(--fg2);font-size:12px;margin-top:2px">'+ASSIGN.filter(function(a){return a.cond&&a.cond.label===l}).length+' lượt gán dùng nhãn này</small></span></label>'})}
+  return h+'<div class="db">'+b+'</div>'}
+function drUnitScope(){var u=DR.id,pp=pathTo(u);if(!pp){DR=null;return ''}var n=find(pp),me=actorP(),s=uScope(u),canG=!!uaGrant(me,scTarget(s));
+  var as=ASSIGN.filter(function(a){return a.scope===s}),rs=resIn(s).filter(function(x){return !x.parent});
+  var h=dhead(ic('layers'),'Tất cả tài nguyên · '+esc(n.name),'<span class="badge">Phạm vi theo đơn vị</span>','Mọi tài nguyên được gán cho '+esc(n.name)+' và các đơn vị con. Hệ thống tự cập nhật; không đổi tên, không xóa được. Chỉ gán Builder, Viewer (BR-27).','<button class="btn sm" data-assign="||'+s+'"'+(canG?'':' disabled title="Chỉ admin của đơn vị, admin cấp trên và Org Admin gán được ở đây"')+'>'+ic('plus','s')+'Gán vai trò</button>');
+  var b='<div class="sec-h" style="margin-top:0"><h3>Lượt gán ('+as.length+')</h3></div>';
+  if(!as.length)b+='<div class="empty">'+ic('key')+'<span>Chưa có vai trò nào</span></div>';
+  as.forEach(function(a){var can=grantCheck(me,a.role,a.scope,a.who).ok;
+    b+='<div class="drow"><div class="row" style="flex:1;min-width:0">'+whoAvatar(a.who)+'<span class="t"><button class="lnk" data-dr="'+esc(a.who)+'"><b style="font-weight:500">'+esc(whoBy(a.who)[1])+'</b></button><small><span class="rchip">'+esc(roleBy(a.role).name)+'</span> '+esc(whoBy(a.who)[2])+'</small></span></div>'+(can?'<button class="btn dgh sm" data-delas="'+a.id+'">Thu hồi</button>':'')+'</div>'});
+  b+='<div class="sec-h"><h3>Tài nguyên ('+rs.length+')</h3></div>';
+  if(!rs.length)b+='<div class="empty">'+ic('layers')+'<span>Chưa có tài nguyên nào được gán cho đơn vị này.</span></div>';
+  rs.forEach(function(x){b+='<div class="drow"><span class="ulogo" style="width:28px;height:28px">'+ic(RTI[x.t],'xs')+'</span><div style="flex:1;min-width:0"><button class="lnk" data-dr="res:'+x.id+'"><b style="font-weight:500">'+esc(x.name)+'</b></button><div style="font-size:12px;color:var(--fg2)">'+RTN[x.t]+' · '+esc(unitsTxt(me,x))+'</div></div></div>'});
+  return h+'<div class="db">'+b+'</div>'}
+function drawerRender(){
+  var d=$('#drawer');if(!DR){d.hidden=true;d.innerHTML='';return}
+  var f={user:drUser,group:drGroup,role:drRole,perm:drPerm,res:drRes,coll:drRes,org:drRes,deny:drDeny,agent:drAgent,unitsc:drUnitScope}[DR.kind];
+  if(!f){DR=null;d.hidden=true;d.innerHTML='';return}
+  var st=d.querySelector('.db')?d.querySelector('.db').scrollTop:0;
+  var html=f();if(!DR){d.hidden=true;d.innerHTML='';return}d.hidden=false;d.innerHTML=html;var b=d.querySelector('.db');if(b)b.scrollTop=st;drawerBind()}
+drRole=(function(o){return function(){var r=roleBy(DR.id),h=o();
+  h=h.replace(/<button class="btn out sm" data-rclone="[^"]*">Sao chép<\/button>/,'').replace(' Quyền xem chi phí chỉ có nghĩa khi gán ở «Tất cả tài nguyên».','');
+  if(r)h=h.replace(/gán được tại [^<]*/,r.id==='admin'?'gán ở nhóm tài nguyên hoặc từng tài nguyên':r.agentOnly?'hệ thống tự gán cho danh tính agent':'gán ở Tất cả tài nguyên của đơn vị, nhóm tài nguyên hoặc từng tài nguyên');
+  return h}})(drRole);
+rolesTab=(function(o){return function(pk,p){return o(pk,p).replace('Chưa được gán vai trò ở đâu.','Chưa có vai trò nào').replace('Vai trò được gán (','Vai trò và phạm vi (').replace(/>gán trực tiếp</g,'>Gán trực tiếp<').replace(/(<\/span> )gán trực tiếp/g,'$1Gán trực tiếp').replace(/ qua nhóm </g,' Qua nhóm <')}})(rolesTab);
+drUser=(function(o){return function(){return o().replace('<br>Quản trị cơ cấu: ','<br>Chỉ định ở Cơ cấu: ').replace('>Vai trò được gán<','>Vai trò và phạm vi<').replace(/<span class="badge brand">Động<\/span>/g,'<span class="badge brand">Tự động</span>').replace(/<span class="badge">Gán tay<\/span>/g,'<span class="badge">Tự tạo</span>')}})(drUser);
+drGroup=(function(o){return function(){var g=groupBy(DR.id),h=o();if(!g)return h;
+  h=h.replace('<span class="badge brand">Nhóm động</span>','<span class="badge brand">Nhóm cố định của đơn vị</span> <span class="badge">Tự động</span>').replace('<span class="badge">Nhóm gán tay</span>','<span class="badge">Nhóm người tự tạo</span>');
+  h=h.replace(/Quy tắc: <span class="mono">[^<]*<\/span>/,'Thành viên lấy theo Cơ cấu: '+esc(nName(g.unit||TREE.id))).replace(/Đơn vị quản lý: [^<]*/,'Gom người từ nhiều đơn vị. Org Admin thêm, bớt thành viên (BR-03)');
+  h=h.replace('Thành viên tự cập nhật theo phòng ban. Chuyển phòng là ra khỏi nhóm.','Thành viên lấy theo Cơ cấu. Không thêm, bớt, đổi tên hay xóa được nhóm này (BR-26).').replace(/Cần Group Owner tại [^<]*để sửa thành viên\./,'Chỉ Org Admin thêm, bớt thành viên nhóm người tự tạo (BR-03).');
+  return h.replace('>Vai trò được gán<','>Vai trò và phạm vi<')}})(drGroup);
+
+/* ---------- form gán vai trò: Tất cả tài nguyên theo đơn vị (BR-13, BR-27, AC-34) ---------- */
+function myUnitScopes(me){return branchUnits(me.n).map(uScope)}
+function assignDlg(pre){pre=pre||{};var me=actorP();afOpen={};
+  var sc=(pre.scopes||[]).filter(Boolean),us=sc.filter(function(x){var k=scParse(x).k;return k==='root'||k==='unit'});
+  AF={who:(pre.who||[]).slice(),role:pre.role||'',mode:us.length||!sc.length?'all':'pick',us:us[0]||myUnitScopes(me)[0]||'',scopes:sc.filter(function(x){return us.indexOf(x)<0}),perm:pre.perm||''};
+  if(!AF.us)AF.mode='pick';
+  if(!AF.role&&AF.perm){var fit=ROLEDEFS.filter(function(r){return !r.agentOnly&&roleHas(r,AF.perm)}).sort(function(a,b){return rolePerms(a).length-rolePerms(b).length});if(fit[0])AF.role=fit[0].id}
+  if(!AF.role||!roleBy(AF.role)){var u=ROLEDEFS.filter(function(r){return !r.agentOnly&&roleUsable(me,r)});AF.role=(u.filter(function(r){return r.id==='viewer'})[0]||u[0]||ROLEDEFS[0]).id}
+  afFix();showAssign()}
+function afFix(){var me=actorP(),r=roleBy(AF.role);
+  if(AF.mode==='all'&&!(AF.us&&scopeOk(me,r,AF.us))){var alt=myUnitScopes(me).filter(function(x){return scopeOk(me,r,x)})[0];if(alt)AF.us=alt;else AF.mode='pick'}
+  AF.scopes=AF.scopes.filter(function(x){var k=scParse(x).k;return k!=='root'&&k!=='unit'&&scopeOk(me,r,x)});
+  AF.scopes=AF.scopes.filter(function(x){var p=scParse(x);return p.k!=='res'||(!tagsOf(resBy(p.id)).some(function(c){return AF.scopes.indexOf('coll:'+c)>=0})&&!(resBy(p.id).parent&&AF.scopes.indexOf('res:'+resBy(p.id).parent)>=0))})}
+function afTargets(){return AF.mode==='all'?[AF.us]:AF.scopes}
+function afScopeTable(me,r){var T=afTargets(),all=AF.mode==='all',U=myUnitScopes(me),h='';
+  h+='<div class="afx rmx" id="afScope"><table><thead><tr><th style="width:32px"></th><th>Phạm vi</th>'+AFC.map(function(c){return '<th class="c">'+c[1]+'</th>'}).join('')+'<th>Khác</th></tr></thead><tbody>';
+  if(!U.length)h+='<tr class="rmc"><td></td><td colspan="'+(AFC.length+2)+'" style="color:var(--fg2);text-align:left">Bạn không là admin đơn vị nào nên không gán được ở «Tất cả tài nguyên».</td></tr>';
+  U.forEach(function(s){var on=all&&AF.us===s,w=scopeWhy(me,r,s),rs=resIn(s);
+    h+='<tr class="rmc" data-afrow="'+s+'"><td><input type="checkbox" data-afunit="'+s+'"'+(on?' checked':'')+(w&&!on?' disabled':'')+' title="'+esc(w)+'" aria-label="'+esc(scName(s))+'"></td><td style="text-align:left">'+ic('layers','xs')+' <b style="font-weight:500">'+esc(scName(s))+'</b><small>'+rs.filter(function(x){return !x.parent}).length+' tài nguyên của đơn vị và đơn vị con · gồm cả tài nguyên thêm vào sau'+(w?' · '+esc(w):'')+'</small></td>'+
+      AFC.map(function(c){return '<td class="c">'+(on?afCell(afAgg(r,T,rs,c[0])):'')+'</td>'}).join('')+'<td></td></tr>'});
+  var groups=COLLS.map(function(c){return {id:c.id,name:c.name,coll:true,rs:withCreds(RES.filter(function(x){return inColl(x,c.id)}))}});
+  var loose=RES.filter(function(x){return !x.parent&&!tagsOf(x).length});if(loose.length)groups.push({id:'__none',name:'Chưa thuộc nhóm tài nguyên nào',coll:false,rs:withCreds(loose)});
+  groups.forEach(function(c){var cs='coll:'+c.id,rs=c.rs,cOn=AF.scopes.indexOf(cs)>=0,cw=all?'Đang chọn «Tất cả tài nguyên». Bỏ chọn để chọn nhóm hoặc tài nguyên.':c.coll?scopeWhy(me,r,cs):'';
+    var open=afOpen[c.id]!==undefined?afOpen[c.id]:rs.some(function(x){return AF.scopes.indexOf('res:'+x.id)>=0});
+    h+='<tr class="rmc" data-afrow="'+cs+'"><td>'+(c.coll?'<input type="checkbox" data-afs="'+cs+'"'+(cOn?' checked':'')+(cw?' disabled':'')+' title="'+esc(cw)+'" aria-label="'+esc(c.name)+'">':'')+'</td><td style="text-align:left"><button class="rmt" data-afopen="'+c.id+'" aria-expanded="'+open+'"><span class="car">'+ic('chev','xs')+'</span>'+ic(c.coll?'folder':'layers','xs')+'<b style="font-weight:500">'+esc(c.name)+'</b></button><small>'+(c.coll?(cOn?'chọn cả nhóm, gồm cả tài nguyên thêm vào sau':'nhóm tài nguyên'):'tài nguyên lẻ')+' · '+rs.filter(function(x){return !x.parent}).length+' tài nguyên'+(cw&&!all?' · '+esc(cw):'')+'</small></td>'+
+      AFC.map(function(col){return '<td class="c">'+(rs.length?afCell(afAgg(r,T,rs,col[0])):'')+'</td>'}).join('')+'<td></td></tr>';
+    if(open){if(!rs.length)h+='<tr class="rmp"><td></td><td colspan="'+(AFC.length+2)+'" style="color:var(--fg2);text-align:left">Nhóm tài nguyên trống.</td></tr>';
+      rs.forEach(function(x){var xs='res:'+x.id,src=afSrc(T,x),cred=!!x.parent,dir=AF.scopes.indexOf(xs)>=0,inh2=!!src&&!dir,w=inh2?'':(all?'Đang chọn «Tất cả tài nguyên».':scopeWhy(me,r,xs)),oth=afOther(r,x);
+        h+='<tr class="rmp'+(cred?' cred':'')+'" data-afrow="'+xs+'"><td><input type="checkbox" data-afs="'+xs+'"'+(src?' checked':'')+(inh2||w?' disabled':'')+' title="'+esc(inh2?src:w)+'" aria-label="'+esc(x.name)+'"></td><td style="text-align:left">'+(cred?ic('key','xs')+' '+esc(x.short):ic(RTI[x.t],'xs')+' '+esc(x.name))+'<small>'+(src?esc(src):cred?'Credential':RTN[x.t]+' · '+esc(unitsTxt(me,x)))+(w&&!src&&!all?' · '+esc(w):'')+'</small></td>'+
+          AFC.map(function(col){var has=afHas(r,x,col[0]);return '<td class="c">'+(kPerm(x.t,col[0])?afCell(has?(src?'on':'ghost'):'-'):'')+'</td>'}).join('')+
+          '<td style="font-size:12px;color:'+(src?'var(--fg)':'var(--fg3)')+'">'+esc(oth.join(', '))+'</td></tr>'})}});
+  h+='</tbody></table></div>';
+  var n=RES.filter(function(x){return afSrc(T,x)}).length;
+  h+='<div class="afhint" id="afCount">'+(T.length?'<b>'+n+' tài nguyên</b> sẽ nhận quyền. Ô đậm: nhận quyền. Ô nhạt: vai trò có quyền này nhưng tài nguyên chưa được chọn. Gạch: vai trò không có quyền này.':'Chưa chọn phạm vi nào.')+'</div>';
+  return h}
+showAssign=(function(o){return function(f){o(f);var l=$('#layer');
+  l.querySelectorAll('[data-afunit]').forEach(function(b){b.onchange=function(){if(b.checked){AF.mode='all';AF.us=b.dataset.afunit}else AF.mode='pick';AF.scopes=[];afFix();showAssign('[data-afunit="'+b.dataset.afunit+'"]')}})}})(showAssign);
+assignBody=(function(o){return function(){var h=o();
+  h=h.replace('Mặc định là Tất cả tài nguyên. Bỏ tích gốc rồi tích nhóm tài nguyên hoặc tài nguyên khi cần hẹp hơn. Tích một nhóm là gồm mọi tài nguyên con, kể cả tài nguyên thêm vào sau.','Mặc định là «Tất cả tài nguyên» của một đơn vị bạn quản trị (chỉ Builder, Viewer). Khi cần giới hạn, bỏ chọn rồi tích nhóm tài nguyên hoặc từng tài nguyên. Tích một nhóm là gồm cả tài nguyên thêm vào sau (BR-13).');
+  h=h.replace(/<small>nhóm động<\/small>/g,'<small>nhóm cố định</small>').replace(/<div class="field"><label class="lbl" for="afDeleg">[\s\S]*?<\/select><\/div>/,'');
+  if(AF.mode==='all'){h=h.replace(/<option value="admin"[^>]*>Admin<\/option>/,'');
+    h=h.replace('<label class="lbl" for="afRole">2. Vai trò</label>','<label class="lbl" for="afRole">2. Vai trò</label><div class="afhint">Ở «Tất cả tài nguyên» chỉ chọn được Builder, Viewer (AC-34). Muốn gán Admin, bỏ chọn «Tất cả tài nguyên» rồi chọn nhóm tài nguyên hoặc tài nguyên.</div>')}
+  return h}})(assignBody);
+
+/* ---------- Người & nhóm (mục 6) ---------- */
+var PRF={u:'',g:'',r:'',c:''},PPG=0,PPN=12;
+function canEditGroup(name,g){return !g.unit&&isOrgAdmin(name)}
+function personRoles(p){return ASSIGN.filter(function(a){return inWho(p,a.who)})}
+function roleSum(as){if(!as.length)return '<span style="color:var(--fg3)">Chưa có vai trò nào</span>';var a=as.slice().sort(function(x,y){return scOrd(x.scope)-scOrd(y.scope)})[0];
+  return '<span class="rchip">'+esc(roleBy(a.role).name)+'</span> '+esc(scLabel(a.scope))+(as.length>1?' <span style="color:var(--fg2)">+'+(as.length-1)+'</span>':'')}
+function pPrincipal(){ensureUnitGroups();var me=actorP(),rs=visRoots();
+  var canGrp=isOrgAdmin(me.n),canInv=allNodes(TREE).some(function(n){return dirCan(me.n,'dir/members/write',n.id)});
+  var h=head('Người & nhóm','Người này, nhóm này đang được làm gì, trên tài nguyên nào. Một người nhận vai trò theo hai cách: gán trực tiếp cho người, hoặc qua nhóm người (nhóm cố định của đơn vị, nhóm người tự tạo). Nên ưu tiên gán qua nhóm: quyền tự đi theo Cơ cấu.',
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;flex:none"><button class="btn out" data-dlg="invite"'+(canInv?'':' disabled title="Cần Org Admin hoặc Dept Admin"')+'>'+ic('plus','s')+'Mời người dùng</button><button class="btn" data-prnewg=""'+(canGrp?'':' disabled title="Chỉ Org Admin tạo nhóm người tự tạo (BR-03)"')+'>'+ic('plus','s')+'Tạo nhóm người</button></div>');
+  h+=visNote()+subSeg('pr',[['people','Người'],['groups','Nhóm người']]);
+  return h+(SUB.pr==='groups'?prGroupsView(me,rs):prPeople(me,rs))}
+function prPeople(me,rs){var q=Qs.u,P=PEOPLE.filter(function(p){return visPerson(p,rs)}),full=visFull(rs);
+  var units=allNodes(TREE).filter(function(n){return full||visIn(n.id,rs)}),G=GROUPS.filter(function(g){return g.unit?(full||visIn(g.unit,rs)):true});
+  var fl=P.filter(function(p){var as=personRoles(p);return mq(q,p.n)&&(!PRF.u||prInUnit(p,PRF.u))&&(!PRF.g||inWho(p,'group:'+PRF.g))&&(!PRF.r||as.some(function(a){return a.role===PRF.r}))&&(!PRF.c||as.some(function(a){return a.scope==='coll:'+PRF.c}))});
+  var opt=function(id,cur,first,xs){return '<select class="inp" id="'+id+'" style="width:auto"><option value="">'+first+'</option>'+xs.map(function(x){return '<option value="'+esc(x[0])+'"'+(x[0]===cur?' selected':'')+'>'+x[1]+'</option>'}).join('')+'</select>'};
+  var h=toolbar(searchBox('qu',q,'Tìm theo tên…')+opt('prfU',PRF.u,'Mọi đơn vị',units.map(function(n){return [n.id,indentName(n)]}))+opt('prfG',PRF.g,'Mọi nhóm người',G.map(function(g){return [g.name,esc(g.name)]}))+opt('prfR',PRF.r,'Mọi vai trò',ROLEDEFS.filter(function(r){return !r.agentOnly}).map(function(r){return [r.id,esc(r.name)]}))+opt('prfC',PRF.c,'Mọi nhóm tài nguyên',COLLS.map(function(c){return [c.id,esc(c.name)]}))+
+    '<span style="flex:1"></span><button class="btn sec sm" data-prfake title="Sinh nhân viên giả để thử màn với dữ liệu lớn">'+(fakeOn()?'Đang thử với '+PEOPLE.length+' người · bấm để về '+PEOPLE.filter(function(p){return !p.fake}).length+' người':'Thử với '+FAKE_N+' nhân viên')+'</button>');
+  var pages=Math.max(1,Math.ceil(fl.length/PPN));if(PPG>=pages)PPG=pages-1;if(PPG<0)PPG=0;
+  h+='<div class="tw"><table><thead><tr><th>Người</th><th>Đơn vị</th><th>Nhóm người</th><th>Vai trò · phạm vi</th><th></th></tr></thead><tbody>';
+  if(!fl.length)h+='<tr><td colspan="5"><div class="empty">'+ic('search')+'<span>Không có người nào khớp.</span></div></td></tr>';
+  fl.slice(PPG*PPN,(PPG+1)*PPN).forEach(function(p){var gs=GROUPS.filter(function(g){return inWho(p,'group:'+g.name)}),dr=DIRASSIGN.filter(function(a){return inWho(p,a.who)});
+    h+='<tr><td><div class="row"><span class="av">'+ini(p.n)+'</span><span class="t"><button class="lnk" data-dr="user:'+esc(p.n)+'"><b style="font-weight:500">'+esc(p.n)+'</b></button>'+(dr.length?'<small>'+dr.map(function(a){return esc(dirRoleBy(a.role).name+' · '+nName(a.unit))}).join(', ')+'</small>':'')+'</span></div></td><td>'+esc(prDept(p))+'</td><td style="white-space:normal;max-width:260px">'+(gs.length?esc(gs.map(function(g){return g.name}).join(', ')):'<span style="color:var(--fg3)">Không thuộc nhóm nào</span>')+'</td><td>'+roleSum(personRoles(p))+'</td><td style="text-align:right"><button class="btn out sm" data-chk="user:'+esc(p.n)+'">'+ic('key','s')+'Quyền hiệu lực</button></td></tr>'});
+  h+='</tbody></table></div>';
+  if(pages>1)h+='<div class="pager"><span>Hiện '+(PPG*PPN+1)+'–'+Math.min(fl.length,(PPG+1)*PPN)+' trong '+fl.length+'</span><button class="btn sec sm" data-ppg="-1"'+(PPG>0?'':' disabled')+'>Trước</button><span>Trang '+(PPG+1)+'/'+pages+'</span><button class="btn sec sm" data-ppg="1"'+(PPG<pages-1?'':' disabled')+'>Sau</button></div>';
+  else if(fl.length)h+='<div class="pager"><span>'+fl.length+' người</span></div>';
+  return h+'<p class="afhint">Bấm tên để xem bảng «Vai trò và phạm vi»: dòng gán trực tiếp thu hồi được ngay, dòng qua nhóm người chỉ xem (BR-29).</p>'}
+function prGli2(g){var na=ASSIGN.filter(function(a){return a.who==='group:'+g.name}).length;
+  return '<button class="gli" data-prg="'+esc(g.name)+'" aria-current="'+(prG===g.name)+'"><span class="ulogo" style="width:30px;height:30px;flex:none">'+ic(g.unit?'structure':'users','s')+'</span><span style="flex:1;min-width:0"><b style="font-weight:500">'+esc(g.name)+'</b>'+(g.unit?' <span class="badge">Tự động</span>':'')+'<small>'+groupMembers(g).length+' người · '+(na?na+' vai trò':'chưa có vai trò')+'</small></span></button>'}
+function prGroupsView(me,rs){var full=visFull(rs);
+  var G=GROUPS.filter(function(g){return g.unit?(full||visIn(g.unit,rs)):(full||groupMembers(g).some(function(m){var x=personBy(m);return x&&visPerson(x,rs)}))});
+  if(prG!=='__agents'&&!G.some(function(g){return g.name===prG}))prG=G.length?G[0].name:'__agents';
+  var q=Qs.g,fx=G.filter(function(g){return g.unit&&mq(q,g.name)}),cu=G.filter(function(g){return !g.unit&&mq(q,g.name+' '+g.desc)});
+  var L='<div class="card cardp"><div class="sec-h" style="margin-top:0"><h3>Nhóm người ('+G.length+')</h3></div>'+searchBox('qg',q,'Tìm nhóm…')+'<div class="gl" style="margin-top:8px">';
+  L+='<div class="pgh" style="padding:6px 10px 2px">Nhóm cố định của đơn vị ('+fx.length+')</div>'+(fx.map(prGli2).join('')||'<div class="empty">'+ic('search')+'<span>Không có nhóm nào khớp.</span></div>');
+  L+='<div class="pgh" style="padding:10px 10px 2px">Nhóm người tự tạo ('+cu.length+')</div>'+(cu.map(prGli2).join('')||'<div class="empty">'+ic('users')+'<span>'+(q?'Không có nhóm nào khớp.':'Chưa có nhóm người tự tạo.')+'</span></div>');
+  L+='<button class="gli" data-prg="__agents" aria-current="'+(prG==='__agents')+'" style="border-top:1px solid var(--border);border-radius:0;margin-top:6px;padding-top:12px"><span class="ulogo" style="width:30px;height:30px;flex:none">'+ic('bot','s')+'</span><span style="flex:1;min-width:0"><b style="font-weight:500">Danh tính agent</b><small>Phase sau · '+agents().length+' agent</small></span></button></div></div>';
+  return '<div class="pr2">'+L+'<div>'+(prG==='__agents'?prAgentsPanel():prGroupPanel(me,groupBy(prG)))+'</div></div>'}
+prGroupPanel=(function(o){return function(me,g){var h=o(me,g),pk='group:'+g.name;
+  h=h.replace('<span class="badge brand">Toàn bộ nhân viên đơn vị</span>','<span class="badge brand">Nhóm cố định của đơn vị</span> <span class="badge">Tự động</span>').replace('<span class="badge">Nhóm con</span>','<span class="badge">Nhóm người tự tạo</span>');
+  h=h.replace('toàn bộ nhân viên của đơn vị, tự cập nhật','toàn bộ người của đơn vị và đơn vị con').replace('nhóm con, thành viên thêm bằng tay','gom người từ nhiều đơn vị, Org Admin thêm, bớt thành viên (BR-03)');
+  h=h.replace('Nhóm động: thành viên tự cập nhật theo phòng ban. Chuyển phòng là ra khỏi nhóm.','Thành viên lấy theo Cơ cấu. Thêm, bớt, chuyển người ở màn Cơ cấu thì nhóm đổi theo ngay; không đổi tên, không xóa được nhóm này (BR-26).');
+  h=h.replace(/Cần Group Owner tại [^<]*để sửa thành viên\./,'Chỉ Org Admin thêm, bớt thành viên nhóm người tự tạo, vì vào nhóm là nhận ngay mọi quyền của nhóm (BR-03).');
+  h=h.replace(/Gợi ý: người của «[^»]*» chưa thuộc nhóm này\. Gõ tên để tìm cả người ngoài đơn vị\./,'Gõ tên để thêm người từ bất kỳ đơn vị nào.');
+  h=h.replace('<span>Nhóm chưa được gán vai trò nào.</span>','<span>Chưa có vai trò nào</span>');
+  if(!g.unit&&isOrgAdmin(me.n))h=h.replace('Mở chi tiết</button>','Mở chi tiết</button><button class="btn dgh sm" data-delgrp="'+esc(g.name)+'">Xóa nhóm</button>');
+  return h}})(prGroupPanel);
+function delGroup(name){var g=groupBy(name),me=actorP();if(!g||g.unit)return;if(!isOrgAdmin(me.n)){toast('Chỉ Org Admin xóa được nhóm người tự tạo');return}
+  var ms=groupMembers(g),na=ASSIGN.filter(function(a){return a.who==='group:'+g.name}).length;
+  if(ms.length){dlg('Không xóa được nhóm','','<div class="note bad">'+ic('lock','s')+'<span><b>Bỏ hết thành viên khỏi nhóm trước khi xóa</b> (EN: Remove all members before deleting this group). «'+esc(g.name)+'» còn '+ms.length+' thành viên (BR-30).</span></div>','Đã hiểu',function(){});return}
+  dlg('Xóa nhóm người','Xóa «'+esc(g.name)+'» và thu hồi '+na+' lượt gán của nhóm, có ghi nhật ký. Tài nguyên giữ nguyên đơn vị của mình.','','Xóa nhóm',function(){
+    GROUPS=GROUPS.filter(function(x){return x!==g});ASSIGN=ASSIGN.filter(function(a){return a.who!=='group:'+g.name});if(DR&&DR.kind==='group')DR=null;prG='';toast('Đã xóa nhóm «'+g.name+'»'+(na?' và thu hồi '+na+' lượt gán':''));render()})}
+function prNewGroupDlg(){var me=actorP();if(!isOrgAdmin(me.n)){toast('Chỉ Org Admin tạo nhóm người tự tạo (BR-03)');return}
+  dlg('Tạo nhóm người','Nhóm người tự tạo gom người từ nhiều đơn vị, ví dụ «Dự án Chatbot». Thêm người vào nhóm là cấp cho họ mọi quyền đã gán cho nhóm, nên chỉ Org Admin làm được (BR-03).',
+    '<div class="field"><label class="lbl" for="pgN">Tên nhóm</label><input class="inp" id="pgN" style="margin-top:6px" placeholder="Ví dụ: Dự án Chatbot"></div><div class="field"><label class="lbl" for="pgD">Mô tả</label><input class="inp" id="pgD" style="margin-top:6px" placeholder="Nhóm này làm gì"></div><div id="rerr5" aria-live="polite"></div>',
+    'Tạo nhóm',function(){var nm=$('#pgN').value.trim();if(!nm){errNote('rerr5','Nhập tên nhóm.');return false}
+      if(GROUPS.some(function(g){return g.name.toLowerCase()===nm.toLowerCase()})){errNote('rerr5','Tên nhóm đã có.');return false}
+      GROUPS.push({name:nm,desc:$('#pgD').value.trim()||'Nhóm người tự tạo',members:[],src:'Thủ công'});SUB.pr='groups';prG=nm;prMQ='';prPage=0;prAddQ='';Qs.g='';toast('Đã tạo nhóm «'+nm+'»');render()});
+  var f=$('#pgN');if(f)f.focus()}
+function visNote(){var rs=visRoots();if(visFull(rs))return '';var p=actorP(),dr=p?DIRASSIGN.filter(function(a){return inWho(p,a.who)}).map(function(a){return dirRoleBy(a.role).name+' · '+nName(a.unit)}):[];
+  return '<div class="note" style="margin-bottom:16px">'+ic('info','s')+'<span>'+(dr.length?'Bạn là <b>'+esc(dr.join(', '))+'</b>, nên chỉ thấy đơn vị, người và nhóm người trong nhánh của mình (BR-28).':'Bạn không là admin đơn vị nào nên chỉ xem được đơn vị mình thuộc: <b>'+esc(rs.map(nName).join(', '))+'</b>.')+'</span></div>'}
+
+/* ---------- Vai trò (mục 7, AC-03) ---------- */
+function pRolesHub(){var h=pRoleMatrix();
+  h=h.replace(/<button class="btn" data-dr="role:new"[^>]*>[\s\S]*?Tạo vai trò<\/button>/,'');
+  h=h.replace('Roles: mỗi vai trò là một bộ quyền. Cột là vai trò, hàng là quyền theo loại tài nguyên. Vai trò có sẵn bị khóa; vai trò tùy chỉnh tích thẳng vào ô. Vai trò không gắn với tài nguyên nào: phạm vi chọn lúc gán.','Mỗi vai trò là một gói quyền do hệ thống định nghĩa, không sửa, không xóa được. Cột là vai trò, hàng là quyền theo loại tài nguyên. Phạm vi chọn lúc gán: Admin chỉ gán ở nhóm tài nguyên hoặc từng tài nguyên; Builder, Viewer gán được cả ở «Tất cả tài nguyên» của đơn vị.');
+  h=h.replace('Ô tích: vai trò có quyền. Ô gạch: có một phần quyền trong nhóm. Ổ khóa: vai trò có sẵn (Admin, Builder, Viewer), không sửa, không xóa được. Vai trò tùy chỉnh sửa thẳng trong ô và xóa được. Bấm tên vai trò để xem mô tả và ai đang được gán.','Ô tích: vai trò có quyền. Ô gạch: có một phần quyền trong nhóm. Bấm tên vai trò để xem danh sách quyền và ai đang được gán. Tạo vai trò mới: cập nhật sau.');
+  h+='<div class="sec-h" style="margin-top:24px"><h3>Quản trị tổ chức</h3></div><div class="card cardp">'+DIRROLES.map(function(r){var n=DIRASSIGN.filter(function(a){return a.role===r.id}).length;
+    return '<div class="drow"><span class="ulogo" style="width:32px;height:32px">'+ic('org','s')+'</span><div style="flex:1;min-width:0"><b style="font-weight:500">'+esc(r.name)+'</b> <span class="badge out">Chỉ định ở màn Cơ cấu</span><div style="font-size:12px;color:var(--fg2)">'+esc(r.desc)+' · '+n+' người</div></div><a class="btn out sm" href="#cocau">Mở Cơ cấu</a></div>'}).join('')+'</div>';
+  return h}
+
+/* ---------- Cơ cấu (mục 5) ---------- */
+function focusHeader(n){
+  var root=n.id===TREE.id,par=root?null:pathTo(n.id).slice(-2)[0],meta=((n.kids||[]).length?n.kids.length+' đơn vị · ':'')+count(n)+' người',
+    canDel=orgId==='b'&&!root&&dirCan(actor,'dir/units/write',par),canU=dirCan(actor,'dir/units/write',n.id),canM=dirCan(actor,'dir/members/write',n.id);
+  return '<header class="fh"><span class="ulogo big">'+ic('org')+'</span><div class="t"><div class="fn"><h2>'+esc(n.name)+'</h2>'+(n.manual?'<span class="badge">Thủ công</span>':'<span class="src">Đồng bộ từ đăng nhập SSO</span>')+'</div><p>'+meta+'</p></div><div class="acts">'+unitViewBtn(n.id)+
+    (canDel?'<button class="btn dgh" data-delunit="'+n.id+'">Xóa đơn vị</button>':'')+
+    (canU?'<button class="btn out" data-dlg="unit">'+ic('plus','s')+'Thêm đơn vị</button>':'')+
+    (canM?'<button class="btn" data-dlg="member">'+ic('plus','s')+'Thêm người</button>':'<span class="badge out" title="Cần Org Admin, hoặc Dept Admin tại đơn vị này hay cấp trên">'+ic('lock','xs')+'Chỉ xem</span>')+'</div></header>'}
+function dirAdminCard(n){
+  var me=actorP(),anc=pathTo(n.id),root=n.id===TREE.id,canA=dirCan(me.n,'dir/roles/write',n.id),role=root?'orgadmin':'deptadmin',rn=root?'Org Admin':'Dept Admin';
+  var here=DIRASSIGN.filter(function(a){return a.unit===n.id}),inh=DIRASSIGN.filter(function(a){return a.unit!==n.id&&anc.indexOf(a.unit)>=0}).sort(function(x,y){return anc.indexOf(y.unit)-anc.indexOf(x.unit)});
+  var row=function(a,isHere){var org=a.role==='orgadmin',can=isHere&&!org&&canA&&a.who!=='user:'+me.n;
+    return '<div class="drow"><span class="av">'+ini(whoBy(a.who)[1])+'</span><div style="flex:1;min-width:0"><button class="lnk" data-dr="'+esc(a.who)+'"><b style="font-weight:500">'+esc(whoBy(a.who)[1])+'</b></button> <span class="rchip warn">'+esc(dirRoleBy(a.role).name)+'</span><div style="font-size:12px;color:var(--fg2)">'+(isHere?'Tại đây':'Admin cấp trên · '+esc(nName(a.unit)))+'</div></div>'+(isHere&&org?'<span class="badge out">Không gỡ được từ giao diện</span>':can?'<button class="btn dgh sm" data-deldir="'+a.id+'">Gỡ</button>':'')+'</div>'};
+  var h='<div class="card cardp" style="margin:0 0 16px"><div class="sec-h" style="margin-top:0"><h3>Admin của đơn vị ('+here.length+')</h3>'+(canA?'<button class="btn sm" data-dirform>'+ic('plus','s')+'Thêm admin</button>':'')+'</div>';
+  h+='<p style="color:var(--fg2);font-size:13px;margin:0 0 8px">'+(root?'Người được thêm ở đơn vị gốc là <b>Org Admin</b>: quản trị toàn bộ tổ chức, gồm mọi tài nguyên.':'Người được thêm ở đây là <b>Dept Admin</b> của '+esc(n.name)+': quản lý cơ cấu và người trong nhánh, chỉ định Dept Admin cho đơn vị con, và quản trị mọi tài nguyên được gán cho các đơn vị trong nhánh (BR-33).')+' Org Admin, Dept Admin chỉ thêm được ở màn này (BR-31).</p>';
+  if(!root&&!here.some(function(a){return a.role==='deptadmin'})){var up=null;for(var i=anc.length-2;i>=0;i--){if(DIRASSIGN.some(function(a){return a.unit===anc[i]})){up=anc[i];break}}
+    if(up)h+='<div class="note warn" style="margin-bottom:12px">'+ic('info','s')+'<span>Đang do admin '+esc(nName(up))+' quản lý (BR-34).</span></div>'}
+  if(dirForm&&canA){var cand=PEOPLE.filter(function(x){return !x.fake&&!here.some(function(a){return a.who==='user:'+x.n})}).sort(function(x,y){return (prInUnit(y,n.id)?1:0)-(prInUnit(x,n.id)?1:0)});
+    h+='<div class="card cardp dform" style="margin-bottom:12px"><div class="field"><label for="dw3">Người</label><select class="inp" id="dw3">'+cand.map(function(x){return '<option value="user:'+esc(x.n)+'">'+esc(x.n)+' · '+esc(prDept(x))+'</option>'}).join('')+'</select><input type="hidden" id="dr3" value="'+role+'"></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button class="btn sec sm" data-dirform>Hủy</button><button class="btn sm" id="dirOk3"'+(cand.length?'':' disabled')+'>Thêm '+rn+'</button></div></div>'}
+  if(!here.length)h+='<div class="empty">'+ic('org')+'<span>Đơn vị chưa có admin riêng.</span></div>';
+  h+=here.map(function(a){return row(a,true)}).join('');
+  if(inh.length)h+='<div class="pgh" style="margin-top:8px">Admin cấp trên, cũng quản trị đơn vị này</div>'+inh.map(function(a){return row(a,false)}).join('');
+  return h+'</div>'}
+function unitResCard(n){var me=actorP(),s=uScope(n.id),rs=resIn(s).filter(function(x){return !x.parent}),sh=rs.slice(0,8);
+  var h='<div class="card cardp" style="margin:0 0 16px"><div class="sec-h" style="margin-top:0"><h3>Tài nguyên của đơn vị ('+rs.length+')</h3><button class="btn out sm" data-gores="'+n.id+'">Xem ở Phạm vi</button></div><p style="color:var(--fg2);font-size:13px;margin:0 0 8px">Mọi tài nguyên được gán cho '+esc(n.name)+' và các đơn vị con. Các đơn vị của một tài nguyên có quyền ngang nhau, không có đơn vị chủ (BR-08, BR-33).</p>';
+  if(!rs.length)h+='<div class="empty">'+ic('layers')+'<span>Chưa có tài nguyên nào được gán cho đơn vị này.</span></div>';
+  sh.forEach(function(x){h+='<div class="drow"><span class="ulogo" style="width:28px;height:28px">'+ic(RTI[x.t],'xs')+'</span><div style="flex:1;min-width:0"><button class="lnk" data-dr="res:'+x.id+'"><b style="font-weight:500">'+esc(x.name)+'</b></button><div style="font-size:12px;color:var(--fg2)">'+RTN[x.t]+' · '+esc(unitsTxt(me,x))+'</div></div></div>'});
+  if(rs.length>sh.length)h+='<p class="afhint">Còn '+(rs.length-sh.length)+' tài nguyên khác. Bấm «Xem ở Phạm vi».</p>';
+  return h+'</div>'}
+function delUnit(id){var pp=pathTo(id),n=find(pp),why=[];
+  if(n.people.length)why.push(n.people.length+' người');if((n.kids||[]).length)why.push(n.kids.length+' đơn vị con');
+  if(why.length){dlg('Không xóa được đơn vị','','<div class="note bad">'+ic('lock','s')+'<span><b>Chỉ xóa được đơn vị rỗng</b> (EN: Only empty units can be deleted). «'+esc(n.name)+'» còn '+why.join(', ')+' (BR-01).</span></div>','Đã hiểu',function(){});return}
+  var solo=RES.filter(function(r){return !r.parent&&resUnits(r).length===1&&resUnits(r)[0]===id});
+  if(solo.length){dlg('Không xóa được đơn vị','','<div class="note bad">'+ic('lock','s')+'<span><b>Gán các tài nguyên này cho đơn vị khác trước khi xóa</b> (EN: Assign these resources to another unit before deleting):</span></div><ul style="margin:8px 0 0;padding-left:18px;color:var(--fg2)">'+solo.map(function(r){return '<li>'+esc(r.name)+'</li>'}).join('')+'</ul>','Đã hiểu',function(){});return}
+  var g=unitGroup(id),rr=RES.filter(function(r){return !r.parent&&resUnits(r).indexOf(id)>=0}),gone=ASSIGN.filter(function(a){return (g&&a.who==='group:'+g.name)||a.scope===uScope(id)});
+  dlg('Xóa đơn vị','Xóa «'+esc(n.name)+'». Nhóm cố định «'+esc(g?g.name:'Toàn '+n.name)+'» bị xóa theo; '+gone.length+' lượt gán của nhóm và ở «Tất cả tài nguyên» của đơn vị bị thu hồi, có ghi nhật ký'+(rr.length?'; đơn vị được gỡ khỏi '+rr.length+' tài nguyên':'')+'.','','Xóa đơn vị',function(){
+    var par=find(pp.slice(0,-1));par.kids=par.kids.filter(function(k){return k.id!==id});
+    rr.forEach(function(r){r.units=resUnits(r).filter(function(u){return u!==id})});
+    if(g)GROUPS=GROUPS.filter(function(x){return x!==g});ASSIGN=ASSIGN.filter(function(a){return gone.indexOf(a)<0});
+    DIRASSIGN=DIRASSIGN.filter(function(a){return a.unit!==id});path=pp.slice(0,-1);toast('Đã xóa đơn vị '+n.name);render()})}
+pCoCauInner=(function(o){return function(){return o().replace('Cây tổ chức chỉ chứa người: công ty, phòng ban, nhân viên và nhóm. Cây này không chứa tài nguyên và không cấp quyền. Phòng ban là thuộc tính của người dùng, dùng để tạo nhóm động; tài nguyên quản ở mục Phạm vi. Ai sửa được cây này do vai trò quản trị cơ cấu quyết định (xem ở thẻ «Quản trị đơn vị này» bên dưới).',
+  'Tập đoàn, công ty, phòng ban là các nút của một cây chứa người. Tài nguyên không nằm trên cây nhưng được gán cho một hoặc nhiều đơn vị (BR-33). Org Admin (đơn vị gốc) và Dept Admin (công ty, phòng ban bên dưới) được chỉ định tại đây, ở thẻ «Admin của đơn vị».').replace(/Nhân viên trong đơn vị \(/g,'Người trong đơn vị (')}})(pCoCauInner);
+
+/* ---------- sự kiện ---------- */
+bind=(function(o){return function(){o();var m=$('#main');
+  var u=$('#pvU');if(u)u.onchange=function(){var v=this.value;keep(function(){PVU=v})};
+  [['prfU','u'],['prfG','g'],['prfR','r'],['prfC','c']].forEach(function(x){var e=$('#'+x[0]);if(e)e.onchange=function(){var v=this.value;keep(function(){PRF[x[1]]=v;PPG=0})}});
+  m.querySelectorAll('[data-ppg]').forEach(function(b){b.onclick=function(){var d=+b.dataset.ppg;keep(function(){PPG+=d})}});
+  m.querySelectorAll('[data-gores]').forEach(function(b){b.onclick=function(e){e.stopPropagation();PVU=b.dataset.gores;DR=null;location.hash='res';lastHash=location.hash;render();m.scrollTop=0}});
+  m.querySelectorAll('[data-delgrp]').forEach(function(b){b.onclick=function(e){e.stopPropagation();delGroup(b.dataset.delgrp)}})}})(bind);
+drawerBind=(function(o){return function(){o();var d=$('#drawer');if(!d||d.hidden)return;
+  d.querySelectorAll('[data-unitdlg]').forEach(function(b){b.onclick=function(e){e.stopPropagation();unitDlg(b.dataset.unitdlg)}});
+  d.querySelectorAll('[data-runit]').forEach(function(b){b.onclick=function(e){e.stopPropagation();var x=b.dataset.runit.split('|');rmResUnit(x[0],x[1])}});
+  var dg=d.querySelector('[data-delgroup]');if(dg)dg.onclick=function(){delGroup(DR.id)}}})(drawerBind);
+goDr=(function(o){return function(k,id){if(k==='unitsc'){drawerOpen('unitsc',id,'');return}return o(k,id)}})(goDr);
+
+render();
 </script>
 
 
