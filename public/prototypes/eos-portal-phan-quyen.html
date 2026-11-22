@@ -2745,7 +2745,7 @@ auDiff();render();
 })();
 if(ORGS&&ORGS[0])ORGS[0].sub='Dept Admin · Công ty A';
 GROUPS=GROUPS.filter(function(g){return g.name!=='Admin Phòng Sales'});
-GROUPS.forEach(function(g){if(g.unit){g.src='Tự động';g.desc='Toàn bộ người của '+nName(g.unit)+((find(pathTo(g.unit)).kids||[]).length?' và các đơn vị con':'')}else{g.src='Thủ công';delete g.home}});
+GROUPS.forEach(function(g){if(g.unit){g.src='Tự động';g.desc='Toàn bộ người của '+nName(g.unit)+((find(pathTo(g.unit)).kids||[]).length?' và các đơn vị con':'')}else{g.src='Thủ công'}});
 ensureUnitGroups();
 GROUPS.forEach(function(g){if(g.unit&&g.src!=='Tự động'){g.src='Tự động'}});
 
@@ -3079,21 +3079,15 @@ function prPeople(me,rs){var q=Qs.u,P=PEOPLE.filter(function(p){return visPerson
   return h+'<p class="afhint">Bấm tên để xem bảng «Vai trò và phạm vi»: dòng gán trực tiếp thu hồi được ngay, dòng qua nhóm người chỉ xem (BR-29).</p>'}
 function prGli2(g){var na=ASSIGN.filter(function(a){return a.who==='group:'+g.name}).length;
   return '<button class="gli" data-prg="'+esc(g.name)+'" aria-current="'+(prG===g.name)+'"><span class="ulogo" style="width:30px;height:30px;flex:none">'+ic(g.unit?'structure':'users','s')+'</span><span style="flex:1;min-width:0"><b style="font-weight:500">'+esc(g.name)+'</b>'+(g.unit?' <span class="badge">Tự động</span>':'')+'<small>'+groupMembers(g).length+' người · '+(na?na+' vai trò':'chưa có vai trò')+'</small></span></button>'}
-function prGroupsView(me,rs){var full=visFull(rs);
-  var G=GROUPS.filter(function(g){return g.unit?(full||visIn(g.unit,rs)):(full||groupMembers(g).some(function(m){var x=personBy(m);return x&&visPerson(x,rs)}))});
-  if(!G.some(function(g){return g.name===prG}))prG=G.length?G[0].name:'';
-  var q=Qs.g,fx=G.filter(function(g){return g.unit&&mq(q,g.name)}),cu=G.filter(function(g){return !g.unit&&mq(q,g.name+' '+g.desc)});
-  var L='<div class="card cardp"><div class="sec-h" style="margin-top:0"><h3>Nhóm người ('+G.length+')</h3></div>'+searchBox('qg',q,'Tìm nhóm…')+'<div class="gl" style="margin-top:8px">';
-  L+='<div class="pgh" style="padding:6px 10px 2px">Nhóm cố định của đơn vị ('+fx.length+')</div>'+(fx.map(prGli2).join('')||'<div class="empty">'+ic('search')+'<span>Không có nhóm nào khớp.</span></div>');
-  L+='<div class="pgh" style="padding:10px 10px 2px">Nhóm người tự tạo ('+cu.length+')</div>'+(cu.map(prGli2).join('')||'<div class="empty">'+ic('users')+'<span>'+(q?'Không có nhóm nào khớp.':'Chưa có nhóm người tự tạo.')+'</span></div>');
-  L+='</div></div>';
-  return '<div class="pr2">'+L+'<div>'+(groupBy(prG)?prGroupPanel(me,groupBy(prG)):'')+'</div></div>'}
+function prGroupsView(me,rs){var direct=prDirect().filter(function(p){return visPerson(p,rs)}),G=GROUPS.filter(function(g){return visGroup(g,rs)});
+  if(prG!=='__direct'&&!G.some(function(g){return g.name===prG}))prG=G.length?G[0].name:'__direct';
+  var L=prLeft(me,direct).replace(/<button class="gli" data-prg="__agents"[\s\S]*?<\/button>/,'').replace(/Org Admin hoặc Group Owner/g,'Org Admin');
+  return '<div class="pr2">'+L+'<div>'+(prG==='__direct'?prDirectPanel(me,direct):prGroupPanel(me,groupBy(prG)))+'</div></div>'}
 prGroupPanel=(function(o){return function(me,g){var h=o(me,g),pk='group:'+g.name;
   h=h.replace('<span class="badge brand">Toàn bộ nhân viên đơn vị</span>','<span class="badge brand">Nhóm cố định của đơn vị</span> <span class="badge">Tự động</span>').replace('<span class="badge">Nhóm con</span>','<span class="badge">Nhóm người tự tạo</span>');
   h=h.replace('toàn bộ nhân viên của đơn vị, tự cập nhật','toàn bộ người của đơn vị và đơn vị con').replace('nhóm con, thành viên thêm bằng tay','gom người từ nhiều đơn vị, Org Admin thêm, bớt thành viên (BR-03)');
   h=h.replace('Nhóm động: thành viên tự cập nhật theo phòng ban. Chuyển phòng là ra khỏi nhóm.','Thành viên lấy theo Cơ cấu. Thêm, bớt, chuyển người ở màn Cơ cấu thì nhóm đổi theo ngay; không đổi tên, không xóa được nhóm này (BR-26).');
   h=h.replace(/Cần Group Owner tại [^<]*để sửa thành viên\./,'Chỉ Org Admin thêm, bớt thành viên nhóm người tự tạo, vì vào nhóm là nhận ngay mọi quyền của nhóm (BR-03).');
-  h=h.replace(/Gợi ý: người của «[^»]*» chưa thuộc nhóm này\. Gõ tên để tìm cả người ngoài đơn vị\./,'Gõ tên để thêm người từ bất kỳ đơn vị nào.');
   h=h.replace('<span>Nhóm chưa được gán vai trò nào.</span>','<span>Chưa có vai trò nào</span>');
   if(!g.unit&&isOrgAdmin(me.n))h=h.replace('Mở chi tiết</button>','Mở chi tiết</button><button class="btn dgh sm" data-delgrp="'+esc(g.name)+'">Xóa nhóm</button>');
   return h}})(prGroupPanel);
@@ -3102,12 +3096,12 @@ function delGroup(name){var g=groupBy(name),me=actorP();if(!g||g.unit)return;if(
   if(ms.length){dlg('Không xóa được nhóm','','<div class="note bad">'+ic('lock','s')+'<span><b>Bỏ hết thành viên khỏi nhóm trước khi xóa</b> (EN: Remove all members before deleting this group). «'+esc(g.name)+'» còn '+ms.length+' thành viên (BR-30).</span></div>','Đã hiểu',function(){});return}
   dlg('Xóa nhóm người','Xóa «'+esc(g.name)+'» và thu hồi '+na+' lượt gán của nhóm, có ghi nhật ký. Tài nguyên giữ nguyên đơn vị của mình.','','Xóa nhóm',function(){
     GROUPS=GROUPS.filter(function(x){return x!==g});ASSIGN=ASSIGN.filter(function(a){return a.who!=='group:'+g.name});if(DR&&DR.kind==='group')DR=null;prG='';toast('Đã xóa nhóm «'+g.name+'»'+(na?' và thu hồi '+na+' lượt gán':''));render()})}
-function prNewGroupDlg(){var me=actorP();if(!isOrgAdmin(me.n)){toast('Chỉ Org Admin tạo nhóm người tự tạo (BR-03)');return}
+function prNewGroupDlg(uid){var me=actorP();if(!isOrgAdmin(me.n)){toast('Chỉ Org Admin tạo nhóm người tự tạo (BR-03)');return}
   dlg('Tạo nhóm người','Nhóm người tự tạo gom người từ nhiều đơn vị, ví dụ «Dự án Chatbot». Thêm người vào nhóm là cấp cho họ mọi quyền đã gán cho nhóm, nên chỉ Org Admin làm được (BR-03).',
     '<div class="field"><label class="lbl" for="pgN">Tên nhóm</label><input class="inp" id="pgN" style="margin-top:6px" placeholder="Ví dụ: Dự án Chatbot"></div><div class="field"><label class="lbl" for="pgD">Mô tả</label><input class="inp" id="pgD" style="margin-top:6px" placeholder="Nhóm này làm gì"></div><div id="rerr5" aria-live="polite"></div>',
     'Tạo nhóm',function(){var nm=$('#pgN').value.trim();if(!nm){errNote('rerr5','Nhập tên nhóm.');return false}
       if(GROUPS.some(function(g){return g.name.toLowerCase()===nm.toLowerCase()})){errNote('rerr5','Tên nhóm đã có.');return false}
-      GROUPS.push({name:nm,desc:$('#pgD').value.trim()||'Nhóm người tự tạo',members:[],src:'Thủ công'});SUB.pr='groups';prG=nm;prMQ='';prPage=0;prAddQ='';Qs.g='';toast('Đã tạo nhóm «'+nm+'»');render()});
+      GROUPS.push({name:nm,desc:$('#pgD').value.trim()||'Nhóm người tự tạo',members:[],src:'Thủ công',home:uid||TREE.id});if(uid)prUO[uid]=true;SUB.pr='groups';prG=nm;prMQ='';prPage=0;prAddQ='';Qs.g='';toast('Đã tạo nhóm «'+nm+'»');render()});
   var f=$('#pgN');if(f)f.focus()}
 function visNote(){var rs=visRoots();if(visFull(rs))return '';var p=actorP(),dr=p?DIRASSIGN.filter(function(a){return inWho(p,a.who)}).map(function(a){return dirRoleBy(a.role).name+' · '+nName(a.unit)}):[];
   return '<div class="note" style="margin-bottom:16px">'+ic('info','s')+'<span>'+(dr.length?'Bạn là <b>'+esc(dr.join(', '))+'</b>, nên chỉ thấy đơn vị, người và nhóm người trong nhánh của mình (BR-28).':'Bạn không là admin đơn vị nào nên chỉ xem được đơn vị mình thuộc: <b>'+esc(rs.map(nName).join(', '))+'</b>.')+'</span></div>'}
