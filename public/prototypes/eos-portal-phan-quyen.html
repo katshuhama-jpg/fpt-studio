@@ -2764,7 +2764,7 @@ DIRASSIGN=[{id:'g1',who:'user:Nguyễn An',role:'orgadmin',unit:TREE.id},{id:'g2
   PERMS=[];PCATS.forEach(function(c){c[2].forEach(function(p){PERMS.push({id:p[0],name:p[1],cat:c[0]})})})})();
 PDESC['rg/write']='Đổi tên nhóm, thêm hoặc bớt tài nguyên. Thêm, bớt tài nguyên còn cần quyền quản trị chính tài nguyên đó (BR-09).';
 (function(){var R=function(id){return roleBy(id)};
-  var a=R('admin');a.perms=['*'];a.data=DATAP.slice();a.desc='Quản trị tài nguyên được gán: sửa, giao quyền, tạo nhóm tài nguyên và thêm tài nguyên mình quản trị vào nhóm mình làm Admin, phát hành agent. Chỉ gán ở nhóm tài nguyên hoặc từng tài nguyên.';
+  var a=R('admin');a.perms=['*'];a.data=DATAP.slice();a.desc='Quản trị tài nguyên được gán: sửa, giao quyền, tạo nhóm tài nguyên và thêm tài nguyên mình quản trị vào nhóm mình làm Admin, phát hành agent. Gán được ở «Tất cả tài nguyên» của đơn vị, nhóm tài nguyên hoặc từng tài nguyên.';
   var b=R('builder');b.perms=['rg/read','agent/read','agent/write','skill/read','skill/write','connector/read','knowledge/read','model/read','channel/enable'];b.data=DATAP.slice();b.desc='Người xây agent: tạo, sửa agent và skill; dùng connector, knowledge, model; chạy thử. Không phát hành, không xóa, không giao quyền.';
   var v=R('viewer');v.perms=['*/read'];v.data=[];v.desc='Người xem: chỉ xem tài nguyên trên Console. Không chạy, không sửa, không giao quyền.'})();
 DENIES=[];
@@ -2862,8 +2862,8 @@ function grantWhy(c){if(c.why==='unit')return 'Chỉ admin của đơn vị, adm
   if(c.miss&&c.miss.length){var m=c.miss.map(permLbl);return 'Thiếu '+m.length+' quyền: '+m.slice(0,4).join(', ')+(m.length>4?' và '+(m.length-4)+' quyền khác':'')+' (BR-14).'}
   return 'Bạn không có quyền gán vai trò tại phạm vi này.'}
 function roleOrgOnly(){return false}
-function canAssignAt(r,s){var k=scParse(s).k;if(r.agentOnly)return k==='res';if(r.id==='admin'&&(k==='root'||k==='unit'))return false;return true}
-function scopeWhy(me,r,s){var k=scParse(s).k;if(r.id==='admin'&&(k==='root'||k==='unit'))return 'Admin không gán ở «Tất cả tài nguyên»: admin của đơn vị đã quản trị mọi tài nguyên của đơn vị (BR-27).';
+function canAssignAt(r,s){var k=scParse(s).k;if(r.agentOnly)return k==='res';return true}
+function scopeWhy(me,r,s){
   var c=grantCheck(me,r.id,s);return c.ok?'':grantWhy(c)}
 
 /* ---------- nhóm tài nguyên (BR-09) ---------- */
@@ -2981,7 +2981,7 @@ function drRes(){
   return h+'<div class="db">'+b+'</div>'}
 function drUnitScope(){var u=DR.id,pp=pathTo(u);if(!pp){DR=null;return ''}var n=find(pp),me=actorP(),s=uScope(u),canG=!!uaGrant(me,scTarget(s));
   var as=ASSIGN.filter(function(a){return a.scope===s}),rs=resIn(s).filter(function(x){return !x.parent});
-  var h=dhead(ic('layers'),'Tất cả tài nguyên · '+esc(n.name),'<span class="badge">Phạm vi theo đơn vị</span>','Mọi tài nguyên được gán cho '+esc(n.name)+' và các đơn vị con. Hệ thống tự cập nhật; không đổi tên, không xóa được. Chỉ gán Builder, Viewer (BR-27).','<button class="btn sm" data-assign="||'+s+'"'+(canG?'':' disabled title="Chỉ admin của đơn vị, admin cấp trên và Org Admin gán được ở đây"')+'>'+ic('plus','s')+'Gán vai trò</button>');
+  var h=dhead(ic('layers'),'Tất cả tài nguyên · '+esc(n.name),'<span class="badge">Phạm vi theo đơn vị</span>','Mọi tài nguyên được gán cho '+esc(n.name)+' và các đơn vị con. Hệ thống tự cập nhật; không đổi tên, không xóa được. Gán được Admin, Builder, Viewer cho người hoặc nhóm người.','<button class="btn sm" data-assign="||'+s+'"'+(canG?'':' disabled title="Chỉ admin của đơn vị, admin cấp trên và Org Admin gán được ở đây"')+'>'+ic('plus','s')+'Gán vai trò</button>');
   var b='<div class="sec-h" style="margin-top:0"><h3>Lượt gán ('+as.length+')</h3></div>';
   if(!as.length)b+='<div class="empty">'+ic('key')+'<span>Chưa có vai trò nào</span></div>';
   as.forEach(function(a){var can=grantCheck(me,a.role,a.scope,a.who).ok;
@@ -2998,7 +2998,7 @@ function drawerRender(){
   var html=f();if(!DR){d.hidden=true;d.innerHTML='';return}d.hidden=false;d.innerHTML=html;var b=d.querySelector('.db');if(b)b.scrollTop=st;drawerBind()}
 drRole=(function(o){return function(){var r=roleBy(DR.id),h=o();
   h=h.replace(/<button class="btn out sm" data-rclone="[^"]*">Sao chép<\/button>/,'').replace(' Quyền xem chi phí chỉ có nghĩa khi gán ở «Tất cả tài nguyên».','');
-  if(r)h=h.replace(/gán được tại [^<]*/,r.id==='admin'?'gán ở nhóm tài nguyên hoặc từng tài nguyên':r.agentOnly?'hệ thống tự gán cho danh tính agent':'gán ở Tất cả tài nguyên của đơn vị, nhóm tài nguyên hoặc từng tài nguyên');
+  if(r)h=h.replace(/gán được tại [^<]*/,r.agentOnly?'hệ thống tự gán cho danh tính agent':'gán ở Tất cả tài nguyên của đơn vị, nhóm tài nguyên hoặc từng tài nguyên');
   return h}})(drRole);
 rolesTab=(function(o){return function(pk,p){return o(pk,p).replace('Chưa được gán vai trò ở đâu.','Chưa có vai trò nào').replace('Vai trò được gán (','Vai trò và phạm vi (').replace(/>gán trực tiếp</g,'>Gán trực tiếp<').replace(/(<\/span> )gán trực tiếp/g,'$1Gán trực tiếp').replace(/ qua nhóm </g,' Qua nhóm <')}})(rolesTab);
 drUser=(function(o){return function(){return o().replace('<br>Quản trị cơ cấu: ','<br>Chỉ định ở Cơ cấu: ').replace('>Vai trò được gán<','>Vai trò và phạm vi<').replace(/<span class="badge brand">Động<\/span>/g,'<span class="badge brand">Tự động</span>').replace(/<span class="badge">Gán tay<\/span>/g,'<span class="badge">Tự tạo</span>')}})(drUser);
@@ -3018,7 +3018,7 @@ function assignDlg(pre){pre=pre||{};var me=actorP();afOpen={};
   if(!AF.role||!roleBy(AF.role)){var u=ROLEDEFS.filter(function(r){return !r.agentOnly&&roleUsable(me,r)});AF.role=(u.filter(function(r){return r.id==='viewer'})[0]||u[0]||ROLEDEFS[0]).id}
   afFix();showAssign()}
 function afFix(){var me=actorP(),r=roleBy(AF.role);
-  AF.auto=false;if(AF.mode==='all'&&!(AF.us&&scopeOk(me,r,AF.us))){var alt=myUnitScopes(me).filter(function(x){return scopeOk(me,r,x)})[0];if(alt)AF.us=alt;else{AF.mode='pick';AF.auto=r.id==='admin'}}
+  if(AF.mode==='all'&&!(AF.us&&scopeOk(me,r,AF.us))){var alt=myUnitScopes(me).filter(function(x){return scopeOk(me,r,x)})[0];if(alt)AF.us=alt;else AF.mode='pick'}
   AF.scopes=AF.scopes.filter(function(x){var k=scParse(x).k;return k!=='root'&&k!=='unit'&&scopeOk(me,r,x)});
   AF.scopes=AF.scopes.filter(function(x){var p=scParse(x);return p.k!=='res'||(!tagsOf(resBy(p.id)).some(function(c){return AF.scopes.indexOf('coll:'+c)>=0})&&!(resBy(p.id).parent&&AF.scopes.indexOf('res:'+resBy(p.id).parent)>=0))})}
 function afTargets(){return AF.mode==='all'?[AF.us]:AF.scopes}
@@ -3046,9 +3046,8 @@ function afScopeTable(me,r){var T=afTargets(),all=AF.mode==='all',U=myUnitScopes
 showAssign=(function(o){return function(f){o(f);var l=$('#layer');
   l.querySelectorAll('[data-afunit]').forEach(function(b){b.onchange=function(){if(b.checked){AF.mode='all';AF.us=b.dataset.afunit}else AF.mode='pick';AF.scopes=[];afFix();showAssign('[data-afunit="'+b.dataset.afunit+'"]')}})}})(showAssign);
 assignBody=(function(o){return function(){var h=o();
-  h=h.replace('Mặc định là Tất cả tài nguyên. Bỏ tích gốc rồi tích nhóm tài nguyên hoặc tài nguyên khi cần hẹp hơn. Tích một nhóm là gồm mọi tài nguyên con, kể cả tài nguyên thêm vào sau.','Mặc định là «Tất cả tài nguyên» của một đơn vị bạn quản trị (Builder, Viewer). Admin gán ở nhóm tài nguyên hoặc từng tài nguyên. Khi cần giới hạn, bỏ chọn rồi tích nhóm tài nguyên hoặc từng tài nguyên. Tích một nhóm là gồm cả tài nguyên thêm vào sau (BR-13).');
+  h=h.replace('Mặc định là Tất cả tài nguyên. Bỏ tích gốc rồi tích nhóm tài nguyên hoặc tài nguyên khi cần hẹp hơn. Tích một nhóm là gồm mọi tài nguyên con, kể cả tài nguyên thêm vào sau.','Mặc định là «Tất cả tài nguyên» của một đơn vị bạn quản trị. Gán Admin ở đây là giao cho người hoặc nhóm người đã chọn quản trị mọi tài nguyên của đơn vị, kể cả tài nguyên thêm vào sau. Khi cần giới hạn, bỏ chọn rồi tích nhóm tài nguyên hoặc từng tài nguyên. Tích một nhóm là gồm cả tài nguyên thêm vào sau (BR-13).');
   h=h.replace(/<small>nhóm động<\/small>/g,'<small>nhóm cố định</small>').replace(/<div class="field"><label class="lbl" for="afDeleg">[\s\S]*?<\/select><\/div>/,'');
-  if(AF.auto)h=h.replace('<span class="lbl">3. Phạm vi</span>','<span class="lbl">3. Phạm vi</span><div class="note" style="margin:6px 0">'+ic('info','s')+'<span>Admin không gán ở «Tất cả tài nguyên», nên đã bỏ chọn phạm vi này. Tích nhóm tài nguyên hoặc tài nguyên bạn muốn giao toàn quyền, ví dụ «Chăm sóc khách».</span></div>');
   return h}})(assignBody);
 
 /* ---------- Người & nhóm (mục 6) ---------- */
@@ -3110,7 +3109,7 @@ function visNote(){var rs=visRoots();if(visFull(rs))return '';var p=actorP(),dr=
 /* ---------- Vai trò (mục 7, AC-03) ---------- */
 function pRolesHub(){var h=pRoleMatrix();
   h=h.replace(/<button class="btn" data-dr="role:new"[^>]*>[\s\S]*?Tạo vai trò<\/button>/,'');
-  h=h.replace('Roles: mỗi vai trò là một bộ quyền. Cột là vai trò, hàng là quyền theo loại tài nguyên. Vai trò có sẵn bị khóa; vai trò tùy chỉnh tích thẳng vào ô. Vai trò không gắn với tài nguyên nào: phạm vi chọn lúc gán.','Mỗi vai trò là một gói quyền do hệ thống định nghĩa, không sửa, không xóa được. Cột là vai trò, hàng là quyền theo loại tài nguyên. Phạm vi chọn lúc gán: Admin chỉ gán ở nhóm tài nguyên hoặc từng tài nguyên; Builder, Viewer gán được cả ở «Tất cả tài nguyên» của đơn vị.');
+  h=h.replace('Roles: mỗi vai trò là một bộ quyền. Cột là vai trò, hàng là quyền theo loại tài nguyên. Vai trò có sẵn bị khóa; vai trò tùy chỉnh tích thẳng vào ô. Vai trò không gắn với tài nguyên nào: phạm vi chọn lúc gán.','Mỗi vai trò là một gói quyền do hệ thống định nghĩa, không sửa, không xóa được. Cột là vai trò, hàng là quyền theo loại tài nguyên. Phạm vi chọn lúc gán: «Tất cả tài nguyên» của đơn vị, nhóm tài nguyên hoặc từng tài nguyên; cả ba vai trò gán được cho người hoặc nhóm người ở mọi phạm vi.');
   h=h.replace('Ô tích: vai trò có quyền. Ô gạch: có một phần quyền trong nhóm. Ổ khóa: vai trò có sẵn (Admin, Builder, Viewer), không sửa, không xóa được. Vai trò tùy chỉnh sửa thẳng trong ô và xóa được. Bấm tên vai trò để xem mô tả và ai đang được gán.','Ô tích: vai trò có quyền. Ô gạch: có một phần quyền trong nhóm. Bấm tên vai trò để xem danh sách quyền và ai đang được gán. Tạo vai trò mới: cập nhật sau.');
   h+='<div class="sec-h" style="margin-top:24px"><h3>Quản trị tổ chức</h3></div><div class="card cardp">'+DIRROLES.map(function(r){var n=DIRASSIGN.filter(function(a){return a.role===r.id}).length;
     return '<div class="drow"><span class="ulogo" style="width:32px;height:32px">'+ic('org','s')+'</span><div style="flex:1;min-width:0"><b style="font-weight:500">'+esc(r.name)+'</b> <span class="badge out">Chỉ định ở màn Cơ cấu</span><div style="font-size:12px;color:var(--fg2)">'+esc(r.desc)+' · '+n+' người</div></div><a class="btn out sm" href="#cocau">Mở Cơ cấu</a></div>'}).join('')+'</div>';
