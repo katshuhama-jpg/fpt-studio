@@ -2862,7 +2862,10 @@ function grantWhy(c){if(c.why==='unit')return 'Chỉ admin của đơn vị, adm
   if(c.miss&&c.miss.length){var m=c.miss.map(permLbl);return 'Thiếu '+m.length+' quyền: '+m.slice(0,4).join(', ')+(m.length>4?' và '+(m.length-4)+' quyền khác':'')+' (BR-14).'}
   return 'Bạn không có quyền gán vai trò tại phạm vi này.'}
 function roleOrgOnly(){return false}
-function canAssignAt(r,s){var k=scParse(s).k;if(r.agentOnly)return k==='res';return true}
+function canAssignAt(r,s){var k=scParse(s).k;if(r.agentOnly)return k==='res';return roleAssignableAt(r,s)}
+/* vai trò tùy chỉnh: admin đơn vị tạo ở «Tất cả tài nguyên» của đơn vị mình; Admin của nhóm tài nguyên tạo ở nhóm đó */
+function roleDefScopes(me){return myUnitScopes(me).concat(COLLS.map(function(c){return 'coll:'+c.id}).filter(function(x){return canWrite(me,GP,x)}))}
+function canNewRole(me){return roleDefScopes(me).length>0}
 function scopeWhy(me,r,s){
   var c=grantCheck(me,r.id,s);return c.ok?'':grantWhy(c)}
 
@@ -2996,9 +2999,12 @@ function drawerRender(){
   if(!f){DR=null;d.hidden=true;d.innerHTML='';return}
   var st=d.querySelector('.db')?d.querySelector('.db').scrollTop:0;
   var html=f();if(!DR){d.hidden=true;d.innerHTML='';return}d.hidden=false;d.innerHTML=html;var b=d.querySelector('.db');if(b)b.scrollTop=st;drawerBind()}
-drRole=(function(o){return function(){var r=roleBy(DR.id),h=o();
-  h=h.replace(/<button class="btn out sm" data-rclone="[^"]*">Sao chép<\/button>/,'').replace(' Quyền xem chi phí chỉ có nghĩa khi gán ở «Tất cả tài nguyên».','');
-  if(r)h=h.replace(/gán được tại [^<]*/,r.agentOnly?'hệ thống tự gán cho danh tính agent':'gán ở Tất cả tài nguyên của đơn vị, nhóm tài nguyên hoặc từng tài nguyên');
+drRole=(function(o){return function(){var me=actorP(),isNew=DR.id==='new',r=isNew?DR.draft:roleBy(DR.id),h=o();
+  if(!canNewRole(me))h=h.replace(/<button class="btn out sm" data-rclone="[^"]*">Sao chép<\/button>/,'');
+  h=h.replace(' Quyền xem chi phí chỉ có nghĩa khi gán ở «Tất cả tài nguyên».','');
+  if(r&&!isNew&&r.type!=='custom')h=h.replace(/gán được tại [^<]*/,r.agentOnly?'hệ thống tự gán cho danh tính agent':'gán ở Tất cả tài nguyên của đơn vị, nhóm tài nguyên hoặc từng tài nguyên');
+  if(r){var xs=roleDefScopes(me);if(!isNew&&r.at&&xs.indexOf(r.at)<0)xs.unshift(r.at);var sel=xs.indexOf(r.at)>=0?r.at:xs[0];
+    h=h.replace(/<select class="inp" id="ra">[\s\S]*?<\/select>/,'<select class="inp" id="ra">'+xs.map(function(x){return '<option value="'+x+'"'+(x===sel?' selected':'')+'>'+esc(scLabel(x))+' và bên trong</option>'}).join('')+'</select><div class="afhint">Vai trò chỉ gán được ở phạm vi này và các phạm vi bên trong. Admin đơn vị tạo ở «Tất cả tài nguyên» của đơn vị mình; Admin của nhóm tài nguyên tạo ở nhóm đó.</div>')}
   return h}})(drRole);
 rolesTab=(function(o){return function(pk,p){return o(pk,p).replace('Chưa được gán vai trò ở đâu.','Chưa có vai trò nào').replace('Vai trò được gán (','Vai trò và phạm vi (').replace(/>gán trực tiếp</g,'>Gán trực tiếp<').replace(/(<\/span> )gán trực tiếp/g,'$1Gán trực tiếp').replace(/ qua nhóm </g,' Qua nhóm <')}})(rolesTab);
 drUser=(function(o){return function(){return o().replace('<br>Quản trị cơ cấu: ','<br>Chỉ định ở Cơ cấu: ').replace('>Vai trò được gán<','>Vai trò và phạm vi<').replace(/<span class="badge brand">Động<\/span>/g,'<span class="badge brand">Tự động</span>').replace(/<span class="badge">Gán tay<\/span>/g,'<span class="badge">Tự tạo</span>')}})(drUser);
@@ -3115,10 +3121,10 @@ function visNote(){var rs=visRoots();if(visFull(rs))return '';var p=actorP(),dr=
   return '<div class="note" style="margin-bottom:16px">'+ic('info','s')+'<span>'+(dr.length?'Bạn là <b>'+esc(dr.join(', '))+'</b>, nên chỉ thấy đơn vị, người và nhóm người trong nhánh của mình (BR-28).':'Bạn không là admin đơn vị nào nên chỉ xem được đơn vị mình thuộc: <b>'+esc(rs.map(nName).join(', '))+'</b>.')+'</span></div>'}
 
 /* ---------- Vai trò (mục 7, AC-03) ---------- */
-function pRolesHub(){var h=pRoleMatrix();
-  h=h.replace(/<button class="btn" data-dr="role:new"[^>]*>[\s\S]*?Tạo vai trò<\/button>/,'');
-  h=h.replace('Roles: mỗi vai trò là một bộ quyền. Cột là vai trò, hàng là quyền theo loại tài nguyên. Vai trò có sẵn bị khóa; vai trò tùy chỉnh tích thẳng vào ô. Vai trò không gắn với tài nguyên nào: phạm vi chọn lúc gán.','Mỗi vai trò là một gói quyền do hệ thống định nghĩa, không sửa, không xóa được. Cột là vai trò, hàng là quyền theo loại tài nguyên. Phạm vi chọn lúc gán: «Tất cả tài nguyên» của đơn vị, nhóm tài nguyên hoặc từng tài nguyên; cả ba vai trò gán được cho người hoặc nhóm người ở mọi phạm vi.');
-  h=h.replace('Ô tích: vai trò có quyền. Ô gạch: có một phần quyền trong nhóm. Ổ khóa: vai trò có sẵn (Admin, Builder, Viewer), không sửa, không xóa được. Vai trò tùy chỉnh sửa thẳng trong ô và xóa được. Bấm tên vai trò để xem mô tả và ai đang được gán.','Ô tích: vai trò có quyền. Ô gạch: có một phần quyền trong nhóm. Bấm tên vai trò để xem danh sách quyền và ai đang được gán. Tạo vai trò mới: cập nhật sau.');
+function pRolesHub(){var me=actorP(),h=pRoleMatrix(),cn=canNewRole(me);
+  h=h.replace(/<button class="btn" data-dr="role:new"[^>]*>/,'<button class="btn" data-dr="role:new"'+(cn?'':' disabled title="Cần là admin đơn vị, hoặc Admin của một nhóm tài nguyên"')+'>');
+  h=h.replace('Roles: mỗi vai trò là một bộ quyền. Cột là vai trò, hàng là quyền theo loại tài nguyên. Vai trò có sẵn bị khóa; vai trò tùy chỉnh tích thẳng vào ô. Vai trò không gắn với tài nguyên nào: phạm vi chọn lúc gán.','Mỗi vai trò là một gói quyền. Admin, Builder, Viewer là vai trò có sẵn, không sửa, không xóa được. Vai trò tùy chỉnh do admin tạo: tích thẳng vào ô để sửa, xóa được khi không cần. Cột là vai trò, hàng là quyền theo loại tài nguyên. Phạm vi chọn lúc gán: «Tất cả tài nguyên» của đơn vị, nhóm tài nguyên hoặc từng tài nguyên.');
+  h=h.replace('Ô tích: vai trò có quyền. Ô gạch: có một phần quyền trong nhóm. Ổ khóa: vai trò có sẵn (Admin, Builder, Viewer), không sửa, không xóa được. Vai trò tùy chỉnh sửa thẳng trong ô và xóa được. Bấm tên vai trò để xem mô tả và ai đang được gán.','Ô tích: vai trò có quyền. Ô gạch: có một phần quyền trong nhóm. Ổ khóa: vai trò có sẵn, hoặc vai trò tùy chỉnh bạn không có quyền sửa. Bấm tên vai trò để xem danh sách quyền và ai đang được gán; vai trò có sẵn có nút «Sao chép» để tạo bản tùy chỉnh.');
   h+='<div class="sec-h" style="margin-top:24px"><h3>Quản trị tổ chức</h3></div><div class="card cardp">'+DIRROLES.map(function(r){var n=DIRASSIGN.filter(function(a){return a.role===r.id}).length;
     return '<div class="drow"><span class="ulogo" style="width:32px;height:32px">'+ic('org','s')+'</span><div style="flex:1;min-width:0"><b style="font-weight:500">'+esc(r.name)+'</b> <span class="badge out">Chỉ định ở màn Cơ cấu</span><div style="font-size:12px;color:var(--fg2)">'+esc(r.desc)+' · '+n+' người</div></div><a class="btn out sm" href="#cocau">Mở Cơ cấu</a></div>'}).join('')+'</div>';
   return h}
