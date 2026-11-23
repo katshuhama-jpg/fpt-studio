@@ -102,6 +102,7 @@ export default function DocumentPreviewPane({
   const [selectionBtn, setSelectionBtn] = useState<{ x: number; y: number; text: string; bbox: ChunkBBox } | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [measured, setMeasured] = useState<Record<string, ChunkBBox>>({});
+  const [outlines, setOutlines] = useState<Record<string, string>>({});
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [drawMode, setDrawMode] = useState(false);
   const [marquee, setMarquee] = useState<ChunkBBox | null>(null);
@@ -127,11 +128,34 @@ export default function DocumentPreviewPane({
     const pageRect = pageBoxRef.current?.getBoundingClientRect();
     if (!pageRect || pageRect.width === 0) return;
     const next: Record<string, ChunkBBox> = {};
+    const nextOutlines: Record<string, string> = {};
+    const px = (v: number, size: number) => (v / size) * 100;
     for (const c of autoChunks) {
       const el = segmentRefs.current[c.id];
       if (!el) continue;
       const rects = Array.from(el.getClientRects()).filter(r => r.width > 1);
       if (rects.length === 0) continue;
+
+      // One frame per chunk that hugs its lines: merge the span's line fragments, then trace a
+      // stepped outline down the right edges and back up the left edges. Each line's bottom is
+      // pulled down to the next line's top so the frame reads as one shape, not one box per line.
+      const lines: { l: number; r: number; t: number; b: number }[] = [];
+      for (const r of [...rects].sort((a, b) => a.top - b.top)) {
+        const last = lines[lines.length - 1];
+        if (last && Math.abs(last.t - r.top) < 4) { last.l = Math.min(last.l, r.left); last.r = Math.max(last.r, r.right); last.b = Math.max(last.b, r.bottom); }
+        else lines.push({ l: r.left, r: r.right, t: r.top, b: r.bottom });
+      }
+      const PAD_X = 3, PAD_Y = 3;
+      lines.forEach((ln, i) => { if (i < lines.length - 1) ln.b = lines[i + 1].t; });
+      lines[0].t -= PAD_Y;
+      lines[lines.length - 1].b += PAD_Y;
+      const pts: [number, number][] = [];
+      for (const ln of lines) { pts.push([ln.r + PAD_X, ln.t], [ln.r + PAD_X, ln.b]); }
+      for (const ln of [...lines].reverse()) { pts.push([ln.l - PAD_X, ln.b], [ln.l - PAD_X, ln.t]); }
+      nextOutlines[c.id] = pts
+        .map(([x, y]) => `${px(x - pageRect.left, pageRect.width).toFixed(2)},${px(y - pageRect.top, pageRect.height).toFixed(2)}`)
+        .join(" ");
+
       const left = Math.min(...rects.map(r => r.left)), right = Math.max(...rects.map(r => r.right));
       const top = Math.min(...rects.map(r => r.top)), bottom = Math.max(...rects.map(r => r.bottom));
       next[c.id] = {
@@ -143,6 +167,7 @@ export default function DocumentPreviewPane({
       };
     }
     setMeasured(next);
+    setOutlines(nextOutlines);
   }, [autoChunks, segments, page, zoom]);
 
   const boxOf = (c: PageChunkBox): ChunkBBox =>
@@ -309,13 +334,37 @@ export default function DocumentPreviewPane({
           className="relative bg-white shadow-elev rounded-sm h-full max-h-full aspect-[3/4] shrink-0 select-text"
           style={{ transform: `scale(${zoom})`, transformOrigin: "top center", cursor: drawMode ? "crosshair" : "default" }}
         >
-          <div className="p-8 text-sm leading-7 text-foreground whitespace-pre-line h-full overflow-hidden">
-            {autoChunks.length === 0 ? text : autoChunks.map((c, i) => {
+          {/* Chunk frames, always visible. Drawn underneath the text so strokes never cover
+              letters; the text spans above stay the click targets. */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+            {autoChunks.map(c => {
+              const pts = outlines[c.id];
+              if (!pts) return null;
               const isSelected = c.id === selectedChunkId;
               const isHover = c.id === hoverId;
               const dimmed = isDimmed(c.id);
-              // Two alternating tints so neighbouring chunks stay distinguishable on the same line.
-              const tint = i % 2 === 0 ? "bg-primary/[0.07]" : "bg-[hsl(var(--info)/0.16)]";
+              const color = "var(--primary)";
+              return (
+                <polygon
+                  key={c.id}
+                  points={pts}
+                  vectorEffect="non-scaling-stroke"
+                  strokeLinejoin="round"
+                  style={{
+                    fill: dimmed ? "transparent" : `hsl(${isSelected ? "var(--primary)" : color} / ${isSelected ? 0.16 : isHover ? 0.14 : 0.06})`,
+                    stroke: dimmed ? "hsl(var(--border))" : `hsl(${isSelected ? "var(--primary)" : color} / ${isSelected || isHover ? 1 : 0.75})`,
+                    strokeWidth: isSelected ? 2.5 : isHover ? 2 : 1.5,
+                    transition: "fill 150ms, stroke 150ms",
+                  }}
+                />
+              );
+            })}
+          </svg>
+
+          <div className="relative p-8 text-sm leading-7 text-foreground whitespace-pre-line h-full overflow-hidden">
+            {autoChunks.length === 0 ? text : autoChunks.map((c, i) => {
+              const isSelected = c.id === selectedChunkId;
+              const dimmed = isDimmed(c.id);
               return (
                 <span
                   key={c.id}
@@ -323,13 +372,11 @@ export default function DocumentPreviewPane({
                   onClick={e => { e.stopPropagation(); if (!drawMode) onSelectChunk(c.id); }}
                   onMouseEnter={() => setHoverId(c.id)}
                   onMouseLeave={() => setHoverId(h => (h === c.id ? null : h))}
-                  className={`rounded-[3px] py-[3px] [box-decoration-break:clone] [-webkit-box-decoration-break:clone] cursor-pointer transition-colors ${
-                    dimmed ? "" : isSelected ? "bg-primary/20 shadow-[inset_0_-2px_0_hsl(var(--primary))]" : isHover ? "bg-primary/15" : tint
-                  }`}
+                  className="relative cursor-pointer"
                 >
                   <span
                     aria-label={`Đoạn ${c.index}`}
-                    className={`inline-flex items-center justify-center align-[1px] mr-1 h-4 min-w-4 px-1 rounded-[4px] text-[10px] font-semibold leading-none tabular-nums select-none ${
+                    className={`inline-flex items-center justify-center align-middle mr-1 h-5 min-w-5 px-1 rounded-sm text-xs font-semibold leading-none tabular-nums select-none ${
                       isSelected ? "bg-primary text-primary-foreground" : dimmed ? "bg-surface-muted text-muted-foreground/70" : "bg-primary/15 text-primary"
                     }`}
                   >
@@ -348,15 +395,15 @@ export default function DocumentPreviewPane({
               <div
                 key={c.id}
                 onClick={e => { e.stopPropagation(); onSelectChunk(c.id); }}
-                className={`absolute rounded-[3px] transition-base cursor-pointer ${
+                className={`absolute rounded-sm transition-base cursor-pointer ${
                   isSelected
                     ? "border-2 border-primary bg-primary/10 z-10"
-                    : `border-2 border-dashed border-primary/70 bg-primary/[0.06] hover:bg-primary/10 ${isDimmed(c.id) ? "opacity-40" : ""}`
+                    : `border-2 border-primary/80 bg-primary/[0.06] hover:border-primary hover:bg-primary/10 ${isDimmed(c.id) ? "opacity-40" : ""}`
                 }`}
                 style={{ left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%`, height: `${box.h}%` }}
               >
                 <span
-                  className={`absolute -top-2.5 left-1 h-4 min-w-4 px-1 inline-flex items-center justify-center rounded-[4px] text-[10px] font-semibold leading-none tabular-nums ${
+                  className={`absolute -top-2.5 left-1 h-5 min-w-5 px-1 inline-flex items-center justify-center rounded-sm text-xs font-semibold leading-none tabular-nums ${
                     isSelected ? "bg-primary text-primary-foreground" : "bg-white border border-primary/40 text-primary"
                   }`}
                 >
@@ -372,12 +419,6 @@ export default function DocumentPreviewPane({
             const box = boxOf(sel);
             return (
               <>
-                {!sel.bboxCustom && (
-                  <div
-                    className="absolute pointer-events-none rounded-[3px] border border-primary/60 z-10"
-                    style={{ left: `calc(${box.x}% - 4px)`, top: `calc(${box.y}% - 2px)`, width: `calc(${box.w}% + 8px)`, height: `calc(${box.h}% + 4px)` }}
-                  />
-                )}
                 {HANDLES.map(h => (
                   <div
                     key={h.key}
