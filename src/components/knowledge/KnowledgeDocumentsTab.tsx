@@ -311,6 +311,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly, retrieval }: { k
                       ) : (
                         <RowMenu
                           canOpen={openable}
+                          openDisabledReason={notOpenableReason(d.status)}
                           onOpen={() => openDocument(d.id)}
                           onReprocess={() => setReprocessTarget(d)}
                           onRename={() => { setRenaming(d); setRenameValue(d.name); }}
@@ -483,8 +484,8 @@ const ROW_MENU_WIDTH = 224; // w-56
 const ROW_MENU_HEIGHT_ESTIMATE = 290;
 const FOLDER_ROW_MENU_HEIGHT_ESTIMATE = 224;
 
-function RowMenu({ canOpen, onOpen, onReprocess, onRename, onMove, onRetrieval, onDelete }: {
-  canOpen: boolean; onOpen: () => void; onReprocess: () => void; onRename: () => void; onMove: () => void; onRetrieval?: () => void; onDelete: () => void;
+function RowMenu({ canOpen, openDisabledReason, onOpen, onReprocess, onRename, onMove, onRetrieval, onDelete }: {
+  canOpen: boolean; openDisabledReason?: string; onOpen: () => void; onReprocess: () => void; onRename: () => void; onMove: () => void; onRetrieval?: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
@@ -518,7 +519,7 @@ function RowMenu({ canOpen, onOpen, onReprocess, onRename, onMove, onRetrieval, 
   }, [open]);
 
   const items: { label: string; onClick: () => void; danger?: boolean; disabled?: boolean; disabledTooltip?: string }[] = [
-    { label: "Xem chi tiết", onClick: onOpen, disabled: !canOpen, disabledTooltip: "Tài liệu chưa xử lý xong nên chưa xem được nội dung." },
+    { label: "Xem chi tiết", onClick: onOpen, disabled: !canOpen, disabledTooltip: openDisabledReason },
     { label: "Xử lý lại", onClick: onReprocess },
     { label: "Đổi tên", onClick: onRename },
     { label: "Di chuyển", onClick: onMove },
