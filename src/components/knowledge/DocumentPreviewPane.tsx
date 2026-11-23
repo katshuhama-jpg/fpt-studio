@@ -127,9 +127,11 @@ export default function DocumentPreviewPane({
     return layout ? { x: layout.l - PAD, w: layout.r - layout.l + PAD * 2 } : { x: 6, w: 88 };
   };
 
-  // Auto chunks split the page's lines into contiguous full-width bands, in chunk order.
+  // The page's lines are split into contiguous full-width bands, one per chunk in chunk order.
+  // Hand-drawn or resized chunks keep their slot in this split (they just draw their own frame),
+  // so editing one chunk never shifts the bands of every other chunk on the page.
   const autoChunks = useMemo(
-    () => chunksOnPage.filter(c => !c.bboxCustom).sort((a, b) => a.index - b.index),
+    () => [...chunksOnPage].sort((a, b) => a.index - b.index),
     [chunksOnPage],
   );
   const autoBoxes = useMemo(() => {
@@ -171,16 +173,15 @@ export default function DocumentPreviewPane({
     return { x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 100 };
   };
 
-  /** The chunk under a point: the selected one first, then the smallest frame (a hand-drawn
-   * frame inside an auto band wins over the band). */
+  /** The chunk under a point. Chunks may overlap; where they do, the smallest frame wins, so a
+   * chunk nested inside a bigger one is always reachable by clicking it. */
   const chunkAt = (pt: { x: number; y: number }) => {
     const hits = chunksOnPage.filter(c => {
       const b = boxOf(c);
       return pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h;
     });
     if (hits.length === 0) return null;
-    return hits.find(c => c.id === selectedChunkId)
-      ?? [...hits].sort((a, b) => boxOf(a).w * boxOf(a).h - boxOf(b).w * boxOf(b).h)[0];
+    return [...hits].sort((a, b) => boxOf(a).w * boxOf(a).h - boxOf(b).w * boxOf(b).h)[0];
   };
 
   const handleMouseUp = () => {
@@ -327,7 +328,18 @@ export default function DocumentPreviewPane({
           style={{ transform: `scale(${zoom})`, transformOrigin: "top center", cursor: drawMode ? "crosshair" : hoverId ? "pointer" : "default" }}
         >
           {/* Frames sit under the text so strokes never cover letters and text stays selectable. */}
-          {chunksOnPage.map(c => {
+          {/* Bigger frames first, so a smaller overlapping frame's border is drawn on top and stays
+              visible. Number tags of frames starting on the same line sit side by side. */}
+          {(() => {
+            const ordered = [...chunksOnPage].sort((a, b) => boxOf(b).w * boxOf(b).h - boxOf(a).w * boxOf(a).h);
+            const tagShift: Record<string, number> = {};
+            const byTop: Record<string, number> = {};
+            for (const c of [...chunksOnPage].sort((a, b) => a.index - b.index)) {
+              const key = boxOf(c).y.toFixed(1);
+              tagShift[c.id] = byTop[key] ?? 0;
+              byTop[key] = (byTop[key] ?? 0) + 1;
+            }
+            return ordered.map(c => {
             const isSelected = c.id === selectedChunkId;
             const isHover = c.id === hoverId;
             const dimmed = isDimmed(c.id);
@@ -344,6 +356,7 @@ export default function DocumentPreviewPane({
                 style={{ left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%`, height: `${box.h}%` }}
               >
                 <span
+                  style={tagShift[c.id] ? { marginRight: `${0.25 + tagShift[c.id] * 2}rem` } : undefined}
                   className={`absolute top-0 right-full mr-1 h-5 min-w-5 px-1 inline-flex items-center justify-center rounded-sm text-xs font-semibold leading-none tabular-nums ${
                     isSelected ? "bg-primary text-primary-foreground" : dimmed ? "bg-surface-muted text-muted-foreground" : "bg-primary/15 text-primary"
                   }`}
@@ -352,7 +365,8 @@ export default function DocumentPreviewPane({
                 </span>
               </div>
             );
-          })}
+            });
+          })()}
 
           <div ref={textRef} className="relative p-8 pl-10 text-sm leading-7 text-foreground whitespace-pre-line h-full overflow-hidden">
             {text}
