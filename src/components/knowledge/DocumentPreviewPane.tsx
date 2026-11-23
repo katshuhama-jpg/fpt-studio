@@ -1,9 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
-import {
-  ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Plus, RefreshCw,
-  MousePointer2, MessageSquare, Square, PenLine, Type, Check, X, Wrench,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Plus, RefreshCw, Square, Check, X } from "lucide-react";
 
 // Each page is a few real paragraphs (not one short line) so the document reads like an actual
 // multi-page policy doc, and so chunk bounding boxes below have enough room on the page to sit
@@ -31,34 +27,6 @@ export interface PageChunkBox {
   bboxCustom?: boolean;
 }
 
-/** Splits a page's text into `n` contiguous, non-overlapping ranges of roughly equal length,
- * moving each cut to the nearest sentence/clause end (".", ",", ":", ";" or a paragraph break)
- * so a chunk never starts or stops mid-phrase. Whitespace stays attached to the range it follows,
- * so joining the ranges gives back the exact original text. */
-function segmentPage(text: string, n: number): string[] {
-  if (n <= 0) return [];
-  const tokens: string[] = text.match(/\S+\s*/g) ?? [];
-  if (n === 1 || tokens.length <= n) {
-    return n === 1 ? [text] : tokens.concat(Array(Math.max(0, n - tokens.length)).fill("") as string[]);
-  }
-  const isBreak = (i: number) => /[.,:;]\s*$/.test(tokens[i]) || /\n/.test(tokens[i]);
-  const cuts: number[] = [];
-  let prev = 0;
-  for (let k = 1; k < n; k++) {
-    const ideal = Math.round((k * tokens.length) / n);
-    let best = ideal;
-    for (let d = 0; d <= 8; d++) {
-      if (ideal - d - 1 > prev && isBreak(ideal - d - 1)) { best = ideal - d; break; }
-      if (ideal + d - 1 > prev && ideal + d < tokens.length && isBreak(ideal + d - 1)) { best = ideal + d; break; }
-    }
-    best = Math.min(Math.max(best, prev + 1), tokens.length - (n - k));
-    cuts.push(best);
-    prev = best;
-  }
-  const bounds = [0, ...cuts, tokens.length];
-  return bounds.slice(0, -1).map((start, i) => tokens.slice(start, bounds[i + 1]).join(""));
-}
-
 type Handle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 const HANDLES: { key: Handle; cursor: string; style: (b: ChunkBBox) => { left: string; top: string } }[] = [
   { key: "nw", cursor: "nwse-resize", style: b => ({ left: `${b.x}%`, top: `${b.y}%` }) },
@@ -72,24 +40,22 @@ const HANDLES: { key: Handle; cursor: string; style: (b: ChunkBBox) => { left: s
 ];
 const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
 
-/** Read-only original-document preview inside ChunkViewerModal's left pane: page navigation,
- * zoom, and chunk bounding-box overlays drawn directly on the page (per the Knowledge chunk
- * editor spec) — click a box to select its chunk (two-way link with the chunk list), drag its
- * 8 handles to resize horizontally/vertically (never auto-saved — a confirm/cancel pair appears
- * until the change is committed), and right-click the page for a small annotation toolbar whose
- * "Vẽ vùng chọn" tool draws a brand-new box (and, from it, a brand-new chunk). Multiple boxes on
- * the same page render simultaneously and are allowed to overlap. No real PDF rendering in this
- * prototype; renders representative page text at natural (non-shrunk) scale, sized to fill the
- * pane's height rather than floating as a small fixed-size card. */
+/** Original-document preview inside ChunkViewerModal's left pane: page navigation, zoom, and one
+ * rectangular frame per chunk drawn on the page. Frames always snap to whole text lines: an
+ * auto-generated chunk covers full lines of the text column, and a frame a person draws ("Vẽ vùng")
+ * or resizes snaps its top and bottom edges to the nearest line boundary. Text stays selectable on
+ * top of the frames, so selecting text and pressing "Thêm đoạn" still creates a chunk; clicking
+ * anywhere inside a frame selects that chunk (two-way link with the chunk list). Resizing is never
+ * auto-saved: a confirm/cancel pair appears until the change is committed. No real PDF rendering
+ * in this prototype; it renders representative page text. */
 export default function DocumentPreviewPane({
   page, onPageChange, chunksOnPage, matchIds, selectedChunkId, onSelectChunk, onResizeChunk, onCreateChunkFromBox,
   onSelectText, onReprocess, onProcess, canReprocess, viewOnly,
 }: {
   page: number; onPageChange: (page: number) => void;
-  /** Every chunk on this page (not only search matches), so a chunk's text range stays put
-   * while the person types in the search box. */
+  /** Every chunk on this page (not only search matches), so frames stay put while searching. */
   chunksOnPage: PageChunkBox[];
-  /** When set (an active search), chunks outside it are drawn without a highlight. */
+  /** When set (an active search), chunks outside it are drawn muted. */
   matchIds?: Set<string>;
   selectedChunkId: string | null;
   onSelectChunk: (id: string) => void;
@@ -101,113 +67,140 @@ export default function DocumentPreviewPane({
   const [zoom, setZoom] = useState(1);
   const [selectionBtn, setSelectionBtn] = useState<{ x: number; y: number; text: string; bbox: ChunkBBox } | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
-  const [measured, setMeasured] = useState<Record<string, ChunkBBox>>({});
-  const [outlines, setOutlines] = useState<Record<string, string>>({});
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  /** Text lines of the page (top/bottom, % of page) and the text column's left/right edges. */
+  const [layout, setLayout] = useState<{ lines: { t: number; b: number }[]; l: number; r: number } | null>(null);
   const [drawMode, setDrawMode] = useState(false);
   const [marquee, setMarquee] = useState<ChunkBBox | null>(null);
   const [pendingResize, setPendingResize] = useState<{ id: string; bbox: ChunkBBox } | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const pageBoxRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLDivElement>(null);
   const totalPages = MOCK_PAGES.length;
   const text = MOCK_PAGES[page];
 
-  // Auto-generated chunks are drawn as highlights on their own text range, so they always sit on
-  // the real lines. Only boxes a person drew or resized keep a free-floating rectangle.
+  useEffect(() => { setPendingResize(null); setDrawMode(false); }, [page]);
+
+  // Measure where each rendered text line sits, as % of the page box (zoom scales both sides,
+  // so percentages stay valid at any zoom level).
+  useLayoutEffect(() => {
+    const measure = () => {
+      const pageRect = pageBoxRef.current?.getBoundingClientRect();
+      const el = textRef.current;
+      if (!pageRect || !el || pageRect.width === 0) return;
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const rects = Array.from(range.getClientRects()).filter(r => r.width > 1).sort((a, b) => a.top - b.top);
+      const lines: { t: number; b: number }[] = [];
+      for (const r of rects) {
+        const last = lines[lines.length - 1];
+        if (last && Math.abs(last.t - r.top) < 4) last.b = Math.max(last.b, r.bottom);
+        else lines.push({ t: r.top, b: r.bottom });
+      }
+      const elRect = el.getBoundingClientRect();
+      const cs = getComputedStyle(el);
+      const scale = elRect.width / el.offsetWidth || 1;
+      const left = elRect.left + parseFloat(cs.paddingLeft) * scale;
+      const right = elRect.right - parseFloat(cs.paddingRight) * scale;
+      const toX = (v: number) => ((v - pageRect.left) / pageRect.width) * 100;
+      const toY = (v: number) => ((v - pageRect.top) / pageRect.height) * 100;
+      setLayout({ lines: lines.map(ln => ({ t: toY(ln.t), b: toY(ln.b) })), l: toX(left), r: toX(right) });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (pageBoxRef.current) ro.observe(pageBoxRef.current);
+    return () => ro.disconnect();
+  }, [text, zoom]);
+
+  /** Frame edges sit halfway between two lines, so neighbouring frames tile without gaps. */
+  const lineEdges = useMemo(() => {
+    if (!layout || layout.lines.length === 0) return [] as number[];
+    const ls = layout.lines;
+    const GAP = 0.6; // % of page height above the first / below the last line
+    const edges = [Math.max(0, ls[0].t - GAP)];
+    for (let i = 0; i < ls.length - 1; i++) edges.push((ls[i].b + ls[i + 1].t) / 2);
+    edges.push(Math.min(100, ls[ls.length - 1].b + GAP));
+    return edges;
+  }, [layout]);
+  const snapY = (v: number) => (lineEdges.length === 0 ? v : lineEdges.reduce((best, e) => (Math.abs(e - v) < Math.abs(best - v) ? e : best), lineEdges[0]));
+  const columnX = () => {
+    const PAD = 1.2; // % of page width outside the text column
+    return layout ? { x: layout.l - PAD, w: layout.r - layout.l + PAD * 2 } : { x: 6, w: 88 };
+  };
+
+  // Auto chunks split the page's lines into contiguous full-width bands, in chunk order.
   const autoChunks = useMemo(
     () => chunksOnPage.filter(c => !c.bboxCustom).sort((a, b) => a.index - b.index),
     [chunksOnPage],
   );
-  const customChunks = chunksOnPage.filter(c => c.bboxCustom);
-  const segments = useMemo(() => segmentPage(text, autoChunks.length), [text, autoChunks.length]);
-  const segmentRefs = useRef<Record<string, HTMLSpanElement | null>>({});
-
-  // Union of a text range's line boxes, as % of the page - used for the resize handles and the
-  // starting box when a person resizes an auto chunk.
-  useLayoutEffect(() => {
-    const pageRect = pageBoxRef.current?.getBoundingClientRect();
-    if (!pageRect || pageRect.width === 0) return;
-    const next: Record<string, ChunkBBox> = {};
-    const nextOutlines: Record<string, string> = {};
-    const px = (v: number, size: number) => (v / size) * 100;
-    for (const c of autoChunks) {
-      const el = segmentRefs.current[c.id];
-      if (!el) continue;
-      const rects = Array.from(el.getClientRects()).filter(r => r.width > 1);
-      if (rects.length === 0) continue;
-
-      // One frame per chunk that hugs its lines: merge the span's line fragments, then trace a
-      // stepped outline down the right edges and back up the left edges. Each line's bottom is
-      // pulled down to the next line's top so the frame reads as one shape, not one box per line.
-      const lines: { l: number; r: number; t: number; b: number }[] = [];
-      for (const r of [...rects].sort((a, b) => a.top - b.top)) {
-        const last = lines[lines.length - 1];
-        if (last && Math.abs(last.t - r.top) < 4) { last.l = Math.min(last.l, r.left); last.r = Math.max(last.r, r.right); last.b = Math.max(last.b, r.bottom); }
-        else lines.push({ l: r.left, r: r.right, t: r.top, b: r.bottom });
-      }
-      const PAD_X = 3, PAD_Y = 3;
-      lines.forEach((ln, i) => { if (i < lines.length - 1) ln.b = lines[i + 1].t; });
-      lines[0].t -= PAD_Y;
-      lines[lines.length - 1].b += PAD_Y;
-      const pts: [number, number][] = [];
-      for (const ln of lines) { pts.push([ln.r + PAD_X, ln.t], [ln.r + PAD_X, ln.b]); }
-      for (const ln of [...lines].reverse()) { pts.push([ln.l - PAD_X, ln.b], [ln.l - PAD_X, ln.t]); }
-      nextOutlines[c.id] = pts
-        .map(([x, y]) => `${px(x - pageRect.left, pageRect.width).toFixed(2)},${px(y - pageRect.top, pageRect.height).toFixed(2)}`)
-        .join(" ");
-
-      const left = Math.min(...rects.map(r => r.left)), right = Math.max(...rects.map(r => r.right));
-      const top = Math.min(...rects.map(r => r.top)), bottom = Math.max(...rects.map(r => r.bottom));
-      next[c.id] = {
-        page,
-        x: ((left - pageRect.left) / pageRect.width) * 100,
-        y: ((top - pageRect.top) / pageRect.height) * 100,
-        w: ((right - left) / pageRect.width) * 100,
-        h: ((bottom - top) / pageRect.height) * 100,
-      };
+  const autoBoxes = useMemo(() => {
+    const out: Record<string, ChunkBBox> = {};
+    const n = autoChunks.length, lineCount = lineEdges.length - 1;
+    if (n === 0 || lineCount <= 0) return out;
+    const { x, w } = columnX();
+    // A cut is "lines before it". Cuts move by up to one line onto a paragraph break, so a chunk
+    // ends where a paragraph ends instead of carrying one stray line across the blank gap.
+    const ls = layout?.lines ?? [];
+    const gaps = ls.slice(0, -1).map((ln, i) => ls[i + 1].t - ln.b);
+    const typical = [...gaps].sort((a, b) => a - b)[Math.floor(gaps.length / 2)] ?? 0;
+    const isParaBreak = (cut: number) => cut > 0 && cut < ls.length && gaps[cut - 1] > typical * 2 + 0.5;
+    const cuts: number[] = [];
+    for (let k = 1; k < n; k++) {
+      const ideal = Math.floor((k * lineCount) / n);
+      const prev = cuts[cuts.length - 1] ?? 0;
+      let cut = [ideal, ideal + 1, ideal - 1].find(c => c > prev && c < lineCount && isParaBreak(c)) ?? ideal;
+      cut = Math.min(Math.max(cut, prev + 1), lineCount);
+      cuts.push(cut);
     }
-    setMeasured(next);
-    setOutlines(nextOutlines);
-  }, [autoChunks, segments, page, zoom]);
+    const bounds = [0, ...cuts, lineCount];
+    autoChunks.forEach((c, k) => {
+      const from = Math.min(bounds[k], lineCount - 1);
+      const to = Math.max(from + 1, Math.min(bounds[k + 1], lineCount));
+      out[c.id] = { page, x, y: lineEdges[from], w, h: lineEdges[to] - lineEdges[from] };
+    });
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoChunks, lineEdges, layout, page]);
 
   const boxOf = (c: PageChunkBox): ChunkBBox =>
-    pendingResize?.id === c.id ? pendingResize.bbox : c.bboxCustom ? c.bbox : measured[c.id] ?? c.bbox;
+    pendingResize?.id === c.id ? pendingResize.bbox : c.bboxCustom ? c.bbox : autoBoxes[c.id] ?? c.bbox;
   const isDimmed = (id: string) => !!matchIds && !matchIds.has(id);
 
-  // Any interaction that changes page/selection invalidates an uncommitted resize.
-  useEffect(() => { setPendingResize(null); }, [page]);
-  useEffect(() => {
-    if (!contextMenu) return;
-    const close = () => { setContextMenu(null); };
-    window.addEventListener("click", close);
-    window.addEventListener("scroll", close, true);
-    return () => { window.removeEventListener("click", close); window.removeEventListener("scroll", close, true); };
-  }, [contextMenu]);
+  const pctFromEvent = (e: { clientX: number; clientY: number }) => {
+    const rect = pageBoxRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    return { x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 100 };
+  };
+
+  /** The chunk under a point: the selected one first, then the smallest frame (a hand-drawn
+   * frame inside an auto band wins over the band). */
+  const chunkAt = (pt: { x: number; y: number }) => {
+    const hits = chunksOnPage.filter(c => {
+      const b = boxOf(c);
+      return pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h;
+    });
+    if (hits.length === 0) return null;
+    return hits.find(c => c.id === selectedChunkId)
+      ?? [...hits].sort((a, b) => boxOf(a).w * boxOf(a).h - boxOf(b).w * boxOf(b).h)[0];
+  };
 
   const handleMouseUp = () => {
     if (!onSelectText || drawMode) return;
     const sel = window.getSelection();
     const selectedText = sel?.toString().trim();
     if (!sel || !selectedText || sel.rangeCount === 0) { setSelectionBtn(null); return; }
-    const range = sel.getRangeAt(0);
-    const rect = range.getBoundingClientRect();
+    const rect = sel.getRangeAt(0).getBoundingClientRect();
     const containerRect = wrapRef.current?.getBoundingClientRect();
     const pageRect = pageBoxRef.current?.getBoundingClientRect();
     if (!containerRect || !pageRect) return;
-    const bbox: ChunkBBox = {
-      page,
-      x: clamp(((rect.left - pageRect.left) / pageRect.width) * 100, 0, 100),
-      y: clamp(((rect.top - pageRect.top) / pageRect.height) * 100, 0, 100),
-      w: clamp((rect.width / pageRect.width) * 100, 5, 100),
-      h: clamp((rect.height / pageRect.height) * 100, 3, 100),
-    };
-    setSelectionBtn({ x: rect.left - containerRect.left + rect.width / 2, y: rect.top - containerRect.top, text: selectedText, bbox });
-  };
-
-  const pctFromEvent = (e: { clientX: number; clientY: number }) => {
-    const rect = pageBoxRef.current?.getBoundingClientRect();
-    if (!rect) return { x: 0, y: 0 };
-    return { x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 100 };
+    // A chunk made from selected text covers the whole lines that text sits on.
+    const top = snapY(((rect.top - pageRect.top) / pageRect.height) * 100);
+    let bottom = snapY(((rect.bottom - pageRect.top) / pageRect.height) * 100);
+    if (bottom <= top) bottom = lineEdges.find(e => e > top) ?? top + 3;
+    const { x, w } = columnX();
+    setSelectionBtn({
+      x: rect.left - containerRect.left + rect.width / 2, y: rect.top - containerRect.top, text: selectedText,
+      bbox: { page, x, y: top, w, h: bottom - top },
+    });
   };
 
   const startResize = (e: React.MouseEvent, chunk: PageChunkBox, handle: Handle) => {
@@ -223,18 +216,14 @@ export default function DocumentPreviewPane({
     const onMove = (ev: MouseEvent) => {
       const dxPct = ((ev.clientX - start.x) / rect.width) * 100;
       const dyPct = ((ev.clientY - start.y) / rect.height) * 100;
-      let { x, y, w, h } = startBBox;
-      if (handle.includes("e")) w = clamp(startBBox.w + dxPct, 5, 100 - startBBox.x);
-      if (handle.includes("s")) h = clamp(startBBox.h + dyPct, 5, 100 - startBBox.y);
-      if (handle.includes("w")) {
-        const newX = clamp(startBBox.x + dxPct, 0, startBBox.x + startBBox.w - 5);
-        w = startBBox.w + (startBBox.x - newX); x = newX;
-      }
-      if (handle.includes("n")) {
-        const newY = clamp(startBBox.y + dyPct, 0, startBBox.y + startBBox.h - 5);
-        h = startBBox.h + (startBBox.y - newY); y = newY;
-      }
-      setPendingResize({ id: chunk.id, bbox: { page: startBBox.page, x, y, w, h } });
+      let top = startBBox.y, bottom = startBBox.y + startBBox.h;
+      let left = startBBox.x, right = startBBox.x + startBBox.w;
+      if (handle.includes("n")) top = snapY(clamp(startBBox.y + dyPct, 0, bottom - 2));
+      if (handle.includes("s")) bottom = snapY(clamp(bottom + dyPct, top + 2, 100));
+      if (handle.includes("w")) left = clamp(startBBox.x + dxPct, 0, right - 5);
+      if (handle.includes("e")) right = clamp(right + dxPct, left + 5, 100);
+      if (bottom <= top) bottom = lineEdges.find(v => v > top) ?? top + 3;
+      setPendingResize({ id: chunk.id, bbox: { page: startBBox.page, x: left, y: top, w: right - left, h: bottom - top } });
     };
     const onUp = () => {
       window.removeEventListener("mousemove", onMove);
@@ -248,22 +237,20 @@ export default function DocumentPreviewPane({
     if (!drawMode) return;
     e.preventDefault();
     const start = pctFromEvent(e);
-    setMarquee({ page, x: start.x, y: start.y, w: 0, h: 0 });
-
-    const onMove = (ev: MouseEvent) => {
-      const cur = pctFromEvent(ev);
-      setMarquee({
-        page,
-        x: Math.min(start.x, cur.x), y: Math.min(start.y, cur.y),
-        w: Math.abs(cur.x - start.x), h: Math.abs(cur.y - start.y),
-      });
+    const toBox = (cur: { x: number; y: number }): ChunkBBox => {
+      const top = snapY(Math.min(start.y, cur.y));
+      let bottom = snapY(Math.max(start.y, cur.y));
+      if (bottom <= top) bottom = lineEdges.find(v => v > top) ?? top + 3;
+      return { page, x: Math.min(start.x, cur.x), y: top, w: Math.abs(cur.x - start.x), h: bottom - top };
     };
+    setMarquee(toBox(start));
+    const onMove = (ev: MouseEvent) => setMarquee(toBox(pctFromEvent(ev)));
     const onUp = () => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
       setDrawMode(false);
       setMarquee(current => {
-        if (current && current.w > 2 && current.h > 2) onCreateChunkFromBox?.(current);
+        if (current && current.w > 3 && current.h > 1) onCreateChunkFromBox?.(current);
         return null;
       });
     };
@@ -271,7 +258,7 @@ export default function DocumentPreviewPane({
     window.addEventListener("mouseup", onUp);
   };
 
-  const inertTool = (label: string) => { toast.info(`${label}: chưa hỗ trợ trong bản demo này.`); setContextMenu(null); };
+  const selected = chunksOnPage.find(c => c.id === selectedChunkId);
 
   return (
     <div ref={wrapRef} className="relative flex flex-col h-full bg-surface-muted/40">
@@ -295,16 +282,14 @@ export default function DocumentPreviewPane({
           <>
             <div className="w-px h-5 bg-border mx-1 shrink-0" />
             <button
-              onClick={e => {
-                const r = e.currentTarget.getBoundingClientRect();
-                setDrawMode(false);
-                setContextMenu({ x: r.left, y: r.bottom + 6 });
-              }}
-              title="Công cụ chú thích: Di chuyển, bình luận, vẽ vùng chọn, vẽ tự do, chèn văn bản"
-              aria-label="Công cụ chú thích"
-              className="h-8 px-3 shrink-0 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-medium transition-base flex items-center gap-1.5 whitespace-nowrap"
+              onClick={() => { setDrawMode(d => !d); setSelectionBtn(null); }}
+              aria-pressed={drawMode}
+              title="Kéo trên trang để vẽ vùng chọn, tạo đoạn mới"
+              className={`h-8 px-3 shrink-0 rounded-lg border text-xs font-medium transition-base flex items-center gap-1.5 whitespace-nowrap ${
+                drawMode ? "border-primary bg-primary-soft text-primary" : "border-border bg-surface hover:bg-surface-muted"
+              }`}
             >
-              <Wrench size={12} className="shrink-0" /> <span className="whitespace-nowrap">Công cụ</span>
+              <Square size={12} className="shrink-0" /> <span className="whitespace-nowrap">Vẽ vùng</span>
             </button>
             <div className="w-px h-5 bg-border mx-1 shrink-0" />
             <button
@@ -320,91 +305,47 @@ export default function DocumentPreviewPane({
         )}
       </div>
 
+      {drawMode && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 rounded-md bg-foreground/90 text-background text-xs px-2.5 py-1 whitespace-nowrap">
+          Kéo trên trang để vẽ vùng chọn - Bấm "Vẽ vùng" lần nữa để hủy
+        </div>
+      )}
+
       <div className="relative flex-1 min-h-0 overflow-auto pt-20 pb-8 px-6 flex justify-center" onMouseUp={handleMouseUp}>
         <div
           ref={pageBoxRef}
-          onClick={() => { if (!drawMode) onSelectChunk(""); }}
-          onMouseDown={startMarquee}
-          onContextMenu={e => {
-            if (viewOnly) return;
-            e.preventDefault();
-            setDrawMode(false);
-            setContextMenu({ x: e.clientX, y: e.clientY });
+          onClick={e => {
+            if (drawMode) return;
+            if (window.getSelection()?.toString().trim()) return; // finishing a text selection, not a click
+            const hit = chunkAt(pctFromEvent(e));
+            onSelectChunk(hit ? hit.id : "");
           }}
+          onMouseMove={e => { if (!drawMode) setHoverId(chunkAt(pctFromEvent(e))?.id ?? null); }}
+          onMouseLeave={() => setHoverId(null)}
+          onMouseDown={startMarquee}
           className="relative bg-white shadow-elev rounded-sm h-full max-h-full aspect-[3/4] shrink-0 select-text"
-          style={{ transform: `scale(${zoom})`, transformOrigin: "top center", cursor: drawMode ? "crosshair" : "default" }}
+          style={{ transform: `scale(${zoom})`, transformOrigin: "top center", cursor: drawMode ? "crosshair" : hoverId ? "pointer" : "default" }}
         >
-          {/* Chunk frames, always visible. Drawn underneath the text so strokes never cover
-              letters; the text spans above stay the click targets. */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
-            {autoChunks.map(c => {
-              const pts = outlines[c.id];
-              if (!pts) return null;
-              const isSelected = c.id === selectedChunkId;
-              const isHover = c.id === hoverId;
-              const dimmed = isDimmed(c.id);
-              const color = "var(--primary)";
-              return (
-                <polygon
-                  key={c.id}
-                  points={pts}
-                  vectorEffect="non-scaling-stroke"
-                  strokeLinejoin="round"
-                  style={{
-                    fill: dimmed ? "transparent" : `hsl(${isSelected ? "var(--primary)" : color} / ${isSelected ? 0.16 : isHover ? 0.14 : 0.06})`,
-                    stroke: dimmed ? "hsl(var(--border))" : `hsl(${isSelected ? "var(--primary)" : color} / ${isSelected || isHover ? 1 : 0.75})`,
-                    strokeWidth: isSelected ? 2.5 : isHover ? 2 : 1.5,
-                    transition: "fill 150ms, stroke 150ms",
-                  }}
-                />
-              );
-            })}
-          </svg>
-
-          <div className="relative p-8 text-sm leading-7 text-foreground whitespace-pre-line h-full overflow-hidden">
-            {autoChunks.length === 0 ? text : autoChunks.map((c, i) => {
-              const isSelected = c.id === selectedChunkId;
-              const dimmed = isDimmed(c.id);
-              return (
-                <span
-                  key={c.id}
-                  ref={el => { segmentRefs.current[c.id] = el; }}
-                  onClick={e => { e.stopPropagation(); if (!drawMode) onSelectChunk(c.id); }}
-                  onMouseEnter={() => setHoverId(c.id)}
-                  onMouseLeave={() => setHoverId(h => (h === c.id ? null : h))}
-                  className="relative cursor-pointer"
-                >
-                  <span
-                    aria-label={`Đoạn ${c.index}`}
-                    className={`inline-flex items-center justify-center align-middle mr-1 h-5 min-w-5 px-1 rounded-sm text-xs font-semibold leading-none tabular-nums select-none ${
-                      isSelected ? "bg-primary text-primary-foreground" : dimmed ? "bg-surface-muted text-muted-foreground/70" : "bg-primary/15 text-primary"
-                    }`}
-                  >
-                    {c.index}{c.manuallyEdited ? "•" : ""}
-                  </span>
-                  {segments[i]}
-                </span>
-              );
-            })}
-          </div>
-
-          {customChunks.map(c => {
+          {/* Frames sit under the text so strokes never cover letters and text stays selectable. */}
+          {chunksOnPage.map(c => {
             const isSelected = c.id === selectedChunkId;
+            const isHover = c.id === hoverId;
+            const dimmed = isDimmed(c.id);
             const box = boxOf(c);
             return (
               <div
                 key={c.id}
-                onClick={e => { e.stopPropagation(); onSelectChunk(c.id); }}
-                className={`absolute rounded-sm transition-base cursor-pointer ${
-                  isSelected
-                    ? "border-2 border-primary bg-primary/10 z-10"
-                    : `border-2 border-primary/80 bg-primary/[0.06] hover:border-primary hover:bg-primary/10 ${isDimmed(c.id) ? "opacity-40" : ""}`
+                className={`absolute rounded-sm pointer-events-none transition-colors ${
+                  isSelected ? "border-2 border-primary bg-primary/10 z-10"
+                  : dimmed ? "border border-border bg-transparent"
+                  : isHover ? "border-2 border-primary bg-primary/10"
+                  : "border-2 border-primary/60 bg-primary/5"
                 }`}
                 style={{ left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%`, height: `${box.h}%` }}
               >
                 <span
-                  className={`absolute -top-2.5 left-1 h-5 min-w-5 px-1 inline-flex items-center justify-center rounded-sm text-xs font-semibold leading-none tabular-nums ${
-                    isSelected ? "bg-primary text-primary-foreground" : "bg-white border border-primary/40 text-primary"
+                  className={`absolute top-0 right-full mr-1 h-5 min-w-5 px-1 inline-flex items-center justify-center rounded-sm text-xs font-semibold leading-none tabular-nums ${
+                    isSelected ? "bg-primary text-primary-foreground" : dimmed ? "bg-surface-muted text-muted-foreground" : "bg-primary/15 text-primary"
                   }`}
                 >
                   {c.index}{c.manuallyEdited ? "•" : ""}
@@ -413,29 +354,25 @@ export default function DocumentPreviewPane({
             );
           })}
 
-          {(() => {
-            const sel = chunksOnPage.find(c => c.id === selectedChunkId);
-            if (!sel || viewOnly || !onResizeChunk) return null;
-            const box = boxOf(sel);
-            return (
-              <>
-                {HANDLES.map(h => (
-                  <div
-                    key={h.key}
-                    onMouseDown={e => startResize(e, sel, h.key)}
-                    className="absolute z-20 w-[26px] h-[26px] -translate-x-1/2 -translate-y-1/2 flex items-center justify-center"
-                    style={{ ...h.style(box), cursor: h.cursor }}
-                  >
-                    <span className="w-2.5 h-2.5 rounded-full bg-primary border-2 border-white shadow-soft" />
-                  </div>
-                ))}
-              </>
-            );
-          })()}
+          <div ref={textRef} className="relative p-8 pl-10 text-sm leading-7 text-foreground whitespace-pre-line h-full overflow-hidden">
+            {text}
+          </div>
+
+          {selected && !viewOnly && onResizeChunk && HANDLES.map(h => (
+            <div
+              key={h.key}
+              onMouseDown={e => startResize(e, selected, h.key)}
+              onClick={e => e.stopPropagation()}
+              className="absolute z-20 w-6 h-6 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center"
+              style={{ ...h.style(boxOf(selected)), cursor: h.cursor }}
+            >
+              <span className="w-2.5 h-2.5 rounded-full bg-primary border-2 border-white shadow-soft" />
+            </div>
+          ))}
 
           {marquee && marquee.w > 0 && (
             <div
-              className="absolute border-2 border-dashed border-primary bg-primary/10 pointer-events-none z-20"
+              className="absolute border-2 border-dashed border-primary bg-primary/10 pointer-events-none z-20 rounded-sm"
               style={{ left: `${marquee.x}%`, top: `${marquee.y}%`, width: `${marquee.w}%`, height: `${marquee.h}%` }}
             />
           )}
@@ -443,7 +380,7 @@ export default function DocumentPreviewPane({
           {pendingResize && pendingResize.id === selectedChunkId && (
             <div
               className="absolute z-30 flex items-center gap-1 bg-white border border-border rounded-lg shadow-elev p-1"
-              style={{ left: `${Math.min(96, pendingResize.bbox.x + pendingResize.bbox.w)}%`, top: `${Math.max(0, pendingResize.bbox.y - 8)}%` }}
+              style={{ left: `${Math.min(92, pendingResize.bbox.x + pendingResize.bbox.w)}%`, top: `${Math.max(0, pendingResize.bbox.y - 6)}%` }}
               onClick={e => e.stopPropagation()}
             >
               <button
@@ -474,30 +411,6 @@ export default function DocumentPreviewPane({
           >
             <Plus size={12} /> Thêm đoạn
           </button>
-        )}
-
-        {contextMenu && (
-          <div
-            className="fixed z-40 flex items-center gap-0.5 bg-white rounded-xl shadow-elev border border-border p-1"
-            style={{ left: contextMenu.x, top: contextMenu.y }}
-            onClick={e => e.stopPropagation()}
-          >
-            <button onClick={() => { setDrawMode(false); setContextMenu(null); }} aria-label="Pan" title="Di chuyển (Pan)" className="w-8 h-8 flex items-center justify-center rounded-lg text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <MousePointer2 size={15} />
-            </button>
-            <button onClick={() => inertTool("Bình luận")} aria-label="Bình luận" title="Bình luận" className="w-8 h-8 flex items-center justify-center rounded-lg text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <MessageSquare size={15} />
-            </button>
-            <button onClick={() => { setDrawMode(true); setContextMenu(null); }} aria-label="Vẽ vùng chọn" title="Vẽ vùng chọn (tạo đoạn mới)" className="w-8 h-8 flex items-center justify-center rounded-lg text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <Square size={15} />
-            </button>
-            <button onClick={() => inertTool("Vẽ tự do")} aria-label="Vẽ tự do" title="Vẽ tự do" className="w-8 h-8 flex items-center justify-center rounded-lg text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <PenLine size={15} />
-            </button>
-            <button onClick={() => inertTool("Chèn văn bản")} aria-label="Chèn văn bản" title="Chèn văn bản" className="w-8 h-8 flex items-center justify-center rounded-lg text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <Type size={15} />
-            </button>
-          </div>
         )}
       </div>
     </div>
