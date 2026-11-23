@@ -25,6 +25,10 @@ export interface KnowledgeChunk {
   /** Schematic position on its page (see DocumentPreviewPane's ChunkBBox doc) — this prototype
    * has no real per-chunk layout coordinates, so this is deterministically assigned. */
   bbox: ChunkBBox;
+  /** True once a person has drawn or resized this chunk's box by hand. Auto-generated chunks
+   * leave it unset: the preview then highlights their text range directly on the page, so the
+   * highlight always follows the real text lines instead of a fixed grid position. */
+  bboxCustom?: boolean;
 }
 
 /** Deterministic bounding box for a chunk — this prototype has no real per-chunk layout
@@ -203,7 +207,7 @@ export const knowledgeChunkStore = {
   updateBBox(id: string, bbox: ChunkBBox) {
     const cur = store.get(id);
     if (!cur) return;
-    store.set(id, { ...cur, bbox, manuallyEdited: true, updatedAt: Date.now() });
+    store.set(id, { ...cur, bbox, bboxCustom: true, manuallyEdited: true, updatedAt: Date.now() });
     persist();
   },
   add(kbId: string, sourceType: ChunkSourceType, sourceId: string, data: { title: string; content: string; bbox?: ChunkBBox }): KnowledgeChunk {
@@ -214,6 +218,7 @@ export const knowledgeChunkStore = {
       title: data.title, content: data.content, contentType: "text",
       manuallyEdited: true, status: "processing", updatedAt: Date.now(),
       bbox: data.bbox ?? defaultBBoxFor(existing.length + 1),
+      bboxCustom: data.bbox ? true : undefined,
     };
     store.set(id, rec);
     persist();

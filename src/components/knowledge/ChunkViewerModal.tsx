@@ -147,10 +147,12 @@ export default function ChunkViewerModal({
     return () => { document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); };
   }, []);
 
-  const selectChunk = (c: KnowledgeChunk) => {
+  const selectChunk = (c: KnowledgeChunk, scrollList = false) => {
     setSelectedChunkId(c.id);
     setPage(c.bbox.page);
+    if (scrollList) requestAnimationFrame(() => chunkRefs.current[c.id]?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
   };
+  const matchIds = useMemo(() => (q ? new Set(filteredChunks.map(c => c.id)) : undefined), [q, filteredChunks]);
   const gotoPage = (p: number) => { setPage(p); setSelectedChunkId(null); };
 
   const onResizeChunk = (id: string, bbox: ChunkBBox) => {
@@ -227,10 +229,8 @@ export default function ChunkViewerModal({
     setReprocessConfirm(false);
   };
 
-  const addChunkFromSelection = (text: string) => {
+  const addChunkFromSelection = (text: string, bbox: ChunkBBox) => {
     const firstLine = text.split("\n")[0].slice(0, 60);
-    const onThisPage = chunks.filter(c => c.bbox.page === page).length;
-    const bbox: ChunkBBox = { page, x: 8, y: Math.max(2, 6 + (onThisPage % 4) * 21), w: 76, h: 17 };
     const chunk = knowledgeChunkStore.add(kbId, sourceType, sourceId, { title: firstLine, content: text, bbox });
     refresh();
     setTimeout(() => { knowledgeChunkStore.updateStatus(chunk.id, "done"); refresh(); }, 900);
@@ -276,12 +276,13 @@ export default function ChunkViewerModal({
           <DocumentPreviewPane
             page={page}
             onPageChange={gotoPage}
-            chunksOnPage={filteredChunks.filter(c => c.bbox.page === page)}
+            chunksOnPage={chunks.filter(c => c.bbox.page === page)}
+            matchIds={matchIds}
             selectedChunkId={selectedChunkId}
             onSelectChunk={id => {
               if (!id) { setSelectedChunkId(null); return; }
               const c = chunks.find(x => x.id === id);
-              if (c) selectChunk(c);
+              if (c) selectChunk(c, true);
             }}
             onResizeChunk={!viewOnly ? onResizeChunk : undefined}
             onCreateChunkFromBox={!viewOnly ? onCreateChunkFromBox : undefined}
@@ -355,39 +356,41 @@ export default function ChunkViewerModal({
                 <p className="text-sm text-muted-foreground">Không có đoạn phù hợp với tìm kiếm.</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {filteredChunks.map(c => (
                   <div
                     key={c.id}
                     ref={el => { chunkRefs.current[c.id] = el; }}
                     onClick={() => editingId !== c.id && selectChunk(c)}
-                    className={`relative rounded-xl border bg-white pt-4 px-4 pb-4 transition-base ${
-                      editingId === c.id ? "border-primary/40" : selectedChunkId === c.id ? "border-primary ring-1 ring-primary/30 cursor-pointer" : "border-border hover:border-primary/30 cursor-pointer"
+                    className={`relative rounded-xl border bg-white transition-base ${
+                      editingId === c.id ? "border-primary/40 ring-1 ring-primary/20" : selectedChunkId === c.id ? "border-primary ring-1 ring-primary/30 shadow-soft cursor-pointer" : "border-border hover:border-primary/40 cursor-pointer"
                     }`}
                   >
-                    <div className="absolute -top-3 left-3 flex items-center gap-1 bg-white border border-border rounded-md pl-2 pr-1 py-1 shadow-soft">
-                      <span className="text-xs font-semibold whitespace-nowrap">Đoạn {c.index}</span>
+                    <div className={`flex items-center gap-2 h-10 pl-3 pr-1.5 border-b rounded-t-xl ${selectedChunkId === c.id ? "bg-primary-soft/60 border-primary/20" : "bg-surface-muted/50 border-border"}`}>
+                      <span className={`inline-flex items-center h-6 px-2 rounded-md text-xs font-semibold tabular-nums ${selectedChunkId === c.id ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"}`}>
+                        Đoạn {c.index}
+                      </span>
+                      <span className="text-xs text-muted-foreground tabular-nums">Trang {c.bbox.page + 1}</span>
                       {c.manuallyEdited && (
                         <button
                           onClick={e => { e.stopPropagation(); setRevealUpdateFor(prev => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n; }); }}
-                          className="chip chip-warning !text-xs !px-1.5 !py-0 ml-1"
+                          className="chip chip-warning !text-xs !px-1.5 !py-0"
                         >
                           Đã chỉnh sửa thủ công
                         </button>
                       )}
+                      {c.status !== "done" && <KnowledgeStatusPill status={c.status} />}
                       {!viewOnly && editingId !== c.id && (
-                        <div className="flex items-center ml-0.5">
-                          <button onClick={e => { e.stopPropagation(); startEdit(c); }} aria-label="Sửa" className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"><Pencil size={11} /></button>
-                          <button onClick={e => { e.stopPropagation(); setDeleteTarget(c); }} aria-label="Xóa" className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:bg-[hsl(var(--destructive-soft))] hover:text-destructive transition-base"><Trash2 size={11} /></button>
+                        <div className="flex items-center ml-auto">
+                          <button onClick={e => { e.stopPropagation(); startEdit(c); }} aria-label="Sửa đoạn" title="Sửa" className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><Pencil size={14} /></button>
+                          <button onClick={e => { e.stopPropagation(); setDeleteTarget(c); }} aria-label="Xóa đoạn" title="Xóa" className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-[hsl(var(--destructive-soft))] hover:text-destructive transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><Trash2 size={14} /></button>
                         </div>
                       )}
                     </div>
-                    {c.status !== "done" && (
-                      <div className="absolute -top-3 right-3"><KnowledgeStatusPill status={c.status} /></div>
-                    )}
+                    <div className="p-4">
 
                     {editingId === c.id ? (
-                      <div className="space-y-2.5 mt-1" onClick={e => e.stopPropagation()}>
+                      <div className="space-y-2.5" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-end">
                           <div className="flex items-center gap-1 bg-surface-muted rounded-lg p-0.5">
                             {(["text", "html"] as ChunkContentType[]).map(t => (
@@ -443,15 +446,9 @@ export default function ChunkViewerModal({
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-2.5 mt-1">
-                        <div>
-                          <label className="text-xs font-medium text-muted-foreground mb-0.5 flex items-center gap-1">Tiêu đề <span className="text-destructive">*</span></label>
-                          <p className="text-sm font-medium">{c.title}</p>
-                        </div>
-                        <div>
-                          <label className="text-xs font-medium text-muted-foreground mb-0.5 flex items-center gap-1">Nội dung <span className="text-destructive">*</span></label>
-                          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{c.content}</p>
-                        </div>
+                      <div className="space-y-1.5">
+                        <p className="text-sm font-semibold text-foreground">{c.title}</p>
+                        <p className="text-sm text-foreground/80 leading-6 whitespace-pre-wrap">{c.content}</p>
                         {c.manuallyEdited && revealUpdateFor.has(c.id) && !viewOnly && (
                           <button
                             onClick={e => { e.stopPropagation(); knowledgeChunkStore.acceptLatest(c.id, c.content); refresh(); }}
@@ -462,6 +459,7 @@ export default function ChunkViewerModal({
                         )}
                       </div>
                     )}
+                    </div>
                   </div>
                 ))}
               </div>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Plus, RefreshCw,
@@ -28,6 +28,35 @@ export interface PageChunkBox {
   title: string;
   bbox: ChunkBBox;
   manuallyEdited: boolean;
+  bboxCustom?: boolean;
+}
+
+/** Splits a page's text into `n` contiguous, non-overlapping ranges of roughly equal length,
+ * moving each cut to the nearest sentence/clause end (".", ",", ":", ";" or a paragraph break)
+ * so a chunk never starts or stops mid-phrase. Whitespace stays attached to the range it follows,
+ * so joining the ranges gives back the exact original text. */
+function segmentPage(text: string, n: number): string[] {
+  if (n <= 0) return [];
+  const tokens: string[] = text.match(/\S+\s*/g) ?? [];
+  if (n === 1 || tokens.length <= n) {
+    return n === 1 ? [text] : tokens.concat(Array(Math.max(0, n - tokens.length)).fill("") as string[]);
+  }
+  const isBreak = (i: number) => /[.,:;]\s*$/.test(tokens[i]) || /\n/.test(tokens[i]);
+  const cuts: number[] = [];
+  let prev = 0;
+  for (let k = 1; k < n; k++) {
+    const ideal = Math.round((k * tokens.length) / n);
+    let best = ideal;
+    for (let d = 0; d <= 8; d++) {
+      if (ideal - d - 1 > prev && isBreak(ideal - d - 1)) { best = ideal - d; break; }
+      if (ideal + d - 1 > prev && ideal + d < tokens.length && isBreak(ideal + d - 1)) { best = ideal + d; break; }
+    }
+    best = Math.min(Math.max(best, prev + 1), tokens.length - (n - k));
+    cuts.push(best);
+    prev = best;
+  }
+  const bounds = [0, ...cuts, tokens.length];
+  return bounds.slice(0, -1).map((start, i) => tokens.slice(start, bounds[i + 1]).join(""));
 }
 
 type Handle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
@@ -53,20 +82,26 @@ const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min)
  * prototype; renders representative page text at natural (non-shrunk) scale, sized to fill the
  * pane's height rather than floating as a small fixed-size card. */
 export default function DocumentPreviewPane({
-  page, onPageChange, chunksOnPage, selectedChunkId, onSelectChunk, onResizeChunk, onCreateChunkFromBox,
+  page, onPageChange, chunksOnPage, matchIds, selectedChunkId, onSelectChunk, onResizeChunk, onCreateChunkFromBox,
   onSelectText, onReprocess, onProcess, canReprocess, viewOnly,
 }: {
   page: number; onPageChange: (page: number) => void;
+  /** Every chunk on this page (not only search matches), so a chunk's text range stays put
+   * while the person types in the search box. */
   chunksOnPage: PageChunkBox[];
+  /** When set (an active search), chunks outside it are drawn without a highlight. */
+  matchIds?: Set<string>;
   selectedChunkId: string | null;
   onSelectChunk: (id: string) => void;
   onResizeChunk?: (id: string, bbox: ChunkBBox) => void;
   onCreateChunkFromBox?: (bbox: ChunkBBox) => void;
-  onSelectText?: (text: string) => void;
+  onSelectText?: (text: string, bbox: ChunkBBox) => void;
   onReprocess: () => void; onProcess: () => void; canReprocess: boolean; viewOnly: boolean;
 }) {
   const [zoom, setZoom] = useState(1);
-  const [selectionBtn, setSelectionBtn] = useState<{ x: number; y: number; text: string } | null>(null);
+  const [selectionBtn, setSelectionBtn] = useState<{ x: number; y: number; text: string; bbox: ChunkBBox } | null>(null);
+  const [hoverId, setHoverId] = useState<string | null>(null);
+  const [measured, setMeasured] = useState<Record<string, ChunkBBox>>({});
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [drawMode, setDrawMode] = useState(false);
   const [marquee, setMarquee] = useState<ChunkBBox | null>(null);
@@ -75,6 +110,44 @@ export default function DocumentPreviewPane({
   const pageBoxRef = useRef<HTMLDivElement>(null);
   const totalPages = MOCK_PAGES.length;
   const text = MOCK_PAGES[page];
+
+  // Auto-generated chunks are drawn as highlights on their own text range, so they always sit on
+  // the real lines. Only boxes a person drew or resized keep a free-floating rectangle.
+  const autoChunks = useMemo(
+    () => chunksOnPage.filter(c => !c.bboxCustom).sort((a, b) => a.index - b.index),
+    [chunksOnPage],
+  );
+  const customChunks = chunksOnPage.filter(c => c.bboxCustom);
+  const segments = useMemo(() => segmentPage(text, autoChunks.length), [text, autoChunks.length]);
+  const segmentRefs = useRef<Record<string, HTMLSpanElement | null>>({});
+
+  // Union of a text range's line boxes, as % of the page - used for the resize handles and the
+  // starting box when a person resizes an auto chunk.
+  useLayoutEffect(() => {
+    const pageRect = pageBoxRef.current?.getBoundingClientRect();
+    if (!pageRect || pageRect.width === 0) return;
+    const next: Record<string, ChunkBBox> = {};
+    for (const c of autoChunks) {
+      const el = segmentRefs.current[c.id];
+      if (!el) continue;
+      const rects = Array.from(el.getClientRects()).filter(r => r.width > 1);
+      if (rects.length === 0) continue;
+      const left = Math.min(...rects.map(r => r.left)), right = Math.max(...rects.map(r => r.right));
+      const top = Math.min(...rects.map(r => r.top)), bottom = Math.max(...rects.map(r => r.bottom));
+      next[c.id] = {
+        page,
+        x: ((left - pageRect.left) / pageRect.width) * 100,
+        y: ((top - pageRect.top) / pageRect.height) * 100,
+        w: ((right - left) / pageRect.width) * 100,
+        h: ((bottom - top) / pageRect.height) * 100,
+      };
+    }
+    setMeasured(next);
+  }, [autoChunks, segments, page, zoom]);
+
+  const boxOf = (c: PageChunkBox): ChunkBBox =>
+    pendingResize?.id === c.id ? pendingResize.bbox : c.bboxCustom ? c.bbox : measured[c.id] ?? c.bbox;
+  const isDimmed = (id: string) => !!matchIds && !matchIds.has(id);
 
   // Any interaction that changes page/selection invalidates an uncommitted resize.
   useEffect(() => { setPendingResize(null); }, [page]);
@@ -94,8 +167,16 @@ export default function DocumentPreviewPane({
     const range = sel.getRangeAt(0);
     const rect = range.getBoundingClientRect();
     const containerRect = wrapRef.current?.getBoundingClientRect();
-    if (!containerRect) return;
-    setSelectionBtn({ x: rect.left - containerRect.left + rect.width / 2, y: rect.top - containerRect.top, text: selectedText });
+    const pageRect = pageBoxRef.current?.getBoundingClientRect();
+    if (!containerRect || !pageRect) return;
+    const bbox: ChunkBBox = {
+      page,
+      x: clamp(((rect.left - pageRect.left) / pageRect.width) * 100, 0, 100),
+      y: clamp(((rect.top - pageRect.top) / pageRect.height) * 100, 0, 100),
+      w: clamp((rect.width / pageRect.width) * 100, 5, 100),
+      h: clamp((rect.height / pageRect.height) * 100, 3, 100),
+    };
+    setSelectionBtn({ x: rect.left - containerRect.left + rect.width / 2, y: rect.top - containerRect.top, text: selectedText, bbox });
   };
 
   const pctFromEvent = (e: { clientX: number; clientY: number }) => {
@@ -111,7 +192,7 @@ export default function DocumentPreviewPane({
     const rect = pageBoxRef.current?.getBoundingClientRect();
     if (!rect) return;
     const start = { x: e.clientX, y: e.clientY };
-    const startBBox = pendingResize?.id === chunk.id ? pendingResize.bbox : chunk.bbox;
+    const startBBox = boxOf(chunk);
     onSelectChunk(chunk.id);
 
     const onMove = (ev: MouseEvent) => {
@@ -228,48 +309,88 @@ export default function DocumentPreviewPane({
           className="relative bg-white shadow-elev rounded-sm h-full max-h-full aspect-[3/4] shrink-0 select-text"
           style={{ transform: `scale(${zoom})`, transformOrigin: "top center", cursor: drawMode ? "crosshair" : "default" }}
         >
-          <div className="p-8 text-sm leading-relaxed text-foreground/90 whitespace-pre-line h-full overflow-hidden">
-            {text}
-          </div>
-
-          {chunksOnPage.map(c => {
-            const isSelected = c.id === selectedChunkId;
-            const box = pendingResize?.id === c.id ? pendingResize.bbox : c.bbox;
-            return (
-              <div key={c.id}>
-                <div
-                  onClick={e => { e.stopPropagation(); onSelectChunk(c.id); }}
-                  className={`absolute rounded-[3px] transition-base cursor-pointer ${
-                    isSelected
-                      ? "border-2 border-primary bg-primary/10 z-10"
-                      : "border border-dashed border-primary/40 bg-primary/[0.03] hover:border-primary/70 hover:bg-primary/[0.06]"
+          <div className="p-8 text-sm leading-7 text-foreground whitespace-pre-line h-full overflow-hidden">
+            {autoChunks.length === 0 ? text : autoChunks.map((c, i) => {
+              const isSelected = c.id === selectedChunkId;
+              const isHover = c.id === hoverId;
+              const dimmed = isDimmed(c.id);
+              // Two alternating tints so neighbouring chunks stay distinguishable on the same line.
+              const tint = i % 2 === 0 ? "bg-primary/[0.07]" : "bg-[hsl(var(--info)/0.16)]";
+              return (
+                <span
+                  key={c.id}
+                  ref={el => { segmentRefs.current[c.id] = el; }}
+                  onClick={e => { e.stopPropagation(); if (!drawMode) onSelectChunk(c.id); }}
+                  onMouseEnter={() => setHoverId(c.id)}
+                  onMouseLeave={() => setHoverId(h => (h === c.id ? null : h))}
+                  className={`rounded-[3px] py-[3px] [box-decoration-break:clone] [-webkit-box-decoration-break:clone] cursor-pointer transition-colors ${
+                    dimmed ? "" : isSelected ? "bg-primary/20 shadow-[inset_0_-2px_0_hsl(var(--primary))]" : isHover ? "bg-primary/15" : tint
                   }`}
-                  style={{ left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%`, height: `${box.h}%` }}
                 >
-                  {/* Kept fully inside the box's own top-left corner (never floating above it) so a
-                      densely-packed page never has a label bleed into a neighboring row's text —
-                      the box's own background already gives it enough contrast to read clearly. */}
                   <span
-                    className={`absolute top-0.5 left-1 max-w-[calc(100%-8px)] truncate text-[9px] leading-none font-semibold px-1 py-0.5 rounded whitespace-nowrap ${
-                      isSelected ? "bg-primary text-primary-foreground" : "bg-white/95 border border-border text-muted-foreground"
+                    aria-label={`Đoạn ${c.index}`}
+                    className={`inline-flex items-center justify-center align-[1px] mr-1 h-4 min-w-4 px-1 rounded-[4px] text-[10px] font-semibold leading-none tabular-nums select-none ${
+                      isSelected ? "bg-primary text-primary-foreground" : dimmed ? "bg-surface-muted text-muted-foreground/70" : "bg-primary/15 text-primary"
                     }`}
                   >
-                    Đoạn {c.index}{c.manuallyEdited ? " •" : ""}
+                    {c.index}{c.manuallyEdited ? "•" : ""}
                   </span>
-                </div>
-                {isSelected && !viewOnly && onResizeChunk && HANDLES.map(h => (
+                  {segments[i]}
+                </span>
+              );
+            })}
+          </div>
+
+          {customChunks.map(c => {
+            const isSelected = c.id === selectedChunkId;
+            const box = boxOf(c);
+            return (
+              <div
+                key={c.id}
+                onClick={e => { e.stopPropagation(); onSelectChunk(c.id); }}
+                className={`absolute rounded-[3px] transition-base cursor-pointer ${
+                  isSelected
+                    ? "border-2 border-primary bg-primary/10 z-10"
+                    : `border-2 border-dashed border-primary/70 bg-primary/[0.06] hover:bg-primary/10 ${isDimmed(c.id) ? "opacity-40" : ""}`
+                }`}
+                style={{ left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%`, height: `${box.h}%` }}
+              >
+                <span
+                  className={`absolute -top-2.5 left-1 h-4 min-w-4 px-1 inline-flex items-center justify-center rounded-[4px] text-[10px] font-semibold leading-none tabular-nums ${
+                    isSelected ? "bg-primary text-primary-foreground" : "bg-white border border-primary/40 text-primary"
+                  }`}
+                >
+                  {c.index}{c.manuallyEdited ? "•" : ""}
+                </span>
+              </div>
+            );
+          })}
+
+          {(() => {
+            const sel = chunksOnPage.find(c => c.id === selectedChunkId);
+            if (!sel || viewOnly || !onResizeChunk) return null;
+            const box = boxOf(sel);
+            return (
+              <>
+                {!sel.bboxCustom && (
+                  <div
+                    className="absolute pointer-events-none rounded-[3px] border border-primary/60 z-10"
+                    style={{ left: `calc(${box.x}% - 4px)`, top: `calc(${box.y}% - 2px)`, width: `calc(${box.w}% + 8px)`, height: `calc(${box.h}% + 4px)` }}
+                  />
+                )}
+                {HANDLES.map(h => (
                   <div
                     key={h.key}
-                    onMouseDown={e => startResize(e, c, h.key)}
+                    onMouseDown={e => startResize(e, sel, h.key)}
                     className="absolute z-20 w-[26px] h-[26px] -translate-x-1/2 -translate-y-1/2 flex items-center justify-center"
                     style={{ ...h.style(box), cursor: h.cursor }}
                   >
                     <span className="w-2.5 h-2.5 rounded-full bg-primary border-2 border-white shadow-soft" />
                   </div>
                 ))}
-              </div>
+              </>
             );
-          })}
+          })()}
 
           {marquee && marquee.w > 0 && (
             <div
@@ -308,7 +429,7 @@ export default function DocumentPreviewPane({
           <button
             style={{ left: selectionBtn.x, top: Math.max(0, selectionBtn.y - 36) }}
             className="absolute -translate-x-1/2 flex items-center gap-1 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium shadow-elev z-10"
-            onClick={e => { e.stopPropagation(); onSelectText(selectionBtn.text); setSelectionBtn(null); window.getSelection()?.removeAllRanges(); }}
+            onClick={e => { e.stopPropagation(); onSelectText(selectionBtn.text, selectionBtn.bbox); setSelectionBtn(null); window.getSelection()?.removeAllRanges(); }}
           >
             <Plus size={12} /> Thêm đoạn
           </button>
