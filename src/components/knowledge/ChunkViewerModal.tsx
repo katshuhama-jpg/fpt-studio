@@ -6,7 +6,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { knowledgeChunkStore, type ChunkSourceType, type KnowledgeChunk, type ChunkContentType, type ChunkBBox } from "./knowledgeChunkStore";
+import { knowledgeChunkStore, previewPageCount, type ChunkSourceType, type KnowledgeChunk, type ChunkContentType, type ChunkBBox } from "./knowledgeChunkStore";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeUrlStore, type UrlSource } from "./knowledgeUrlStore";
 import { knowledgeStore } from "./knowledgeStore";
@@ -272,9 +272,23 @@ export default function ChunkViewerModal({
       )}
 
       <div ref={containerRef} className="flex-1 flex overflow-hidden">
-        <div className="border-r border-border overflow-hidden" style={{ width: `${splitPct}%` }}>
+        <div className="relative border-r border-border overflow-hidden" style={{ width: `${splitPct}%` }}>
+          {q && filteredChunks.length > 0 && !filteredChunks.some(c => c.bbox.page === page) && (() => {
+            const pages = [...new Set(filteredChunks.map(c => c.bbox.page))].sort((a, b) => a - b);
+            return (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-lg border border-border bg-white shadow-elev px-3 py-2 text-xs whitespace-nowrap" role="status">
+                <span className="text-muted-foreground">Trang này không có đoạn khớp. Có kết quả ở</span>
+                {pages.slice(0, 5).map(p => (
+                  <button key={p} onClick={() => gotoPage(p)} className="h-7 px-2 rounded-md border border-border hover:bg-surface-muted font-medium tabular-nums transition-base">
+                    Trang {p + 1}
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
           <DocumentPreviewPane
             page={page}
+            pageCount={Math.max(previewPageCount(chunks.length), ...chunks.map(c => c.bbox.page + 1))}
             onPageChange={gotoPage}
             chunksOnPage={chunks.filter(c => c.bbox.page === page)}
             matchIds={matchIds}
@@ -314,14 +328,32 @@ export default function ChunkViewerModal({
                 </TooltipContent>
               </Tooltip>
             </h2>
-            <div className="relative">
-              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                placeholder="Tìm trong đoạn..."
-                className="h-8 w-52 pl-7 pr-3 rounded-lg bg-surface-muted border border-border text-xs placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-              />
+            <div className="flex items-center gap-2">
+              {q && (
+                <span className="text-xs text-muted-foreground tabular-nums whitespace-nowrap" role="status">
+                  {filteredChunks.length} kết quả
+                </span>
+              )}
+              <div className="relative">
+                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Escape") setQuery(""); }}
+                  placeholder="Tìm trong đoạn..."
+                  aria-label="Tìm trong đoạn"
+                  className="h-8 w-52 pl-7 pr-8 rounded-lg bg-surface-muted border border-border text-xs placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                />
+                {query && (
+                  <button
+                    onClick={() => setQuery("")}
+                    aria-label="Xóa nội dung tìm kiếm"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

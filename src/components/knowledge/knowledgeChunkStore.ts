@@ -66,7 +66,7 @@ function defaultBBoxFor(index: number): ChunkBBox {
   };
 }
 
-const STORE_KEY = "knowledge_chunk_store_v1";
+const STORE_KEY = "knowledge_chunk_store_v3";
 const store = loadMap<string, KnowledgeChunk>(STORE_KEY);
 const persist = () => saveMap(STORE_KEY, store);
 const sourceKey = (sourceType: ChunkSourceType, sourceId: string) => `${sourceType}:${sourceId}`;
@@ -81,21 +81,75 @@ const MOCK_TITLES = [
   "Quy trình thực hiện", "Trách nhiệm các bên", "Mức phí và lệ phí", "Kênh tiếp nhận yêu cầu",
   "Hồ sơ cần chuẩn bị", "Thời hạn hiệu lực", "Ngoại lệ và trường hợp đặc biệt", "Liên hệ hỗ trợ",
 ];
-const MOCK_BODY = "Nội dung chi tiết được trích xuất tự động từ tài liệu gốc, mô tả các quy định và hướng dẫn liên quan đến mục này.";
 
-function generateMockChunks(count: number): { title: string; content: string }[] {
-  return Array.from({ length: count }, (_, i) => {
-    const base = MOCK_TITLES[i % MOCK_TITLES.length];
-    const round = Math.floor(i / MOCK_TITLES.length);
-    return { title: round === 0 ? base : `${base} (${round + 1})`, content: MOCK_BODY };
+/** Splits text into `n` contiguous ranges of roughly equal length, moving each cut to the nearest
+ * sentence/clause end (".", ",", ":", ";" or a paragraph break) so a chunk never stops mid-phrase.
+ * Joining the ranges gives back the exact original text. */
+export function splitIntoSegments(text: string, n: number): string[] {
+  if (n <= 1) return [text];
+  const tokens: string[] = text.match(/\S+\s*/g) ?? [];
+  if (tokens.length <= n) return tokens.concat(Array(n - tokens.length).fill("") as string[]);
+  // Prefer a paragraph or sentence end; fall back to a clause end (","); only cut mid-phrase when
+  // neither exists nearby.
+  const isStrong = (i: number) => /[.:;!?]\s*$/.test(tokens[i]) || /\n/.test(tokens[i]);
+  const isWeak = (i: number) => /,\s*$/.test(tokens[i]);
+  const cuts: number[] = [];
+  let prev = 0;
+  const near = (ideal: number, test: (i: number) => boolean, reach: number) => {
+    for (let d = 0; d <= reach; d++) {
+      if (ideal - d - 1 > prev && test(ideal - d - 1)) return ideal - d;
+      if (ideal + d - 1 > prev && ideal + d < tokens.length && test(ideal + d - 1)) return ideal + d;
+    }
+    return null;
+  };
+  for (let k = 1; k < n; k++) {
+    const ideal = Math.round((k * tokens.length) / n);
+    let best = near(ideal, isStrong, 20) ?? near(ideal, isWeak, 12) ?? ideal;
+    best = Math.min(Math.max(best, prev + 1), tokens.length - (n - k));
+    cuts.push(best);
+    prev = best;
+  }
+  const bounds = [0, ...cuts, tokens.length];
+  return bounds.slice(0, -1).map((start, i) => tokens.slice(start, bounds[i + 1]).join(""));
+}
+
+/** Chunks of a processed document, in reading order: page 1 top to bottom, then page 2, and so
+ * on. Each chunk's content is the exact text it covers on its page, so the chunk list and the
+ * frame on the original document always show the same words. */
+/** How many pages the preview shows for a source: the mock document is at least MOCK_PAGES long
+ * and gets longer for bigger sources (about 3 chunks per page, like a real policy document), its
+ * pages repeating the mock page texts in turn. */
+export function previewPageCount(chunkCount: number): number {
+  return Math.max(MOCK_PAGES.length, Math.ceil(chunkCount / 3));
+}
+export const previewPageText = (page: number) => MOCK_PAGES[page % MOCK_PAGES.length];
+
+function generateDocChunks(count: number): { title: string; content: string; page: number }[] {
+  const pages = previewPageCount(count);
+  const words = Array.from({ length: pages }, (_, i) => (previewPageText(i).match(/\S+/g) ?? []).length);
+  const total = words.reduce((a, b) => a + b, 0);
+  // Share chunks across pages by page length, at least one per page while count allows.
+  const perPage = words.map(w => Math.max(count >= pages ? 1 : 0, Math.floor((w / total) * count)));
+  let left = count - perPage.reduce((a, b) => a + b, 0);
+  for (let i = 0; left > 0; i = (i + 1) % pages, left--) perPage[i]++;
+  for (let i = pages - 1; left < 0 && i >= 0; i--) { while (left < 0 && perPage[i] > 1) { perPage[i]--; left++; } }
+  const out: { title: string; content: string; page: number }[] = [];
+  perPage.forEach((n, page) => {
+    for (const seg of splitIntoSegments(previewPageText(page), n)) {
+      const i = out.length;
+      const base = MOCK_TITLES[i % MOCK_TITLES.length];
+      const round = Math.floor(i / MOCK_TITLES.length);
+      out.push({ title: round === 0 ? base : `${base} (${round + 1})`, content: seg.trim(), page });
+    }
   });
+  return out;
 }
 
 function seedIfEmpty(
   kbId: string, sourceType: ChunkSourceType, sourceId: string,
   agentItemHint?: { status?: KnowledgeFaqStatus; chunkCount?: number },
 ) {
-  const flagKey = `knowledge_chunk_seeded_v1:${sourceKey(sourceType, sourceId)}`;
+  const flagKey = `knowledge_chunk_seeded_v3:${sourceKey(sourceType, sourceId)}`;
   if (sessionStorage.getItem(flagKey)) return;
   sessionStorage.setItem(flagKey, "1");
   const now = Date.now();
@@ -118,12 +172,12 @@ function seedIfEmpty(
   }
 
   if (status === "done" && chunkCount > 0) {
-    generateMockChunks(chunkCount).forEach((t, i) => {
+    generateDocChunks(chunkCount).forEach((t, i) => {
       const id = `chunk-${sourceId}-${i}`;
       store.set(id, {
         id, kbId, sourceType, sourceId, index: i + 1, title: t.title, content: t.content,
         contentType: "text", manuallyEdited: false, status: "done", updatedAt: now,
-        bbox: defaultBBoxFor(i + 1),
+        bbox: { ...defaultBBoxFor(i + 1), page: t.page },
       });
     });
     persist();
@@ -133,7 +187,7 @@ function seedIfEmpty(
 /** Marks a source as already chunk-seeded so the lazy `seedIfEmpty` auto-population never
  * overwrites chunks a caller populated directly (e.g. to pre-mark one as manually edited). */
 export function markChunksSeeded(sourceType: ChunkSourceType, sourceId: string) {
-  sessionStorage.setItem(`knowledge_chunk_seeded_v1:${sourceKey(sourceType, sourceId)}`, "1");
+  sessionStorage.setItem(`knowledge_chunk_seeded_v3:${sourceKey(sourceType, sourceId)}`, "1");
 }
 
 export const knowledgeChunkStore = {

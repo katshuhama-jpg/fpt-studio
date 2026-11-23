@@ -25,6 +25,9 @@ export interface PageChunkBox {
   bbox: ChunkBBox;
   manuallyEdited: boolean;
   bboxCustom?: boolean;
+  /** The chunk's text. When it is found on the page, the chunk's frame covers exactly the lines
+   * that text sits on, so the frame and the chunk list always show the same words. */
+  content?: string;
 }
 
 type Handle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
@@ -49,10 +52,12 @@ const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min)
  * auto-saved: a confirm/cancel pair appears until the change is committed. No real PDF rendering
  * in this prototype; it renders representative page text. */
 export default function DocumentPreviewPane({
-  page, onPageChange, chunksOnPage, matchIds, selectedChunkId, onSelectChunk, onResizeChunk, onCreateChunkFromBox,
+  page, pageCount, onPageChange, chunksOnPage, matchIds, selectedChunkId, onSelectChunk, onResizeChunk, onCreateChunkFromBox,
   onSelectText, onReprocess, onProcess, canReprocess, viewOnly,
 }: {
   page: number; onPageChange: (page: number) => void;
+  /** Number of pages in the preview (defaults to the mock document's own length). */
+  pageCount?: number;
   /** Every chunk on this page (not only search matches), so frames stay put while searching. */
   chunksOnPage: PageChunkBox[];
   /** When set (an active search), chunks outside it are drawn muted. */
@@ -69,16 +74,21 @@ export default function DocumentPreviewPane({
   const [hoverId, setHoverId] = useState<string | null>(null);
   /** Text lines of the page (top/bottom, % of page) and the text column's left/right edges. */
   const [layout, setLayout] = useState<{ lines: { t: number; b: number }[]; l: number; r: number } | null>(null);
+  /** Top/bottom (% of page) of the lines each chunk's own text covers, keyed by chunk id. */
+  const [textBands, setTextBands] = useState<Record<string, { t: number; b: number }>>({});
   const [drawMode, setDrawMode] = useState(false);
   const [marquee, setMarquee] = useState<ChunkBBox | null>(null);
   const [pendingResize, setPendingResize] = useState<{ id: string; bbox: ChunkBBox } | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const pageBoxRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
-  const totalPages = MOCK_PAGES.length;
-  const text = MOCK_PAGES[page];
+  const totalPages = pageCount ?? MOCK_PAGES.length;
+  const text = MOCK_PAGES[page % MOCK_PAGES.length];
 
   useEffect(() => { setPendingResize(null); setDrawMode(false); }, [page]);
+  const chunksRef = useRef(chunksOnPage);
+  chunksRef.current = chunksOnPage;
+  const contentKey = chunksOnPage.map(c => `${c.id}:${c.content ?? ""}`).join("|");
 
   // Measure where each rendered text line sits, as % of the page box (zoom scales both sides,
   // so percentages stay valid at any zoom level).
@@ -104,12 +114,35 @@ export default function DocumentPreviewPane({
       const toX = (v: number) => ((v - pageRect.left) / pageRect.width) * 100;
       const toY = (v: number) => ((v - pageRect.top) / pageRect.height) * 100;
       setLayout({ lines: lines.map(ln => ({ t: toY(ln.t), b: toY(ln.b) })), l: toX(left), r: toX(right) });
+
+      // Locate each chunk's text on the page, in chunk order (searching on from where the previous
+      // chunk was found, so repeated phrases map to the right place).
+      const node = el.firstChild;
+      const bands: Record<string, { t: number; b: number }> = {};
+      if (node && node.nodeType === Node.TEXT_NODE) {
+        let from = 0;
+        for (const c of [...chunksRef.current].sort((a, b) => a.index - b.index)) {
+          const needle = (c.content ?? "").trim();
+          if (!needle) continue;
+          let at = text.indexOf(needle, from);
+          if (at < 0) at = text.indexOf(needle);
+          if (at < 0) continue;
+          from = at + needle.length;
+          const r = document.createRange();
+          r.setStart(node, at);
+          r.setEnd(node, at + needle.length);
+          const rs = Array.from(r.getClientRects()).filter(x => x.width > 1);
+          if (rs.length === 0) continue;
+          bands[c.id] = { t: toY(Math.min(...rs.map(x => x.top))), b: toY(Math.max(...rs.map(x => x.bottom))) };
+        }
+      }
+      setTextBands(bands);
     };
     measure();
     const ro = new ResizeObserver(measure);
     if (pageBoxRef.current) ro.observe(pageBoxRef.current);
     return () => ro.disconnect();
-  }, [text, zoom]);
+  }, [text, zoom, contentKey]);
 
   /** Frame edges sit halfway between two lines, so neighbouring frames tile without gaps. */
   const lineEdges = useMemo(() => {
@@ -157,11 +190,20 @@ export default function DocumentPreviewPane({
     autoChunks.forEach((c, k) => {
       const from = Math.min(bounds[k], lineCount - 1);
       const to = Math.max(from + 1, Math.min(bounds[k + 1], lineCount));
+      const band = textBands[c.id];
+      if (band) {
+        // Frame = the whole lines the chunk's own text sits on.
+        const top = snapY(band.t);
+        let bottom = snapY(band.b);
+        if (bottom <= top) bottom = lineEdges.find(e => e > top) ?? top + 3;
+        out[c.id] = { page, x, y: top, w, h: bottom - top };
+        return;
+      }
       out[c.id] = { page, x, y: lineEdges[from], w, h: lineEdges[to] - lineEdges[from] };
     });
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoChunks, lineEdges, layout, page]);
+  }, [autoChunks, lineEdges, layout, page, textBands]);
 
   const boxOf = (c: PageChunkBox): ChunkBBox =>
     pendingResize?.id === c.id ? pendingResize.bbox : c.bboxCustom ? c.bbox : autoBoxes[c.id] ?? c.bbox;

@@ -63,8 +63,15 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly, retrieval }: { k
   const createMenuRef = useRef<HTMLDivElement>(null);
 
   const openId = params.get("docId");
-  const openDoc = openId ? knowledgeDocumentStore.get(kbId, openId) : undefined;
-  const canOpen = (s: KnowledgeProcessingStatus) => s === "done" || s === "processing";
+  // Chunks can only be viewed once a document is fully processed ("Hoàn thành"). A deep link
+  // (?docId=) to a document in any other state is ignored, same as clicking its disabled name.
+  const canOpen = (s: KnowledgeProcessingStatus) => s === "done";
+  const requestedDoc = openId ? knowledgeDocumentStore.get(kbId, openId) : undefined;
+  const openDoc = requestedDoc && !requestedDoc.isFolder && canOpen(requestedDoc.status) ? requestedDoc : undefined;
+  const notOpenableReason = (s: KnowledgeProcessingStatus) =>
+    s === "failed" ? "Tài liệu xử lý thất bại nên không có đoạn để xem."
+    : s === "pending" ? "Tài liệu đang chờ xử lý - Bạn xem được các đoạn khi xử lý xong."
+    : "Tài liệu đang được xử lý - Bạn xem được các đoạn khi xử lý xong.";
 
   useEffect(() => {
     if (!showCreateMenu) return;
@@ -250,7 +257,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly, retrieval }: { k
                           <span className={`text-sm font-medium truncate block min-w-0 ${!d.isFolder && !openable ? "text-muted-foreground" : ""}`}>{d.name}</span>
                         </button>
                       </TooltipTrigger>
-                      {!d.isFolder && !openable && <TooltipContent>Tài liệu chưa xử lý xong nên chưa xem được nội dung.</TooltipContent>}
+                      {!d.isFolder && !openable && <TooltipContent>{notOpenableReason(d.status)}</TooltipContent>}
                     </Tooltip>
                   </td>
                   <td className="px-2 py-3">
