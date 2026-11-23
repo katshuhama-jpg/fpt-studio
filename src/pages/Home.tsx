@@ -1,12 +1,13 @@
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  ArrowRight, Sparkles, Paperclip, AtSign,
-  ExternalLink, X, Search, Edit, Copy,
-  MoreVertical, Trash2, Play, BookOpen
+  Sparkles, Paperclip, AtSign,
+  X, Search, Edit, Copy, Trash2
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { PlayCircleIcon, BookOpen01Icon, SparklesIcon, LinkSquare02Icon, ArrowRight01Icon, HeadsetIcon, BubbleChatIcon, UserIcon, ChartLineData01Icon, UserMultiple02Icon, AiBrain01Icon, MoreHorizontalIcon } from "@hugeicons/core-free-icons";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 /* ─── Template data ─────────────────────────────────────────────────── */
@@ -53,18 +54,28 @@ const templates = [
 ];
 
 const recent = [
-  { id: "hr",    name: "HR Agent",          emoji: "🤝", bg: "bg-blue-50",   status: "Active",  desc: "Answers employee questions about policies, benefits, and leave on Slack &…", editor: "Nguyen Minh", edited: "12 minutes ago" },
-  { id: "ba",    name: "BA Agent",          emoji: "📋", bg: "bg-purple-50", status: "Active",  desc: "Helps Business Analysts draft user stories, BRDs, and analyze requirements from…", editor: "Pham Thu Ha", edited: "5 minutes ago" },
-  { id: "onboarding", name: "Onboarding Agent", emoji: "🎓", bg: "bg-green-50", status: "Draft", desc: "Guides new employees through a 30/60/90-day roadmap with documents…", editor: "Tran Van Khoa", edited: "45 minutes ago" },
-  { id: "qt-procure", kind: "process", name: "Đề nghị mua sắm", emoji: "🔀", bg: "bg-primary-soft", status: "Draft", desc: "Kiểm ngân sách, Nhân sự số lấy báo giá NCC, duyệt theo phân cấp, tạo và gửi PO (PR-0142).", editor: "Tran Nam", edited: "Vừa xong" },
-] as { id: string; kind?: "process"; name: string; emoji: string; bg: string; status: string; desc: string; editor: string; edited: string }[];
+  { id: "hr",    name: "HR Agent",          status: "Active", version: "v2.0.2", model: "DeepSeek V4 Flash", desc: "Trả lời câu hỏi của nhân viên về chính sách, phúc lợi và nghỉ phép trên Slack.", edited: "12 phút trước" },
+  { id: "ba",    name: "BA Agent",          status: "Active", version: "v1.3.0", model: "DeepSeek V4 Flash", desc: "Hỗ trợ BA soạn user story, BRD và phân tích yêu cầu.", edited: "5 phút trước" },
+  { id: "onboarding", name: "Onboarding Agent", status: "Draft", model: "DeepSeek V4 Flash", desc: "Dẫn nhân viên mới qua lộ trình 30/60/90 ngày kèm tài liệu.", edited: "45 phút trước" },
+  { id: "qt-procure", kind: "process", name: "Đề nghị mua sắm", status: "Draft", model: "DeepSeek V4 Flash", desc: "Kiểm ngân sách, Nhân sự số lấy báo giá NCC, duyệt theo phân cấp, tạo và gửi PO (PR-0142).", edited: "Vừa xong" },
+] as { id: string; kind?: "process"; name: string; status: string; version?: string; model: string; desc: string; edited: string }[];
 
 const getStarted = [
-  { label: "Video guide", title: "Tạo Nhân sự số đầu tiên trong 5 phút",      kind: "video", bg: "bg-blue-500",   href: "https://www.youtube.com/results?search_query=fpt+ai+agent+studio+tutorial" },
-  { label: "Video guide", title: "Connect a Connector and go live",         kind: "video", bg: "bg-indigo-500", href: "https://www.youtube.com/results?search_query=fpt+ai+agent+studio+connectors" },
-  { label: "Web guide",   title: "Tài liệu hướng dẫn",              kind: "doc",   bg: "bg-amber-500",  href: "https://docs.fpt.ai" },
-  { label: "Web guide",   title: "Best practices for writing instructions", kind: "doc",   bg: "bg-emerald-500", href: "https://docs.fpt.ai/guides/instructions" },
+  { label: "Giới thiệu",        title: "Video hướng dẫn FPT AI EOS Console",   icon: PlayCircleIcon,  href: "https://www.youtube.com/results?search_query=fpt+ai+eos+console" },
+  { label: "Giới thiệu",        title: "Video hướng dẫn FPT AI EOS Workspace", icon: PlayCircleIcon,  href: "https://www.youtube.com/results?search_query=fpt+ai+eos+workspace" },
+  { label: "Cẩm nang sản phẩm", title: "Làm chủ FPT AI EOS",                   icon: BookOpen01Icon,  href: "https://docs-agents.fpt.ai" },
+  { label: "Cập nhật",          title: "Release Note FPT AI EOS: Những nâng cấp quan trọng bạn không nên bỏ lỡ!", icon: SparklesIcon, href: "https://docs-agents.fpt.ai" },
 ];
+
+/** Thư viện mẫu trên Trang chủ - tên và danh mục như staging, trỏ tới template có sẵn. */
+const homeTemplates = [
+  { id: 1, name: "Trợ lý hỗ trợ khách hàng", cat: "Chăm sóc khách hàng", icon: HeadsetIcon },
+  { id: 3, name: "Trợ lý kinh doanh",         cat: "Kinh doanh",          icon: BubbleChatIcon },
+  { id: 4, name: "Trợ lý nhân sự",            cat: "Nhân sự",             icon: UserIcon },
+  { id: 7, name: "Trợ lý phân tích dữ liệu",  cat: "Vận hành",            icon: ChartLineData01Icon },
+];
+
+const GET_STARTED_HIDDEN_KEY = "home.getStarted.hidden";
 
 /* ─── Modals ─────────────────────────────────────────────────────────── */
 
@@ -126,6 +137,7 @@ function TemplateModal({ onClose }: { onClose: () => void }) {
 function RecentAgentCard({ a }: { a: typeof recent[number] }) {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const active = a.status === "Active";
 
   useEffect(() => {
     if (!showMenu) return;
@@ -135,42 +147,50 @@ function RecentAgentCard({ a }: { a: typeof recent[number] }) {
   }, [showMenu]);
 
   return (
-    <Link to={`/agents/${a.id}`} className="group relative rounded-2xl border border-border bg-surface p-5 hover:border-primary/30 hover:shadow-soft transition-base flex flex-col">
-      <div className="flex items-start gap-3 mb-4">
-        <div className={`w-14 h-14 rounded-2xl ${a.bg} flex items-center justify-center text-3xl shrink-0`}>{a.emoji}</div>
-        <div className="flex-1 min-w-0 pt-0.5">
-          <p className="font-semibold text-sm leading-snug truncate mb-1.5">{a.name}</p>
-          <span className={`chip ${a.status === "Active" ? "chip-success" : ""} w-fit`}>
-            <span className="w-1.5 h-1.5 rounded-full bg-current" /> {a.status === "Active" ? "Live" : a.status}
-          </span>
-          {a.kind === "process" && <span className="ml-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-primary-soft text-primary">Quy trình</span>}
+    <Link to={`/agents/${a.id}`} className="group relative rounded-lg border border-border bg-card text-card-foreground p-4 hover:border-primary/30 transition-base flex flex-col">
+      <div className="flex items-start gap-3 mb-3">
+        <div className="w-9 h-9 rounded-md bg-primary-soft text-primary flex items-center justify-center shrink-0">
+          <HugeiconsIcon icon={AiBrain01Icon} size={20} strokeWidth={1.5} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <p className="font-semibold text-sm truncate">{a.name}</p>
+            {a.version && <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-sm bg-primary-soft text-primary tabular-nums">{a.version}</span>}
+            {a.kind === "process"
+              ? <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-sm bg-primary-soft text-primary">Co-Run</span>
+              : <span className="shrink-0 inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded-sm bg-primary-soft text-primary"><HugeiconsIcon icon={UserMultiple02Icon} size={12} strokeWidth={1.5} /> Cả Space</span>}
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">Cập nhật {a.edited}</p>
         </div>
       </div>
-      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 flex-1 mb-4">{a.desc}</p>
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
-          {a.edited}
-        </div>
+      <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 flex-1 mb-3">{a.desc}</p>
+      <div className="flex items-center gap-2 min-w-0">
+        <span className={`chip ${active ? "chip-success" : ""} w-fit shrink-0`}>
+          <span className="w-1.5 h-1.5 rounded-full bg-current" /> {active ? "Đang hoạt động" : "Bản nháp"}
+        </span>
+        <span className="text-border">|</span>
+        <span className="text-xs text-muted-foreground truncate flex-1">{a.model}</span>
         <div ref={menuRef} className="relative shrink-0">
           <button
             onClick={e => { e.preventDefault(); setShowMenu(o => !o); }}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base"
+            aria-label="Thao tác"
+            className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-base"
           >
-            <MoreVertical size={14} />
+            <HugeiconsIcon icon={MoreHorizontalIcon} size={16} strokeWidth={1.5} />
           </button>
           {showMenu && (
             <div
-              className="absolute z-20 top-full right-0 mt-1 w-40 bg-white rounded-xl border border-border shadow-elev py-1 animate-fade-up"
+              className="absolute z-20 top-full right-0 mt-1 w-40 bg-popover text-popover-foreground rounded-lg border border-border shadow-sm py-1 animate-fade-up"
               onMouseDown={e => e.stopPropagation()}
             >
-              <button onClick={e => { e.preventDefault(); setShowMenu(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-foreground hover:bg-surface-muted transition-base text-left">
-                <Edit size={14} /> Edit
+              <button onClick={e => { e.preventDefault(); setShowMenu(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm hover:bg-muted transition-base text-left">
+                <Edit size={14} /> Chỉnh sửa
               </button>
-              <button onClick={e => { e.preventDefault(); setShowMenu(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-foreground hover:bg-surface-muted transition-base text-left">
-                <Copy size={14} /> Duplicate
+              <button onClick={e => { e.preventDefault(); setShowMenu(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm hover:bg-muted transition-base text-left">
+                <Copy size={14} /> Nhân bản
               </button>
-              <button onClick={e => { e.preventDefault(); setShowMenu(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-destructive hover:bg-surface-muted transition-base text-left">
-                <Trash2 size={14} /> Delete
+              <button onClick={e => { e.preventDefault(); setShowMenu(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-destructive hover:bg-muted transition-base text-left">
+                <Trash2 size={14} /> Xoá
               </button>
             </div>
           )}
@@ -370,6 +390,14 @@ export default function Home() {
   const [showCreate, setShowCreate]       = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [detailTemplate, setDetailTemplate] = useState<typeof templates[number] | null>(null);
+  const [getStartedHidden, setGetStartedHidden] = useState(() => {
+    try { return localStorage.getItem(GET_STARTED_HIDDEN_KEY) === "1"; } catch { return false; }
+  });
+  const toggleGetStarted = () => setGetStartedHidden(h => {
+    const next = !h;
+    try { localStorage.setItem(GET_STARTED_HIDDEN_KEY, next ? "1" : "0"); } catch { /* ignore */ }
+    return next;
+  });
 
   const useTemplate = (t: typeof templates[number]) => {
     if (!canCreateAgent) return;
@@ -387,142 +415,143 @@ export default function Home() {
       {showTemplates && <TemplateModal onClose={() => setShowTemplates(false)} />}
 
       {/* Page header */}
-      <div className="px-6 pt-6 mb-6">
-        <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Home</h1>
+      <div className="max-w-[940px] mx-auto px-6 pt-6 mb-6">
+        <h1 className="text-2xl font-semibold tracking-tight mb-1">Trang chủ</h1>
         <p className="text-sm text-muted-foreground">
-          Tổng quan - Mở lại Nhân sự số gần đây hoặc tạo mới.
+          Tổng quan không gian làm việc - Tiếp tục với Nhân sự số gần đây hoặc tạo Nhân sự số mới.
         </p>
       </div>
 
-      {/* ── Hero ──────────────────────────────────────────────────── */}
-      <section
-        className="mx-6 mb-8 rounded-2xl overflow-hidden border border-border"
-        style={{ background: "linear-gradient(135deg, hsl(var(--primary-soft)) 0%, #eef1ff 55%, #ffffff 100%)" }}
-      >
-        <div className="flex items-center justify-between px-10 py-10 gap-8">
-          <div className="flex-1 min-w-0">
-            <h2 className="font-display text-3xl font-bold text-foreground mb-2 tracking-tight">
-              Chào mừng bạn đến với FPT AI EOS Console
-            </h2>
-            <p className="text-sm text-muted-foreground mb-7 max-w-md leading-relaxed">
-              Dựng Nhân sự số Năng suất cho việc hằng ngày và Nhân sự số Quy trình cho quy trình nhiều bước, rồi vận hành chúng ở một nơi.
-            </p>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => canCreateAgent && setShowCreate(true)}
-                disabled={!canCreateAgent}
-                title={!canCreateAgent ? "Bạn không có quyền tạo Nhân sự số." : undefined}
-                className="btn-primary h-10 px-5 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Tạo Nhân sự số mới <ArrowRight size={15} />
-              </button>
-              <button
-                onClick={() => canCreateAgent && setShowTemplates(true)}
-                disabled={!canCreateAgent}
-                title={!canCreateAgent ? "Bạn không có quyền tạo Nhân sự số." : undefined}
-                className="btn-secondary h-10 px-5 rounded-lg bg-surface/70 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Browse templates
-              </button>
-            </div>
-          </div>
-
-          {/* Decorative illustration */}
-          <div className="relative shrink-0 w-72 h-56 hidden md:block">
-            <div className="absolute inset-4 rounded-2xl bg-white/70 border border-border shadow-sm" />
-            <div className="absolute top-6 right-4 w-28 h-16 rounded-lg bg-white border border-border shadow-sm flex items-center justify-center gap-1.5">
-              <Sparkles size={16} className="text-primary" />
-              <div className="space-y-1">
-                <div className="h-1.5 w-12 rounded-full bg-primary-soft" />
-                <div className="h-1.5 w-8 rounded-full bg-surface-muted" />
+      <div className="max-w-[940px] mx-auto px-6 pb-8 space-y-8">
+        {/* ── Hero ──────────────────────────────────────────────────── */}
+        <section
+          className="rounded-lg overflow-hidden border border-border"
+          style={{ background: "linear-gradient(90deg, hsl(var(--background)) 0%, hsl(var(--background)) 45%, hsl(var(--primary-soft)) 100%)" }}
+        >
+          <div className="flex items-center justify-between px-6 py-8 gap-8">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-2xl font-semibold tracking-tight mb-2">
+                Chào mừng bạn đến với FPT AI EOS Console
+              </h2>
+              <p className="text-sm text-muted-foreground mb-5">
+                Xây dựng, kết nối và vận hành Nhân sự số AI của doanh nghiệp bạn.
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => canCreateAgent && setShowCreate(true)}
+                  disabled={!canCreateAgent}
+                  title={!canCreateAgent ? "Bạn không có quyền tạo Nhân sự số." : undefined}
+                  className="btn-primary h-9 px-4 rounded-md disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Tạo Nhân sự số mới <HugeiconsIcon icon={ArrowRight01Icon} size={16} strokeWidth={1.5} />
+                </button>
+                <button
+                  onClick={() => canCreateAgent && setShowTemplates(true)}
+                  disabled={!canCreateAgent}
+                  title={!canCreateAgent ? "Bạn không có quyền tạo Nhân sự số." : undefined}
+                  className="btn-secondary h-9 px-4 rounded-md disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Xem thư viện mẫu
+                </button>
               </div>
             </div>
-            <div className="absolute bottom-8 left-8 w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shadow-md text-3xl">
-              🤖
-            </div>
-            <div className="absolute bottom-10 right-10 w-10 h-10 rounded-xl bg-white border border-border shadow-sm flex items-center justify-center">
-              <ExternalLink size={14} className="text-muted-foreground" />
-            </div>
-          </div>
-        </div>
-      </section>
 
-      <div className="px-6 pb-8 space-y-8">
-
-        {/* ── Get started ───────────────────────────────────────── */}
-        <section>
-          <h2 className="font-display text-lg font-semibold mb-4">Get started</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {getStarted.map(g => (
-              <a
-                key={g.title}
-                href={g.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group rounded-xl border border-border bg-surface overflow-hidden hover:border-primary/30 hover:shadow-soft transition-base"
-              >
-                <div className={`h-28 flex items-center justify-center relative ${g.bg}`}>
-                  {g.kind === "video"
-                    ? <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow"><Play size={16} className="text-red-500 ml-0.5" fill="currentColor" /></div>
-                    : <BookOpen size={26} className="text-white/85" />
-                  }
-                  <ExternalLink size={12} className="absolute top-2.5 right-2.5 text-white/70" />
+            {/* Decorative illustration */}
+            <div className="relative shrink-0 w-56 h-36 hidden md:block" aria-hidden>
+              <div className="absolute inset-2 rounded-lg bg-card/70 border border-border" />
+              <div className="absolute top-4 right-3 w-24 h-12 rounded-md bg-card border border-border flex items-center justify-center gap-1.5">
+                <HugeiconsIcon icon={SparklesIcon} size={16} strokeWidth={1.5} className="text-primary" />
+                <div className="space-y-1">
+                  <div className="h-1.5 w-10 rounded-full bg-primary-soft" />
+                  <div className="h-1.5 w-6 rounded-full bg-muted" />
                 </div>
-                <div className="p-3">
-                  <p className="text-sm text-muted-foreground mb-0.5">{g.label}</p>
-                  <p className="text-sm font-semibold leading-snug">{g.title}</p>
-                </div>
-              </a>
-            ))}
+              </div>
+              <div className="absolute bottom-5 left-6 w-12 h-12 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
+                <HugeiconsIcon icon={AiBrain01Icon} size={24} strokeWidth={1.5} />
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* ── Recent ────────────────────────────────────────────── */}
+        {/* ── Bắt đầu ───────────────────────────────────────── */}
         <section>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-lg font-semibold">Recent</h2>
-            <div className="flex items-center gap-4">
-              <Link to="/agents" className="text-xs text-primary flex items-center gap-1 hover:text-primary-glow transition-base">
-                Nhân sự số Năng suất <ArrowRight size={12} />
-              </Link>
-              <Link to="/processes" className="text-xs text-primary flex items-center gap-1 hover:text-primary-glow transition-base">
-                Nhân sự số Quy trình <ArrowRight size={12} />
-              </Link>
-            </div>
+            <h2 className="text-lg font-semibold">Bắt đầu</h2>
+            <button onClick={toggleGetStarted} className="text-sm font-medium text-foreground hover:text-primary transition-base">
+              {getStartedHidden ? "Hiện" : "Ẩn"}
+            </button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {!getStartedHidden && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {getStarted.map(g => (
+                <a
+                  key={g.title}
+                  href={g.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group rounded-lg border border-border bg-card overflow-hidden hover:border-primary/30 transition-base flex flex-col"
+                >
+                  <div className="h-28 flex items-center justify-center bg-primary-soft text-primary">
+                    <HugeiconsIcon icon={g.icon} size={32} strokeWidth={1.5} />
+                  </div>
+                  <div className="p-3">
+                    <p className="text-xs text-muted-foreground mb-1">{g.label}</p>
+                    <p className="text-sm font-medium leading-snug">
+                      {g.title} <HugeiconsIcon icon={LinkSquare02Icon} size={14} strokeWidth={1.5} className="inline align-[-2px] text-muted-foreground" />
+                    </p>
+                  </div>
+                </a>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* ── Gần đây ────────────────────────────────────────────── */}
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Gần đây</h2>
+            <Link to="/agents" className="text-sm font-medium text-primary flex items-center gap-1 hover:underline">
+              Tất cả Nhân sự số <HugeiconsIcon icon={ArrowRight01Icon} size={16} strokeWidth={1.5} />
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {recent.map(a => (
               <RecentAgentCard key={a.id} a={a} />
             ))}
           </div>
         </section>
 
-        {/* ── Templates ─────────────────────────────────────────── */}
+        {/* ── Thư viện mẫu ─────────────────────────────────────────── */}
         <section>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-lg font-semibold">Templates</h2>
+            <h2 className="text-lg font-semibold">Thư viện mẫu</h2>
             <button
               onClick={() => canCreateAgent && setShowTemplates(true)}
               disabled={!canCreateAgent}
-              className="text-xs text-muted-foreground flex items-center gap-1 hover:text-foreground transition-base disabled:opacity-40 disabled:cursor-not-allowed"
+              className="text-sm font-medium text-primary flex items-center gap-1 hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              More <ArrowRight size={12} />
+              Xem thêm <HugeiconsIcon icon={ArrowRight01Icon} size={16} strokeWidth={1.5} />
             </button>
           </div>
-          <div className="rounded-xl border border-border bg-surface divide-y divide-border overflow-hidden">
-            {templates.slice(0, 4).map(t => (
-              <div key={t.id} className="flex items-center gap-3 px-4 py-3.5 hover:bg-surface-muted/50 transition-base">
-                <div className={`w-10 h-10 rounded-xl ${t.bg} flex items-center justify-center text-xl shrink-0`}>{t.emoji}</div>
-                <p className="text-sm font-medium flex-1 min-w-0 truncate">{t.name}</p>
-                <span className="text-xs text-muted-foreground shrink-0">{t.cat}</span>
-                <button
-                  onClick={() => setDetailTemplate(t)}
-                  className="shrink-0 h-8 px-4 rounded-lg border border-border text-xs font-medium hover:bg-surface-muted transition-base"
-                >
-                  View
-                </button>
-              </div>
-            ))}
+          <div className="rounded-lg border border-border bg-card divide-y divide-border overflow-hidden">
+            {homeTemplates.map(h => {
+              const t = templates.find(x => x.id === h.id)!;
+              return (
+                <div key={h.id} className="flex items-center gap-3 px-4 py-3">
+                  <div className="w-8 h-8 rounded-md bg-primary-soft text-primary flex items-center justify-center shrink-0">
+                    <HugeiconsIcon icon={h.icon} size={16} strokeWidth={1.5} />
+                  </div>
+                  <p className="text-sm font-medium flex-1 min-w-0 truncate">{h.name}</p>
+                  <span className="text-xs text-muted-foreground shrink-0">{h.cat}</span>
+                  <button
+                    onClick={() => setDetailTemplate(t)}
+                    className="shrink-0 h-7 px-3 rounded-md border border-border text-xs font-medium hover:bg-muted transition-base"
+                  >
+                    Xem
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </section>
 

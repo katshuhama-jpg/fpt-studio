@@ -19,6 +19,8 @@ import { useAgentReviewScope } from "@/components/governance/agentReviewScope";
 const APP_VERSION = "0.58.5";
 import { useEffect, useState } from "react";
 import fptAiLogo from "@/assets/fpt-ai-logo.png";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { SidebarLeft01Icon } from "@hugeicons/core-free-icons";
 
 // Tenant/TENANTS + current-Space persistence now live in @/lib/spaceStore (shared with
 // AgentBuilder's Publish modal, which needs to know if the active Space is personal).
@@ -27,8 +29,8 @@ type Item = { to: string; label: string; icon: any; badge?: string; external?: b
 type Group = { id: string; label: string; items: Item[] };
 
 const topItems: Item[] = [
-  { to: "/", label: "Home", icon: Home },
-  { to: "https://agents-dev.fpt.ai/", label: "Chat", icon: MessageSquare, external: true },
+  { to: "/", label: "Trang chủ", icon: Home },
+  { to: "https://agents-dev.fpt.ai/", label: "Trò chuyện", icon: MessageSquare, external: true },
 ];
 
 // Grouped by what the item IS, not by what you do with it: Build holds the things that run
@@ -39,38 +41,38 @@ const topItems: Item[] = [
 const groups: Group[] = [
   {
     id: "build",
-    label: "Build",
+    label: "Xây dựng",
     items: [
-      { to: "/agents", label: "Nhân sự số Năng suất", icon: Bot },
-      { to: "/external-agents", label: "External Agents", icon: Globe },
-      { to: "/processes", label: "Nhân sự số Quy trình", icon: Workflow },
+      { to: "/agents", label: "Nhân sự số", icon: Bot },
+      { to: "/external-agents", label: "Agent bên thứ ba", icon: Globe },
+      { to: "/workflows", label: "Co-Run", icon: Workflow },
     ],
   },
   {
     id: "resources",
-    label: "Resources",
+    label: "Tài nguyên",
     items: [
-      { to: "/knowledge", label: "Knowledge", icon: BookOpen },
-      { to: "/connectors", label: "Connectors", icon: Plug },
-      { to: "/tools", label: "Skills", icon: Puzzle },
-      { to: "/models", label: "Models", icon: Cpu },
-      { to: "/api-keys", label: "API Key", icon: KeyRound },
+      { to: "/knowledge", label: "Tri thức", icon: BookOpen },
+      { to: "/connectors", label: "Kết nối", icon: Plug },
+      { to: "/tools", label: "Kỹ năng", icon: Puzzle },
+      { to: "/models", label: "Mô hình", icon: Cpu },
+      { to: "/api-keys", label: "API key", icon: KeyRound },
     ],
   },
   {
     id: "governance",
-    label: "Trust & Governance",
+    label: "Quản trị",
     items: [
       { to: "/guardrails", label: "Guardrails", icon: Shield },
       // Split from one "Requests" item into 2 — Agent Requests (Org/Unit Admin: does an Agent
       // reach users) and Resource Requests (Tenant Admin: does a resource enter the Tenant
       // Library) are 2 different admin personas who land on their own page, not a shared queue
       // with a filter (see requestsQueue.tsx's doc comment).
-      { to: "/governance/requests", label: "Yêu cầu duyệt Nhân sự số", icon: ClipboardList },
+      { to: "/governance/requests", label: "Yêu cầu duyệt", icon: ClipboardList },
       { to: "/governance/library-requests", label: "Resource Requests", icon: Library },
       { to: "/governance/audit-log", label: "Audit Log", icon: History },
-      { to: "/roles", label: "Roles", icon: Shield },
-      { to: "/members", label: "Members", icon: Users },
+      { to: "/roles", label: "Vai trò", icon: Shield },
+      { to: "/members", label: "Thành viên", icon: Users },
     ],
   },
 ];
@@ -92,7 +94,7 @@ export default function WorkspaceLayout() {
   // workforce, what's used most day to day) and keep "Resources"/"Trust & Governance" collapsed
   // until opened; each group still remembers its own open/closed state via NavGroup below, so
   // this only changes the first-visit default, not what's reachable.
-  const [open, setOpen] = useState<Record<string, boolean>>({ build: true, resources: false, governance: false });
+  const [open, setOpen] = useState<Record<string, boolean>>({ build: true, resources: true, governance: true });
   const [userMenu, setUserMenu] = useState(false);
   const [tenantId, setTenantIdState] = useState(getCurrentTenantId());
   // Persist so other routes (e.g. the Agent Publish modal) can read which Space is active
@@ -168,17 +170,7 @@ export default function WorkspaceLayout() {
     );
   }
 
-  const BREADCRUMB_LABELS: Record<string, string> = { tools: "Skills", notifications: "Thông báo", agents: "Nhân sự số Năng suất", processes: "Nhân sự số Quy trình", "my-agents": "Nhân sự số của tôi" };
   const persona = currentPersona();
-  const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "General", structure: "Structure" };
-  let breadcrumbLabel: string;
-  if (inOrganization) {
-    const sub = loc.pathname.replace(/^\/organization\/?/, "");
-    breadcrumbLabel = ORG_BREADCRUMB_LABELS[sub] ?? sub;
-  } else {
-    const rawSegment = loc.pathname === "/" ? "Home" : loc.pathname.slice(1).split("/")[0].replace(/-/g, " ");
-    breadcrumbLabel = BREADCRUMB_LABELS[rawSegment.replace(/ /g, "-")] ?? rawSegment;
-  }
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
@@ -190,15 +182,30 @@ export default function WorkspaceLayout() {
         {/* Brand + Tenant — unified, borderless */}
         <div className="px-3 pt-3.5 pb-2 shrink-0">
           {collapsed ? (
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-gradient-brand flex items-center justify-center shadow-soft">
-                <span className="font-display font-bold text-sm text-primary-foreground">F</span>
-              </div>
+            <div className="flex flex-col items-center gap-2 mb-3">
+              <button
+                onClick={() => setCollapsed(false)}
+                className="h-9 w-9 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-base"
+                aria-label="Mở rộng thanh điều hướng"
+                title="Mở rộng thanh điều hướng"
+              >
+                <HugeiconsIcon icon={SidebarLeft01Icon} size={20} strokeWidth={1.5} />
+              </button>
             </div>
           ) : (
-            <NavLink to="/" className="flex items-center gap-2 mb-3 min-w-0 group">
-              <img src={fptAiLogo} alt="FPT.AI" className="h-7 w-auto shrink-0 select-none" draggable={false} />
-            </NavLink>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <NavLink to="/" className="flex items-center gap-2 min-w-0 group">
+                <img src={fptAiLogo} alt="FPT.AI" className="h-7 w-auto shrink-0 select-none" draggable={false} />
+              </NavLink>
+              <button
+                onClick={() => setCollapsed(true)}
+                className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-base"
+                aria-label="Thu gọn thanh điều hướng"
+                title="Thu gọn thanh điều hướng"
+              >
+                <HugeiconsIcon icon={SidebarLeft01Icon} size={20} strokeWidth={1.5} />
+              </button>
+            </div>
           )}
 
           {/* Workspace switcher — picks which Console/workspace you're in. Org
@@ -369,37 +376,11 @@ export default function WorkspaceLayout() {
           </button>
           <NotificationBell collapsed={collapsed} />
           </div>
-          {!collapsed && (
-            <button
-              onClick={() => setCollapsed(true)}
-              className="absolute -right-3 -top-3 h-6 w-6 rounded-full bg-surface border border-border shadow-sm hover:bg-surface-muted text-muted-foreground flex items-center justify-center transition-base"
-              aria-label="Collapse sidebar"
-            >
-              <ChevronsLeft size={12} />
-            </button>
-          )}
-          {collapsed && (
-            <button
-              onClick={() => setCollapsed(false)}
-              className="absolute -right-3 -top-3 h-6 w-6 rounded-full bg-surface border border-border shadow-sm hover:bg-surface-muted text-muted-foreground flex items-center justify-center transition-base"
-              aria-label="Expand sidebar"
-            >
-              <ChevronsRight size={12} />
-            </button>
-          )}
         </div>
       </aside>
 
       {/* ============ Main ============ */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-14 border-b border-border bg-surface flex items-center px-6 gap-4 shrink-0">
-          <div className="flex items-center gap-2 text-sm">
-            <TenantSwitcher tenantId={tenantId} tenants={tenants} onChange={setTenantId} />
-            <span className="text-muted-foreground">/</span>
-            <span className="font-medium text-foreground">{breadcrumbLabel.charAt(0).toUpperCase() + breadcrumbLabel.slice(1)}</span>
-          </div>
-
-        </header>
         <main className="flex-1 overflow-y-auto">
           {/* Hạn mức sử dụng: banner credit trên mọi trang Console, banner dung lượng ở trang Knowledge */}
           <UsageBanners showStorage={loc.pathname.startsWith("/knowledge")} className="px-6 pt-4" />
@@ -546,13 +527,14 @@ function NavGroup({
     <div>
       <button
         onClick={onToggle}
-        className="w-full flex items-center gap-1.5 px-2 py-1.5 section-eyebrow hover:text-foreground transition-base"
+        className="w-full flex items-center justify-between gap-1.5 px-2 py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground hover:text-foreground transition-base"
+        aria-expanded={open}
       >
-        <ChevronRight
-          size={11}
-          className={`transition-transform duration-200 ${open ? "rotate-90" : ""}`}
-        />
         <span>{group.label}</span>
+        <ChevronDown
+          size={14}
+          className={`transition-transform duration-200 ${open ? "" : "-rotate-90"}`}
+        />
       </button>
       {open && (
         <div className="space-y-1 mt-1">

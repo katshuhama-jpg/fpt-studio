@@ -324,8 +324,8 @@ function ProcessCard({ p, onDeleted }: { p: typeof agents[number]; onDeleted: ()
                 className="w-7 h-7 -mr-1 -mt-1 rounded-md flex items-center justify-center text-muted-foreground hover:bg-surface-muted hover:text-foreground shrink-0">⋯</button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" onClick={e => e.stopPropagation()}>
-              <DropdownMenuItem asChild><Link to={`/agents/${p.id}`}>Mở Quy trình</Link></DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setConfirm(true)}>Xoá Quy trình</DropdownMenuItem>
+              <DropdownMenuItem asChild><Link to={`/agents/${p.id}`}>Mở Co-Run</Link></DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setConfirm(true)}>Xoá Co-Run</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -342,7 +342,7 @@ function ProcessCard({ p, onDeleted }: { p: typeof agents[number]; onDeleted: ()
             <AlertDialogFooter>
               <AlertDialogCancel>Huỷ</AlertDialogCancel>
               <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={() => { if (live) agentPublishStore.unpublish(p.id); deleteAgent(p.id); setConfirm(false); toast.success(`Đã xoá "${p.name}".`); onDeleted(); }}>Xoá Quy trình</AlertDialogAction>
+                onClick={() => { if (live) agentPublishStore.unpublish(p.id); deleteAgent(p.id); setConfirm(false); toast.success(`Đã xoá "${p.name}".`); onDeleted(); }}>Xoá Co-Run</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -505,7 +505,7 @@ function CreateBox({ kind, setKind, prompt, setPrompt, onBuild, onTemplates, can
   return (
     <div className="relative w-full rounded-xl border border-border bg-surface p-3 shadow-sm focus-within:border-ring transition-colors">
       <div role="radiogroup" aria-label="Loại Nhân sự số" className={`${lockKind ? "hidden" : "flex"} gap-1 p-1 rounded-lg bg-surface-muted w-fit`}>
-        {([{ id: "productivity", label: "Năng suất" }, { id: "process", label: "Quy trình" }] as const).map(k => (
+        {([{ id: "productivity", label: "Năng suất" }, { id: "process", label: "Co-Run" }] as const).map(k => (
           <button key={k.id} type="button" role="radio" aria-checked={kind === k.id}
             onClick={() => { setKind(k.id); setPrompt(""); }}
             className={`h-7 px-3 rounded-md text-xs font-medium transition-base ${kind === k.id ? "bg-surface text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
@@ -574,7 +574,7 @@ function CreateBox({ kind, setKind, prompt, setPrompt, onBuild, onTemplates, can
         <button type="button" onClick={onBuild} disabled={prompt.trim().length < 20 || !canCreate} title={noPerm ?? (prompt.trim().length < 20 ? "Mô tả tối thiểu 20 ký tự" : undefined)}
           className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
           <HugeiconsIcon icon={SparklesIcon} size={14} />
-          {isProc ? "Tạo bản nháp Quy trình" : "Tạo bản nháp"}
+          {isProc ? "Tạo bản nháp Co-Run" : "Tạo bản nháp"}
         </button>
       </div>
     </div>
@@ -732,9 +732,9 @@ export default function AgentsList({ mode = "agents" }: { mode?: "agents" | "pro
       {/* Page header - như production: tiêu đề bên trái, nút Tạo nhân sự số bên phải */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-xl font-semibold tracking-tight mb-1">{isProcPage ? "Nhân sự số Quy trình" : "Nhân sự số Năng suất"}</h1>
+          <h1 className="font-display text-xl font-semibold tracking-tight mb-1">{isProcPage ? "Co-Run" : "Nhân sự số"}</h1>
           <p className="text-sm text-muted-foreground">
-            {isProcPage ? "Dựng quy trình theo node: giao bước cho Nhân sự số, người duyệt và hệ thống, rẽ nhánh theo luật. Mỗi lần chạy là một hồ sơ." : "Quản lý mọi nhân sự số trong workspace - dựng, kiểm thử, triển khai và giám sát."}
+            {isProcPage ? "Quy trình nhiều bước, nhiều người, chạy nhiều ngày: Nhân sự số làm phần việc lặp lại, con người duyệt và xử lý ngoại lệ." : "Quản lý mọi nhân sự số trong workspace - dựng, kiểm thử, triển khai và giám sát."}
           </p>
         </div>
         {!isBlankSpace && (
@@ -742,18 +742,18 @@ export default function AgentsList({ mode = "agents" }: { mode?: "agents" | "pro
             title={!canCreateAgent ? "Bạn không có quyền tạo Nhân sự số." : undefined}
             className="btn-primary shrink-0 disabled:opacity-40 disabled:cursor-not-allowed">
             <HugeiconsIcon icon={Add01Icon} size={14} />
-            {isProcPage ? "Tạo Quy trình" : "Tạo nhân sự số"}
+            {isProcPage ? "Tạo Co-Run" : "Tạo Nhân sự số"}
           </button>
         )}
       </div>
 
       {isBlankSpace && !canCreateAgent ? (
-        <div className="pt-10"><GroupEmptyState message={isProcPage ? "Chưa có Nhân sự số Quy trình nào được chia sẻ với bạn. Khi chủ Quy trình cấp quyền, Quy trình sẽ hiện ở đây." : "Chưa có Nhân sự số nào được chia sẻ với bạn. Khi chủ Nhân sự số cấp quyền, Nhân sự số sẽ hiện ở đây."} /></div>
+        <div className="pt-10"><GroupEmptyState message={isProcPage ? "Chưa có Co-Run nào được chia sẻ với bạn. Khi chủ Co-Run cấp quyền, Co-Run sẽ hiện ở đây." : "Chưa có Nhân sự số nào được chia sẻ với bạn. Khi chủ Nhân sự số cấp quyền, Nhân sự số sẽ hiện ở đây."} /></div>
       ) : isBlankSpace ? (
         /* ── Space chưa có Nhân sự số: màn chào của production ───────────── */
         <div className="flex flex-col items-center pt-10 pb-16">
           <h2 className="font-display text-[32px] leading-tight font-semibold tracking-tight text-center max-w-[440px]">
-            {isProcPage ? "Dựng Quy trình đầu tiên của bạn" : "Sẵn sàng xây dựng nhân sự số đầu tiên của bạn?"}
+            {isProcPage ? "Dựng Co-Run đầu tiên của bạn" : "Sẵn sàng xây dựng nhân sự số đầu tiên của bạn?"}
           </h2>
           <p className="text-[15px] text-muted-foreground text-center mt-3 mb-7">{isProcPage ? "Mô tả quy trình, AI dựng sẵn các bước để bạn chỉnh tiếp." : "Mô tả nhân sự số bạn cần, mọi thứ đều chỉnh được sau."}</p>
           <div className="w-full max-w-[640px]">
@@ -774,19 +774,19 @@ export default function AgentsList({ mode = "agents" }: { mode?: "agents" | "pro
         /* ── Số liệu như production ─────────────────────────────────────── */
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           <div className="rounded-xl border border-border p-4">
-            <div className="text-xs text-muted-foreground">{isProcPage ? "Quy trình đang live" : "Nhân sự số đang hoạt động"}</div>
+            <div className="text-xs text-muted-foreground">{isProcPage ? "Co-Run đang live" : "Nhân sự số đang hoạt động"}</div>
             <div className="mt-2 text-xl font-semibold font-display">{kpi.active} <span className="text-sm font-normal text-muted-foreground">/ {kpi.total}</span></div>
-            <div className="mt-1.5 text-[11.5px] text-muted-foreground">{kpi.total - kpi.active} {isProcPage ? "Quy trình" : "nhân sự số"} chưa xuất bản</div>
+            <div className="mt-1.5 text-[11.5px] text-muted-foreground">{kpi.total - kpi.active} {isProcPage ? "Co-Run" : "Nhân sự số"} chưa xuất bản</div>
           </div>
           <div className="rounded-xl border border-border p-4">
             <div className="text-xs text-muted-foreground">{isProcPage ? "Hồ sơ đã mở" : "Hội thoại 7 ngày"}</div>
             <div className="mt-2 text-xl font-semibold font-display">{kpi.convs.toLocaleString("vi-VN")}</div>
-            <div className="mt-1.5 text-[11.5px] text-muted-foreground">{isProcPage ? "Tổng các Quy trình trong Space" : "Tổng các Nhân sự số trong Space"}</div>
+            <div className="mt-1.5 text-[11.5px] text-muted-foreground">{isProcPage ? "Tổng các Co-Run trong Space" : "Tổng các Nhân sự số trong Space"}</div>
           </div>
           <div className="rounded-xl border border-border p-4">
             <div className="text-xs text-muted-foreground">{isProcPage ? "Người khởi chạy" : "Người dùng 7 ngày"}</div>
             <div className="mt-2 text-xl font-semibold font-display">{kpi.users.toLocaleString("vi-VN")}</div>
-            <div className="mt-1.5 text-[11.5px] text-muted-foreground">{isProcPage ? "Người đã gõ /tên Quy trình trong Workspace" : "Người đã trò chuyện với Nhân sự số"}</div>
+            <div className="mt-1.5 text-[11.5px] text-muted-foreground">{isProcPage ? "Người đã gõ /tên Co-Run trong Workspace" : "Người đã trò chuyện với Nhân sự số"}</div>
           </div>
           <div className="rounded-xl border border-border p-4">
             <div className="text-xs text-muted-foreground">{isProcPage ? "Hồ sơ lỗi" : "Đánh giá tích cực"}</div>
@@ -804,7 +804,7 @@ export default function AgentsList({ mode = "agents" }: { mode?: "agents" | "pro
             <button type="button" aria-label="Đóng" onClick={() => setCreateOpen(false)} className="absolute right-3 top-3 h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-surface-muted">
               <HugeiconsIcon icon={Cancel01Icon} size={14} />
             </button>
-            <h2 id="create-title" className="text-lg font-semibold">{isProcPage ? "Tạo Quy trình" : "Bắt đầu từ đâu?"}</h2>
+            <h2 id="create-title" className="text-lg font-semibold">{isProcPage ? "Tạo Co-Run" : "Bắt đầu từ đâu?"}</h2>
             <p className="text-sm text-muted-foreground mt-1 mb-4">{isProcPage ? "Mô tả quy trình, AI dựng sẵn các bước để bạn chỉnh tiếp." : "Mô tả nhân sự số bạn cần, mọi thứ đều chỉnh được sau."}</p>
             <CreateBox kind={createKind} setKind={setCreateKind} prompt={prompt} setPrompt={setPrompt} onBuild={handleBuild} onTemplates={() => { setCreateOpen(false); setShowTemplates(true); }} canCreate={canCreateAgent} lockKind />
             <CreateExtras kind={createKind} setPrompt={setPrompt} onBlank={handleBlank} canCreate={canCreateAgent} />
@@ -844,7 +844,7 @@ export default function AgentsList({ mode = "agents" }: { mode?: "agents" | "pro
           <div className="relative">
             <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
-              placeholder={isProcPage ? "Tìm Quy trình…" : "Tìm Nhân sự số…"}
+              placeholder={isProcPage ? "Tìm theo tên" : "Tìm Nhân sự số…"}
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
@@ -901,17 +901,17 @@ export default function AgentsList({ mode = "agents" }: { mode?: "agents" | "pro
         <div className="mb-8">
           {!singleKindView && (
             <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-              Quy trình
+              Co-Run
               <span className="text-xs font-normal text-muted-foreground">{processAgents.length}</span>
             </h2>
           )}
           {processAgents.length === 0 ? (
             <GroupEmptyState
               message={allProcessCount === 0
-                ? (canCreateAgent ? "Chưa có Quy trình nào - Bấm Tạo Quy trình để dựng Quy trình đầu tiên." : "Chưa có Quy trình nào được chia sẻ với bạn.")
-                : "Không có Quy trình nào khớp với bộ lọc"}
+                ? (canCreateAgent ? "Chưa có Co-Run nào - Bấm Tạo Co-Run để dựng Co-Run đầu tiên." : "Chưa có Co-Run nào được chia sẻ với bạn.")
+                : "Không có Co-Run nào khớp với bộ lọc"}
               onShowAll={allProcessCount > 0 ? clearFilters : undefined}
-              allLabel="Xem tất cả Quy trình"
+              allLabel="Xem tất cả Co-Run"
             />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

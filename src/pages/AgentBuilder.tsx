@@ -422,14 +422,14 @@ export default function AgentBuilder() {
     return (
       <div className="flex flex-col h-full bg-background">
         <div className="h-14 border-b border-border bg-surface flex items-center px-4 gap-3 shrink-0">
-          <button onClick={() => navigate(isProcess ? "/processes" : "/agents")} className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
+          <button onClick={() => navigate(isProcess ? "/workflows" : "/agents")} className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
             <HugeiconsIcon icon={ChevronLeftIcon} size={16} />
           </button>
-          <Link to={isProcess ? "/processes" : "/agents"} className="text-sm text-muted-foreground hover:text-foreground transition-base">{isProcess ? "Nhân sự số Quy trình" : "Nhân sự số Năng suất"}</Link>
+          <Link to={isProcess ? "/workflows" : "/agents"} className="text-sm text-muted-foreground hover:text-foreground transition-base">{isProcess ? "Co-Run" : "Nhân sự số"}</Link>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
           <p className="text-sm text-muted-foreground max-w-md mb-4">Bạn không có quyền trên Nhân sự số này. Liên hệ chủ sở hữu Nhân sự số để được cấp quyền.</p>
-          <Link to={isProcess ? "/processes" : "/agents"} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base flex items-center">
+          <Link to={isProcess ? "/workflows" : "/agents"} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base flex items-center">
             Về danh sách Nhân sự số
           </Link>
         </div>
@@ -441,10 +441,10 @@ export default function AgentBuilder() {
     <div className="flex flex-col h-full bg-background">
       {/* Top bar */}
       <div className="h-14 border-b border-border bg-surface flex items-center px-4 gap-3 shrink-0">
-        <button onClick={() => navigate(isProcess ? "/processes" : "/agents")} className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
+        <button onClick={() => navigate(isProcess ? "/workflows" : "/agents")} className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
           <HugeiconsIcon icon={ChevronLeftIcon} size={16} />
         </button>
-        <Link to={isProcess ? "/processes" : "/agents"} className={`hidden ${isProcess ? "2xl:inline" : "xl:inline"} text-xs text-muted-foreground hover:text-foreground transition-base shrink-0`}>{isProcess ? "Nhân sự số Quy trình" : "Nhân sự số Năng suất"}</Link>
+        <Link to={isProcess ? "/workflows" : "/agents"} className={`hidden ${isProcess ? "2xl:inline" : "xl:inline"} text-xs text-muted-foreground hover:text-foreground transition-base shrink-0`}>{isProcess ? "Co-Run" : "Nhân sự số"}</Link>
         <span className={`hidden ${isProcess ? "2xl:inline" : "xl:inline"} text-xs text-muted-foreground/50 shrink-0`}>/</span>
         {/* Name keeps a minimum width so it never gets squeezed out by the tabs/status on narrow screens (G12). */}
         <div className={`flex items-center gap-2 ${isProcess ? "min-w-[180px]" : "min-w-[140px]"} max-w-[260px] shrink`}>
@@ -688,7 +688,7 @@ export default function AgentBuilder() {
                 refineChatStore.removeAgent(id);
                 setConfirmDelete(false);
                 toast.success(`Đã xóa "${name}".`);
-                navigate(isProcess ? "/processes" : "/agents");
+                navigate(isProcess ? "/workflows" : "/agents");
               }}
             >
               {isProcess ? "Xoá Quy trình" : "Xóa Nhân sự số"}
@@ -988,7 +988,7 @@ export default function AgentBuilder() {
                   command={processCmd}
                   onReady={setProcessReady}
                   onSave={(g: any) => { processStore.saveGraph(id, g); if (g.name !== agent.name || g.desc !== agent.desc) { processStore.rename(id, g.name, g.desc); setPublishTick(t => t + 1); } }}
-                  onBack={() => navigate(isProcess ? "/processes" : "/agents")}
+                  onBack={() => navigate(isProcess ? "/workflows" : "/agents")}
                   onNav={(sec: string) => setParams({ tab: "build", section: sec })}
                 />
               </div>

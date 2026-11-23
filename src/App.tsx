@@ -128,7 +128,8 @@ const App = () => (
               <Route path="/" element={<Home />} />
               <Route path="/my-agents" element={<MyAgents />} />
               <Route path="/agents" element={<AgentsList />} />
-              <Route path="/processes" element={<AgentsList mode="process" />} />
+              <Route path="/workflows" element={<AgentsList mode="process" />} />
+              <Route path="/processes" element={<Navigate to="/workflows" replace />} />
               <Route path="/agents/new" element={<AgentBuilder />} />
               <Route path="/agents/:id" element={<AgentBuilder />} />
               <Route path="/agents/:id/tasks/:taskId" element={<TaskEditor />} />
@@ -152,9 +153,9 @@ const App = () => (
             <Route element={<RequireAuth><WorkspaceLayout /></RequireAuth>}>
               <Route path="/knowledge" element={<KnowledgeList />} />
               <Route path="/knowledge/:id" element={<KnowledgeDetail />} />
-              <Route path="/workforce" element={<Navigate to="/processes" replace />} />
-              <Route path="/workforce/:id" element={<Navigate to="/processes" replace />} />
-              <Route path="/workforce/:id/trace/:runId" element={<Navigate to="/processes" replace />} />
+              <Route path="/workforce" element={<Navigate to="/workflows" replace />} />
+              <Route path="/workforce/:id" element={<Navigate to="/workflows" replace />} />
+              <Route path="/workforce/:id/trace/:runId" element={<Navigate to="/workflows" replace />} />
               <Route path="/members" element={<Navigate to="/organization" replace />} />
               <Route path="/roles" element={<Navigate to="/organization" replace />} />
               <Route path="/super-admin/organizations" element={<SuperAdminOrgs />} />
