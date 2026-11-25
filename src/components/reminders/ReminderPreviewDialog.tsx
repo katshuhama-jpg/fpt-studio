@@ -3,6 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Clock01Icon, StarIcon } from "@hugeicons/core-free-icons";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { csatStore } from "@/components/csat/csatStore";
 import { channelLabel, fmtMinutes, resolvedChannels, stepMinutes, type Reminder } from "./reminderStore";
 
 type IconData = Parameters<typeof HugeiconsIcon>[0]["icon"];
@@ -29,13 +30,13 @@ const Gap = ({ label }: { label: string }) => (
   </div>
 );
 
-/** The rating block the platform appends when a step has CSAT on. */
-const Csat = () => (
+/** The rating link the platform appends to the step chosen in "Gửi kèm lần nhắc": a button that opens the webview. */
+const Csat = ({ button }: { button: string }) => (
   <div className="mt-2 rounded-lg border bg-card p-2">
-    <p className="text-[11px] text-muted-foreground">Bạn thấy cuộc trò chuyện này thế nào?</p>
-    <div className="mt-1.5 flex gap-1" role="img" aria-label="Thang đánh giá 5 sao">
+    <div className="flex gap-1" role="img" aria-label="Thang đánh giá 5 sao">
       {[1, 2, 3, 4, 5].map(i => <Icon key={i} icon={StarIcon} size={16} className="text-warning" />)}
     </div>
+    <span className="mt-1.5 block rounded-md border bg-background px-2 py-1 text-center text-[11px] font-medium text-primary">{button}</span>
   </div>
 );
 
@@ -47,6 +48,8 @@ export default function ReminderPreviewDialog({ agentId, reminder, onClose }: {
 }) {
   const channels = resolvedChannels(agentId, reminder.channels);
   const [channel, setChannel] = useState(channels[0] ?? "web");
+  const csat = csatStore.get(agentId);
+  const csatOn = reminder.csat && csatStore.isConfigured(agentId) && csat.enabled;
 
   return (
     <Dialog open onOpenChange={o => { if (!o) onClose(); }}>
@@ -76,7 +79,7 @@ export default function ReminderPreviewDialog({ agentId, reminder, onClose }: {
               <Gap label={`${fmtMinutes(stepMinutes(s) - (i ? stepMinutes(reminder.steps[i - 1]) : 0))} · ${fmtMinutes(stepMinutes(s))} kể từ tin chờ`} />
               <Agent>
                 {plain(s.instruction) || <span className="text-muted-foreground">(chưa có Instruction)</span>}
-                {s.csat && <Csat />}
+                {csatOn && reminder.csatStepId === s.id && <Csat button={csat.buttonTitle} />}
               </Agent>
               {i === 0 && <p className="text-center text-[11px] text-muted-foreground">Người dùng vẫn chưa trả lời</p>}
             </div>

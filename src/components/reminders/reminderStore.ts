@@ -5,6 +5,7 @@ import { loadMap, saveMap } from "@/lib/sessionPersist";
 import { CHANNEL_CATALOG } from "@/components/configure/channelCatalog";
 import { agentPublishStore } from "@/components/configure/agentPublishStore";
 import { listLevel, parseToken, resolveRef, splitByRefs } from "@/components/configure/instructionRefs";
+import { csatStore } from "@/components/csat/csatStore";
 
 export interface ReminderStep {
   id: string;
@@ -15,7 +16,6 @@ export interface ReminderStep {
   instruction: string;
   /** Optional — empty means "always send once the wait is over". */
   trigger: string;
-  csat: boolean;
 }
 export interface Reminder {
   id: string;
@@ -23,6 +23,10 @@ export interface Reminder {
   /** "all" includes channels published later. */
   channels: "all" | string[];
   steps: ReminderStep[];
+  /** Toggle "CSAT rating" ở cấp reminder (TOVA-5953). */
+  csat: boolean;
+  /** Lần nhắc gửi kèm CSAT — theo id nên giữ đúng lần nhắc khi xóa/đánh số lại. */
+  csatStepId: string | null;
   enabled: boolean;
   createdAt: number;
   updatedAt: number;
@@ -126,9 +130,9 @@ export const needsUpdate = (agentId: string, r: Reminder) =>
 /** Lần 1 mặc định 5 phút; lần sau = lần trước + 5 phút (tối đa 23h59'). */
 export const emptyStep = (prev?: ReminderStep): ReminderStep => {
   const m = prev ? Math.min(stepMinutes(prev) + 5, MAX_TOTAL_MIN) : 5;
-  return { id: uid("step"), hours: Math.floor(m / 60), minutes: m % 60, instruction: "", trigger: "", csat: false };
+  return { id: uid("step"), hours: Math.floor(m / 60), minutes: m % 60, instruction: "", trigger: "" };
 };
-export const emptyReminder = (): Reminder => ({ id: uid("rem"), name: "", channels: "all", steps: [emptyStep()], enabled: true, createdAt: Date.now(), updatedAt: Date.now() });
+export const emptyReminder = (): Reminder => ({ id: uid("rem"), name: "", channels: "all", steps: [emptyStep()], csat: false, csatStepId: null, enabled: true, createdAt: Date.now(), updatedAt: Date.now() });
 
 /* ───────────── warnings (never block saving) ───────────── */
 
@@ -204,32 +208,33 @@ function seed(agentId: string) {
   if (agentId !== "cskh" && agentId !== "slash-demo") return;
   const skill = listLevel(agentId, { cat: "skills" })[0];
   const skillTok = skill ? skill.token : "";
-  const step = (hours: number, minutes: number, instruction: string, trigger: string, csat = false): ReminderStep =>
-    ({ id: uid("step"), hours, minutes, instruction, trigger, csat });
+  const step = (hours: number, minutes: number, instruction: string, trigger: string): ReminderStep =>
+    ({ id: uid("step"), hours, minutes, instruction, trigger });
+  const chotDon = [
+    step(0, 5, "Hỏi khách có cần hỗ trợ hoàn tất đơn hàng không.", ""),
+    step(0, 30, "Nhắc lần hai, nói rõ ưu đãi chỉ giữ trong hôm nay.", "Khách vẫn chưa xác nhận đơn."),
+    step(2, 0, "Gửi link tiếp tục đặt hàng và xin đánh giá trải nghiệm.", ""),
+  ];
   lists.set(agentId, [
     {
       // Lần 1 = 5 phút, cùng kênh "web" với "Chốt đơn" → minh hoạ cảnh báo trùng thời gian.
-      id: uid("rem"), name: "Nhắc xin số điện thoại", channels: "all", enabled: true,
+      id: uid("rem"), name: "Nhắc xin số điện thoại", channels: "all", enabled: true, csat: false, csatStepId: null,
       createdAt: Date.now() - 12 * DAY, updatedAt: Date.now() - DAY,
       steps: [step(0, 5, `Nhắc khách để lại số điện thoại để nhân viên gọi lại ${skillTok}`.trim(), "Khách chưa để lại số điện thoại sau khi được hỏi.")],
     },
     {
-      id: uid("rem"), name: "Chốt đơn", channels: "all", enabled: true,
+      id: uid("rem"), name: "Chốt đơn", channels: "all", enabled: true, csat: true, csatStepId: chotDon[2].id,
       createdAt: Date.now() - 9 * DAY, updatedAt: Date.now() - 3 * DAY,
-      steps: [
-        step(0, 5, "Hỏi khách có cần hỗ trợ hoàn tất đơn hàng không.", ""),
-        step(0, 30, "Nhắc lần hai, nói rõ ưu đãi chỉ giữ trong hôm nay.", "Khách vẫn chưa xác nhận đơn."),
-        step(2, 0, "Gửi link tiếp tục đặt hàng và xin đánh giá trải nghiệm.", "", true),
-      ],
+      steps: chotDon,
     },
     {
       // Kênh messenger không nằm trong danh sách publish của agent → mất kênh, tự tắt.
-      id: uid("rem"), name: "Nhắc chọn sản phẩm", channels: "all", enabled: false,
+      id: uid("rem"), name: "Nhắc chọn sản phẩm", channels: "all", enabled: false, csat: false, csatStepId: null,
       createdAt: Date.now() - 20 * DAY, updatedAt: Date.now() - 7 * DAY,
       steps: [step(0, 45, "Gợi ý lại 3 sản phẩm phù hợp nhất với nhu cầu khách đã nói.", "Khách chưa chọn sản phẩm nào.")],
     },
     {
-      id: uid("rem"), name: "Nhắc tra cứu khoản vay", channels: "all", enabled: false,
+      id: uid("rem"), name: "Nhắc tra cứu khoản vay", channels: "all", enabled: false, csat: false, csatStepId: null,
       createdAt: Date.now() - 30 * DAY, updatedAt: Date.now() - 7 * DAY,
       steps: [step(0, 45, "Dùng {{ref:skill:legacy-loan-lookup|tra-cuu-khoan-vay-cu}} để nhắc khách số tiền còn nợ.", "Khách hỏi về khoản vay nhưng chưa xác nhận số hợp đồng.")],
     },
@@ -237,8 +242,16 @@ function seed(agentId: string) {
   persist();
 }
 
+/** Older saved shapes: per-step CSAT switch → one reminder-level CSAT step. */
+function migrateCsat(r: Reminder): Reminder {
+  if (typeof r.csat === "boolean") return r;
+  const legacy = r.steps.find(s => (s as ReminderStep & { csat?: boolean }).csat);
+  return { ...r, csat: !!legacy, csatStepId: legacy?.id ?? null };
+}
+
 /** Older saved shapes: { amount, unit } steps, and reminders with no createdAt. */
-function migrate(r: Reminder): Reminder {
+function migrate(raw: Reminder): Reminder {
+  const r = migrateCsat(raw);
   const createdAt = r.createdAt ?? r.updatedAt ?? Date.now();
   if (r.steps.every(s => typeof s.hours === "number")) return r.createdAt ? r : { ...r, createdAt };
   return { ...r, createdAt, steps: r.steps.map(s => {
@@ -298,6 +311,11 @@ export function validateReminder(agentId: string, r: Reminder, others: Reminder[
     // A skill removed from the Agent doesn't block saving: at runtime the Agent picks a suitable replacement.
     // Trigger is optional — empty means the nudge always goes out when the wait is over.
   });
+  // BR-04: bật CSAT thì Agent phải Đã cấu hình CSAT và đã chọn đúng một lần nhắc còn tồn tại.
+  if (r.csat) {
+    if (!r.steps.some(s => s.id === r.csatStepId)) fields.set("csatStep", "Chọn lần nhắc gửi kèm CSAT.");
+    if (!csatStore.isConfigured(agentId)) fields.set("csat", "Vui lòng cấu hình CSAT trước khi lưu reminder.");
+  }
   return { fields };
 }
 

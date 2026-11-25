@@ -39,7 +39,7 @@ function StepsSummary({ r, overlapNote, blockedFrom, highlight }: { r: Reminder;
           {blocked
             ? <span title="Sẽ không được gửi: ≥ thời gian kết thúc hội thoại" className={`rounded-sm px-1 text-muted-foreground line-through ${highlight ? "bg-warning/20 ring-1 ring-warning/50" : ""}`}>{fmtShort(stepMinutes(s))}</span>
             : fmtShort(stepMinutes(s))}
-          {s.csat && <span title="Có CSAT rating"><Icon icon={StarIcon} size={13} className="text-warning" /></span>}
+          {r.csat && r.csatStepId === s.id && <span title="Gửi kèm CSAT rating"><Icon icon={StarIcon} size={13} className="text-warning" /></span>}
         </span>
         );
       })}

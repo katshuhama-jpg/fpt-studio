@@ -8,6 +8,7 @@ import {
   emptyReminder, emptyStep, findOverlaps, fmtMinutes, fmtShort, hasPublishedChannels, lostAllChannels,
   needsUpdate, noLiveChannel, publishedChannelIds, reminderStore, stepMinutes, validateReminder,
 } from "./reminderStore";
+import { csatStore, DEFAULT_CSAT, validateCsat } from "@/components/csat/csatStore";
 
 beforeAll(() => {
   globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver;
@@ -82,6 +83,21 @@ describe("reminderStore", () => {
     expect(e.fields.get("step.b.duration")).toBe("Duration lần sau phải lớn hơn lần trước");
   });
 
+  it("CSAT: needs a saved config and an existing step to send with (BR-04, nhánh #8)", () => {
+    const step = { ...emptyStep(), instruction: "Nhắc khách" };
+    const r = { ...emptyReminder(), name: "Có CSAT", steps: [step], csat: true, csatStepId: step.id };
+    expect(validateReminder("csat-val", r, []).fields.get("csat")).toBe("Vui lòng cấu hình CSAT trước khi lưu reminder.");
+    csatStore.save("csat-val", DEFAULT_CSAT);
+    expect(validateReminder("csat-val", r, []).fields.size).toBe(0);
+    expect(validateReminder("csat-val", { ...r, csatStepId: "gone" }, []).fields.get("csatStep")).toBe("Chọn lần nhắc gửi kèm CSAT.");
+    expect(validateReminder("csat-val", { ...r, csat: false, csatStepId: null }, []).fields.size).toBe(0);
+    expect(validateCsat({ ...DEFAULT_CSAT, buttonTitle: "" }).buttonTitle).toBe("Trường này là bắt buộc");
+    expect(validateCsat({ ...DEFAULT_CSAT, buttonTitle: "x".repeat(31) }).buttonTitle).toBe("Tối đa 30 ký tự");
+    // Seeded "Chốt đơn" sends CSAT with its 3rd step.
+    const chot = reminderStore.list("cskh").find(x => x.name === "Chốt đơn")!;
+    expect(chot.csat && chot.csatStepId).toBe(chot.steps[2].id);
+  });
+
   it("finds overlapping steps across enabled reminders on a shared channel", () => {
     const list = reminderStore.list("cskh");
     const phone = list.find(r => r.name === "Nhắc xin số điện thoại")!;
@@ -146,6 +162,25 @@ describe("InactiveReminderTab", () => {
     wrap(<InactiveReminderTab agentId="faq" />);
     expect(screen.getByRole("button", { name: /Thêm reminder/ }).hasAttribute("disabled")).toBe(true);
     for (const r of reminderStore.list("faq")) reminderStore.remove("faq", r.id);
+  });
+
+  it("CSAT not configured: Cấu hình opens the popup, saving it turns CSAT rating on (TOVA-5953)", () => {
+    expect(csatStore.isConfigured("csat-new")).toBe(false);
+    wrap(<InactiveReminderTab agentId="csat-new" />);
+    fireEvent.click(screen.getAllByRole("button", { name: /Thêm reminder/ })[0]);
+    const sheet = screen.getByRole("dialog");
+    // No per-step switch any more; the block sits under the steps with a Cấu hình button instead of the toggle.
+    expect(within(sheet).queryByLabelText(/CSAT rating của Lần nhắc/)).toBeNull();
+    expect(within(sheet).queryByLabelText("CSAT rating")).toBeNull();
+    fireEvent.click(within(sheet).getByRole("button", { name: /Cấu hình/ }));
+    const popup = screen.getByRole("dialog", { name: "Đánh giá CSAT" });
+    expect((within(popup).getByLabelText(/Tiêu đề nút/) as HTMLInputElement).value).toBe("Rate this conversation");
+    fireEvent.click(within(popup).getByRole("button", { name: /^Lưu$/ }));
+    expect(screen.queryByRole("dialog", { name: "Đánh giá CSAT" })).toBeNull();
+    expect(csatStore.isConfigured("csat-new")).toBe(true);
+    expect(within(sheet).getByLabelText("CSAT rating").getAttribute("aria-checked")).toBe("true");
+    expect(within(sheet).getByText("Gửi kèm lần nhắc")).toBeTruthy();
+    expect(within(sheet).getByText(/Dùng Cấu hình CSAT của Agent/)).toBeTruthy();
   });
 
   it("read-only hides add/save", () => {
