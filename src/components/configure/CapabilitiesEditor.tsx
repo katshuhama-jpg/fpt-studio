@@ -14,7 +14,7 @@ const HANDOFF = "handoff";
  * edit a draft, and "Lưu thay đổi" only appears once the draft differs from what's saved.
  * "Khôi phục mặc định" puts the draft back to the defaults (the nine on, "Chuyển cho nhân viên"
  * off) — still to be saved. */
-export default function CapabilitiesEditor({ agentId }: { agentId: string }) {
+export default function CapabilitiesEditor({ agentId, readOnly = false }: { agentId: string; readOnly?: boolean }) {
   const [, setParams] = useSearchParams();
   const capabilities = agentCapabilityStore.list();
   const readSaved = () => ({
@@ -54,7 +54,7 @@ export default function CapabilitiesEditor({ agentId }: { agentId: string }) {
           <span className="text-xs font-medium tabular-nums rounded-sm px-1.5 py-0.5 bg-muted text-muted-foreground">{onCount}/{capabilities.length}</span>
           {dirty && <span className="text-xs text-muted-foreground">· Có thay đổi chưa lưu</span>}
         </div>
-        <div className="flex items-center gap-2">
+        {!readOnly && <div className="flex items-center gap-2">
           <Button type="button" variant="outline" size="sm" disabled={atDefault} title={atDefault ? "Đang ở cấu hình mặc định." : undefined} onClick={() => setDraft(defaults)}>
             <HugeiconsIcon icon={CircleArrowReload01Icon} size={16} strokeWidth={1.5} /> Khôi phục mặc định
           </Button>
@@ -63,8 +63,11 @@ export default function CapabilitiesEditor({ agentId }: { agentId: string }) {
               <HugeiconsIcon icon={FloppyDiskIcon} size={16} strokeWidth={1.5} /> Lưu thay đổi
             </Button>
           )}
-        </div>
+        </div>}
       </div>
+      {readOnly && (
+        <p className="mb-3 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">Bạn đang có quyền Xem Nhân sự số này nên không đổi được các khả năng. Liên hệ chủ Nhân sự số để được cấp quyền Sửa.</p>
+      )}
 
       <div className="space-y-2.5">
         <div className="flex items-start gap-4 rounded-md border p-3.5">
@@ -82,7 +85,7 @@ export default function CapabilitiesEditor({ agentId }: { agentId: string }) {
               <p className="text-xs text-warning mt-1">Còn {active.length} kênh đang bật chuyển cho nhân viên — sẽ có cảnh báo khi Publish.</p>
             )}
           </div>
-          <Switch checked={draft[HANDOFF]} onCheckedChange={v => set(HANDOFF, v)} aria-label="Chuyển cho nhân viên" className="shrink-0 mt-0.5" />
+          <Switch checked={draft[HANDOFF]} onCheckedChange={v => set(HANDOFF, v)} disabled={readOnly} aria-label="Chuyển cho nhân viên" className="shrink-0 mt-0.5" />
         </div>
 
         {capabilities.map(cap => (
@@ -92,7 +95,7 @@ export default function CapabilitiesEditor({ agentId }: { agentId: string }) {
               <p className="text-sm text-muted-foreground leading-relaxed mt-0.5">{cap.description}</p>
               {cap.hint && <p className="text-xs text-muted-foreground mt-1.5">{cap.hint}</p>}
             </div>
-            <Switch checked={draft[cap.id]} onCheckedChange={v => set(cap.id, v)} aria-label={cap.name} className="shrink-0 mt-0.5" />
+            <Switch checked={draft[cap.id]} onCheckedChange={v => set(cap.id, v)} disabled={readOnly} aria-label={cap.name} className="shrink-0 mt-0.5" />
           </div>
         ))}
       </div>

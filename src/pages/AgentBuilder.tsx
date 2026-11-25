@@ -3904,7 +3904,7 @@ function AdvancedSettingsTab({ agentId, agentName, readOnly }: { agentId: string
         </div>
         <TabsContent value="starter-prompts" className="mt-0"><StarterPromptsInner /></TabsContent>
         <TabsContent value="agent-card" className="mt-0"><AgentCardBlock agentId={agentId} /></TabsContent>
-        <TabsContent value="capabilities" className="mt-0"><CapabilitiesEditor agentId={agentId} /></TabsContent>
+        <TabsContent value="capabilities" className="mt-0"><CapabilitiesEditor agentId={agentId} readOnly={readOnly} /></TabsContent>
         <TabsContent value="conversation" className="mt-0"><ConversationSettings agentId={agentId} agentName={agentName} readOnly={readOnly} /></TabsContent>
       </Tabs>
     </div>
