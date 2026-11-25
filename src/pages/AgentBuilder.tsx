@@ -4062,10 +4062,10 @@ function PreviewPanel({ agentId, view, onViewChange, onConnectionsChange, onClos
       return;
     }
     setTimeout(() => {
-      // TOVA-7091: Test run follows the saved "Hiển thị nguồn truy xuất" setting right away (no
-      // Publish needed). Off = same answer text, no citation number, no Nguồn block.
+      // TOVA-7091: the toggle only hides sources on Workspace. Test run is in Console, so it
+      // always shows them, with a note when Workspace users won't see them.
       const text = `Theo tài liệu hiện có, đây là thông tin cho câu hỏi "${userMsg}". Bạn cần mình giải thích thêm phần nào không?`;
-      setMessages(m => [...m, { role: "agent", text, sources: showsSources(agentId) ? [mockSourceFor(agentId)] : undefined }]);
+      setMessages(m => [...m, { role: "agent", text, sources: [mockSourceFor(agentId)] }]);
     }, 800);
   };
 
@@ -4145,7 +4145,7 @@ function PreviewPanel({ agentId, view, onViewChange, onConnectionsChange, onClos
                 >
                   {m.text}
                   {m.sources && m.sources.length > 0 && <CitationMark n={1} />}
-                  {m.sources && <SourcesBlock sources={m.sources} />}
+                  {m.sources && <SourcesBlock sources={m.sources} note={showsSources(agentId) ? undefined : "Người dùng trên Workspace không thấy nguồn này vì Hiển thị nguồn truy xuất đang tắt."} />}
                 </div>
               </div>
             ))}
