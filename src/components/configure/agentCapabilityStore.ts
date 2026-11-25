@@ -14,9 +14,12 @@ export interface AgentCapability {
    * the runtime conditions from the doc, worth stating because a toggle that's on can still be
    * inert (e.g. sub-agent delegation with no sub-agents configured). */
   note?: string;
+  /** Short line shown to the Builder under the description in the editor (unlike `note`,
+   * which is documentation only). */
+  hint?: string;
 }
 
-/** The nine capabilities the platform allows an agent to turn off. Order follows the doc. */
+/** The capabilities the platform allows an agent to turn off. Order follows the doc. */
 export const AGENT_CAPABILITIES: AgentCapability[] = [
   {
     id: "memory",
@@ -65,9 +68,12 @@ export const AGENT_CAPABILITIES: AgentCapability[] = [
     note: "Nhân sự số con nhận nguyên danh sách tool của Nhân sự số cha.",
   },
   {
-    id: "inline-citation",
-    name: "Inline Citation",
-    description: "Cho phép Nhân sự số sinh câu trả lời kèm theo trích dẫn trong văn bản.",
+    // Replaces the old "Inline Citation" toggle (TOVA-7091): one switch decides both the
+    // in-text citation number and the Nguồn block under the answer.
+    id: "show-sources",
+    name: "Hiển thị nguồn truy xuất",
+    description: "Hiện số trích dẫn trong câu trả lời và khối Nguồn gồm tên tài liệu, đoạn trích. Tắt khi không muốn người dùng thấy tài liệu Nhân sự số đã dùng.",
+    hint: "Áp dụng cho mọi kênh và Test run. Builder vẫn xem được nguồn trong Lịch sử và Trace.",
   },
 ];
 
@@ -112,3 +118,7 @@ export const agentCapabilityStore = {
     persist();
   },
 };
+
+export const SHOW_SOURCES = "show-sources";
+/** Whether answers from this agent carry the citation number and the Nguồn block. */
+export const showsSources = (agentId: string) => agentCapabilityStore.isOn(agentId, SHOW_SOURCES);

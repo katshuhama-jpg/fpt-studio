@@ -5,6 +5,8 @@ import { format } from "date-fns";
 import { historyStore, type ConversationMessage } from "./historyStore";
 import { buildMessageAudit } from "./traceStore";
 import CollapsibleHistoryPanel from "./CollapsibleHistoryPanel";
+import { SourcesBlock } from "@/components/configure/RetrievalSources";
+import { showsSources } from "@/components/configure/agentCapabilityStore";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 /**
@@ -183,6 +185,12 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
                     >
                       {m.content}
                     </div>
+                    {m.role === "agent" && m.sources && (
+                      <SourcesBlock
+                        sources={m.sources}
+                        note={showsSources(agentId) ? undefined : "Chỉ Builder thấy - Người dùng không thấy nguồn vì Hiển thị nguồn truy xuất đang tắt."}
+                      />
+                    )}
                     <div className={`mt-1 text-[10px] text-muted-foreground ${m.role === "customer" ? "text-right" : "text-left"}`}>
                       {format(new Date(m.at), "HH:mm")}
                     </div>

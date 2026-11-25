@@ -90,6 +90,7 @@ export default function CapabilitiesEditor({ agentId }: { agentId: string }) {
             <div className="min-w-0 flex-1">
               <p className={`text-sm font-medium ${draft[cap.id] ? "" : "text-muted-foreground"}`}>{cap.name}</p>
               <p className="text-sm text-muted-foreground leading-relaxed mt-0.5">{cap.description}</p>
+              {cap.hint && <p className="text-xs text-muted-foreground mt-1.5">{cap.hint}</p>}
             </div>
             <Switch checked={draft[cap.id]} onCheckedChange={v => set(cap.id, v)} aria-label={cap.name} className="shrink-0 mt-0.5" />
           </div>

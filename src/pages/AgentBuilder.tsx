@@ -73,6 +73,8 @@ import { builtinSkillStore, type BuiltinSkill } from "@/components/configure/bui
 import { agentCapabilityStore } from "@/components/configure/agentCapabilityStore";
 import ConversationSettings from "@/components/conversation/ConversationSettings";
 import CapabilitiesEditor from "@/components/configure/CapabilitiesEditor";
+import { showsSources } from "@/components/configure/agentCapabilityStore";
+import { CitationMark, SourcesBlock, mockSourceFor, type RetrievalSource } from "@/components/configure/RetrievalSources";
 import CreateSkillModal, { type SkillFormData } from "@/components/configure/CreateSkillModal";
 import CreateSkillChoiceModal from "@/components/configure/CreateSkillChoiceModal";
 import UploadSkillModal from "@/components/configure/UploadSkillModal";
@@ -4040,7 +4042,7 @@ function PreviewPanel({ agentId, view, onViewChange, onConnectionsChange, onClos
   // Test run greets as the Agent actually open in the builder (was hard-coded to Banking ABC).
   const previewAgent = getAgent(agentId);
   const greeting = `Xin chào! Mình là ${previewAgent.name}. Mình có thể giúp gì cho bạn?`;
-  const [messages, setMessages] = useState<{ role: "user" | "agent"; text: string }[]>([
+  const [messages, setMessages] = useState<{ role: "user" | "agent"; text: string; sources?: RetrievalSource[] }[]>([
     { role: "agent", text: greeting },
   ]);
   const [input, setInput] = useState("");
@@ -4060,7 +4062,10 @@ function PreviewPanel({ agentId, view, onViewChange, onConnectionsChange, onClos
       return;
     }
     setTimeout(() => {
-      setMessages(m => [...m, { role: "agent", text: `Thanks for reaching out! I'm processing your request about "${userMsg}". Please give me a moment.` }]);
+      // TOVA-7091: Test run follows the saved "Hiển thị nguồn truy xuất" setting right away (no
+      // Publish needed). Off = same answer text, no citation number, no Nguồn block.
+      const text = `Theo tài liệu hiện có, đây là thông tin cho câu hỏi "${userMsg}". Bạn cần mình giải thích thêm phần nào không?`;
+      setMessages(m => [...m, { role: "agent", text, sources: showsSources(agentId) ? [mockSourceFor(agentId)] : undefined }]);
     }, 800);
   };
 
@@ -4139,6 +4144,8 @@ function PreviewPanel({ agentId, view, onViewChange, onConnectionsChange, onClos
                   }`}
                 >
                   {m.text}
+                  {m.sources && m.sources.length > 0 && <CitationMark n={1} />}
+                  {m.sources && <SourcesBlock sources={m.sources} />}
                 </div>
               </div>
             ))}

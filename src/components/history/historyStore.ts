@@ -72,6 +72,9 @@ export interface ConversationMessage {
   content: string;
   at: number; // epoch ms
   feedback?: "up" | "down"; // only ever set on role: "agent"
+  /** Tài liệu Nhân sự số truy xuất để trả lời (TOVA-7091). Builder luôn thấy trong Lịch sử và
+   * Trace, kể cả khi "Hiển thị nguồn truy xuất" đang tắt với người dùng. */
+  sources?: { title: string; excerpt: string }[];
   /** The comment a user typed when rating this message - users rate individual agent bubbles,
    * and can leave a comment on a like as well as a dislike. Exported in History → Export. */
   feedbackComment?: string;
@@ -229,6 +232,7 @@ function buildMessages(
     failure?: ConversationMessage["failure"];
     demoLatencyMs?: number;
     reminder?: ConversationMessage["reminder"];
+    sources?: ConversationMessage["sources"];
   }[],
 ): ConversationMessage[] {
   const startAt = endedAt - turns.length * 2 * MIN;
@@ -244,6 +248,7 @@ function buildMessages(
     failure: t.failure,
     demoLatencyMs: t.demoLatencyMs,
     reminder: t.reminder,
+    sources: t.sources,
     toolCalls: t.toolCalls?.map((tc, j) => ({ ...tc, callId: `call_${pseudoUlid(`${seedKey}-tool${i + 1}-${j + 1}`).slice(0, 18)}` })),
   }));
 }
@@ -940,7 +945,13 @@ function faqSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         {
           role: "agent",
           content: "Let me check your warranty status first.",
+          sources: [{ title: "Chính sách bảo hành sản phẩm 2026.pdf", excerpt: "Sản phẩm được bảo hành 12 tháng kể từ ngày mua; đổi trả trong 7 ngày nếu lỗi do nhà sản xuất." }],
           toolCalls: [{
+            name: "knowledge_search",
+            connector: "Tri thức",
+            input: { query: "blender warranty period" },
+            output: { document: "Chính sách bảo hành sản phẩm 2026.pdf", excerpt: "Sản phẩm được bảo hành 12 tháng kể từ ngày mua; đổi trả trong 7 ngày nếu lỗi do nhà sản xuất." },
+          }, {
             name: "check_warranty_status",
             connector: "Warranty Portal",
             input: { email: "vo.thi.kim.ngan@gmail.com" },
