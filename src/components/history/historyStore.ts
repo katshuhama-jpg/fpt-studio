@@ -73,7 +73,7 @@ export interface ConversationMessage {
   at: number; // epoch ms
   feedback?: "up" | "down"; // only ever set on role: "agent"
   /** Tài liệu Nhân sự số truy xuất để trả lời (TOVA-7091). Console (Lịch sử, Tracing) luôn hiện,
-   * kể cả khi "Hiển thị nguồn truy xuất" đang tắt - công tắc chỉ ẩn nguồn trên Workspace. */
+   * kể cả khi "Hiển thị nguồn truy xuất" đang tắt - công tắc chỉ ẩn nguồn ở các kênh và Test run. */
   sources?: { title: string; excerpt: string }[];
   /** The comment a user typed when rating this message - users rate individual agent bubbles,
    * and can leave a comment on a like as well as a dislike. Exported in History → Export. */

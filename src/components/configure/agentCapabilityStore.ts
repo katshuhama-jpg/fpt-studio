@@ -72,8 +72,8 @@ export const AGENT_CAPABILITIES: AgentCapability[] = [
     // in-text citation number and the Nguồn block under the answer.
     id: "show-sources",
     name: "Hiển thị nguồn truy xuất",
-    description: "Hiện số trích dẫn và khối Nguồn (tên tài liệu, đoạn trích) trong câu trả lời trên Workspace. Tắt khi không muốn người dùng thấy tài liệu Nhân sự số đã dùng.",
-    hint: "Chỉ áp dụng trên Workspace. Test run, Lịch sử và Tracing trong Console vẫn hiện nguồn.",
+    description: "Hiện số trích dẫn và khối Nguồn (tên tài liệu, đoạn trích) trong câu trả lời. Tắt khi không muốn người dùng thấy tài liệu Nhân sự số đã dùng.",
+    hint: "Áp dụng cho mọi kênh đã publish và Test run. Lịch sử và Tracing vẫn hiện nguồn để Builder kiểm tra.",
   },
 ];
 
@@ -120,6 +120,6 @@ export const agentCapabilityStore = {
 };
 
 export const SHOW_SOURCES = "show-sources";
-/** Whether this agent's answers on Workspace carry the citation number and the Nguồn block.
- * Console surfaces (Test run, Lịch sử, Tracing) always show sources. */
+/** Whether this agent's answers carry the citation number and the Nguồn block - on every
+ * published channel and in Test run. Lịch sử and Tracing always show sources. */
 export const showsSources = (agentId: string) => agentCapabilityStore.isOn(agentId, SHOW_SOURCES);

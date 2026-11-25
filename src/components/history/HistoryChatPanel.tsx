@@ -188,7 +188,7 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
                     {m.role === "agent" && m.sources && (
                       <SourcesBlock
                         sources={m.sources}
-                        note={showsSources(agentId) ? undefined : "Người dùng trên Workspace không thấy nguồn này vì Hiển thị nguồn truy xuất đang tắt."}
+                        note={showsSources(agentId) ? undefined : "Người dùng không thấy nguồn này vì Hiển thị nguồn truy xuất đang tắt."}
                       />
                     )}
                     <div className={`mt-1 text-[10px] text-muted-foreground ${m.role === "customer" ? "text-right" : "text-left"}`}>
