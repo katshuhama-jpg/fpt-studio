@@ -1056,15 +1056,22 @@ const STEP_LABEL: Record<string, string> = {
   ls: "Xem cấu hình hiện có",
   explore_tools: "Xem các công cụ có thể dùng",
   read_skill: "Đọc hướng dẫn tự cấu hình",
+  list_skills: "Xem các Skill đang có",
+  create_skill: "Tạo Skill mới",
+  search_library: "Tìm Skill phù hợp trong thư viện của Space",
 };
 const stepLabel = (m: { name: string; label?: string }) => m.label ?? STEP_LABEL[m.name] ?? "Xử lý yêu cầu";
 const STOPPED_NOTE = "Đã dừng - Nhân sự số đã bị thay đổi thông tin";
 
 type StepMsg = Extract<RefineMsg, { kind: "tool" }>;
-type ChangeArgs = { old_string?: string; new_string?: string };
+type ChangeArgs = { old_string?: string; new_string?: string; skill_name?: string; skill_description?: string };
+/** A step that changed something (Instructions or a new Skill) is shown as a change card. */
+const isChangeArgs = (a?: ChangeArgs) => !!a && (a.new_string !== undefined || a.skill_name !== undefined);
+const CHANGE_PREVIEW_LINES = 8;
 
 /** Lines removed / added by a change, for the "Thay đổi" block (common start and end trimmed). */
 function changeLines(args: ChangeArgs): { removed: string[]; added: string[] } {
+  if (args.skill_name !== undefined) return { removed: [], added: [`Tên: ${args.skill_name}`, `Mô tả: ${args.skill_description ?? ""}`] };
   const a = (args.old_string ?? "").split("\n");
   const b = (args.new_string ?? "").split("\n");
   if (!args.old_string) return { removed: [], added: b.filter(l => l.trim()) };
@@ -1092,7 +1099,7 @@ function RefineSteps({ steps }: { steps: StepMsg[] }) {
   return (
     <div>
       <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
-        className="flex items-center gap-2 px-1 py-1 -mx-1 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-base">
+        className="flex items-center gap-2 px-1 py-1 -mx-1 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 transition-base">
         {running
           ? <span className="w-3.5 h-3.5 rounded-full border-2 border-primary/30 border-t-primary animate-spin shrink-0" aria-hidden />
           : <HugeiconsIcon icon={stopped ? MinusSignIcon : CheckmarkCircle01Icon} size={16} strokeWidth={1.5} className={stopped ? "" : "text-success"} />}
@@ -1106,12 +1113,15 @@ function RefineSteps({ steps }: { steps: StepMsg[] }) {
             <li key={s.id} className="flex items-start gap-2 text-sm">
               {!s.done
                 ? <span className="w-3.5 h-3.5 mt-0.5 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground animate-spin shrink-0" aria-label="Đang làm" />
+                : s.outcome === "failed"
+                  ? <HugeiconsIcon icon={Alert01Icon} size={14} strokeWidth={1.5} className="mt-0.5 text-warning shrink-0" />
                 : s.outcome === "stopped" || s.outcome === "rejected"
                   ? <HugeiconsIcon icon={MinusSignIcon} size={14} strokeWidth={1.5} className="mt-0.5 text-muted-foreground shrink-0" />
                   : <HugeiconsIcon icon={CheckmarkCircle01Icon} size={14} strokeWidth={1.5} className="mt-0.5 text-success shrink-0" />}
               <span className={s.done ? "text-foreground" : "text-muted-foreground"}>
                 {stepLabel(s)}
-                {s.outcome === "stopped" && <span className="text-muted-foreground"> - đã dừng vì Nhân sự số đã bị thay đổi thông tin</span>}
+                {s.outcome === "failed" && <span className="block text-muted-foreground">{s.note ?? "Chưa làm được - trợ lý thử cách khác"}</span>}
+                {s.outcome === "stopped" && <span className="text-muted-foreground"> - {s.reason === "Bạn đã dừng" ? "bạn đã dừng" : "đã dừng vì Nhân sự số đã bị thay đổi thông tin"}</span>}
               </span>
             </li>
           ))}
@@ -1155,7 +1165,7 @@ function RefinePlan({ msg, live }: { msg: Extract<RefineMsg, { kind: "plan" }>; 
 }
 
 /** One change - waiting for approval or already decided - as what changes and why. */
-function RefineChangeCard({ title, change, why, args, status, reason, running, footer, editing, onEditAdded }: {
+function RefineChangeCard({ title, change, why, args, status, reason, running, footer, editing, onEditAdded, onEditSkill }: {
   title: string;
   change?: string;
   why?: string;
@@ -1166,8 +1176,14 @@ function RefineChangeCard({ title, change, why, args, status, reason, running, f
   footer?: React.ReactNode;
   editing?: boolean;
   onEditAdded?: (text: string) => void;
+  onEditSkill?: (patch: { skill_name?: string; skill_description?: string }) => void;
 }) {
   const { removed, added } = changeLines(args);
+  const [showAll, setShowAll] = useState(false);
+  const total = removed.length + added.length;
+  const cut = showAll ? Infinity : CHANGE_PREVIEW_LINES;
+  const shownRemoved = removed.slice(0, cut);
+  const shownAdded = added.slice(0, Math.max(0, cut - removed.length));
   const badge = running ? { text: "Đang áp dụng", cls: "bg-muted text-muted-foreground" }
     : status === "pending" ? { text: "Chờ bạn duyệt", cls: "bg-warning-soft text-warning" }
     : status === "approved" ? { text: "Đã áp dụng", cls: "bg-success/10 text-success" }
@@ -1184,19 +1200,32 @@ function RefineChangeCard({ title, change, why, args, status, reason, running, f
         <div>
           <div className="text-xs font-medium text-muted-foreground mb-1">Thay đổi</div>
           {change && <div className="text-sm mb-1.5">{change}</div>}
-          {editing && onEditAdded ? (
+          {editing && args.skill_name !== undefined && onEditSkill ? (
+            <div className="space-y-2">
+              <input value={args.skill_name} onChange={e => onEditSkill({ skill_name: e.target.value })} aria-label="Tên Skill"
+                className="w-full h-9 text-sm px-2.5 rounded-md border border-border bg-transparent outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50" />
+              <textarea value={args.skill_description ?? ""} onChange={e => onEditSkill({ skill_description: e.target.value })} rows={3} aria-label="Mô tả Skill"
+                className="w-full resize-y text-sm px-2.5 py-2 rounded-md border border-border bg-transparent outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50" />
+            </div>
+          ) : editing && onEditAdded ? (
             <textarea value={added.map(l => l.replace(/^- /, "")).join("\n")} onChange={e => onEditAdded(e.target.value)} rows={Math.min(5, added.length + 1)}
               aria-label="Nội dung thêm vào"
               className="w-full resize-y text-sm px-2.5 py-2 rounded-md border border-border bg-transparent outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50" />
           ) : (
             <div className="rounded-md border border-border overflow-hidden text-sm">
-              {removed.map((l, i) => (
+              {shownRemoved.map((l, i) => (
                 <div key={`r${i}`} className="flex gap-2 px-2.5 py-1 bg-destructive/5 text-muted-foreground line-through"><span aria-hidden className="no-underline">-</span><span className="whitespace-pre-wrap break-words">{l.replace(/^- /, "")}</span></div>
               ))}
-              {added.map((l, i) => (
+              {shownAdded.map((l, i) => (
                 <div key={`a${i}`} className="flex gap-2 px-2.5 py-1 bg-success/10"><span aria-hidden className="text-success">+</span><span className="whitespace-pre-wrap break-words">{l.replace(/^- /, "")}</span></div>
               ))}
               {!removed.length && !added.length && <div className="px-2.5 py-1 text-muted-foreground">Không có nội dung thay đổi</div>}
+              {total > CHANGE_PREVIEW_LINES && (
+                <button type="button" onClick={() => setShowAll(v => !v)}
+                  className="w-full text-left px-2.5 py-1 text-sm text-primary hover:bg-muted border-t border-border focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
+                  {showAll ? "Thu gọn" : `Xem thêm ${total - CHANGE_PREVIEW_LINES} dòng`}
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -1237,7 +1266,7 @@ function RefineApprovalCard({ msg, readOnly, busy, blockedBy, onDecide }: {
     <RefineChangeCard
       title={pending ? "Đề xuất thay đổi" : msg.status === "approved" ? "Đã thay đổi" : "Đề xuất thay đổi"}
       change={msg.change ?? "Sửa Instructions"} why={msg.why} args={args} status={msg.status} reason={msg.reason} running={msg.running}
-      editing={editing} onEditAdded={editAdded}
+      editing={editing} onEditAdded={editAdded} onEditSkill={p => setArgs(a => ({ ...a, ...p }))}
       footer={!pending ? null : readOnly ? (
         <div className="text-sm text-muted-foreground">Chưa phê duyệt</div>
       ) : (
@@ -1375,9 +1404,9 @@ function AiBuildSidebar({
       </div>
     );
     // A step that changed something (Tự động) is shown as its change, not as a step.
-    if (msg.kind === "tool" && msg.args?.new_string !== undefined) return (
+    if (msg.kind === "tool" && isChangeArgs(msg.args)) return (
       <RefineChangeCard key={msg.id} title={msg.done && msg.outcome !== "stopped" ? "Đã thay đổi" : "Đề xuất thay đổi"} change={msg.change ?? "Sửa Instructions"}
-        why={msg.why} args={msg.args} running={!msg.done}
+        why={msg.why} args={msg.args!} running={!msg.done}
         status={msg.outcome === "stopped" ? "stopped" : msg.outcome === "rejected" ? "rejected" : msg.done ? "approved" : "pending"} reason={msg.reason} />
     );
     if (msg.kind === "tool") return <RefineSteps key={msg.id} steps={[msg]} />;
@@ -1394,7 +1423,7 @@ function AiBuildSidebar({
   const groupSteps = (list: RefineMsg[]): (RefineMsg | StepMsg[])[] => {
     const out: (RefineMsg | StepMsg[])[] = [];
     for (const m of list) {
-      const isStep = m.kind === "tool" && m.args?.new_string === undefined;
+      const isStep = m.kind === "tool" && !isChangeArgs(m.args);
       const prev = out[out.length - 1];
       if (isStep && Array.isArray(prev)) prev.push(m as StepMsg);
       else out.push(isStep ? [m as StepMsg] : m);

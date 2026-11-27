@@ -34,6 +34,7 @@
 import { useEffect, useState } from "react";
 import { currentPersona, DEMO_PERSONAS } from "@/lib/demoPersona";
 import { instructionDraftStore } from "./instructionDraftStore";
+import { agentSkillStore } from "./agentSkillStore";
 
 export type RefineMsgRole = "user" | "ai";
 export type RefineToolArgs = Record<string, string>;
@@ -41,7 +42,7 @@ export type RefineMsgBody =
   | { kind: "text"; role: RefineMsgRole; text: string; streaming?: boolean; full?: string; files?: string[] }
   /** A step the assistant took. `label` is what the person reads; name/args are internal. A step
    * that changes something also carries `change` (what, in plain words) and `why`. */
-  | { kind: "tool"; name: string; args?: RefineToolArgs; done: boolean; outcome?: "approved" | "rejected" | "stopped"; reason?: string; label?: string; change?: string; why?: string }
+  | { kind: "tool"; name: string; args?: RefineToolArgs; done: boolean; outcome?: "approved" | "rejected" | "stopped" | "failed"; reason?: string; label?: string; change?: string; why?: string; note?: string }
   /** Thủ công: the assistant asks before running a tool that changes something. Stays usable
    * until the person decides (also after closing the panel or coming back another day). */
   /** Kế hoạch - what the assistant is going to do for this request, ticked off as it goes
@@ -317,6 +318,14 @@ function tool(key: string, name: string, label: string, args: RefineToolArgs | u
   });
 }
 
+/** A step that didn't work out: shown with a short plain note, then the run carries on. */
+function failedStep(key: string, name: string, label: string, note: string, then: () => void) {
+  later(key, 250, () => {
+    const id = push(key, { kind: "tool", name, label, done: false });
+    later(key, 900, () => { patch(key, id, { done: true, outcome: "failed", note } as Partial<RefineMsgBody>); then(); });
+  });
+}
+
 /** What the person wants added, read from their message ("...: <dòng cần thêm>"). */
 function wantedLine(msg: string) {
   const after = msg.includes(":") ? msg.slice(msg.lastIndexOf(":") + 1) : msg;
@@ -356,63 +365,119 @@ function changeWhy(request: string) {
 
 export interface RunCtx { agentId: string; getInstructions: () => string }
 
+/** The assistant answers in the language the person wrote in (27/11). The prototype only tells
+ * Vietnamese from English. */
+const VI_CHARS = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i;
+const isVi = (text: string) => VI_CHARS.test(text) || !/\b(the|add|please|make|always|never|should|when|with|to)\b/i.test(text);
+
+/** What the request asks to change. The prototype recognises a new Skill; everything else goes to
+ * the Instructions. */
+type ChangePlan = { kind: "skill" | "instructions"; vi: boolean; args: RefineToolArgs; label: string; change: string; why: string; done: string; plan: string[] };
+function planChange(text: string, instr: string): ChangePlan {
+  const vi = isVi(text);
+  const T = (v: string, e: string) => (vi ? v : e);
+  const why = vi ? changeWhy(text) : `You asked: "${text.trim().replace(/\s+/g, " ").slice(0, 140)}"`;
+  const auto = refineChatStore.getMode() === "auto";
+  if (/\b(skill|kỹ năng|ky nang)\b/i.test(text)) {
+    const raw = wantedLine(text).replace(/\.$/, "");
+    const name = raw.length > 48 ? `${raw.slice(0, 48).trimEnd()}...` : raw;
+    return {
+      kind: "skill", vi, why,
+      args: { skill_name: name, skill_description: T(`Dùng khi người dùng cần: ${raw.charAt(0).toLowerCase()}${raw.slice(1)}.`, `Use when the user needs to: ${raw.charAt(0).toLowerCase()}${raw.slice(1)}.`) },
+      label: T("Tạo Skill mới", "Create a new Skill"),
+      change: T("Thêm 1 Skill mới cho Nhân sự số", "Add 1 new Skill to the Digital Worker"),
+      done: T("Đã thêm Skill mới trên bản nháp. Thay đổi có hiệu lực khi bạn Publish.", "Added the new Skill to the draft. It takes effect when you Publish."),
+      plan: [T("Xem các Skill đang có", "Check the existing Skills"), T("Soạn Skill mới theo yêu cầu của bạn", "Draft the new Skill"), auto ? T("Thêm Skill vào Nhân sự số", "Add the Skill") : T("Thêm Skill sau khi bạn duyệt", "Add the Skill after you approve")],
+    };
+  }
+  const line = wantedLine(text);
+  return {
+    kind: "instructions", vi, why, args: editArgs(instr, line),
+    label: T("Sửa Instructions", "Edit the Instructions"),
+    change: T("Thêm 1 dòng vào cuối Instructions", "Add 1 line at the end of the Instructions"),
+    done: T("Đã cập nhật Instructions trên bản nháp. Thay đổi có hiệu lực khi bạn Publish.", "Updated the Instructions in the draft. It takes effect when you Publish."),
+    plan: [T("Đọc Instructions hiện tại", "Read the current Instructions"), T("Soạn thay đổi theo yêu cầu của bạn", "Draft the change"), auto ? T("Cập nhật Instructions", "Update the Instructions") : T("Cập nhật Instructions sau khi bạn duyệt", "Update the Instructions after you approve")],
+  };
+}
+/** Applies a change: a new Skill is added; an Instructions edit goes through applyEdit's checks. */
+function applyChange(agentId: string, getInstr: () => string, args: RefineToolArgs, since: number): { ok: boolean; note?: string } {
+  if (args.skill_name) {
+    const me = currentPersona();
+    agentSkillStore.create(agentId, { name: args.skill_name, description: args.skill_description ?? "", body: args.skill_description ?? "", ownerId: me.id, ownerName: me.name, sharing: { mode: "private", people: [] } });
+    return { ok: true };
+  }
+  return applyEdit(agentId, getInstr, args, since);
+}
+const doneText = (args: RefineToolArgs, vi: boolean) => (args.skill_name
+  ? (vi ? "Đã thêm Skill mới trên bản nháp. Thay đổi có hiệu lực khi bạn Publish." : "Added the new Skill to the draft. It takes effect when you Publish.")
+  : (vi ? "Đã cập nhật Instructions trên bản nháp. Thay đổi có hiệu lực khi bạn Publish." : "Updated the Instructions in the draft. It takes effect when you Publish."));
+
 export const refineAssistant = {
   send(key: string, ctx: RunCtx, text: string, files: string[] = []) {
     if (running.has(key) || refineChatStore.otherHolder(ctx.agentId)) return;
-    // Typing instead of deciding: the pending tool call is declined in favour of the reply.
+    // Typing instead of deciding: the pending change is declined in favour of the reply.
     refineChatStore.update(key, l => l.map(m => (m.kind === "approval" && m.status === "pending" ? { ...m, status: "rejected", reason: "Trả lời bằng tin nhắn" } as RefineMsg
       : m.kind === "plan" ? ({ ...m, items: m.items.map(i => (i.status === "waiting" ? { ...i, status: "skipped" as const } : i)) } as RefineMsg) : m)));
     push(key, { kind: "text", role: "user", text, files: files.length ? files : undefined });
     begin(key);
-    push(key, { kind: "plan", items: [
-      { text: "Đọc Instructions hiện tại", status: "doing" },
-      { text: "Soạn thay đổi theo yêu cầu của bạn", status: "todo" },
-      { text: refineChatStore.getMode() === "auto" ? "Cập nhật Instructions" : "Cập nhật Instructions sau khi bạn duyệt", status: "todo" },
-    ] });
     const startedAt = Date.now();
-    const line = wantedLine(text);
-    say(key, "Mình sẽ đọc Instructions hiện tại trước khi sửa.", () =>
-      tool(key, "ls", "Xem cấu hình hiện có", undefined, () => tool(key, "read_file", "Đọc Instructions hiện tại", { file_path: INSTRUCTIONS_FILE }, () => {
-        planStep(key, 0, "done"); planStep(key, 1, "doing");
-        say(key, `Thêm dòng "${line.replace(/\.$/, "")}" vào cuối Instructions.`, () => {
-          const args = editArgs(ctx.getInstructions(), line);
-          const change = { label: "Sửa Instructions", change: "Thêm 1 dòng vào cuối Instructions", why: changeWhy(text) };
-          planStep(key, 1, "done");
-          planStep(key, 2, refineChatStore.getMode() === "auto" ? "doing" : "waiting");
-          if (refineChatStore.getMode() === "auto") {
-            later(key, 250, () => {
-              const id = push(key, { kind: "tool", name: "edit_file", args, done: false, ...change });
-              later(key, 900, () => {
-                const res = applyEdit(ctx.agentId, ctx.getInstructions, args, startedAt);
-                if (!res.ok) {
-                  planStep(key, 2, "skipped");
-                  patch(key, id, { done: true, outcome: "stopped", reason: "Agent đã bị thay đổi thông tin" } as Partial<RefineMsgBody>);
-                  say(key, res.note!, () => end(key), 200);
-                  return;
-                }
-                patch(key, id, { done: true });
-                planStep(key, 2, "done");
-                say(key, [res.note, "Đã cập nhật Instructions trên bản nháp. Thay đổi có hiệu lực khi bạn Publish."].filter(Boolean).join("\n\n"), () => end(key));
-              });
-            });
-          } else {
-            later(key, 200, () => { push(key, { kind: "approval", tool: "edit_file", args, status: "pending", ...change }); end(key); });
+    const cp = planChange(text, ctx.getInstructions());
+    const T = (v: string, e: string) => (cp.vi ? v : e);
+    const auto = refineChatStore.getMode() === "auto";
+    push(key, { kind: "plan", items: cp.plan.map((t, i) => ({ text: t, status: i === 0 ? "doing" : "todo" })) });
+
+    const propose = () => {
+      const change = { label: cp.label, change: cp.change, why: cp.why };
+      planStep(key, 1, "done");
+      planStep(key, 2, auto ? "doing" : "waiting");
+      if (!auto) { later(key, 200, () => { push(key, { kind: "approval", tool: cp.kind === "skill" ? "create_skill" : "edit_file", args: cp.args, status: "pending", ...change }); end(key); }); return; }
+      later(key, 250, () => {
+        const id = push(key, { kind: "tool", name: cp.kind === "skill" ? "create_skill" : "edit_file", args: cp.args, done: false, ...change });
+        later(key, 900, () => {
+          const res = applyChange(ctx.agentId, ctx.getInstructions, cp.args, startedAt);
+          if (!res.ok) {
+            planStep(key, 2, "skipped");
+            patch(key, id, { done: true, outcome: "stopped", reason: "Agent đã bị thay đổi thông tin" } as Partial<RefineMsgBody>);
+            say(key, res.note!, () => end(key), 200);
+            return;
           }
+          patch(key, id, { done: true });
+          planStep(key, 2, "done");
+          say(key, [res.note, cp.done].filter(Boolean).join("\n\n"), () => end(key));
         });
+      });
+    };
+
+    if (cp.kind === "skill") {
+      // A step that doesn't work out is shown in plain words and the assistant moves on (27/11).
+      say(key, T("Mình sẽ xem các Skill đang có trước khi tạo Skill mới.", "I'll check the existing Skills before creating a new one."), () =>
+        tool(key, "list_skills", T("Xem các Skill đang có", "Check the existing Skills"), undefined, () =>
+          failedStep(key, "search_library", T("Tìm Skill phù hợp trong thư viện của Space", "Look for a matching Skill in the Space library"),
+            T("Chưa tìm thấy - trợ lý tự soạn Skill mới", "Nothing found - drafting a new Skill instead"), () => {
+              planStep(key, 0, "done"); planStep(key, 1, "doing");
+              say(key, T(`Mình đề xuất thêm Skill "${cp.args.skill_name}".`, `I suggest adding the Skill "${cp.args.skill_name}".`), propose);
+            })), 500);
+      return;
+    }
+    say(key, T("Mình sẽ đọc Instructions hiện tại trước khi sửa.", "I'll read the current Instructions before editing."), () =>
+      tool(key, "ls", T("Xem cấu hình hiện có", "Check the current setup"), undefined, () => tool(key, "read_file", T("Đọc Instructions hiện tại", "Read the current Instructions"), { file_path: INSTRUCTIONS_FILE }, () => {
+        planStep(key, 0, "done"); planStep(key, 1, "doing");
+        say(key, T("Mình đề xuất thêm 1 dòng vào cuối Instructions.", "I suggest adding 1 line at the end of the Instructions."), propose);
       })), 500);
   },
   decide(key: string, ctx: RunCtx, id: string, approve: boolean, reason?: string, args?: RefineToolArgs) {
     const card = refineChatStore.get(key).find(m => m.id === id);
     if (!card || card.kind !== "approval" || card.status !== "pending" || running.has(key) || refineChatStore.otherHolder(ctx.agentId)) return;
     const finalArgs = args ?? card.args;
+    const vi = !card.why || card.why.startsWith("Bạn yêu cầu");
     patch(key, id, { status: approve ? "approved" : "rejected", reason: reason?.trim() || undefined, args: finalArgs } as Partial<RefineMsgBody>);
     begin(key);
     if (approve) {
-      // The card itself turns into the running "Gọi công cụ edit_file" row - no second row.
+      // The card itself shows "Đang áp dụng" - no second row.
       patch(key, id, { running: true } as Partial<RefineMsgBody>);
       planStep(key, 2, "doing");
       later(key, 900, () => {
-        const res = applyEdit(ctx.agentId, ctx.getInstructions, finalArgs, card.at);
+        const res = applyChange(ctx.agentId, ctx.getInstructions, finalArgs, card.at);
         if (!res.ok) {
           patch(key, id, { running: false, status: "stopped", reason: "Agent đã bị thay đổi thông tin" } as Partial<RefineMsgBody>);
           planStep(key, 2, "skipped");
@@ -421,13 +486,13 @@ export const refineAssistant = {
         }
         patch(key, id, { running: false } as Partial<RefineMsgBody>);
         planStep(key, 2, "done");
-        say(key, [res.note, "Đã cập nhật Instructions trên bản nháp. Thay đổi có hiệu lực khi bạn Publish."].filter(Boolean).join("\n\n"), () => end(key), 200);
+        say(key, [res.note, doneText(finalArgs, vi)].filter(Boolean).join("\n\n"), () => end(key), 200);
       });
     } else {
       planStep(key, 2, "skipped");
-      say(key, reason?.trim()
-        ? `Mình chưa thay đổi gì vì bạn từ chối ("${reason.trim()}"). Bạn muốn chỉnh lại thế nào?`
-        : "Mình chưa thay đổi gì. Bạn muốn chỉnh lại thế nào?", () => end(key), 400);
+      say(key, vi
+        ? (reason?.trim() ? `Mình chưa thay đổi gì vì bạn từ chối ("${reason.trim()}"). Bạn muốn chỉnh lại thế nào?` : "Mình chưa thay đổi gì. Bạn muốn chỉnh lại thế nào?")
+        : (reason?.trim() ? `Nothing was changed because you declined ("${reason.trim()}"). How would you like to adjust it?` : "Nothing was changed. How would you like to adjust it?"), () => end(key), 400);
     }
   },
   /** Dừng: stops the run; what was already said stays, a half-written answer is kept as is. */
@@ -436,7 +501,7 @@ export const refineAssistant = {
     if (!r) return;
     r.timers.forEach(t => clearTimeout(t));
     if (r.streamId) patch(key, r.streamId, { streaming: false, full: undefined });
-    refineChatStore.update(key, l => l.map(m => (m.kind === "tool" && !m.done ? { ...m, done: true } as RefineMsg
+    refineChatStore.update(key, l => l.map(m => (m.kind === "tool" && !m.done ? { ...m, done: true, outcome: "stopped", reason: "Bạn đã dừng" } as RefineMsg
       : m.kind === "approval" && m.running ? { ...m, running: false } as RefineMsg : m)));
     closePlan(key);
     end(key);
