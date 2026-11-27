@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, X, Check, Pencil, Trash2, Info, Search } from "lucide-react";
+import { ArrowLeft, X, Check, Pencil, Trash2, Info, Search, Download } from "lucide-react";
+import { toast } from "sonner";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -90,8 +91,14 @@ function markParentDone(kbId: string, sourceType: ChunkSourceType, sourceId: str
 }
 
 export default function ChunkViewerModal({
-  kbId, sourceType, sourceId, sourceName, sourceStatus, sourceChunkCount, sourceCreatedAt, urlMeta, onClose, viewOnly,
+  kbId, sourceType, sourceId, sourceName, sourceStatus, sourceChunkCount, sourceCreatedAt, urlMeta, onClose, viewOnly, inline = false, sourceUpdatedAt,
 }: {
+  /** Production layout: rendered inside the page's content area (the sidebar / Digital Worker
+   * header stay visible), read-only - original on the left, chunks on the right. Without it the
+   * older full-screen chunk editor overlay is used. */
+  inline?: boolean;
+  /** "Cập nhật: …" in the inline header (falls back to the creation time). */
+  sourceUpdatedAt?: number;
   kbId: string; sourceType: ChunkSourceType; sourceId: string; sourceName: string;
   sourceStatus: KnowledgeFaqStatus;
   /** Only needed for sourceType "agent-item" — knowledgeChunkStore can't look this up itself
@@ -238,6 +245,120 @@ export default function ChunkViewerModal({
   };
 
   const isLoading = sourceStatus === "processing" && chunks.length === 0;
+
+  if (inline) {
+    return (
+      <div className="flex flex-col h-full min-h-0 animate-fade-up">
+        <div className="flex items-center justify-between gap-3 pb-3 mb-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <button onClick={onClose} aria-label="Quay lại danh sách tài liệu" className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <ArrowLeft size={16} />
+            </button>
+            <FileTypeIcon kind={sourceType === "url" ? "url" : undefined} name={sourceType !== "url" ? sourceName : undefined} size={17} />
+            <h2 className="text-base font-semibold truncate" title={sourceName}>{sourceName}</h2>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs text-muted-foreground whitespace-nowrap tabular-nums">Cập nhật: {formatDate(sourceUpdatedAt ?? sourceCreatedAt)}</span>
+            <KnowledgeStatusPill status={sourceStatus} />
+            <button onClick={onClose} aria-label="Đóng tài liệu" className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="rounded-lg border border-border bg-card overflow-hidden flex flex-col min-h-[420px]">
+            <div className="flex-1 min-h-0 relative">
+              <DocumentPreviewPane
+                page={page}
+                pageCount={Math.max(previewPageCount(chunks.length), ...chunks.map(c => c.bbox.page + 1))}
+                onPageChange={gotoPage}
+                chunksOnPage={chunks.filter(c => c.bbox.page === page)}
+                matchIds={matchIds}
+                selectedChunkId={selectedChunkId}
+                onSelectChunk={id => {
+                  if (!id) { setSelectedChunkId(null); return; }
+                  const c = chunks.find(x => x.id === id);
+                  if (c) selectChunk(c, true);
+                }}
+                onReprocess={() => undefined}
+                onProcess={() => undefined}
+                canReprocess={false}
+                viewOnly
+              />
+            </div>
+            <div className="flex items-center justify-between gap-3 px-3 py-2 border-t border-border shrink-0">
+              <span className="text-xs text-muted-foreground">Nếu tài liệu không hiển thị, hãy tải xuống để xem.</span>
+              <button onClick={() => toast.success(`Đang tải xuống "${sourceName}".`)} className="h-8 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-medium inline-flex items-center gap-1.5 transition-base shrink-0">
+                <Download size={13} /> Tải xuống
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border bg-card overflow-hidden flex flex-col min-h-[420px]">
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border shrink-0">
+              <h3 className="text-sm font-semibold flex items-center gap-1.5">
+                Đoạn <span className="chip chip-muted tabular-nums">{chunks.length}</span>
+                <Tooltip delayDuration={200}>
+                  <TooltipTrigger asChild>
+                    <button type="button" aria-label="Đoạn là gì?" className="text-muted-foreground hover:text-foreground transition-base">
+                      <Info size={13} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-64 text-xs leading-relaxed">
+                    Hệ thống tự động chia tài liệu thành các đoạn nhỏ để Nhân sự số tra cứu chính xác hơn khi trả lời.
+                  </TooltipContent>
+                </Tooltip>
+              </h3>
+              <div className="relative">
+                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Escape") setQuery(""); }}
+                  placeholder="Tìm trong đoạn..."
+                  aria-label="Tìm trong đoạn"
+                  className="h-8 w-52 pl-7 pr-3 rounded-lg bg-surface-muted border border-border text-xs placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                />
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {isLoading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="rounded-lg border border-border p-4 space-y-2 animate-pulse">
+                      <div className="h-3 w-16 bg-surface-muted rounded" />
+                      <div className="h-3 w-full bg-surface-muted rounded" />
+                      <div className="h-3 w-5/6 bg-surface-muted rounded" />
+                    </div>
+                  ))}
+                </div>
+              ) : chunks.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Chưa có đoạn nào.</p>
+              ) : filteredChunks.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Không có đoạn phù hợp với tìm kiếm.</p>
+              ) : (
+                <div className="space-y-4 pt-2">
+                  {filteredChunks.map(c => (
+                    <div
+                      key={c.id}
+                      ref={el => { chunkRefs.current[c.id] = el; }}
+                      onClick={() => selectChunk(c)}
+                      className={`relative rounded-lg border px-3.5 pt-4 pb-3 cursor-pointer transition-base ${selectedChunkId === c.id ? "border-primary ring-1 ring-primary/30" : "border-border hover:border-primary/40"}`}
+                    >
+                      <span className="absolute -top-2.5 left-2.5 px-1.5 h-5 rounded-md border border-border bg-card text-xs font-semibold tabular-nums inline-flex items-center">Đoạn {c.index}</span>
+                      <p className="text-xs text-muted-foreground mb-1">Nội dung</p>
+                      <p className="text-sm text-foreground leading-6 whitespace-pre-wrap">{c.title ? `${c.title}\n\n${c.content}` : c.content}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Rendered through a portal to document.body: this is a full-screen (fixed inset-0) overlay,
   // and some callers (e.g. the Agent Builder's Knowledge tab) mount it under an ancestor with a

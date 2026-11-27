@@ -153,6 +153,7 @@ const App = () => (
             <Route element={<RequireAuth><WorkspaceLayout /></RequireAuth>}>
               <Route path="/knowledge" element={<KnowledgeList />} />
               <Route path="/knowledge/:id" element={<KnowledgeDetail />} />
+              <Route path="/knowledge/:id/files/:fileId/chunks" element={<KnowledgeDetail />} />
               <Route path="/workforce" element={<Navigate to="/workflows" replace />} />
               <Route path="/workforce/:id" element={<Navigate to="/workflows" replace />} />
               <Route path="/workforce/:id/trace/:runId" element={<Navigate to="/workflows" replace />} />

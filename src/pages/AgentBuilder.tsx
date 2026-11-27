@@ -5,7 +5,7 @@ import { BuildCapNotice } from "@/components/usage/BuildCapNotice";
 
 import { HugeiconsIcon } from "@hugeicons/react"
 import { SquareLock01Icon, Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, Attachment01Icon, BlockedIcon, BookOpen01Icon, Cancel01Icon, BoltIcon, PauseIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, InformationCircleIcon, MinusSignIcon, CircleArrowReload01Icon, Wrench01Icon, UserGroupIcon, ArrowLeftDoubleIcon, Notification01Icon } from "@hugeicons/core-free-icons";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import { ProcessCanvas } from "@/pages/ProcessBuilder";
 import { processStore } from "@/components/process/processStore";
@@ -133,6 +133,8 @@ import RetrievalScopeModal from "@/components/knowledge/RetrievalScopeModal";
 import ActionMenu, { type ActionMenuItem } from "@/components/ui/ActionMenu";
 import GuardrailShareModal from "@/components/configure/GuardrailShareModal";
 import CreateKnowledgeBaseModal from "@/components/knowledge/CreateKnowledgeBaseModal";
+import KnowledgeBaseView from "@/components/knowledge/KnowledgeBaseView";
+import { useDrillParam } from "@/components/knowledge/useDrillParam";
 import DeleteKnowledgeBaseDialog from "@/components/knowledge/DeleteKnowledgeBaseDialog";
 import KnowledgeTypeIcon from "@/components/knowledge/KnowledgeTypeIcon";
 import UploadDocumentsModal from "@/components/knowledge/UploadDocumentsModal";
@@ -1860,14 +1862,14 @@ function AgentKbCardMenu({ onOpen, onEdit, onScope, onShare, onRetrieval, onDeta
   editBlocked?: string; shareBlocked?: string; removeBlocked?: string; openOnly?: boolean;
 }) {
   const items: ActionMenuItem[] = openOnly
-    ? [{ label: "Xem chi tiết", icon: ExternalLinkIcon, onSelect: onOpen }]
+    ? [{ label: "Xem chi tiết", icon: EyeIcon, onSelect: onOpen }]
     : [
-        { label: "Xem chi tiết", icon: ExternalLinkIcon, onSelect: onOpen },
+        { label: "Xem chi tiết", icon: EyeIcon, onSelect: onOpen },
         ...(onEdit ? [{ label: "Đổi tên", icon: PencilEdit01Icon, onSelect: onEdit, disabledReason: editBlocked }] : []),
         ...(onScope ? [{ label: "Đổi phạm vi liên kết", icon: ConnectIcon, onSelect: onScope, disabledReason: removeBlocked }] : []),
-        ...(onShare ? [{ label: ACCESS_COPY.menu, icon: UserMultipleIcon, onSelect: onShare, disabledReason: shareBlocked }] : []),
+        ...(onShare ? [{ label: "Chia sẻ", icon: UserMultipleIcon, onSelect: onShare, disabledReason: shareBlocked }] : []),
         ...(onRetrieval ? [{ label: RETRIEVAL_COPY.menu, icon: Chat01Icon, onSelect: onRetrieval, disabledReason: shareBlocked }] : []),
-        ...(onDetach ? [{ label: "Gỡ liên kết", icon: Delete01Icon, onSelect: onDetach, destructive: true, disabledReason: removeBlocked }] : []),
+        ...(onDetach ? [{ label: "Gỡ khỏi Nhân sự số", icon: Delete01Icon, onSelect: onDetach, destructive: true, disabledReason: removeBlocked }] : []),
         ...(onDelete ? [{ label: "Xóa", icon: Delete01Icon, onSelect: onDelete, destructive: true, disabledReason: removeBlocked }] : []),
       ];
   return <ActionMenu items={items} triggerLabel="Thao tác với kho tri thức" />;
@@ -1879,8 +1881,11 @@ function AgentKbCardMenu({ onOpen, onEdit, onScope, onShare, onRetrieval, onDeta
  * "attached resource" grids in Agent Details read as one consistent card system. `icon` is a
  * fully-formed node (the same tinted tile Console uses — see KnowledgeTypeIcon) rather than a
  * bare glyph, so a real linked KB renders with the exact same color coding as its Console card. */
-function AgentKbCard({ icon, name, description, onOpen, menu, scope, revoked }: {
+function AgentKbCard({ icon, name, description, onOpen, menu, scope, revoked, answerNote }: {
   icon: React.ReactNode; name: string; description?: string;
+  /** The Digital Worker's own knowledge base: "Trả lời: Mọi người trò chuyện với Nhân sự số này"
+   * (Production) - who gets answers from it follows the Digital Worker's own audience. */
+  answerNote?: boolean;
   onOpen: () => void; menu: React.ReactNode;
   /** Linked knowledge bases only: "Toàn bộ kho" / "8 mục được chọn", or a warning when the
    * chosen items are gone from the knowledge base. */
@@ -1906,6 +1911,20 @@ function AgentKbCard({ icon, name, description, onOpen, menu, scope, revoked }: 
         <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 flex-1">
           {description || <span className="italic">Chưa có mô tả</span>}
         </p>
+      )}
+      {answerNote && !revoked && (
+        <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
+          <HugeiconsIcon icon={UserMultipleIcon} size={13} className="shrink-0 mt-px" />
+          <span className="flex-1">Trả lời: Mọi người trò chuyện với Nhân sự số này</span>
+          <Tooltip delayDuration={200}>
+            <TooltipTrigger asChild>
+              <span tabIndex={0} onClick={e => e.stopPropagation()} className="shrink-0 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm" aria-label="Ai nhận câu trả lời từ kho này">
+                <HugeiconsIcon icon={InformationCircleIcon} size={13} />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">Kho riêng trả lời cùng đối tượng với Nhân sự số. Để giới hạn, chỉnh đối tượng ở Publish / Channels.</TooltipContent>
+          </Tooltip>
+        </div>
       )}
       <div className={`flex items-center gap-2 mt-1 ${scope || revoked ? "justify-between" : "justify-end"}`}>
         {revoked && <span onClick={e => e.stopPropagation()}><RevokedChip ownerName={revoked.ownerName} type="knowledge" deletedBy={revoked.deletedBy} id={revoked.id} /></span>}
@@ -1939,7 +1958,28 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
     setParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  return <AgentKnowledgeGrid agentId={agentId} />;
+  // A knowledge base / document opens inside this content area (Production): the Digital Worker
+  // header and left menu stay, and the browser Back button closes it instead of leaving the page.
+  const kbDrill = useDrillParam("kb", ["file"]);
+  const fileDrill = useDrillParam("file");
+  if (kbDrill.value) {
+    return (
+      <KnowledgeBaseView
+        key={kbDrill.value}
+        kbId={kbDrill.value}
+        variant="agent"
+        agentId={agentId}
+        backLabel="Tri thức của Nhân sự số"
+        onBack={kbDrill.close}
+        openDocId={fileDrill.value}
+        onOpenDoc={fileDrill.open}
+        onCloseDoc={fileDrill.close}
+        onDeleted={kbDrill.close}
+        onOpenChannels={() => setParams({ tab: "channels" })}
+      />
+    );
+  }
+  return <AgentKnowledgeGrid agentId={agentId} onOpenKb={kbDrill.open} />;
 }
 
 /** Who may do what with knowledge inside an Agent (same rule as useAgentContextAccess):
@@ -1972,7 +2012,7 @@ function useCanBuildAgent(agentId: string) {
   return agentAccess.canAct("manage", isOwnedOrShared(rec, agentAccess.userId));
 }
 
-function AgentKnowledgeGrid({ agentId }: { agentId: string }) {
+function AgentKnowledgeGrid({ agentId, onOpenKb }: { agentId: string; onOpenKb: (kbId: string) => void }) {
   const kbAccess = useGroupAccess("knowledge");
   const canBuildAgent = useCanBuildAgent(agentId);
   const agentLevelForKb = useAgentAccessLevel(agentId);
@@ -2008,26 +2048,23 @@ function AgentKnowledgeGrid({ agentId }: { agentId: string }) {
   const renderCardFor = (kb: KnowledgeBase) => {
     const isOwn = kb.agentOnlyFor === agentId;
     const blocks = kbActionBlocks(kb, kbAccess, agentLevelForKb);
-    // Knowledge bases open in a new tab instead of navigating this one away from the Agent
-    // Builder, so opening one never silently discards unsaved Instructions edits. Opened without
-    // "noopener" so the new tab gets a copy of this session's data, then cut the opener link.
-    const onOpen = () => { const w = window.open(`/knowledge/${kb.id}?viaAgent=${agentId}`, "_blank"); if (w) w.opener = null; };
+    // Opens in place (section=knowledge&kb=…), like Skills / Guardrails details on this page.
+    const onOpen = () => onOpenKb(kb.id);
     return (
       <AgentKbCard
         key={kb.id}
         icon={<KnowledgeTypeIcon type={kb.type} className="w-10 h-10 rounded-xl" />}
         name={kb.name}
         description={kb.description}
+        answerNote={isOwn}
         onOpen={onOpen}
         revoked={!isOwn && isResourceRevoked(agentId, "knowledge", kb.id) ? { ownerName: kb.ownerName, deletedBy: kb.deletedFromSpace?.byName, id: kb.id } : undefined}
         scope={!isOwn && PARTIAL_LINK_ENABLED ? scopeLabel(kb.id, knowledgeStore.getLinkScope(agentId, kb.id)) : undefined}
         menu={
           <AgentKbCardMenu
             onOpen={onOpen}
-            onEdit={() => setEditKbTarget(kb)}
-            onScope={!isOwn && kb.type === "internal" && PARTIAL_LINK_ENABLED && !isResourceRevoked(agentId, "knowledge", kb.id) ? () => setScopeKbId(kb.id) : undefined}
-            onShare={isResourceRevoked(agentId, "knowledge", kb.id) ? undefined : () => setShareKbTarget(kb)}
-            onRetrieval={isResourceRevoked(agentId, "knowledge", kb.id) ? undefined : () => setRetrievalKbTarget(kb)}
+            onEdit={isOwn ? () => setEditKbTarget(kb) : undefined}
+            onShare={isOwn && !isResourceRevoked(agentId, "knowledge", kb.id) ? () => setShareKbTarget(kb) : undefined}
             onDetach={isOwn ? undefined : () => setDetachKbTarget(kb)}
             onDelete={isOwn ? () => setDeleteKbTarget(kb) : undefined}
             editBlocked={blocks.edit}
@@ -2041,7 +2078,7 @@ function AgentKnowledgeGrid({ agentId }: { agentId: string }) {
 
   const emptyBox = (title: string, hint: string) => (
     <div className="rounded-lg border border-dashed border-border p-8 text-center">
-      <p className="text-sm font-medium mb-1">{title}</p>
+      {title ? <p className="text-sm font-medium mb-1">{title}</p> : <HugeiconsIcon icon={ConnectIcon} size={20} className="mx-auto mb-2 text-muted-foreground" />}
       <p className="text-xs text-muted-foreground">{hint}</p>
     </div>
   );
@@ -2058,7 +2095,7 @@ function AgentKnowledgeGrid({ agentId }: { agentId: string }) {
   const GRID = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4";
 
   return (
-    <div className="p-8 w-full space-y-8 animate-fade-up">
+    <div className="p-8 max-w-6xl mx-auto w-full space-y-8 animate-fade-up">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h2 className="font-display text-xl font-semibold">Tri thức của Nhân sự số</h2>
@@ -2070,7 +2107,7 @@ function AgentKnowledgeGrid({ agentId }: { agentId: string }) {
             <HugeiconsIcon icon={ConnectIcon} size={14} /> Liên kết kho tri thức có sẵn
           </button>
           <button onClick={() => canBuildAgent && setShowCreateKb(true)} disabled={!canBuildAgent} title={!canBuildAgent ? NO_AGENT_BUILD : undefined} className="btn-primary h-9 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed">
-            <HugeiconsIcon icon={Add01Icon} size={14} /> Tạo kho tri thức
+            <HugeiconsIcon icon={Add01Icon} size={14} /> Tạo mới
           </button>
         </div>
       </div>
@@ -2086,7 +2123,7 @@ function AgentKnowledgeGrid({ agentId }: { agentId: string }) {
       </div>
 
       <div>
-        {sectionHeader("Kho tri thức riêng của Nhân sự số", filteredOwn.length)}
+        {sectionHeader("Tri thức riêng của Nhân sự số", filteredOwn.length)}
         {ownKbs.length === 0 ? (
           emptyBox("Chưa có kho tri thức riêng", "Tạo kho tri thức để thêm tài liệu, website và câu hỏi thường gặp chỉ Nhân sự số này dùng.")
         ) : filteredOwn.length === 0 ? noMatch : (
@@ -2097,7 +2134,7 @@ function AgentKnowledgeGrid({ agentId }: { agentId: string }) {
       <div>
         {sectionHeader("Kho tri thức đã liên kết", filteredLinked.length)}
         {linkedKbs.length === 0 ? (
-          emptyBox("Chưa có kho tri thức nào được liên kết", "Liên kết một kho tri thức có sẵn trong Space để dùng lại ở đây.")
+          emptyBox("", "Liên kết một kho tri thức có sẵn trong Space để dùng lại ở đây.")
         ) : filteredLinked.length === 0 ? noMatch : (
           <div className={GRID}>{filteredLinked.map(renderCardFor)}</div>
         )}
@@ -2151,7 +2188,7 @@ function AgentKnowledgeGrid({ agentId }: { agentId: string }) {
       <AlertDialog open={!!detachKbTarget} onOpenChange={v => !v && setDetachKbTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Gỡ liên kết kho tri thức?</AlertDialogTitle>
+            <AlertDialogTitle>Gỡ kho tri thức khỏi Nhân sự số?</AlertDialogTitle>
             <AlertDialogDescription>Nhân sự số sẽ không còn tra cứu được nội dung trong kho này. Kho tri thức vẫn được giữ nguyên.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -2160,7 +2197,7 @@ function AgentKnowledgeGrid({ agentId }: { agentId: string }) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => { if (detachKbTarget) knowledgeStore.detachConsoleKb(agentId, detachKbTarget.id); setDetachKbTarget(null); refresh(); }}
             >
-              Gỡ liên kết
+              Gỡ khỏi Nhân sự số
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -5864,7 +5901,14 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
 
 /* ============ Knowledge sidebar summary (S15) ============ */
 function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void }) {
-  const [, setParams] = useSearchParams();
+  const [params, setParams] = useSearchParams();
+  // Same as clicking the card on the Knowledge section: the knowledge base opens in place there
+  // (Production) - not in a popup, not in a new tab.
+  const openKbInSection = (kbId: string) => {
+    const next = new URLSearchParams(params);
+    next.set("tab", "build"); next.set("section", "knowledge"); next.set("kb", kbId); next.delete("file");
+    setParams(next, { state: { drill: "kb" } });
+  };
   const kbAccess = useGroupAccess("knowledge");
   const kbCanSeeAll = kbAccess.canSeeAll;
   const canBuildAgent = useCanBuildAgent(agentId);
@@ -5907,27 +5951,27 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
     .filter((kb): kb is NonNullable<typeof kb> => !!kb);
   const detachIsOwn = !!detachTarget && knowledgeBaseStore.get(detachTarget.id)?.agentOnlyFor === agentId;
 
-  type Row = { key: string; name: string; icon: any; revoked?: { ownerName: string; type: RevocableType; deletedBy?: string; id?: string }; open: () => void; remove: () => void; removeLabel?: string; removeBlocked?: string; share?: () => void; retrieval?: () => void; changeScope?: () => void; chip: React.ReactNode; disabled?: boolean; disabledReason?: string; href?: string; scope?: { label: string; empty: boolean } };
+  type Row = { key: string; name: string; icon: any; revoked?: { ownerName: string; type: RevocableType; deletedBy?: string; id?: string }; open: () => void; remove: () => void; removeLabel?: string; removeBlocked?: string; share?: () => void; retrieval?: () => void; changeScope?: () => void; chip: React.ReactNode; disabled?: boolean; disabledReason?: string; href?: string; scope?: { label: string; empty: boolean }; own?: boolean };
   const rows: Row[] = [
     ...attachedKbs.map(kb => ({
       key: `kb-${kb.id}`,
       name: kb.name,
-      icon: ConnectIcon,
       revoked: isResourceRevoked(agentId, "knowledge", kb.id) ? { ownerName: kb.ownerName, type: "knowledge" as const, deletedBy: kb.deletedFromSpace?.byName, id: kb.id } : undefined,
-      href: `/knowledge/${kb.id}?viaAgent=${agentId}`,
       // Only a partial link shows its scope here; "Toàn bộ kho" is the normal case.
       scope: knowledgeStore.getLinkScope(agentId, kb.id).mode === "partial" ? scopeLabel(kb.id, knowledgeStore.getLinkScope(agentId, kb.id)) : undefined,
       changeScope: kb.type === "internal" && PARTIAL_LINK_ENABLED ? () => setScopeKbId(kb.id) : undefined,
-      open: () => setDetailTarget({ kind: "knowledgeBase", id: kb.id }),
+      own: kb.agentOnlyFor === agentId,
+      open: () => openKbInSection(kb.id),
       remove: () => setDetachTarget({ id: kb.id, name: kb.name }),
       // Own knowledge base: removing deletes it (owner + Delete). Linked: unlinking (Agent build).
-      removeLabel: kb.agentOnlyFor === agentId ? "Xóa kho tri thức" : "Gỡ liên kết",
+      removeLabel: kb.agentOnlyFor === agentId ? "Xóa kho tri thức" : "Gỡ khỏi Nhân sự số",
       removeBlocked: kb.agentOnlyFor === agentId ? kbActionBlocks(kb, kbAccess, agentLevelForKb).del : !canBuildAgent ? NO_AGENT_BUILD : undefined,
       // Plain "Của tôi"/"Được chia sẻ" caption — no more granular Riêng tư/Chia sẻ · N/Dùng
       // chung pill, matching every other Knowledge screen in the product.
       // Same Của tôi / Được chia sẻ pills as the Kho tri thức library (+ creator for someone
       // else's KB); a KB the viewer only reaches through this Agent keeps its own wording.
-      chip: kb.ownerId !== KB_CURRENT_USER.id && !kbCanSeeAll && !isKbAccessibleTo(kb, KB_CURRENT_USER.id) ? (
+      icon: kb.agentOnlyFor === agentId ? BookOpen01Icon : ConnectIcon,
+      chip: kb.agentOnlyFor === agentId ? null : kb.ownerId !== KB_CURRENT_USER.id && !kbCanSeeAll && !isKbAccessibleTo(kb, KB_CURRENT_USER.id) ? (
         <span className="chip chip-muted">{kbAccess.hasPermission("manage") && !kbCollaborator ? "Sửa được qua Nhân sự số này" : "Chỉ xem trong Nhân sự số"} · {kb.ownerName}</span>
       ) : (() => {
         const tags = ownershipTags({ ownerId: kb.ownerId, sharing: kb.sharing, userId: KB_CURRENT_USER.id });
@@ -5993,7 +6037,13 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
         // renders here, scrolling internally when long instead of pushing the rest of the
         // Configuration sidebar down.
         <div className="flex flex-col gap-1.5 max-h-72 overflow-y-auto pr-0.5">
-          {rows.map(row => (
+          {[...rows.filter(r => r.own), ...rows.filter(r => !r.own)].map((row, i, all) => (
+            <Fragment key={row.key}>
+            {(i === 0 || !!all[i - 1].own !== !!row.own) && (row.own || all.some(r => r.own)) && (
+              <p className="flex items-center gap-1 text-xs text-muted-foreground pt-1">
+                {row.own ? "Tri thức riêng của Nhân sự số" : "Kho tri thức đã liên kết"}
+              </p>
+            )}
             <KnowledgeSourceRow
               key={row.key}
               icon={row.icon}
@@ -6010,8 +6060,9 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
               removeBlocked={row.removeBlocked}
               disabled={row.disabled}
               disabledReason={row.disabledReason}
-              twoLine
+              twoLine={!row.own}
             />
+            </Fragment>
           ))}
         </div>
       )}
@@ -6060,7 +6111,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       <AlertDialog open={!!detachTarget} onOpenChange={v => !v && setDetachTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{detachIsOwn ? "Xóa kho tri thức?" : "Gỡ liên kết kho tri thức?"}</AlertDialogTitle>
+            <AlertDialogTitle>{detachIsOwn ? "Xóa kho tri thức?" : "Gỡ kho tri thức khỏi Nhân sự số?"}</AlertDialogTitle>
             <AlertDialogDescription>
               {detachIsOwn
                 ? `Kho "${detachTarget?.name}" cùng toàn bộ tài liệu, website và câu hỏi thường gặp bên trong sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.`
@@ -6080,7 +6131,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
                 setDetachTarget(null); refresh();
               }}
             >
-              {detachIsOwn ? "Xóa kho tri thức" : "Gỡ liên kết"}
+              {detachIsOwn ? "Xóa kho tri thức" : "Gỡ khỏi Nhân sự số"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

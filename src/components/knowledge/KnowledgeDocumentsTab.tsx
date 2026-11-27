@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useSearchParams } from "react-router-dom";
 import {
-  Search, ChevronDown, Plus, MoreVertical, X, Info,
+  Search, ChevronDown, Plus, MoreVertical, X, Info, Upload, FolderPlus, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -16,12 +15,9 @@ import { formatFileSize } from "./formatFileSize";
 import { formatVersion } from "./formatVersion";
 import FileTypeIcon from "./FileTypeIcon";
 import UploadDocumentsModal from "./UploadDocumentsModal";
-import ChunkViewerModal from "./ChunkViewerModal";
 import VersionHistoryPanel from "./VersionHistoryPanel";
 import CreateFolderModal from "./CreateFolderModal";
 import MoveToFolderModal from "./MoveToFolderModal";
-import RetrievalScopeModal from "./RetrievalScopeModal";
-import { RETRIEVAL_COPY, normalizeQuerySharing } from "./QueryScopeSection";
 import type { QuerySharing } from "./knowledgeBaseStore";
 
 const STATUS_OPTIONS: { value: KnowledgeProcessingStatus | "all"; label: string }[] = [
@@ -39,8 +35,26 @@ const SUPPORTED_FORMATS_LINE = "Hỗ trợ TXT, MD, PDF, DOC, DOCX, PPT, PPTX, X
  * Knowledge Bases; `canManage` follows who may change the KB's own setting. */
 export interface DocRetrievalProps { kbName: string; kbQuery: QuerySharing | undefined; canManage: boolean; onChange?: () => void }
 
-export default function KnowledgeDocumentsTab({ kbId, viewOnly, retrieval }: { kbId: string; viewOnly: boolean; retrieval?: DocRetrievalProps }) {
-  const [params, setParams] = useSearchParams();
+const PAGE_SIZES = [10, 20, 50];
+function formatDateTime(ts: number): string {
+  const d = new Date(ts);
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Document list of a knowledge base (Production layout, Nov 2026).
+ * - "space": Space library - search + status filter + "Tạo", version column, pagination.
+ * - "agent": inside a Digital Worker - "Nguồn" column, no version column; search + "Thêm" are
+ *   rendered into `toolbarTarget` (the tab row of the knowledge base header).
+ * Opening a document is the parent's job (`onOpenDoc`): it replaces the list in place. */
+export default function KnowledgeDocumentsTab({ kbId, viewOnly, variant = "space", onOpenDoc, toolbarTarget }: {
+  kbId: string; viewOnly: boolean;
+  /** @deprecated Per-folder/document "Quyền truy xuất" is not in Production - ignored. */
+  retrieval?: DocRetrievalProps;
+  variant?: "space" | "agent";
+  onOpenDoc: (id: string) => void;
+  toolbarTarget?: HTMLElement | null;
+}) {
   const [tick, setTick] = useState(0);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<KnowledgeProcessingStatus | "all">("all");
@@ -57,17 +71,13 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly, retrieval }: { k
   const [moveTargets, setMoveTargets] = useState<KnowledgeDocument[] | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [folderFilter, setFolderFilter] = useState<string | null>(null);
-  const [retrievalTarget, setRetrievalTarget] = useState<KnowledgeDocument | null>(null);
-  const canManageRetrieval = !viewOnly && !!retrieval?.canManage;
-  const openRetrieval = canManageRetrieval ? (d: KnowledgeDocument) => setRetrievalTarget(d) : undefined;
+  const [pageSize, setPageSize] = useState(10);
+  const [pageIndex, setPageIndex] = useState(0);
   const createMenuRef = useRef<HTMLDivElement>(null);
+  const isAgent = variant === "agent";
 
-  const openId = params.get("docId");
-  // Chunks can only be viewed once a document is fully processed ("Hoàn thành"). A deep link
-  // (?docId=) to a document in any other state is ignored, same as clicking its disabled name.
+  // Chunks can only be viewed once a document is fully processed ("Hoàn thành").
   const canOpen = (s: KnowledgeProcessingStatus) => s === "done";
-  const requestedDoc = openId ? knowledgeDocumentStore.get(kbId, openId) : undefined;
-  const openDoc = requestedDoc && !requestedDoc.isFolder && canOpen(requestedDoc.status) ? requestedDoc : undefined;
   const notOpenableReason = (s: KnowledgeProcessingStatus) =>
     s === "failed" ? "Tài liệu xử lý thất bại nên không có đoạn để xem."
     : s === "pending" ? "Tài liệu đang chờ xử lý - Bạn xem được các đoạn khi xử lý xong."
@@ -91,8 +101,12 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly, retrieval }: { k
   );
 
   const refresh = () => setTick(t => t + 1);
-  const openDocument = (id: string) => setParams({ docId: id });
-  const closeViewer = () => { const next = new URLSearchParams(params); next.delete("docId"); setParams(next, { replace: true }); };
+  const openDocument = (id: string) => onOpenDoc(id);
+  // Pagination (Space library only, like Production).
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(pageIndex, pageCount - 1);
+  const pageRows = isAgent ? filtered : filtered.slice(safePage * pageSize, safePage * pageSize + pageSize);
+  useEffect(() => { setPageIndex(0); }, [query, statusFilter, folderFilter, pageSize]);
 
   const toggleRow = (id: string) => setSelected(prev => {
     const next = new Set(prev);
@@ -103,70 +117,83 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly, retrieval }: { k
   const someFilteredSelected = filtered.some(d => selected.has(d.id));
   const toggleSelectAll = () => setSelected(allFilteredSelected ? new Set() : new Set(filtered.map(d => d.id)));
 
-  return (
-    <div className="h-full overflow-y-auto">
-    <div className="p-4 sm:p-8 max-w-[1280px] mx-auto">
-      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="relative">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Tìm tài liệu..."
-              className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-            />
-          </div>
-          <div className="relative">
-            <button
-              onClick={() => setStatusOpen(v => !v)}
-              onBlur={() => setTimeout(() => setStatusOpen(false), 150)}
-              className={`h-9 px-3 flex items-center gap-1.5 rounded-lg border text-sm transition-base ${
-                statusFilter !== "all" ? "border-primary/30 bg-primary-soft text-primary font-medium" : "border-border bg-surface hover:bg-surface-muted"
-              }`}
-            >
-              Trạng thái: {STATUS_OPTIONS.find(o => o.value === statusFilter)?.label}
-              <ChevronDown size={12} className={`transition-base ${statusFilter !== "all" ? "text-primary" : "text-muted-foreground"} ${statusOpen ? "rotate-180" : ""}`} />
-            </button>
-            {statusOpen && (
-              <div className="absolute left-0 top-[calc(100%+4px)] min-w-52 max-w-xs bg-white rounded-lg ring-1 ring-border shadow-elev z-20 p-1">
-                {STATUS_OPTIONS.map(o => (
-                  <button key={o.value} onMouseDown={() => setStatusFilter(o.value)} className={`w-full text-left px-3 py-2 rounded-md text-sm transition-base hover:bg-surface-muted ${statusFilter === o.value ? "text-primary font-medium bg-primary-soft" : "text-foreground"}`}>
-                    {o.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          {statusFilter !== "all" && (
-            <button onClick={() => setStatusFilter("all")} className="text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline transition-base">
-              Xóa bộ lọc
-            </button>
-          )}
-        </div>
-
-        {!viewOnly && (
-          <div className="relative" ref={createMenuRef}>
-            <button onClick={() => setShowCreateMenu(v => !v)} className="btn-primary h-9">
-              <Plus size={14} /> Tạo <ChevronDown size={12} className={`transition-base ${showCreateMenu ? "rotate-180" : ""}`} />
-            </button>
-            {showCreateMenu && (
-              <div className="absolute right-0 top-full mt-1 z-20 min-w-52 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
-                <button
-                  onClick={() => { setShowCreateMenu(false); setShowCreateFolder(true); }}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base"
-                >
-                  Thư mục mới
-                </button>
-                <button onClick={() => { setShowCreateMenu(false); setShowUpload(true); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
-                  Tải tài liệu lên
-                </button>
-              </div>
-            )}
+  const searchBox = (
+    <div className="relative">
+      <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+      <input
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        placeholder={isAgent ? "Tìm nguồn tri thức..." : "Tìm tài liệu..."}
+        aria-label={isAgent ? "Tìm nguồn tri thức" : "Tìm tài liệu"}
+        className="h-9 w-52 pl-8 pr-3 rounded-lg bg-surface border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+      />
+    </div>
+  );
+  const statusFilterBox = (
+    <div className="flex items-center gap-2">
+      <div className="relative">
+        <button
+          onClick={() => setStatusOpen(v => !v)}
+          onBlur={() => setTimeout(() => setStatusOpen(false), 150)}
+          className={`h-9 px-3 flex items-center gap-1.5 rounded-lg border text-sm transition-base ${
+            statusFilter !== "all" ? "border-primary/30 bg-primary-soft text-primary font-medium" : "border-border bg-surface hover:bg-surface-muted"
+          }`}
+        >
+          Trạng thái: {STATUS_OPTIONS.find(o => o.value === statusFilter)?.label}
+          <ChevronDown size={12} className={`transition-base ${statusFilter !== "all" ? "text-primary" : "text-muted-foreground"} ${statusOpen ? "rotate-180" : ""}`} />
+        </button>
+        {statusOpen && (
+          <div className="absolute left-0 top-[calc(100%+4px)] min-w-52 max-w-xs bg-white rounded-lg ring-1 ring-border shadow-elev z-20 p-1">
+            {STATUS_OPTIONS.map(o => (
+              <button key={o.value} onMouseDown={() => setStatusFilter(o.value)} className={`w-full text-left px-3 py-2 rounded-md text-sm transition-base hover:bg-surface-muted ${statusFilter === o.value ? "text-primary font-medium bg-primary-soft" : "text-foreground"}`}>
+                {o.label}
+              </button>
+            ))}
           </div>
         )}
       </div>
+      {statusFilter !== "all" && (
+        <button onClick={() => setStatusFilter("all")} className="text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline transition-base">
+          Xóa bộ lọc
+        </button>
+      )}
+    </div>
+  );
+  const createButton = viewOnly ? null : (
+    <div className="relative" ref={createMenuRef}>
+      <button onClick={() => setShowCreateMenu(v => !v)} className="btn-primary h-9">
+        <Plus size={14} /> {isAgent ? "Thêm" : "Tạo"} <ChevronDown size={12} className={`transition-base ${showCreateMenu ? "rotate-180" : ""}`} />
+      </button>
+      {showCreateMenu && (
+        <div className="absolute right-0 top-full mt-1 z-30 min-w-44 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
+          <button onClick={() => { setShowCreateMenu(false); setShowUpload(true); }} className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
+            <Upload size={14} className="text-muted-foreground" /> Tải tài liệu lên
+          </button>
+          <button onClick={() => { setShowCreateMenu(false); setShowCreateFolder(true); }} className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
+            <FolderPlus size={14} className="text-muted-foreground" /> Tạo thư mục
+          </button>
+        </div>
+      )}
+    </div>
+  );
+  const agentToolbar = (
+    <div className="flex items-center gap-2">
+      {searchBox}
+      {createButton}
+    </div>
+  );
 
+  return (
+    <div>
+      {isAgent ? (toolbarTarget ? createPortal(agentToolbar, toolbarTarget) : <div className="flex justify-end mb-4">{agentToolbar}</div>) : (
+      <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
+          {searchBox}
+          {statusFilterBox}
+        </div>
+        {createButton}
+      </div>
+      )}
       {openFolder && (
         <div className="flex items-center gap-1.5 text-sm mb-3">
           <button onClick={() => setFolderFilter(null)} className="text-primary font-medium hover:underline">Tất cả tài liệu</button>
@@ -175,7 +202,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly, retrieval }: { k
         </div>
       )}
 
-      {!viewOnly && <p className="text-xs text-muted-foreground mb-3 lg:whitespace-nowrap">{SUPPORTED_FORMATS_LINE}</p>}
+      {!viewOnly && !isAgent && <p className="text-xs text-muted-foreground mb-3 lg:whitespace-nowrap">{SUPPORTED_FORMATS_LINE}</p>}
 
       {selected.size > 0 && !viewOnly && (
         <div className="flex items-center gap-3 mb-3 px-3 h-10 rounded-lg bg-primary-soft border border-primary/15">
@@ -226,17 +253,17 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly, retrieval }: { k
                     />
                   </th>
                 )}
-                <th className="text-left px-2 py-2.5 kb-table-header">Tên</th>
+                <th className="text-left px-2 py-2.5 kb-table-header">{isAgent ? "Nguồn" : "Tên"}</th>
                 <th className="text-left px-2 py-2.5 kb-table-header">Trạng thái</th>
                 <th className="text-left px-2 py-2.5 kb-table-header min-w-[110px]">Kích thước</th>
-                <th className="text-left px-2 py-2.5 kb-table-header">Phiên bản</th>
-                <th className="text-left px-2 py-2.5 kb-table-header">Cập nhật</th>
+                {!isAgent && <th className="text-left px-2 py-2.5 kb-table-header">Phiên bản</th>}
+                <th className="text-left px-2 py-2.5 kb-table-header">Cập nhật lần cuối</th>
                 <th className="text-left px-2 py-2.5 kb-table-header min-w-[120px]">Cập nhật bởi</th>
                 {!viewOnly && <th className="px-4 py-2.5 w-12" />}
               </tr>
             </thead>
             <tbody>
-              {filtered.map(d => {
+              {pageRows.map(d => {
                 const openable = d.isFolder || canOpen(d.status);
                 return (
                 <tr key={d.id} className={`border-b border-border last:border-0 hover:bg-surface-muted/50 transition-base ${highlightId === d.id ? "bg-primary-soft/40" : ""}`}>
@@ -280,7 +307,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly, retrieval }: { k
                     )}
                   </td>
                   <td className="px-2 py-3 text-xs text-muted-foreground whitespace-nowrap">{d.isFolder ? "-" : formatFileSize(d.sizeBytes)}</td>
-                  <td className="px-2 py-3">
+                  {!isAgent && <td className="px-2 py-3">
                     {!d.isFolder && (
                       <Tooltip delayDuration={200}>
                         <TooltipTrigger asChild>
@@ -295,8 +322,8 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly, retrieval }: { k
                         <TooltipContent>Xem lịch sử phiên bản</TooltipContent>
                       </Tooltip>
                     )}
-                  </td>
-                  <td className="px-2 py-3 text-xs text-muted-foreground whitespace-nowrap">{new Date(d.updatedAt).toLocaleDateString("vi-VN")}</td>
+                  </td>}
+                  <td className="px-2 py-3 text-xs text-muted-foreground whitespace-nowrap tabular-nums">{formatDateTime(d.updatedAt)}</td>
                   <td className="px-2 py-3 text-xs text-muted-foreground truncate">{d.updatedBy}</td>
                   {!viewOnly && (
                     <td className="px-4 py-3 text-right">
@@ -305,7 +332,6 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly, retrieval }: { k
                           onOpen={() => setFolderFilter(d.id)}
                           onRename={() => { setRenaming(d); setRenameValue(d.name); }}
                           onMove={() => setMoveTargets([d])}
-                          onRetrieval={openRetrieval && (() => openRetrieval(d))}
                           onDelete={() => setDeleteTargets([d])}
                         />
                       ) : (
@@ -313,10 +339,8 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly, retrieval }: { k
                           canOpen={openable}
                           openDisabledReason={notOpenableReason(d.status)}
                           onOpen={() => openDocument(d.id)}
-                          onReprocess={() => setReprocessTarget(d)}
                           onRename={() => { setRenaming(d); setRenameValue(d.name); }}
                           onMove={() => setMoveTargets([d])}
-                          onRetrieval={openRetrieval && (() => openRetrieval(d))}
                           onDelete={() => setDeleteTargets([d])}
                         />
                       )}
@@ -330,30 +354,47 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly, retrieval }: { k
         </div>
       )}
 
-      {retrievalTarget && retrieval && (
-        (() => {
-          // Same popup as the KB's own. A folder/document without its own setting opens on what it
-          // follows today (nearest limited folder, else the KB). Saving that same value - or
-          // "Mọi người dùng Agent", which can't widen past the levels above - clears its own setting.
-          const parentLimit = knowledgeDocumentStore.ancestors(kbId, retrievalTarget.id).find(a => a.querySharing?.mode === "department")?.querySharing;
-          const inherited = normalizeQuerySharing(parentLimit ?? retrieval.kbQuery);
-          const same = (a: QuerySharing, b: QuerySharing) => a.mode === b.mode
-            && [...a.departmentIds].sort().join() === [...b.departmentIds].sort().join()
-            && a.people.map(p => p.userId).sort().join() === b.people.map(p => p.userId).sort().join();
-          return (
-            <RetrievalScopeModal
-              name={retrievalTarget.name}
-              value={retrievalTarget.querySharing ?? inherited}
-              onSave={q => knowledgeDocumentStore.updateQuerySharing(retrievalTarget.id, q.mode === "department" && !same(q, inherited) ? q : undefined)}
-              onClose={() => { setRetrievalTarget(null); refresh(); retrieval.onChange?.(); }}
-            />
-          );
-        })()
+      {!isAgent && filtered.length > 0 && (
+        <div className="flex items-center justify-between gap-3 mt-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <select
+              value={pageSize}
+              onChange={e => setPageSize(Number(e.target.value))}
+              aria-label="Số dòng mỗi trang"
+              className="h-9 px-2.5 rounded-lg border border-border bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-ring/30"
+            >
+              {PAGE_SIZES.map(n => <option key={n} value={n}>{n} / trang</option>)}
+            </select>
+            <span className="text-xs text-muted-foreground tabular-nums">Hiển thị {safePage * pageSize + 1}-{Math.min(filtered.length, (safePage + 1) * pageSize)} trên {filtered.length}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            {[
+              { label: "Trang đầu", icon: ChevronsLeft, to: 0, disabled: safePage === 0 },
+              { label: "Trang trước", icon: ChevronLeft, to: safePage - 1, disabled: safePage === 0 },
+            ].map(b => (
+              <button key={b.label} onClick={() => setPageIndex(b.to)} disabled={b.disabled} aria-label={b.label} className="h-8 w-8 rounded-lg border border-border bg-surface flex items-center justify-center text-muted-foreground hover:bg-surface-muted disabled:opacity-40 disabled:cursor-not-allowed transition-base">
+                <b.icon size={14} />
+              </button>
+            ))}
+            {Array.from({ length: pageCount }).map((_, i) => (
+              <button key={i} onClick={() => setPageIndex(i)} aria-label={`Đến trang ${i + 1}`} aria-current={i === safePage ? "page" : undefined} className={`h-8 min-w-8 px-2 rounded-lg text-sm font-medium tabular-nums transition-base ${i === safePage ? "bg-primary text-primary-foreground" : "border border-border bg-surface hover:bg-surface-muted"}`}>
+                {i + 1}
+              </button>
+            ))}
+            {[
+              { label: "Trang sau", icon: ChevronRight, to: safePage + 1, disabled: safePage >= pageCount - 1 },
+              { label: "Trang cuối", icon: ChevronsRight, to: pageCount - 1, disabled: safePage >= pageCount - 1 },
+            ].map(b => (
+              <button key={b.label} onClick={() => setPageIndex(b.to)} disabled={b.disabled} aria-label={b.label} className="h-8 w-8 rounded-lg border border-border bg-surface flex items-center justify-center text-muted-foreground hover:bg-surface-muted disabled:opacity-40 disabled:cursor-not-allowed transition-base">
+                <b.icon size={14} />
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       <UploadDocumentsModal open={showUpload} kbId={kbId} onClose={() => { setShowUpload(false); refresh(); }} />
 
-      {openDoc && <ChunkViewerModal kbId={kbId} sourceType="document" sourceId={openDoc.id} sourceName={openDoc.name} sourceStatus={openDoc.status} sourceCreatedAt={openDoc.createdAt} onClose={closeViewer} viewOnly={viewOnly} />}
       {versionTarget && (
         <VersionHistoryPanel
           source={{ id: versionTarget.id, kbId: versionTarget.kbId, name: versionTarget.name, sourceType: "document", version: versionTarget.version, updatedAt: versionTarget.updatedAt, updatedBy: versionTarget.updatedBy }}
@@ -474,7 +515,6 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly, retrieval }: { k
         </AlertDialogContent>
       </AlertDialog>
     </div>
-    </div>
   );
 }
 
@@ -484,8 +524,9 @@ const ROW_MENU_WIDTH = 224; // w-56
 const ROW_MENU_HEIGHT_ESTIMATE = 290;
 const FOLDER_ROW_MENU_HEIGHT_ESTIMATE = 224;
 
-function RowMenu({ canOpen, openDisabledReason, onOpen, onReprocess, onRename, onMove, onRetrieval, onDelete }: {
-  canOpen: boolean; openDisabledReason?: string; onOpen: () => void; onReprocess: () => void; onRename: () => void; onMove: () => void; onRetrieval?: () => void; onDelete: () => void;
+/** Production row menu: Mở / Đổi tên / Di chuyển / Xóa. */
+function RowMenu({ canOpen, openDisabledReason, onOpen, onRename, onMove, onDelete }: {
+  canOpen: boolean; openDisabledReason?: string; onOpen: () => void; onRename: () => void; onMove: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
@@ -519,11 +560,9 @@ function RowMenu({ canOpen, openDisabledReason, onOpen, onReprocess, onRename, o
   }, [open]);
 
   const items: { label: string; onClick: () => void; danger?: boolean; disabled?: boolean; disabledTooltip?: string }[] = [
-    { label: "Xem chi tiết", onClick: onOpen, disabled: !canOpen, disabledTooltip: openDisabledReason },
-    { label: "Xử lý lại", onClick: onReprocess },
+    { label: "Mở", onClick: onOpen, disabled: !canOpen, disabledTooltip: openDisabledReason },
     { label: "Đổi tên", onClick: onRename },
     { label: "Di chuyển", onClick: onMove },
-    ...(onRetrieval ? [{ label: RETRIEVAL_COPY.menu, onClick: onRetrieval }] : []),
     { label: "Xóa", onClick: onDelete, danger: true },
   ];
 
@@ -569,7 +608,7 @@ function RowMenu({ canOpen, openDisabledReason, onOpen, onReprocess, onRename, o
   );
 }
 
-function FolderRowMenu({ onOpen, onRename, onMove, onRetrieval, onDelete }: {
+function FolderRowMenu({ onOpen, onRename, onMove, onDelete }: {
   onOpen: () => void; onRename: () => void; onMove: () => void; onRetrieval?: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -600,10 +639,9 @@ function FolderRowMenu({ onOpen, onRename, onMove, onRetrieval, onDelete }: {
   }, [open]);
 
   const items: { label: string; onClick: () => void; danger?: boolean }[] = [
-    { label: "Xem chi tiết", onClick: onOpen },
+    { label: "Mở", onClick: onOpen },
     { label: "Đổi tên", onClick: onRename },
     { label: "Di chuyển", onClick: onMove },
-    ...(onRetrieval ? [{ label: RETRIEVAL_COPY.menu, onClick: onRetrieval }] : []),
     { label: "Xóa", onClick: onDelete, danger: true },
   ];
 

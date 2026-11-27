@@ -25,16 +25,16 @@ import {
 type MainTab = OwnershipTab;
 type TypeFilter = "all" | "internal" | "external_api";
 
-function relativeTime(ts: number): string {
-  const diff = Date.now() - ts;
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "Vừa xong";
-  if (mins < 60) return `Cập nhật ${mins} phút trước`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `Cập nhật ${hours} giờ trước`;
-  const days = Math.floor(hours / 24);
-  return `Cập nhật ${days} ngày trước`;
+/** "Cập nhật 13:34 27/11/2026" - same as Production. */
+function updatedLabel(ts: number): string {
+  const d = new Date(ts);
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `Cập nhật ${pad(d.getHours())}:${pad(d.getMinutes())} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
 }
+/** Knowledge library wording (Production). */
+const KB_TAB_LABELS = { mine: "Của tôi", shared: "Được chia sẻ" } as const;
+const KB_TAG_LABELS = { shared: "Được chia sẻ" } as const;
+const PAGE_SIZE_OPTIONS = [12, 24, 48];
 
 function RowMenu({ kb, onOpen, onEdit, onShare, onRetrieval, onDelete, onUnshare, editBlocked, shareBlocked, deleteBlocked }: {
   onUnshare?: () => void;
@@ -54,15 +54,13 @@ function RowMenu({ kb, onOpen, onEdit, onShare, onRetrieval, onDelete, onUnshare
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
 
+  // Production card menu: Xem chi tiết / Chỉnh sửa / Quyền truy cập / Quyền truy xuất / Xóa.
+  void onUnshare;
   const safeItems: { label: string; onClick: () => void; blocked?: string }[] = [
     { label: "Xem chi tiết", onClick: onOpen },
     { label: "Chỉnh sửa", onClick: onEdit, blocked: editBlocked },
     { label: ACCESS_COPY.menu, onClick: onShare, blocked: shareBlocked },
     { label: RETRIEVAL_COPY.menu, onClick: onRetrieval, blocked: shareBlocked },
-    // Quick on/off for sharing: "Tắt chia sẻ" asks once; "Chia sẻ" opens "Ai được dùng".
-    isShared(kb.sharing)
-      ? { label: "Tắt chia sẻ", onClick: onUnshare ?? onShare, blocked: shareBlocked }
-      : { label: "Chia sẻ", onClick: onShare, blocked: shareBlocked },
   ];
 
   const renderItem = (item: { label: string; onClick: () => void; blocked?: string }, danger?: boolean) => (
@@ -145,9 +143,10 @@ function KbCard({ kb, userId, access, admin, onOpen, onEdit, onShare, onRetrieva
         </Link>
       }
       tags={ownershipTags({ ownerId: kb.ownerId, sharing: kb.sharing, userId, admin })}
+      tagLabels={KB_TAG_LABELS}
       menu={<RowMenu kb={kb} onOpen={onOpen} onEdit={onEdit} onShare={onShare} onRetrieval={onRetrieval} onDelete={onDelete} onUnshare={onUnshare} editBlocked={editBlocked} shareBlocked={shareBlocked} deleteBlocked={deleteBlocked} />}
       description={kb.description}
-      extra={<p className="text-xs text-muted-foreground">{relativeTime(kb.updatedAt)}</p>}
+      extra={<p className="text-xs text-muted-foreground tabular-nums">{updatedLabel(kb.updatedAt)}</p>}
       creator={<CardCreator displayName={isOwner ? "Bạn" : kb.ownerName} fullName={kb.ownerName} />}
       agents={<AgentCount count={kb.attachedByAgentIds.length} />}
       onOpen={onOpen}
@@ -170,6 +169,8 @@ export default function KnowledgeList() {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [pageSize, setPageSize] = useState(24);
+  const [pageIndex, setPageIndex] = useState(0);
   // Creating straight in the Space library needs the Role's "Create" permission (Builders create
   // knowledge inside an Agent instead). The button stays visible but locked, with the reason.
   const { can } = useMyPermissions();
@@ -188,7 +189,8 @@ export default function KnowledgeList() {
     setLoadState("loading");
     const t = setTimeout(() => {
       try {
-        setKbs(knowledgeBaseStore.listSpace());
+        // Production has no external (API) knowledge bases yet - "Kết nối kho tri thức ngoài" is "Sắp có".
+        setKbs(knowledgeBaseStore.listSpace().filter(kb => kb.type === "internal"));
         setLoadState("ready");
       } catch {
         setLoadState("error");
@@ -266,19 +268,21 @@ export default function KnowledgeList() {
             <Plus size={14} /> Thêm kho tri thức <ChevronDown size={13} className={`transition-base ${showAddMenu ? "rotate-180" : ""}`} />
           </button>
           {showAddMenu && (
-            <div className="absolute right-0 top-full mt-1 z-20 w-56 rounded-lg border border-border bg-white shadow-elev py-1">
+            <div className="absolute right-0 top-full mt-1 z-20 w-72 rounded-lg border border-border bg-white shadow-elev py-1">
               <button
                 onClick={() => { setShowAddMenu(false); setShowCreate(true); }}
-                className="w-full flex items-center gap-2.5 text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base"
+                className="w-full flex items-start gap-2.5 text-left px-3 py-2 hover:bg-surface-muted transition-base"
               >
-                <FolderKanban size={14} className="text-muted-foreground shrink-0" /> Tạo kho tri thức
+                <BookOpen size={14} className="text-muted-foreground shrink-0 mt-0.5" />
+                <span><span className="block text-sm font-medium">Tạo kho tri thức</span><span className="block text-xs text-muted-foreground">Tải tài liệu lên để Nhân sự số tra cứu.</span></span>
               </button>
-              <button
-                onClick={() => { setShowAddMenu(false); setShowConnect(true); }}
-                className="w-full flex items-center gap-2.5 text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base"
-              >
-                <BookOpen size={14} className="text-muted-foreground shrink-0" /> Kết nối kho tri thức ngoài
-              </button>
+              <div aria-disabled className="w-full flex items-start gap-2.5 text-left px-3 py-2 cursor-not-allowed opacity-60">
+                <FolderKanban size={14} className="text-muted-foreground shrink-0 mt-0.5" />
+                <span>
+                  <span className="flex items-center gap-1.5 text-sm font-medium">Kết nối kho tri thức ngoài <span className="text-xs font-medium px-1.5 py-0.5 rounded-md bg-surface-muted text-muted-foreground">Sắp có</span></span>
+                  <span className="block text-xs text-muted-foreground">Liên kết tới hệ thống tri thức bên ngoài qua API.</span>
+                </span>
+              </div>
             </div>
           )}
         </div>
@@ -286,7 +290,7 @@ export default function KnowledgeList() {
 
       {loadState === "ready" && hasAnyKb && (
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-5 border-b border-border pb-3">
-          <OwnershipTabs tab={tab} onChange={setTab} counts={counts} noun="kho tri thức" />
+          <OwnershipTabs tab={tab} onChange={setTab} counts={counts} labels={KB_TAB_LABELS} />
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -296,29 +300,6 @@ export default function KnowledgeList() {
                 placeholder="Tìm kho tri thức..."
                 className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
               />
-            </div>
-            <div className="relative">
-              <button
-                onClick={() => setTypeFilterOpen(v => !v)}
-                onBlur={() => setTimeout(() => setTypeFilterOpen(false), 150)}
-                className="h-9 px-3 flex items-center gap-1.5 rounded-lg border border-border bg-surface text-sm hover:bg-surface-muted transition-base"
-              >
-                {TYPE_OPTIONS.find(o => o.key === typeFilter)?.label}
-                <ChevronDown size={12} className={`text-muted-foreground transition-base ${typeFilterOpen ? "rotate-180" : ""}`} />
-              </button>
-              {typeFilterOpen && (
-                <div className="absolute right-0 top-[calc(100%+4px)] w-52 bg-white rounded-lg ring-1 ring-border shadow-elev z-20 p-1">
-                  {TYPE_OPTIONS.map(o => (
-                    <button
-                      key={o.key}
-                      onMouseDown={() => setTypeFilter(o.key)}
-                      className={`w-full text-left px-3 py-2 rounded-md text-sm transition-base hover:bg-surface-muted ${typeFilter === o.key ? "text-primary font-medium bg-primary-soft" : "text-foreground"}`}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -384,7 +365,7 @@ export default function KnowledgeList() {
 
       {loadState === "ready" && filtered.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map(kb => (
+          {filtered.slice(Math.min(pageIndex, Math.max(0, Math.ceil(filtered.length / pageSize) - 1)) * pageSize).slice(0, pageSize).map(kb => (
             <KbCard
               key={kb.id}
               kb={kb}
@@ -401,6 +382,31 @@ export default function KnowledgeList() {
           ))}
         </div>
       )}
+
+      {loadState === "ready" && filtered.length > 0 && (() => {
+        const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+        const cur = Math.min(pageIndex, pageCount - 1);
+        const btn = "h-8 min-w-8 px-2 rounded-lg border border-border bg-surface text-sm text-muted-foreground hover:bg-surface-muted disabled:opacity-40 disabled:cursor-not-allowed transition-base";
+        return (
+          <div className="flex items-center justify-between gap-3 mt-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPageIndex(0); }} aria-label="Số kho tri thức mỗi trang" className="h-9 px-2.5 rounded-lg border border-border bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-ring/30">
+                {PAGE_SIZE_OPTIONS.map(n => <option key={n} value={n}>{n} / trang</option>)}
+              </select>
+              <span className="text-xs text-muted-foreground tabular-nums">Hiển thị {cur * pageSize + 1}-{Math.min(filtered.length, (cur + 1) * pageSize)} trên {filtered.length}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button className={btn} onClick={() => setPageIndex(0)} disabled={cur === 0} aria-label="Trang đầu">«</button>
+              <button className={btn} onClick={() => setPageIndex(cur - 1)} disabled={cur === 0} aria-label="Trang trước">‹</button>
+              {Array.from({ length: pageCount }).map((_, i) => (
+                <button key={i} onClick={() => setPageIndex(i)} aria-label={`Đến trang ${i + 1}`} aria-current={i === cur ? "page" : undefined} className={i === cur ? "h-8 min-w-8 px-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium tabular-nums" : btn}>{i + 1}</button>
+              ))}
+              <button className={btn} onClick={() => setPageIndex(cur + 1)} disabled={cur >= pageCount - 1} aria-label="Trang sau">›</button>
+              <button className={btn} onClick={() => setPageIndex(pageCount - 1)} disabled={cur >= pageCount - 1} aria-label="Trang cuối">»</button>
+            </div>
+          </div>
+        );
+      })()}
 
       <CreateKnowledgeBaseModal open={showCreate} onClose={closeCreate} onCreated={refresh} />
       <ConnectExternalKnowledgeBaseModal open={showConnect} onClose={() => { setShowConnect(false); refresh(); }} />

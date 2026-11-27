@@ -100,7 +100,7 @@ export default function CreateKnowledgeBaseModal({
       <Dialog open={open} onOpenChange={v => { if (!v) requestClose(); }}>
         <DialogContent className="sm:max-w-[520px] max-h-[85vh] overflow-y-auto" onOpenAutoFocus={e => e.preventDefault()}>
           <DialogHeader>
-            <DialogTitle>{isEdit ? "Chỉnh sửa kho tri thức" : "Tạo kho tri thức"}</DialogTitle>
+            <DialogTitle>{isEdit ? "Chỉnh sửa kho tri thức" : agentOnlyFor ? "Tạo kho tri thức riêng cho Nhân sự số" : "Tạo kho tri thức"}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-5 py-1">
@@ -144,7 +144,9 @@ export default function CreateKnowledgeBaseModal({
               />
             </div>
 
-            {!isEdit && (
+            {/* Production: a Digital Worker's own knowledge base only asks for name + description
+                (it stays private to that Digital Worker); the Space library asks for both permissions. */}
+            {!isEdit && !agentOnlyFor && (
               <>
 
                 <div className="border-t border-border pt-5">
@@ -160,7 +162,6 @@ export default function CreateKnowledgeBaseModal({
                 </div>
                 <div className="border-t border-border pt-5">
                   <QueryScopeSection
-                    collapsible
                     value={querySharing}
                     onChange={setQuerySharing}
                     submitAttempted={submitAttempted}
@@ -172,7 +173,7 @@ export default function CreateKnowledgeBaseModal({
           </div>
 
           <DialogFooter>
-            <button onClick={requestClose} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Hủy bỏ</button>
+            <button onClick={requestClose} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Hủy</button>
             <button
               onClick={submit}
               disabled={submitting}

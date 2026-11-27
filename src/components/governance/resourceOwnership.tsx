@@ -117,7 +117,10 @@ const TAG_META: Partial<Record<OwnershipTag, { label: string; icon: typeof User;
   system: { label: "Hệ thống", icon: ShieldCheck, cls: "bg-surface-sunken text-foreground/75" },
 };
 
-export function OwnershipTagList({ tags, className = "" }: { tags: OwnershipTag[]; className?: string }) {
+export function OwnershipTagList({ tags, className = "", labels }: { tags: OwnershipTag[]; className?: string;
+  /** Per-library wording, e.g. Knowledge (Production) says "Được chia sẻ" for a shared KB. */
+  labels?: Partial<Record<OwnershipTag, string>>;
+}) {
   if (tags.length === 0) return null;
   return (
     <div className={`flex flex-wrap items-center gap-1.5 ${className}`}>
@@ -132,7 +135,7 @@ export function OwnershipTagList({ tags, className = "" }: { tags: OwnershipTag[
         const Icon = m.icon;
         return (
           <span key={t} className={`inline-flex items-center gap-1 rounded-full px-2 py-[3px] text-xs font-medium leading-none whitespace-nowrap ${m.cls}`}>
-            <Icon size={12} aria-hidden /> {m.label}
+            <Icon size={12} aria-hidden /> {labels?.[t] ?? m.label}
           </span>
         );
       })}
@@ -141,8 +144,10 @@ export function OwnershipTagList({ tags, className = "" }: { tags: OwnershipTag[
 }
 
 /** Tab bar shared by the libraries — same look as the old Tất cả/Của tôi/Được chia sẻ tabs. */
-export function OwnershipTabs({ tab, onChange, counts, noun }: {
+export function OwnershipTabs({ tab, onChange, counts, noun, labels }: {
   tab: OwnershipTab; onChange: (t: OwnershipTab) => void; counts: Record<OwnershipTab, number>;
+  /** Per-library tab names, e.g. Knowledge (Production): "Của tôi" / "Được chia sẻ". */
+  labels?: Partial<Record<OwnershipTab, string>>;
   /** Lower-case resource noun for the "Tôi chia sẻ" hint, e.g. "skill", "kho tri thức". */
   noun?: string;
 }) {
@@ -159,7 +164,7 @@ export function OwnershipTabs({ tab, onChange, counts, noun }: {
             tab === t.key ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
           }`}
         >
-          {t.label}
+          {labels?.[t.key] ?? t.label}
           <span className={`text-xs px-1.5 py-0.5 rounded-full ${tab === t.key ? "bg-primary/10 text-primary" : "bg-surface-sunken text-muted-foreground"}`}>
             {counts[t.key]}
           </span>
@@ -223,7 +228,8 @@ export function AgentCount(_: { count: number; all?: boolean }) {
  * creator — when worth showing — on the same single line, so the footer is never empty and
  * never wraps to a second line. Height is fixed so every card in the grid lines up, whatever
  * the number of tags or the length of the description/creator name. */
-export function ResourceCard({ icon, name, nameNode, tags, menu, description, singleLineDescription, creator, extra, onOpen, highlighted }: {
+export function ResourceCard({ icon, name, nameNode, tags, tagLabels, menu, description, singleLineDescription, creator, extra, onOpen, highlighted }: {
+  tagLabels?: Partial<Record<OwnershipTag, string>>;
   icon: ReactNode;
   name: string;
   /** Optional replacement for the plain name (e.g. a Link) — `name` still labels the card. */
@@ -273,7 +279,7 @@ export function ResourceCard({ icon, name, nameNode, tags, menu, description, si
       {extra && <div className="mt-2 overflow-hidden">{extra}</div>}
       <div className="mt-auto pt-3">
         <div className="pt-3 border-t border-border flex items-center gap-2 text-xs text-foreground">
-          <OwnershipTagList tags={tags} className="shrink-0 flex-nowrap" />
+          <OwnershipTagList tags={tags} labels={tagLabels} className="shrink-0 flex-nowrap" />
           {!isCreatorRedundant(tags) && <div className="min-w-0 flex-1 flex justify-end">{creator}</div>}
         </div>
       </div>

@@ -33,7 +33,7 @@ export interface Sharing {
  * this specific content for when answering. A private (`sharing.mode: "private"`) item can still
  * carry any `QuerySharing` value, since the two questions are independent: "who can reuse this
  * while building" vs. "who can this be used to answer, at chat time". */
-export type QueryScopeMode = "private" | "all_org" | "department" | "specific";
+export type QueryScopeMode = "private" | "all_org" | "department" | "specific" | "community";
 
 export interface QuerySharing {
   mode: QueryScopeMode;

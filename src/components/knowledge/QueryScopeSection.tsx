@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { Switch } from "@/components/ui/switch";
-import { Check, Network, Users, UserCheck, Hammer, MessageCircle, ChevronDown, UsersRound, type LucideIcon } from "lucide-react";
+import { Check, Network, Users, UserCheck, Hammer, MessageCircle, ChevronDown, UsersRound, Lock, Building2, Globe, type LucideIcon } from "lucide-react";
 import { useOrg } from "@/pages/organization/orgStore";
 import { collectMembers, orgTree as SEED_ORG_TREE, type OrgUnit } from "@/pages/organization/orgData";
 import OrgSharePicker, { toggleUnitIn, toggleMemberIn, orgSelectionSummary } from "@/components/governance/OrgSharePicker";
@@ -100,47 +100,52 @@ export function AnswerAudiencePicker({ value, onChange, noun = "kho này" }: { v
 }
 
 /* ─── Copy for the two permission dimensions ─────────────────────────────────────────────
- * The two used to be "Quyền truy cập" / "Quyền truy xuất" - one word apart, and easy to mix up
- * although they are about different people. They are now named by the question they answer:
- * "Ai được dùng" (Build Access): which Space members can use this when building Agents.
- * "Agent trả lời cho ai" (Usage Access): which people chatting with an Agent get answers from it.
- * Every caller reads these constants so the wording never drifts. */
+ * Same names as Production (eos.fpt.ai, Nov 2026): "Quyền truy cập" (Build Access - which Space
+ * members can link this knowledge base into a Digital Worker) and "Quyền truy xuất" (Usage
+ * Access - who gets answers from it when chatting). Every caller reads these constants so the
+ * wording never drifts. */
 export const ACCESS_COPY = {
-  title: "Ai được dùng kho này",
+  title: "Quyền truy cập",
   /** Short label for menus, buttons and detail rows. */
-  menu: "Ai được dùng",
-  chip: "Dùng",
-  description: "Người trong Space được liên kết kho này vào Nhân sự số khi xây dựng.",
+  menu: "Quyền truy cập",
+  chip: "Truy cập",
+  description: "Ai được liên kết kho này vào Nhân sự số khi xây dựng.",
   agentDescription: "Người trong Space được dùng lại tri thức này khi xây Nhân sự số khác.",
-  narrowTitle: "Thu hẹp người được dùng?",
+  narrowTitle: "Thu hẹp quyền truy cập?",
   narrowAction: "Thu hẹp",
   toast: "Đã lưu thay đổi.",
 };
 export const RETRIEVAL_COPY = {
-  title: "Nhân sự số trả lời cho ai",
-  menu: "Nhân sự số trả lời cho ai",
-  chip: "Trả lời",
-  description: "Nhân sự số chỉ dùng kho này khi trả lời những người bạn chọn.",
-  narrowTitle: "Thu hẹp người được trả lời?",
-  narrowBody: "Những người không có trong danh sách sẽ không còn nhận được câu trả lời từ kho này.",
+  title: "Quyền truy xuất",
+  menu: "Quyền truy xuất",
+  chip: "Truy xuất",
+  description: "Ai nhận được câu trả lời từ kho này khi trò chuyện với Nhân sự số.",
+  narrowTitle: "Thu hẹp quyền truy xuất?",
+  narrowBody: "Những người không còn trong phạm vi sẽ không nhận được câu trả lời từ kho này nữa.",
   narrowAction: "Thu hẹp",
   toast: "Đã lưu thay đổi.",
 };
 
 export const ACCESS_OPTIONS: { value: SharingMode; label: string; helper: string; icon: LucideIcon }[] = [
-  { value: "all", label: "Cả Space", helper: "Mọi thành viên Space đều liên kết được kho này vào Nhân sự số.", icon: Users },
-  { value: "specific", label: "Người cụ thể", helper: "Chỉ người bạn chọn mới liên kết được kho này vào Nhân sự số.", icon: UserCheck },
+  { value: "all", label: "Cả Space", helper: "Mọi thành viên Space đều xem và dùng được.", icon: Users },
+  { value: "specific", label: "Người cụ thể", helper: "Chỉ những người bạn chọn mới dùng lại được.", icon: UserCheck },
+];
+/** Space library "Quyền truy cập" (Production): three plain options, no "Chia sẻ lên Space" switch. */
+export const SPACE_ACCESS_OPTIONS: { value: SharingMode; label: string; helper: string; icon: LucideIcon }[] = [
+  { value: "private", label: "Chỉ mình tôi", helper: "Chỉ bạn xem và liên kết được vào Nhân sự số của mình.", icon: Lock },
+  ...ACCESS_OPTIONS,
 ];
 
 export const QUERY_SCOPE_OPTIONS: { value: QueryScopeMode; label: string; helper: string; icon: LucideIcon }[] = [
-  { value: "all_org", label: "Mọi người dùng Nhân sự số", helper: "Ai trò chuyện với Nhân sự số cũng nhận được câu trả lời từ kho này.", icon: UsersRound },
-  { value: "department", label: "Công ty / phòng ban", helper: "Chỉ những người bạn chọn mới nhận được câu trả lời từ kho này. Người khác vẫn trò chuyện với Nhân sự số như bình thường.", icon: Network },
+  { value: "all_org", label: "Cả tổ chức", helper: "Trả lời mọi người trong tổ chức. Chỉ áp dụng trên kênh Workspace.", icon: Building2 },
+  { value: "department", label: "Phòng ban", helper: "Nhân sự số chỉ trả lời người thuộc phòng ban đã chọn. Chỉ áp dụng trên kênh Workspace.", icon: Network },
+  { value: "community", label: "Cộng đồng", helper: "Bất kỳ ai trò chuyện với Nhân sự số, kể cả khách trên mọi kênh của Nhân sự số (Livechat, API, Zalo, ...).", icon: Globe },
 ];
 
 /** Older data may still carry "private"/"specific" retrieval modes — both read as "Cả tổ chức"
  * now that only the two org-level options exist. */
 export function normalizeQuerySharing(v: QuerySharing | undefined): QuerySharing {
-  if (!v || (v.mode !== "all_org" && v.mode !== "department")) return { mode: "all_org", departmentIds: [], people: [] };
+  if (!v || (v.mode !== "all_org" && v.mode !== "department" && v.mode !== "community")) return { mode: "all_org", departmentIds: [], people: [] };
   return { ...v, departmentIds: v.departmentIds ?? [], people: v.people ?? [] };
 }
 
@@ -157,7 +162,8 @@ function answerAudienceNames(q: QuerySharing, tree: OrgUnit = SEED_ORG_TREE): st
 /** Short label for chips/detail rows, e.g. "Mọi người dùng Agent" or "FPT Smart Cloud (35 người)". */
 export function retrievalLabel(v: QuerySharing | undefined): string {
   const q = normalizeQuerySharing(v);
-  if (q.mode !== "department") return "Mọi người dùng Nhân sự số";
+  if (q.mode === "community") return "Cộng đồng";
+  if (q.mode !== "department") return "Cả tổ chức";
   const names = answerAudienceNames(q);
   if (names.length === 0) return "Chưa chọn ai";
   return names.length <= 2 ? names.join(", ") : `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
@@ -173,6 +179,8 @@ export function accessLabel(mode: SharingMode, peopleCount: number, privateLabel
  * department removed from the list. */
 export function isRetrievalNarrowing(before: QuerySharing | undefined, after: QuerySharing): boolean {
   const b = normalizeQuerySharing(before);
+  if (b.mode === "community") return after.mode !== "community";
+  if (after.mode === "community") return false;
   if (b.mode === "all_org") return after.mode === "department";
   if (after.mode === "all_org") return false;
   return b.departmentIds.some(id => !after.departmentIds.includes(id)) || b.people.some(p => !after.people.some(n => n.userId === p.userId));
@@ -241,6 +249,27 @@ export function AccessScopeSection({ mode, people, onModeChange, onPeopleChange,
   const lastShared = useRef<SharingMode>(mode === "private" ? defaultSharedMode : mode);
   if (mode !== "private") lastShared.current = mode;
   const switchHelper = copy?.switchHelper ?? "Bật để người khác trong Space liên kết được kho này vào Nhân sự số của họ.";
+  // Space knowledge base (Production): three radio options - Chỉ mình tôi / Cả Space / Người cụ thể -
+  // no "Chia sẻ lên Space" switch and no "Áp dụng cho" tag.
+  if (!copy && !agentOnly) {
+    return (
+      <div>
+        <PermissionHeading title={ACCESS_COPY.title} description={ACCESS_COPY.description} hideTitle={hideTitle} />
+        <div role="radiogroup" aria-label={ACCESS_COPY.title} className="space-y-2">
+          {SPACE_ACCESS_OPTIONS.map(opt => (
+            <RadioCard key={opt.value} selected={mode === opt.value} onSelect={() => onModeChange(opt.value)} label={opt.label} helper={opt.helper} icon={opt.icon}>
+              {opt.value === "specific" && (
+                <>
+                  {picker ?? <MemberPicker value={people} onChange={onPeopleChange} ownerRow={ownerRow} />}
+                  {submitAttempted && people.length === 0 && <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người.</p>}
+                </>
+              )}
+            </RadioCard>
+          ))}
+        </div>
+      </div>
+    );
+  }
   return (
     <div>
       <PermissionHeading title={copy?.title ?? ACCESS_COPY.title} description={description} hideTitle={hideTitle} audience={hideAudience ? undefined : "builders"} />
@@ -299,7 +328,6 @@ export default function QueryScopeSection({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-foreground">{RETRIEVAL_COPY.title}</h3>
-            <div className="mt-1"><AudienceTag audience="askers" /></div>
             <p className="text-sm text-foreground mt-2">{retrievalLabel(v)}</p>
           </div>
           <button
@@ -317,7 +345,7 @@ export default function QueryScopeSection({
 
   return (
     <div role="radiogroup" aria-label={RETRIEVAL_COPY.title}>
-      <PermissionHeading title={RETRIEVAL_COPY.title} description={RETRIEVAL_COPY.description} hideTitle={hideTitle} audience="askers" />
+      <PermissionHeading title={RETRIEVAL_COPY.title} description={RETRIEVAL_COPY.description} hideTitle={hideTitle} />
       <div className="space-y-2">
         {QUERY_SCOPE_OPTIONS.map(opt => (
           <RadioCard key={opt.value} selected={v.mode === opt.value} onSelect={() => setMode(opt.value)} label={opt.label} helper={opt.helper} icon={opt.icon}>
