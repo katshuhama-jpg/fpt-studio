@@ -27,7 +27,7 @@ export default function AttachConsoleKnowledgeBaseModal(props: Props) {
 function AttachWholeKb({ agentId, userId, onClose }: Props) {
   const linked = useMemo(() => new Set(knowledgeStore.listAttachedConsoleKbIds(agentId)), [agentId]);
   const all = useMemo(() => {
-    const list = knowledgeBaseStore.listSpace().filter(kb => isAccessibleTo(kb, userId) || linked.has(kb.id));
+    const list = knowledgeBaseStore.listSpace().filter(kb => kb.type === "internal" && (isAccessibleTo(kb, userId) || linked.has(kb.id)));
     return [...list.filter(kb => linked.has(kb.id)), ...list.filter(kb => !linked.has(kb.id))];
   }, [userId, linked]);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
@@ -106,7 +106,7 @@ function AttachWholeKb({ agentId, userId, onClose }: Props) {
                         {isLinked && <span className="chip chip-muted px-1.5 py-0.5 shrink-0">Đã liên kết</span>}
                       </div>
                       <div className="text-xs text-muted-foreground truncate">
-                        {kb.type === "external_api" ? "Kết nối kho tri thức ngoài" : `${kb.stats.docs} tài liệu · ${kb.stats.urls} website · ${kb.stats.faqs} câu hỏi`}
+                        {`${kb.stats.docs} tài liệu`}
                         {` · ${kb.ownerId === userId ? "Của tôi" : kb.ownerName}`}
                       </div>
                     </div>
@@ -140,7 +140,7 @@ function AttachWithScope({ agentId, userId, onClose, initialFocusKbId }: Props) 
   const linkedIds = useMemo(() => knowledgeStore.listAttachedConsoleKbIds(agentId), [agentId]);
   const linked = useMemo(() => new Set(linkedIds), [linkedIds]);
   const all = useMemo(() => {
-    const list = knowledgeBaseStore.listSpace().filter(kb => isAccessibleTo(kb, userId) || linked.has(kb.id));
+    const list = knowledgeBaseStore.listSpace().filter(kb => kb.type === "internal" && (isAccessibleTo(kb, userId) || linked.has(kb.id)));
     // Linked first, so the knowledge bases this Agent already uses are easy to find.
     return [...list.filter(kb => linked.has(kb.id)), ...list.filter(kb => !linked.has(kb.id))];
   }, [userId, linked]);
@@ -194,7 +194,7 @@ function AttachWithScope({ agentId, userId, onClose, initialFocusKbId }: Props) 
   const selectedCount = selected.size;
 
   const rowStatus = (kb: KnowledgeBase) => {
-    if (!selected.has(kb.id)) return <span>{kb.stats.docs} tài liệu · {kb.stats.urls} website · {kb.stats.faqs} câu hỏi</span>;
+    if (!selected.has(kb.id)) return <span>{kb.stats.docs} tài liệu · {kb.ownerId === userId ? "Của tôi" : kb.ownerName}</span>;
     const { label, empty } = scopeLabel(kb.id, scopeOf(kb.id));
     return <span className={empty && submitAttempted ? "text-destructive" : "text-primary font-medium"}>{label}</span>;
   };

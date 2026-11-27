@@ -137,11 +137,11 @@ export default function KnowledgeBaseView({
   const canEditBase = agentId && viaAgentCollaborator && !isOwner && !actor.isAdmin
     ? viaAgentLevel === "edit" && kb.agentOnlyFor === agentId
     : access.canAct("manage", accessible) && !viewOnly;
-  // Inside a Digital Worker, a knowledge base linked from the Space is view-and-use only - its
-  // content is edited in the Space library.
+  // Inside a Digital Worker, a knowledge base linked from the Space follows the viewer's own
+  // permission on it: whoever may edit it in the Space may edit it here too (same content).
   const linkedInAgent = isAgentView && kb.agentOnlyFor !== agentId;
   const linkedInAgentTag = linkedInAgent;
-  const canEdit = canEditBase && !linkedInAgent;
+  const canEdit = canEditBase;
   const canShare = isOwner && access.canAct("publish", accessible);
   const manages = (isOwner || (actor.isAdmin && !kb.agentOnlyFor)) && !kb.deletedFromSpace;
   const canShareAccess = manages && (actor.isAdmin || access.canAct("publish", accessible));
@@ -312,7 +312,11 @@ export default function KnowledgeBaseView({
       {linkedInAgent && (
         <div className="flex items-center gap-2.5 rounded-lg bg-muted px-3.5 py-3 mb-4 text-sm">
           <Database size={15} className="shrink-0 text-muted-foreground" />
-          <p className="flex-1 text-muted-foreground">Kho tri thức này được liên kết từ Space. Bạn xem được nội dung ở đây - sửa nội dung trong Kho tri thức.</p>
+          <p className="flex-1 text-muted-foreground">
+            {canEdit
+              ? "Kho tri thức này được liên kết từ Space. Thay đổi ở đây áp dụng cho mọi Nhân sự số đang dùng kho này."
+              : `Kho tri thức này được liên kết từ Space. Bạn chỉ xem được nội dung - Liên hệ ${kb.ownerName} nếu cần quyền chỉnh sửa.`}
+          </p>
           <a href={`/knowledge/${kb.id}?viaAgent=${agentId}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium text-primary hover:underline shrink-0">
             Mở trong Kho tri thức <ExternalLink size={13} />
           </a>

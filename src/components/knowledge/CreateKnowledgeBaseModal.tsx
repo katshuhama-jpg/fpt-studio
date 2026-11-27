@@ -98,7 +98,7 @@ export default function CreateKnowledgeBaseModal({
   return (
     <>
       <Dialog open={open} onOpenChange={v => { if (!v) requestClose(); }}>
-        <DialogContent className="sm:max-w-[520px] max-h-[85vh] overflow-y-auto" onOpenAutoFocus={e => e.preventDefault()}>
+        <DialogContent className="sm:max-w-[520px] max-h-[85vh] overflow-y-auto" onOpenAutoFocus={e => { e.preventDefault(); nameRef.current?.focus(); }}>
           <DialogHeader>
             <DialogTitle>{isEdit ? "Chỉnh sửa kho tri thức" : agentOnlyFor ? "Tạo kho tri thức riêng cho Nhân sự số" : "Tạo kho tri thức"}</DialogTitle>
           </DialogHeader>

@@ -2063,7 +2063,9 @@ function AgentKbCardMenu({ onOpen, onEdit, onScope, onShare, onRetrieval, onDeta
  * "attached resource" grids in Agent Details read as one consistent card system. `icon` is a
  * fully-formed node (the same tinted tile Console uses — see KnowledgeTypeIcon) rather than a
  * bare glyph, so a real linked KB renders with the exact same color coding as its Console card. */
-function AgentKbCard({ icon, name, description, onOpen, menu, scope, revoked, answerNote, meta }: {
+function AgentKbCard({ icon, name, description, onOpen, menu, scope, revoked, answerNote, meta, origin }: {
+  /** Linked knowledge base only: "Từ Space · Mai Hoang", on its own line so it never gets cut. */
+  origin?: string;
   icon: React.ReactNode; name: string; description?: string;
   /** "6 tài liệu · 1 đang xử lý · Từ Space · Mai Hoang" - what's inside before opening it. */
   meta?: string;
@@ -2090,6 +2092,7 @@ function AgentKbCard({ icon, name, description, onOpen, menu, scope, revoked, an
         <div className="min-w-0 flex-1">
           <div className="text-sm font-semibold truncate">{name}</div>
           {meta && <div className="text-xs text-muted-foreground truncate mt-0.5 tabular-nums" title={meta}>{meta}</div>}
+          {origin && <div className="text-xs text-muted-foreground truncate" title={origin}>{origin}</div>}
         </div>
       </div>
       {revoked?.id ? <RevokedReason type="knowledge" id={revoked.id} className="flex-1" /> : (
@@ -2250,9 +2253,9 @@ function AgentKnowledgeGrid({ agentId, onOpenKb }: { agentId: string; onOpenKb: 
             `${files.length} tài liệu`,
             busy ? `${busy} đang xử lý` : "",
             failed ? `${failed} lỗi` : "",
-            !isOwn ? `Từ Space · ${kb.ownerId === KB_CURRENT_USER.id ? "Bạn" : kb.ownerName}` : "",
           ].filter(Boolean).join(" · ");
         })()}
+        origin={!isOwn ? `Từ Space · ${kb.ownerId === KB_CURRENT_USER.id ? "Bạn" : kb.ownerName}` : undefined}
         onOpen={onOpen}
         revoked={!isOwn && isResourceRevoked(agentId, "knowledge", kb.id) ? { ownerName: kb.ownerName, deletedBy: kb.deletedFromSpace?.byName, id: kb.id } : undefined}
         scope={!isOwn && PARTIAL_LINK_ENABLED ? scopeLabel(kb.id, knowledgeStore.getLinkScope(agentId, kb.id)) : undefined}
@@ -2321,7 +2324,7 @@ function AgentKnowledgeGrid({ agentId, onOpenKb }: { agentId: string; onOpenKb: 
       <div>
         {sectionHeader("Tri thức riêng của Nhân sự số", filteredOwn.length)}
         {ownKbs.length === 0 ? (
-          emptyBox("Chưa có kho tri thức riêng", "Tạo kho tri thức để thêm tài liệu, website và câu hỏi thường gặp chỉ Nhân sự số này dùng.")
+          emptyBox("Chưa có kho tri thức riêng", "Tạo kho tri thức để tải lên tài liệu chỉ Nhân sự số này dùng.")
         ) : filteredOwn.length === 0 ? noMatch : (
           <div className={GRID}>{filteredOwn.map(renderCardFor)}</div>
         )}
@@ -2402,7 +2405,7 @@ function AgentKnowledgeGrid({ agentId, onOpenKb }: { agentId: string; onOpenKb: 
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Xóa kho tri thức?</AlertDialogTitle>
-            <AlertDialogDescription>Kho "{deleteKbTarget?.name}" cùng toàn bộ tài liệu, website và câu hỏi thường gặp bên trong sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.</AlertDialogDescription>
+            <AlertDialogDescription>Kho "{deleteKbTarget?.name}" cùng toàn bộ thư mục và tài liệu bên trong sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
@@ -6173,7 +6176,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
         const tags = ownershipTags({ ownerId: kb.ownerId, sharing: kb.sharing, userId: KB_CURRENT_USER.id });
         return (
           <span className="flex items-center gap-1.5 min-w-0">
-            <OwnershipTagList tags={tags} className="shrink-0 flex-nowrap" />
+            <OwnershipTagList tags={tags} labels={{ shared: "Được chia sẻ" }} className="shrink-0 flex-nowrap" />
             {!isCreatorRedundant(tags) && <span className="text-xs text-muted-foreground truncate">{kb.ownerName}</span>}
           </span>
         );
@@ -6310,7 +6313,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
             <AlertDialogTitle>{detachIsOwn ? "Xóa kho tri thức?" : "Gỡ kho tri thức khỏi Nhân sự số?"}</AlertDialogTitle>
             <AlertDialogDescription>
               {detachIsOwn
-                ? `Kho "${detachTarget?.name}" cùng toàn bộ tài liệu, website và câu hỏi thường gặp bên trong sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.`
+                ? `Kho "${detachTarget?.name}" cùng toàn bộ thư mục và tài liệu bên trong sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.`
                 : "Nhân sự số sẽ không còn tra cứu được nội dung trong kho này. Kho tri thức vẫn được giữ nguyên."}
             </AlertDialogDescription>
           </AlertDialogHeader>
