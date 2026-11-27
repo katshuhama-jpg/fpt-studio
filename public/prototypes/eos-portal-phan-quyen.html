@@ -2757,15 +2757,14 @@ DIRASSIGN=[{id:'g1',who:'user:Nguyễn An',role:'orgadmin',unit:TREE.id},{id:'g2
 
 /* ---------- danh mục permission và vai trò có sẵn (mục 4.4) ---------- */
 (function(){var keep=function(id){return PCATS.filter(function(c){return c[0]===id})[0]};
-  PCATS=[['org','Quản lý truy cập',[['org/roleAssignments/write','Gán vai trò']]],
-    ['rg','Nhóm tài nguyên',[['rg/read','Xem'],['rg/write','Sửa, thêm, bớt tài nguyên'],['rg/delete','Xóa']]],
+  PCATS=[['rg','Nhóm tài nguyên',[['rg/read','Xem'],['rg/write','Sửa, thêm, bớt tài nguyên'],['rg/delete','Xóa']]],
     ['channel','Kênh',[['channel/enable','Bật kênh ngoài']]],
-    keep('agent'),keep('skill'),keep('connector'),keep('knowledge'),keep('model')];
+    keep('agent'),keep('skill'),keep('connector'),keep('knowledge')];
   PERMS=[];PCATS.forEach(function(c){c[2].forEach(function(p){PERMS.push({id:p[0],name:p[1],cat:c[0]})})})})();
 PDESC['rg/write']='Đổi tên nhóm, thêm hoặc bớt tài nguyên. Thêm, bớt tài nguyên còn cần quyền quản trị chính tài nguyên đó (BR-09).';
 (function(){var R=function(id){return roleBy(id)};
   var a=R('admin');a.perms=['*'];a.data=DATAP.slice();a.desc='Quản trị tài nguyên được gán: sửa, giao quyền, tạo nhóm tài nguyên và thêm tài nguyên mình quản trị vào nhóm mình làm Admin, phát hành agent. Gán được ở «Tất cả tài nguyên» của đơn vị, nhóm tài nguyên hoặc từng tài nguyên.';
-  var b=R('builder');b.perms=['rg/read','agent/read','agent/write','skill/read','skill/write','connector/read','knowledge/read','model/read','channel/enable'];b.data=DATAP.slice();b.desc='Người xây agent: tạo, sửa agent và skill; dùng connector, knowledge, model; chạy thử. Không phát hành, không xóa, không giao quyền.';
+  var b=R('builder');b.perms=['rg/read','agent/read','agent/write','skill/read','skill/write','connector/read','knowledge/read','channel/enable'];b.data=DATAP.slice();b.desc='Người xây agent: tạo, sửa agent và skill; dùng connector, knowledge; chạy thử. Không phát hành, không xóa, không giao quyền.';
   var v=R('viewer');v.perms=['*/read'];v.data=[];v.desc='Người xem: chỉ xem tài nguyên trên Console. Không chạy, không sửa, không giao quyền.'})();
 DENIES=[];
 

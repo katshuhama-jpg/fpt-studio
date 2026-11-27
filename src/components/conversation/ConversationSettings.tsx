@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowDown01Icon, Alert02Icon, InformationCircleIcon, Notification01Icon, Clock01Icon, FloppyDiskIcon } from "@hugeicons/core-free-icons";
+import { ArrowDown01Icon, Alert02Icon, InformationCircleIcon, Notification01Icon, Clock01Icon, FloppyDiskIcon, StarIcon } from "@hugeicons/core-free-icons";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,6 +10,8 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import InactiveReminderTab from "@/components/reminders/InactiveReminderTab";
+import CsatConfigDialog, { CSAT_REMINDER_NOTE, csatReminderCount } from "@/components/csat/CsatConfigDialog";
+import { csatStore } from "@/components/csat/csatStore";
 import { HOUR_OPTIONS, MINUTE_OPTIONS, fmtShort, reminderStore, subscribeReminders } from "@/components/reminders/reminderStore";
 import {
   DAY_OPTIONS, conversationTimeoutStore, hhmm, reminderSteps, timeoutMinutes, validateTimeout,
@@ -26,6 +28,47 @@ const SHOW_TIMELINE = false;
 let reminderVersion = 0;
 const subscribe = (fn: () => void) => subscribeReminders(() => { reminderVersion++; fn(); });
 const useReminderVersion = () => useSyncExternalStore(subscribe, () => reminderVersion);
+const useCsatVersion = () => useSyncExternalStore(csatStore.subscribe, csatStore.version);
+
+const Tag = ({ tone, children }: { tone: "success" | "muted"; children: React.ReactNode }) => (
+  <span className={tone === "success"
+    ? "inline-flex items-center rounded-full border border-success/40 bg-success/5 px-2 py-0.5 text-xs font-medium text-success"
+    : "inline-flex items-center rounded-full border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"}>{children}</span>
+);
+
+/** (3) Cấu hình CSAT — tag trạng thái, cảnh báo cần gắn vào reminder, nút Cấu hình mở popup (TOVA-5953). */
+function CsatSettingsBlock({ agentId, readOnly, onOpenReminders }: { agentId: string; readOnly?: boolean; onOpenReminders: () => void }) {
+  useCsatVersion();
+  const [open, setOpen] = useState(false);
+  const configured = csatStore.isConfigured(agentId);
+  const off = configured && !csatStore.get(agentId).enabled;
+  const noReminder = csatReminderCount(agentId) === 0;
+  return (
+    <div className="rounded-lg border bg-card">
+      <div className="flex items-start gap-3 px-4 py-3.5">
+        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"><Icon icon={StarIcon} /></span>
+        <div className="min-w-0 flex-1">
+          <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+            Cấu hình CSAT
+            {configured ? <Tag tone="success">Đã cấu hình</Tag> : <Tag tone="muted">Chưa cấu hình</Tag>}
+            {off && <Tag tone="muted">Đang tắt</Tag>}
+          </p>
+          <p className="text-sm text-muted-foreground">Nội dung đánh giá dùng chung cho mọi reminder có bật CSAT.</p>
+          {noReminder && (
+            <p className="mt-1.5 flex items-start gap-1.5 text-xs text-warning">
+              <Icon icon={Alert02Icon} size={13} className="mt-0.5 shrink-0" />
+              <span>{CSAT_REMINDER_NOTE}{" "}
+                <button type="button" onClick={() => setOpen(true)} className="font-medium text-primary hover:underline rounded-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">Cấu hình CSAT</button>
+              </span>
+            </p>
+          )}
+        </div>
+        <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => setOpen(true)}>{readOnly ? "Xem" : "Cấu hình"}</Button>
+      </div>
+      {open && <CsatConfigDialog agentId={agentId} readOnly={readOnly} onClose={() => setOpen(false)} onOpenReminders={onOpenReminders} />}
+    </div>
+  );
+}
 
 const conflictText = (n: number, min: number) =>
   `Có ${n} bước nhắc nhở có thời gian ≥ thời gian chờ (${hhmm(min)}). Các bước này sẽ không được gửi. Hãy điều chỉnh thời gian chờ hoặc thời gian nhắc nhở.`;
@@ -110,7 +153,7 @@ export default function ConversationSettings({ agentId, agentName, readOnly }: {
     <div className="space-y-4">
       <div>
         <h2 className="text-base font-semibold">Cài đặt hội thoại</h2>
-        <p className="mt-0.5 text-sm text-muted-foreground">Cách Agent xử lý khi khách ngừng phản hồi. Hai khối hoạt động độc lập.</p>
+        <p className="mt-0.5 text-sm text-muted-foreground">Cách Agent xử lý khi khách ngừng phản hồi và cách mời khách đánh giá.</p>
       </div>
 
       {/* (1) Conversation timeout */}
@@ -196,6 +239,9 @@ export default function ConversationSettings({ agentId, agentName, readOnly }: {
           </div>
         )}
       </div>
+
+      {/* (3) Cấu hình CSAT */}
+      <CsatSettingsBlock agentId={agentId} readOnly={readOnly} onOpenReminders={() => { setRemOpen(true); window.setTimeout(() => remRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }} />
 
       {SHOW_TIMELINE && showTimeline && <Timeline steps={steps} timeoutMin={timeoutMin !== undefined && !errors.duration ? timeoutMin : undefined} />}
 

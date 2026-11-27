@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
-  ArrowDown01Icon, Delete02Icon, Add01Icon, SparklesIcon, InformationCircleIcon, Alert02Icon, Loading03Icon, Tick02Icon,
+  ArrowDown01Icon, Delete02Icon, Add01Icon, SparklesIcon, InformationCircleIcon, Alert02Icon, Loading03Icon, Tick02Icon, Settings02Icon,
 } from "@hugeicons/core-free-icons";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
@@ -17,6 +17,8 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import InstructionsEditor from "@/components/configure/InstructionsEditor";
+import CsatConfigDialog from "@/components/csat/CsatConfigDialog";
+import { csatStore } from "@/components/csat/csatStore";
 import { RefChip } from "@/components/configure/refChip";
 import { parseToken } from "@/components/configure/instructionRefs";
 import {
@@ -152,7 +154,7 @@ function StepCard({ agentId, step, index, open, onToggle, onChange, onRemove, re
     }
   };
   const genTip = instructionEmpty ? "Viết instruction trước" : gen.status === "running" ? "Đang tạo…" : "Tạo từ nội dung Instruction.";
-  const summary = `${stepMinutes(step) ? fmtMinutes(stepMinutes(step)) : "Chưa đặt thời gian"}${plain(step.instruction) ? ` · ${plain(step.instruction).slice(0, 48)}${plain(step.instruction).length > 48 ? "…" : ""}` : ""}`;
+  const summary = stepMinutes(step) ? fmtMinutes(stepMinutes(step)) : "Chưa đặt thời gian";
 
   return (
     <div data-step={step.id} className={`rounded-lg border bg-card ${hasError ? "border-destructive/50" : ""}`}>
@@ -264,14 +266,6 @@ function StepCard({ agentId, step, index, open, onToggle, onChange, onRemove, re
             <Helper>Để trống thì luôn gửi khi hết thời gian chờ.</Helper>
           </div>
 
-          {/* 4. CSAT */}
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium">CSAT rating</p>
-              <Helper>Gửi kèm yêu cầu đánh giá mức độ hài lòng.</Helper>
-            </div>
-            <Switch checked={step.csat} onCheckedChange={v => onChange({ ...step, csat: v })} disabled={readOnly} aria-label={`CSAT rating của Lần nhắc ${index + 1}`} className="shrink-0" />
-          </div>
         </div>
       )}
 
@@ -287,6 +281,82 @@ function StepCard({ agentId, step, index, open, onToggle, onChange, onRemove, re
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+}
+
+const useCsatVersion = () => useSyncExternalStore(csatStore.subscribe, csatStore.version);
+const linkCls = "font-medium text-primary hover:underline rounded-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50";
+
+/**
+ * Khối "CSAT rating" ở cuối danh sách lần nhắc (TOVA-5953, bước 4): toggle cấp reminder +
+ * "Gửi kèm lần nhắc". Agent chưa cấu hình CSAT thì thay toggle bằng nút "Cấu hình" mở popup;
+ * Lưu popup xong toggle hiện lại và tự bật.
+ */
+function CsatBlock({ agentId, draft, setDraft, readOnly, show, errors }: {
+  agentId: string; draft: Reminder; setDraft: React.Dispatch<React.SetStateAction<Reminder>>; readOnly?: boolean;
+  show: (k: string) => boolean; errors: Map<string, string>;
+}) {
+  useCsatVersion();
+  const [dialog, setDialog] = useState(false);
+  const configured = csatStore.isConfigured(agentId);
+  const off = configured && !csatStore.get(agentId).enabled;
+  const validStep = draft.steps.some(s => s.id === draft.csatStepId);
+  const csatErr = show("csat") ? errors.get("csat") : undefined;
+  const stepErr = show("csatStep") ? errors.get("csatStep") : undefined;
+  const turnOn = () => setDraft(d => ({ ...d, csat: true, csatStepId: d.steps.some(s => s.id === d.csatStepId) ? d.csatStepId : d.steps[0]?.id ?? null }));
+  const setOn = (v: boolean) => (v ? turnOn() : setDraft(d => ({ ...d, csat: false, csatStepId: null })));
+  /** Lưu popup lần đầu từ đây = Builder muốn dùng CSAT cho reminder này. */
+  const wasConfigured = useRef(configured);
+  const onSaved = () => { if (!wasConfigured.current) turnOn(); wasConfigured.current = true; };
+  const showButton = !configured && !draft.csat;
+
+  return (
+    <div data-field="csat" className={`rounded-lg border bg-card px-4 py-3.5 ${csatErr || stepErr ? "border-destructive/50" : ""}`}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">CSAT rating</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Gửi link đánh giá kèm một lần nhắc.</p>
+          {showButton && <p className="mt-1.5 flex items-start gap-1.5 text-xs text-muted-foreground"><Icon icon={InformationCircleIcon} size={13} className="mt-0.5 shrink-0" />Agent chưa cấu hình CSAT. Cấu hình để bật CSAT cho reminder này.</p>}
+        </div>
+        {showButton
+          ? (!readOnly && <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => setDialog(true)}><Icon icon={Settings02Icon} /> Cấu hình</Button>)
+          : <Switch checked={draft.csat} onCheckedChange={setOn} disabled={readOnly} aria-label="CSAT rating" className="shrink-0" />}
+      </div>
+
+      {draft.csat && (
+        <div className="mt-4">
+          <label htmlFor="rem-csat-step" className="text-sm font-medium">Gửi kèm lần nhắc <span className="text-destructive">*</span></label>
+          <Select value={validStep ? draft.csatStepId! : ""} onValueChange={v => setDraft(d => ({ ...d, csatStepId: v }))} disabled={readOnly}>
+            <SelectTrigger id="rem-csat-step" data-field="csatStep" className={`mt-1.5 ${stepErr ? "border-destructive" : ""}`} aria-invalid={!!stepErr}>
+              <SelectValue placeholder="Chọn lần nhắc" />
+            </SelectTrigger>
+            <SelectContent>{draft.steps.map((s, i) => <SelectItem key={s.id} value={s.id}>Lần nhắc {i + 1}</SelectItem>)}</SelectContent>
+          </Select>
+          <Err>{stepErr}</Err>
+          <Helper>Khi người dùng đã đánh giá, các lần nhắc còn lại sẽ dừng.</Helper>
+          {csatErr ? (
+            <p className="mt-1.5 text-xs text-destructive" role="alert">
+              {csatErr}{" "}{!readOnly && <button type="button" onClick={() => setDialog(true)} className={linkCls}>Cấu hình CSAT</button>}
+            </p>
+          ) : !configured ? (
+            <p className="mt-1.5 flex items-start gap-1.5 text-xs text-warning">
+              <Icon icon={Alert02Icon} size={13} className="mt-0.5 shrink-0" />
+              <span>Chưa cấu hình CSAT.{" "}{!readOnly && <button type="button" onClick={() => setDialog(true)} className={linkCls}>Cấu hình CSAT</button>}</span>
+            </p>
+          ) : (
+            <p className="mt-1.5 flex items-start gap-1.5 text-xs text-muted-foreground">
+              <Icon icon={InformationCircleIcon} size={13} className="mt-0.5 shrink-0" />
+              <span>
+                Dùng Cấu hình CSAT của Agent.{off && " Cấu hình đang tắt nên tin nhắc gửi không kèm đánh giá."}{" "}
+                <button type="button" onClick={() => setDialog(true)} className={linkCls}>Xem cấu hình</button>
+              </span>
+            </p>
+          )}
+        </div>
+      )}
+
+      {dialog && <CsatConfigDialog agentId={agentId} readOnly={readOnly} onClose={() => setDialog(false)} onSaved={onSaved} />}
     </div>
   );
 }
@@ -340,7 +410,7 @@ export default function ReminderSheet({ agentId, agentName, initial, mode, readO
       }
       return;
     }
-    reminderStore.save(agentId, { ...draft, name: draft.name.trim(), channels: CHANNEL_PICKER_ENABLED ? draft.channels : "all" });
+    reminderStore.save(agentId, { ...draft, name: draft.name.trim(), channels: CHANNEL_PICKER_ENABLED ? draft.channels : "all", csatStepId: draft.csat ? draft.csatStepId : null });
     toast.success(mode === "create" ? "Đã thêm reminder." : "Đã lưu reminder.");
     onSaved();
   };
@@ -420,6 +490,7 @@ export default function ReminderSheet({ agentId, agentName, initial, mode, readO
                   {atMaxWait && <Helper>Đã đạt thời gian chờ tối đa 23h59', không thể thêm lần nhắc</Helper>}
                 </div>
               )}
+              <CsatBlock agentId={agentId} draft={draft} setDraft={setDraft} readOnly={readOnly} show={show} errors={errors.fields} />
             </section>
           </div>
 
