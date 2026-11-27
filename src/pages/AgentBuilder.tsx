@@ -4,7 +4,7 @@ import { isCreditExhausted, isBuildBlocked, usageStore, useBuildCap } from "@/li
 import { BuildCapNotice } from "@/components/usage/BuildCapNotice";
 
 import { HugeiconsIcon } from "@hugeicons/react"
-import { SquareLock01Icon, Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, Attachment01Icon, BlockedIcon, BookOpen01Icon, Cancel01Icon, BoltIcon, PauseIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, InformationCircleIcon, MinusSignIcon, CircleArrowReload01Icon, Wrench01Icon, UserGroupIcon, ArrowLeftDoubleIcon, Notification01Icon } from "@hugeicons/core-free-icons";
+import { SquareLock01Icon, Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, Attachment01Icon, BlockedIcon, BookOpen01Icon, Cancel01Icon, BoltIcon, PauseIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, InformationCircleIcon, MinusSignIcon, CircleArrowReload01Icon, UserGroupIcon, ArrowLeftDoubleIcon, Notification01Icon } from "@hugeicons/core-free-icons";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import { ProcessCanvas } from "@/pages/ProcessBuilder";
@@ -14,7 +14,7 @@ import BusinessProcessesGrid from "@/components/business-processes/BusinessProce
 import TriggersTab from "@/components/configure/TriggersTab";
 import TriggerFormDialog from "@/components/configure/TriggerFormDialog";
 import { AlertTriangle, Info, Camera } from "lucide-react";
-import { refineChatStore, refineAssistant, useRefineChat, useRefineRunning, useRefineLockTick, newMsgId, INSTRUCTIONS_FILE, type RefineMsg, type RefineToolArgs, type RefineApprovalMode } from "@/components/configure/refineChatStore";
+import { refineChatStore, refineAssistant, useRefineChat, useRefineRunning, useRefineLockTick, newMsgId, type RefineMsg, type RefineToolArgs, type RefineApprovalMode } from "@/components/configure/refineChatStore";
 import TriggerBlockedByConnectorNotice from "@/components/configure/TriggerBlockedByConnectorNotice";
 import { RevokedChip, RevokedDot, RevokedBanner, RevokedReason, RevokedRemoveButton, REVOKED_ROW_CLASS, useRevokedResources } from "@/components/governance/RevokedBadge";
 import { isResourceRevoked, listRevokedResources, REVOKED_COPY, type RevocableType } from "@/components/governance/revokedResources";
@@ -1047,33 +1047,148 @@ export default function AgentBuilder() {
 // thread is kept per Agent and per person (refineChatStore) and paged 40 items at a time.
 
 const REFINE_PAGE = 40;
-const ARG_LABEL: Record<string, string> = { old_string: "Old string", new_string: "New string", file_path: "File path" };
+// What the person reads for each step (27/11): plain words, never the tool name, its arguments,
+// file paths or logs. Steps from older threads without a saved label fall back to this map.
+const STEP_LABEL: Record<string, string> = {
+  read_file: "Đọc Instructions hiện tại",
+  write_file: "Tạo Instructions khởi đầu từ mô tả của bạn",
+  edit_file: "Sửa Instructions",
+  ls: "Xem cấu hình hiện có",
+  explore_tools: "Xem các công cụ có thể dùng",
+  read_skill: "Đọc hướng dẫn tự cấu hình",
+};
+const stepLabel = (m: { name: string; label?: string }) => m.label ?? STEP_LABEL[m.name] ?? "Xử lý yêu cầu";
+const STOPPED_NOTE = "Đã dừng - Nhân sự số đã bị thay đổi thông tin";
 
-function RefineToolRow({ msg }: { msg: Extract<RefineMsg, { kind: "tool" }> }) {
-  const [open, setOpen] = useState(false);
+type StepMsg = Extract<RefineMsg, { kind: "tool" }>;
+type ChangeArgs = { old_string?: string; new_string?: string };
+
+/** Lines removed / added by a change, for the "Thay đổi" block (common start and end trimmed). */
+function changeLines(args: ChangeArgs): { removed: string[]; added: string[] } {
+  const a = (args.old_string ?? "").split("\n");
+  const b = (args.new_string ?? "").split("\n");
+  if (!args.old_string) return { removed: [], added: b.filter(l => l.trim()) };
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  let j = 0;
+  while (j < a.length - i && j < b.length - i && a[a.length - 1 - j] === b[b.length - 1 - j]) j++;
+  return { removed: a.slice(i, a.length - j).filter(l => l.trim()), added: b.slice(i, b.length - j).filter(l => l.trim()) };
+}
+
+/** Consecutive steps shown as one short checklist ("Đã làm 2 bước"). */
+function RefineSteps({ steps }: { steps: StepMsg[] }) {
+  const running = steps.some(s => !s.done);
   return (
-    <div className="rounded-lg border border-border bg-surface">
-      <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
-        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-surface-muted rounded-lg transition-base">
-        {msg.done
-          ? <HugeiconsIcon icon={Wrench01Icon} size={12} />
-          : <span className="w-3 h-3 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground animate-spin" aria-hidden />}
-        <span>Gọi công cụ</span>
-        <code className="font-mono text-foreground">{msg.name}</code>
-        {msg.outcome === "rejected" && <span className="text-destructive">- Đã từ chối{msg.reason ? `: ${msg.reason}` : ""}</span>}
-        {msg.outcome === "stopped" && <span className="text-warning" title={msg.reason}>- Đã dừng</span>}
-        <HugeiconsIcon icon={ChevronDownIcon} size={13} className={`ml-auto transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && msg.args && (
-        <div className="px-2.5 pb-2.5 space-y-1.5">
-          {Object.entries(msg.args).map(([k, v]) => (
-            <div key={k} className="rounded-md border border-border bg-surface-muted/50 px-2 py-1.5">
-              <div className="text-[11px] text-muted-foreground font-mono">{k}</div>
-              <div className="text-xs whitespace-pre-wrap break-words">{v}</div>
+    <div className="rounded-lg border border-border bg-card px-3 py-2">
+      <div className="text-xs font-medium text-muted-foreground mb-1">{running ? "Đang thực hiện" : `Đã làm ${steps.length} bước`}</div>
+      <ul className="space-y-1">
+        {steps.map(s => (
+          <li key={s.id} className="flex items-start gap-2 text-sm">
+            {!s.done
+              ? <span className="w-3.5 h-3.5 mt-0.5 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground animate-spin shrink-0" aria-label="Đang làm" />
+              : s.outcome === "stopped" || s.outcome === "rejected"
+                ? <HugeiconsIcon icon={MinusSignIcon} size={14} strokeWidth={1.5} className="mt-0.5 text-muted-foreground shrink-0" />
+                : <HugeiconsIcon icon={CheckmarkCircle01Icon} size={14} strokeWidth={1.5} className="mt-0.5 text-success shrink-0" />}
+            <span className={s.done ? "text-foreground" : "text-muted-foreground"}>
+              {stepLabel(s)}
+              {s.outcome === "stopped" && <span className="text-muted-foreground"> - {STOPPED_NOTE.replace("Đã dừng - ", "đã dừng vì ")}</span>}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Kế hoạch - the assistant's plan for this request, ticked off as it works (same as production). */
+function RefinePlan({ msg, live }: { msg: Extract<RefineMsg, { kind: "plan" }>; live: boolean }) {
+  const done = msg.items.filter(i => i.status === "done").length;
+  return (
+    <div className="rounded-lg border border-border bg-card px-3 py-2">
+      <div className="flex items-center gap-2 mb-1.5">
+        <HugeiconsIcon icon={CheckListIcon} size={16} strokeWidth={1.5} className="text-muted-foreground" />
+        <span className="text-sm font-medium flex-1">Kế hoạch</span>
+        <span className="text-xs text-muted-foreground tabular-nums">{done}/{msg.items.length} việc</span>
+      </div>
+      <ul className="space-y-1">
+        {msg.items.map((it, i) => (
+          <li key={i} className="flex items-start gap-2 text-sm">
+            {it.status === "doing" && live
+              ? <span className="w-3.5 h-3.5 mt-0.5 rounded-full border-2 border-primary/30 border-t-primary animate-spin shrink-0" aria-label="Đang làm" />
+              : it.status === "done"
+                ? <HugeiconsIcon icon={CheckmarkCircle01Icon} size={14} strokeWidth={1.5} className="mt-0.5 text-success shrink-0" />
+                : it.status === "waiting"
+                  ? <HugeiconsIcon icon={Clock01Icon} size={14} strokeWidth={1.5} className="mt-0.5 text-warning shrink-0" />
+                  : it.status === "skipped"
+                    ? <HugeiconsIcon icon={MinusSignIcon} size={14} strokeWidth={1.5} className="mt-0.5 text-muted-foreground shrink-0" />
+                    : <span className="w-3.5 h-3.5 mt-0.5 rounded-full border border-muted-foreground/40 shrink-0" aria-hidden />}
+            <span className={it.status === "doing" && live ? "text-primary" : it.status === "skipped" ? "text-muted-foreground line-through" : it.status === "todo" ? "text-muted-foreground" : "text-foreground"}>
+              {it.text}
+              {it.status === "waiting" && <span className="text-muted-foreground"> - Chờ bạn duyệt</span>}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** One change - waiting for approval or already decided - as what changes and why. */
+function RefineChangeCard({ title, change, why, args, status, reason, running, footer, editing, onEditAdded }: {
+  title: string;
+  change?: string;
+  why?: string;
+  args: ChangeArgs;
+  status: "pending" | "approved" | "rejected" | "stopped";
+  reason?: string;
+  running?: boolean;
+  footer?: React.ReactNode;
+  editing?: boolean;
+  onEditAdded?: (text: string) => void;
+}) {
+  const { removed, added } = changeLines(args);
+  const badge = running ? { text: "Đang áp dụng", cls: "bg-muted text-muted-foreground" }
+    : status === "pending" ? { text: "Chờ bạn duyệt", cls: "bg-warning-soft text-warning" }
+    : status === "approved" ? { text: "Đã áp dụng", cls: "bg-success/10 text-success" }
+    : status === "rejected" ? { text: "Đã từ chối", cls: "bg-muted text-muted-foreground" }
+    : { text: "Đã dừng", cls: "bg-muted text-muted-foreground" };
+  return (
+    <div className={`rounded-lg border bg-card overflow-hidden ${status === "pending" && !running ? "border-warning/50" : "border-border"}`}>
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+        <HugeiconsIcon icon={FileEditIcon} size={16} strokeWidth={1.5} className="text-primary shrink-0" />
+        <div className="text-sm font-medium flex-1">{title}</div>
+        <span className={`text-xs px-1.5 py-0.5 rounded-sm ${badge.cls}`}>{badge.text}</span>
+      </div>
+      <div className="p-3 space-y-3">
+        <div>
+          <div className="text-xs font-medium text-muted-foreground mb-1">Thay đổi</div>
+          {change && <div className="text-sm mb-1.5">{change}</div>}
+          {editing && onEditAdded ? (
+            <textarea value={added.map(l => l.replace(/^- /, "")).join("\n")} onChange={e => onEditAdded(e.target.value)} rows={Math.min(5, added.length + 1)}
+              aria-label="Nội dung thêm vào"
+              className="w-full resize-y text-sm px-2.5 py-2 rounded-md border border-border bg-transparent outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50" />
+          ) : (
+            <div className="rounded-md border border-border overflow-hidden text-sm">
+              {removed.map((l, i) => (
+                <div key={`r${i}`} className="flex gap-2 px-2.5 py-1 bg-destructive/5 text-muted-foreground line-through"><span aria-hidden className="no-underline">-</span><span className="whitespace-pre-wrap break-words">{l.replace(/^- /, "")}</span></div>
+              ))}
+              {added.map((l, i) => (
+                <div key={`a${i}`} className="flex gap-2 px-2.5 py-1 bg-success/10"><span aria-hidden className="text-success">+</span><span className="whitespace-pre-wrap break-words">{l.replace(/^- /, "")}</span></div>
+              ))}
+              {!removed.length && !added.length && <div className="px-2.5 py-1 text-muted-foreground">Không có nội dung thay đổi</div>}
             </div>
-          ))}
+          )}
         </div>
-      )}
+        {why && (
+          <div>
+            <div className="text-xs font-medium text-muted-foreground mb-1">Lý do</div>
+            <div className="text-sm whitespace-pre-wrap break-words">{why}</div>
+          </div>
+        )}
+        {status === "rejected" && reason && <div className="text-sm text-muted-foreground">Bạn từ chối: {reason}</div>}
+        {status === "stopped" && <div className="text-sm text-muted-foreground">{STOPPED_NOTE}. Chưa có gì được áp dụng.</div>}
+        {footer}
+      </div>
     </div>
   );
 }
@@ -1089,58 +1204,43 @@ function RefineApprovalCard({ msg, readOnly, busy, blockedBy, onDecide }: {
   const [editing, setEditing] = useState(false);
   const [args, setArgs] = useState<RefineToolArgs>(msg.args);
   const [reason, setReason] = useState("");
-  if (msg.status !== "pending") {
-    return <RefineToolRow msg={{ id: msg.id, at: msg.at, kind: "tool", name: msg.tool, args: msg.args, done: !msg.running, outcome: msg.status, reason: msg.reason }} />;
-  }
+  const pending = msg.status === "pending" && !msg.running;
+  // Editing touches only the lines the change adds; the rest of the Instructions stays as is.
+  const editAdded = (text: string) => setArgs(a => {
+    const base = msg.args.old_string ?? "";
+    const lines = text.split("\n").filter(l => l.trim());
+    const bullet = /^- /.test(base.split("\n").pop() ?? "") ? "- " : "";
+    return { ...a, new_string: [base, ...lines.map(l => (bullet && !l.startsWith("- ") ? bullet + l : l))].filter(Boolean).join("\n") };
+  });
   return (
-    <div className="rounded-xl border border-warning/50 bg-surface overflow-hidden">
-      <div className="flex gap-2 px-3 py-2.5 bg-warning-soft/40 border-b border-warning/30">
-        <HugeiconsIcon icon={Shield01Icon} size={15} className="text-warning shrink-0 mt-0.5" />
-        <div>
-          <div className="text-sm font-semibold">Trợ lý muốn chạy một công cụ</div>
-          <div className="text-xs text-muted-foreground">Xem lại tham số rồi quyết định. Không có gì chạy trước khi bạn đồng ý.</div>
-        </div>
-      </div>
-      <div className="p-3 space-y-2">
-        <code className="inline-block text-xs font-mono px-1.5 py-0.5 rounded bg-surface-muted border border-border">{msg.tool}</code>
-        {Object.entries(args).map(([k, v]) => (
-          <div key={k}>
-            <div className="text-[11px] text-muted-foreground font-mono mb-0.5">{editing ? (ARG_LABEL[k] ?? k) : k}</div>
-            {editing ? (
-              <textarea value={v} onChange={e => setArgs(a => ({ ...a, [k]: e.target.value }))} rows={Math.min(5, v.split("\n").length + 1)}
-                aria-label={ARG_LABEL[k] ?? k}
-                className="w-full resize-y text-xs px-2.5 py-2 rounded-lg border border-border bg-surface outline-none focus:border-primary transition-base" />
-            ) : (
-              <div className="text-xs whitespace-pre-wrap break-words px-2.5 py-2 rounded-lg border border-border bg-surface-muted/40">{v}</div>
-            )}
+    <RefineChangeCard
+      title={pending ? "Đề xuất thay đổi" : msg.status === "approved" ? "Đã thay đổi" : "Đề xuất thay đổi"}
+      change={msg.change ?? "Sửa Instructions"} why={msg.why} args={args} status={msg.status} reason={msg.reason} running={msg.running}
+      editing={editing} onEditAdded={editAdded}
+      footer={!pending ? null : readOnly ? (
+        <div className="text-sm text-muted-foreground">Chưa phê duyệt</div>
+      ) : (
+        <>
+          <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Lý do từ chối (không bắt buộc)" aria-label="Lý do từ chối"
+            className="w-full h-9 text-sm px-2.5 rounded-md border border-border bg-transparent outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50" />
+          {blockedBy && <div className="text-sm text-muted-foreground">{blockedBy} đang Refine với AI. Bạn phê duyệt hoặc từ chối được khi họ xong.</div>}
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setEditing(e => !e)}
+              className="h-8 px-2.5 rounded-md text-xs text-muted-foreground hover:bg-muted flex items-center gap-1.5 transition-base">
+              <HugeiconsIcon icon={PencilEdit01Icon} size={14} strokeWidth={1.5} /> {editing ? "Xong" : "Chỉnh nội dung"}
+            </button>
+            <div className="flex-1" />
+            <button type="button" disabled={busy || !!blockedBy} onClick={() => onDecide(false, reason, args)}
+              className="h-8 px-3 rounded-md border border-border text-xs hover:bg-muted disabled:opacity-40 flex items-center gap-1 transition-base">
+              <HugeiconsIcon icon={Cancel01Icon} size={14} strokeWidth={1.5} /> Từ chối
+            </button>
+            <button type="button" disabled={busy || !!blockedBy} onClick={() => onDecide(true, "", args)}
+              className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 disabled:opacity-40 flex items-center gap-1 transition-base">
+              <HugeiconsIcon icon={CheckmarkCircle01Icon} size={14} strokeWidth={1.5} /> Phê duyệt
+            </button>
           </div>
-        ))}
-        {readOnly ? (
-          <div className="text-xs text-muted-foreground pt-1">Chưa phê duyệt</div>
-        ) : (
-          <>
-            <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Lý do từ chối (không bắt buộc)" aria-label="Lý do từ chối"
-              className="w-full text-xs px-2.5 py-2 rounded-lg border border-border bg-surface outline-none focus:border-primary transition-base" />
-            {blockedBy && <div className="text-xs text-muted-foreground">{blockedBy} đang Refine với AI. Bạn phê duyệt hoặc từ chối được khi họ xong.</div>}
-            <div className="flex items-center gap-2 pt-1">
-              <button type="button" onClick={() => setEditing(e => !e)}
-                className="h-8 px-2.5 rounded-lg text-xs text-muted-foreground hover:bg-surface-muted flex items-center gap-1.5 transition-base">
-                <HugeiconsIcon icon={PencilEdit01Icon} size={12} /> {editing ? "Xong" : "Sửa tham số"}
-              </button>
-              <div className="flex-1" />
-              <button type="button" disabled={busy || !!blockedBy} onClick={() => onDecide(false, reason, args)}
-                className="h-8 px-3 rounded-lg border border-border text-xs text-destructive hover:bg-destructive/5 disabled:opacity-40 flex items-center gap-1 transition-base">
-                <HugeiconsIcon icon={Cancel01Icon} size={12} /> Từ chối
-              </button>
-              <button type="button" disabled={busy || !!blockedBy} onClick={() => onDecide(true, "", args)}
-                className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary-glow disabled:opacity-40 flex items-center gap-1 transition-base">
-                <HugeiconsIcon icon={CheckmarkCircle01Icon} size={12} /> Phê duyệt
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+        </>
+      )} />
   );
 }
 
@@ -1168,7 +1268,7 @@ function AiBuildSidebar({
     const at = Date.now();
     return [
       { id: newMsgId(), at, kind: "text", role: "user", text: seedPrompt },
-      { id: newMsgId(), at, kind: "tool", name: "write_file", args: { file_path: INSTRUCTIONS_FILE }, done: true },
+      { id: newMsgId(), at, kind: "tool", name: "write_file", label: "Tạo Instructions khởi đầu từ mô tả của bạn", done: true },
       { id: newMsgId(), at, kind: "text", role: "ai", text: "Mình đã tạo Instructions khởi đầu từ mô tả của bạn. Cần chỉnh gì, bạn cứ nhắn ở đây." },
     ];
   };
@@ -1253,7 +1353,14 @@ function AiBuildSidebar({
         {msg.text}{msg.streaming && <span className="inline-block w-0.5 h-3 bg-muted-foreground ml-0.5 animate-pulse align-middle" />}
       </div>
     );
-    if (msg.kind === "tool") return <RefineToolRow key={msg.id} msg={msg} />;
+    // A step that changed something (Tự động) is shown as its change, not as a step.
+    if (msg.kind === "tool" && msg.args?.new_string !== undefined) return (
+      <RefineChangeCard key={msg.id} title={msg.done && msg.outcome !== "stopped" ? "Đã thay đổi" : "Đề xuất thay đổi"} change={msg.change ?? "Sửa Instructions"}
+        why={msg.why} args={msg.args} running={!msg.done}
+        status={msg.outcome === "stopped" ? "stopped" : msg.outcome === "rejected" ? "rejected" : msg.done ? "approved" : "pending"} reason={msg.reason} />
+    );
+    if (msg.kind === "tool") return <RefineSteps key={msg.id} steps={[msg]} />;
+    if (msg.kind === "plan") return <RefinePlan key={msg.id} msg={msg} live={busy} />;
     if (msg.kind === "approval") return (
       <RefineApprovalCard key={msg.id} msg={msg} readOnly={readOnly} busy={busy} blockedBy={other?.name}
         onDecide={(approve, reason, args) => refineAssistant.decide(chatKey, ctx, msg.id, approve, reason, args)} />
@@ -1262,6 +1369,17 @@ function AiBuildSidebar({
   };
 
   const visible = messages.slice(start);
+  /** Plain steps in a row (not changes) are shown together as one checklist. */
+  const groupSteps = (list: RefineMsg[]): (RefineMsg | StepMsg[])[] => {
+    const out: (RefineMsg | StepMsg[])[] = [];
+    for (const m of list) {
+      const isStep = m.kind === "tool" && m.args?.new_string === undefined;
+      const prev = out[out.length - 1];
+      if (isStep && Array.isArray(prev)) prev.push(m as StepMsg);
+      else out.push(isStep ? [m as StepMsg] : m);
+    }
+    return out;
+  };
   const streaming = visible.some(m => m.kind === "text" && m.streaming);
 
   return (
@@ -1283,7 +1401,7 @@ function AiBuildSidebar({
         {start > 0 && (
           <button onClick={loadOlder} className="w-full text-xs text-primary hover:underline py-1">Xem tin nhắn cũ hơn</button>
         )}
-        {visible.map(renderMsg)}
+        {groupSteps(visible).map(g => (Array.isArray(g) ? <RefineSteps key={g[0].id} steps={g} /> : renderMsg(g)))}
         {busy && !streaming && <div className="flex gap-1 px-1 py-1" aria-label="Đang trả lời"><span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce" /><span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:120ms]" /><span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:240ms]" /></div>}
         <div ref={bottomRef} />
       </div>
@@ -1383,7 +1501,7 @@ function AiBuildSidebar({
               )}
             </div>
           </div>
-          {pending && <div className="text-xs text-muted-foreground mt-1.5 px-1">Quyết định ở thẻ phía trên, hoặc gõ câu trả lời thay cho công cụ.</div>}
+          {pending && <div className="text-xs text-muted-foreground mt-1.5 px-1">Duyệt đề xuất ở thẻ phía trên, hoặc nhắn yêu cầu khác để bỏ qua đề xuất này.</div>}
         </div>
       )}
     </aside>

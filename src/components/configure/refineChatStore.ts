@@ -9,10 +9,15 @@
 // doesn't stop it, and the reply still lands in the history. While a run is going the Instructions
 // are locked and the chat box is locked (the send button becomes Dừng).
 //
-// Production pattern (30/10): the assistant explains, calls tools ("Gọi công cụ read_file"), and
-// for a change in Thủ công mode shows an approval card "Trợ lý muốn chạy một công cụ" (edit_file
-// with old_string / new_string / file_path, Sửa tham số, Từ chối with an optional reason,
-// Phê duyệt). In Tự động mode the tool just runs.
+// Production pattern (30/10): the assistant explains, calls tools, and for a change in Thủ công
+// mode asks for approval (Từ chối with an optional reason, Phê duyệt). In Tự động mode the tool
+// just runs.
+//
+// What the person sees (27/11, Refine with AI chỉ hiện thông tin cần thiết): every tool call is
+// shown as a short step in plain words ("Đọc Instructions hiện tại"), never the tool name, its
+// arguments, file paths or raw logs. Every change - waiting for approval or already applied - is
+// shown as "what changes" (lines added / removed) plus "why". Tool names and args stay in the
+// data only so the change can be applied.
 //
 // Several Builders on one Agent (Tyler 30/10):
 // - One Refine với AI run per Agent at a time. While A's assistant works - or A's approval card
@@ -34,11 +39,17 @@ export type RefineMsgRole = "user" | "ai";
 export type RefineToolArgs = Record<string, string>;
 export type RefineMsgBody =
   | { kind: "text"; role: RefineMsgRole; text: string; streaming?: boolean; full?: string; files?: string[] }
-  /** A tool call row ("Gọi công cụ read_file"), expandable to its arguments. */
-  | { kind: "tool"; name: string; args?: RefineToolArgs; done: boolean; outcome?: "approved" | "rejected" | "stopped"; reason?: string }
+  /** A step the assistant took. `label` is what the person reads; name/args are internal. A step
+   * that changes something also carries `change` (what, in plain words) and `why`. */
+  | { kind: "tool"; name: string; args?: RefineToolArgs; done: boolean; outcome?: "approved" | "rejected" | "stopped"; reason?: string; label?: string; change?: string; why?: string }
   /** Thủ công: the assistant asks before running a tool that changes something. Stays usable
    * until the person decides (also after closing the panel or coming back another day). */
-  | { kind: "approval"; tool: string; args: RefineToolArgs; status: "pending" | "approved" | "rejected" | "stopped"; reason?: string; running?: boolean };
+  /** Kế hoạch - what the assistant is going to do for this request, ticked off as it goes
+   * (production shows the same "Kế hoạch 0/6 việc" checklist). */
+  | { kind: "plan"; items: RefinePlanItem[] }
+  | { kind: "approval"; tool: string; args: RefineToolArgs; status: "pending" | "approved" | "rejected" | "stopped"; reason?: string; running?: boolean; label?: string; change?: string; why?: string };
+export type RefinePlanStatus = "todo" | "doing" | "waiting" | "done" | "skipped";
+export interface RefinePlanItem { text: string; status: RefinePlanStatus }
 export type RefineMsg = RefineMsgBody & { id: string; at: number };
 
 export type RefineApprovalMode = "manual" | "auto";
@@ -67,6 +78,8 @@ function normalize(list: RefineMsg[]): RefineMsg[] {
     m.kind === "text" && m.streaming ? { ...m, text: m.full ?? m.text, streaming: false }
     : m.kind === "tool" && !m.done ? { ...m, done: true }
     : m.kind === "approval" && m.running ? { ...m, running: false }
+    : m.kind === "plan" && m.items.some(i => i.status === "doing" || i.status === "todo")
+      ? { ...m, items: m.items.map(i => (i.status === "doing" || i.status === "todo" ? { ...i, status: "skipped" as const } : i)) }
     : m);
 }
 chats = Object.fromEntries(Object.entries(chats).map(([k, v]) => [k, normalize(v)]));
@@ -262,7 +275,24 @@ function abandon(key: string) {
   running.delete(key);
   refineChatStore.update(key, l => l.map(m => (m.kind === "text" && m.streaming ? { ...m, streaming: false, full: undefined } as RefineMsg
     : m.kind === "tool" && !m.done ? { ...m, done: true } as RefineMsg : m)));
+  closePlan(key);
   emit(key);
+}
+/** Ticks item `i` of the latest plan in this thread. */
+function planStep(key: string, i: number, status: RefinePlanStatus) {
+  refineChatStore.update(key, l => {
+    let idx = -1;
+    for (let k = l.length - 1; k >= 0; k--) if (l[k].kind === "plan") { idx = k; break; }
+    if (idx < 0) return l;
+    const m = l[idx] as Extract<RefineMsg, { kind: "plan" }>;
+    const items = m.items.map((it, j) => (j === i ? { ...it, status } : it));
+    return l.map((x, k) => (k === idx ? ({ ...m, items } as RefineMsg) : x));
+  });
+}
+/** A run that stops early leaves the plan items it didn't finish as "Bỏ qua". */
+function closePlan(key: string) {
+  refineChatStore.update(key, l => l.map(m => (m.kind === "plan" && m.items.some(i => i.status === "doing" || i.status === "todo")
+    ? ({ ...m, items: m.items.map(i => (i.status === "doing" || i.status === "todo" ? { ...i, status: "skipped" as const } : i)) } as RefineMsg) : m)));
 }
 function say(key: string, text: string, then?: () => void, delay = 0) {
   later(key, delay, () => {
@@ -280,9 +310,9 @@ function say(key: string, text: string, then?: () => void, delay = 0) {
     later(key, 16, step);
   });
 }
-function tool(key: string, name: string, args: RefineToolArgs | undefined, then: () => void, effect?: () => void) {
+function tool(key: string, name: string, label: string, args: RefineToolArgs | undefined, then: () => void, effect?: () => void) {
   later(key, 250, () => {
-    const id = push(key, { kind: "tool", name, args, done: false });
+    const id = push(key, { kind: "tool", name, label, args, done: false });
     later(key, 900, () => { effect?.(); patch(key, id, { done: true }); then(); });
   });
 }
@@ -318,39 +348,58 @@ function applyEdit(agentId: string, getInstr: () => string, args: RefineToolArgs
   return { ok: true, note: byOther ? `Lưu ý: ${byOther.byName} đã sửa Instructions ở đoạn khác lúc ${hhmm(byOther.at)}. Thay đổi của bạn được áp dụng lên bản mới nhất.` : undefined };
 }
 
+/** Why the change is made, in the person's own words (cut short). */
+function changeWhy(request: string) {
+  const t = request.trim().replace(/\s+/g, " ");
+  return `Bạn yêu cầu: "${t.length > 140 ? `${t.slice(0, 140).trimEnd()}...` : t}"`;
+}
+
 export interface RunCtx { agentId: string; getInstructions: () => string }
 
 export const refineAssistant = {
   send(key: string, ctx: RunCtx, text: string, files: string[] = []) {
     if (running.has(key) || refineChatStore.otherHolder(ctx.agentId)) return;
     // Typing instead of deciding: the pending tool call is declined in favour of the reply.
-    refineChatStore.update(key, l => l.map(m => (m.kind === "approval" && m.status === "pending" ? { ...m, status: "rejected", reason: "Trả lời bằng tin nhắn" } as RefineMsg : m)));
+    refineChatStore.update(key, l => l.map(m => (m.kind === "approval" && m.status === "pending" ? { ...m, status: "rejected", reason: "Trả lời bằng tin nhắn" } as RefineMsg
+      : m.kind === "plan" ? ({ ...m, items: m.items.map(i => (i.status === "waiting" ? { ...i, status: "skipped" as const } : i)) } as RefineMsg) : m)));
     push(key, { kind: "text", role: "user", text, files: files.length ? files : undefined });
     begin(key);
+    push(key, { kind: "plan", items: [
+      { text: "Đọc Instructions hiện tại", status: "doing" },
+      { text: "Soạn thay đổi theo yêu cầu của bạn", status: "todo" },
+      { text: refineChatStore.getMode() === "auto" ? "Cập nhật Instructions" : "Cập nhật Instructions sau khi bạn duyệt", status: "todo" },
+    ] });
     const startedAt = Date.now();
     const line = wantedLine(text);
     say(key, "Mình sẽ đọc Instructions hiện tại trước khi sửa.", () =>
-      tool(key, "read_file", { file_path: INSTRUCTIONS_FILE }, () =>
+      tool(key, "read_file", "Đọc Instructions hiện tại", { file_path: INSTRUCTIONS_FILE }, () => {
+        planStep(key, 0, "done"); planStep(key, 1, "doing");
         say(key, `Thêm dòng "${line.replace(/\.$/, "")}" vào cuối Instructions.`, () => {
           const args = editArgs(ctx.getInstructions(), line);
+          const change = { label: "Sửa Instructions", change: "Thêm 1 dòng vào cuối Instructions", why: changeWhy(text) };
+          planStep(key, 1, "done");
+          planStep(key, 2, refineChatStore.getMode() === "auto" ? "doing" : "waiting");
           if (refineChatStore.getMode() === "auto") {
             later(key, 250, () => {
-              const id = push(key, { kind: "tool", name: "edit_file", args, done: false });
+              const id = push(key, { kind: "tool", name: "edit_file", args, done: false, ...change });
               later(key, 900, () => {
                 const res = applyEdit(ctx.agentId, ctx.getInstructions, args, startedAt);
                 if (!res.ok) {
+                  planStep(key, 2, "skipped");
                   patch(key, id, { done: true, outcome: "stopped", reason: "Agent đã bị thay đổi thông tin" } as Partial<RefineMsgBody>);
                   say(key, res.note!, () => end(key), 200);
                   return;
                 }
                 patch(key, id, { done: true });
+                planStep(key, 2, "done");
                 say(key, [res.note, "Đã cập nhật Instructions trên bản nháp. Thay đổi có hiệu lực khi bạn Publish."].filter(Boolean).join("\n\n"), () => end(key));
               });
             });
           } else {
-            later(key, 200, () => { push(key, { kind: "approval", tool: "edit_file", args, status: "pending" }); end(key); });
+            later(key, 200, () => { push(key, { kind: "approval", tool: "edit_file", args, status: "pending", ...change }); end(key); });
           }
-        })), 500);
+        });
+      }), 500);
   },
   decide(key: string, ctx: RunCtx, id: string, approve: boolean, reason?: string, args?: RefineToolArgs) {
     const card = refineChatStore.get(key).find(m => m.id === id);
@@ -361,17 +410,21 @@ export const refineAssistant = {
     if (approve) {
       // The card itself turns into the running "Gọi công cụ edit_file" row - no second row.
       patch(key, id, { running: true } as Partial<RefineMsgBody>);
+      planStep(key, 2, "doing");
       later(key, 900, () => {
         const res = applyEdit(ctx.agentId, ctx.getInstructions, finalArgs, card.at);
         if (!res.ok) {
           patch(key, id, { running: false, status: "stopped", reason: "Agent đã bị thay đổi thông tin" } as Partial<RefineMsgBody>);
+          planStep(key, 2, "skipped");
           say(key, res.note!, () => end(key), 200);
           return;
         }
         patch(key, id, { running: false } as Partial<RefineMsgBody>);
+        planStep(key, 2, "done");
         say(key, [res.note, "Đã cập nhật Instructions trên bản nháp. Thay đổi có hiệu lực khi bạn Publish."].filter(Boolean).join("\n\n"), () => end(key), 200);
       });
     } else {
+      planStep(key, 2, "skipped");
       say(key, reason?.trim()
         ? `Mình chưa thay đổi gì vì bạn từ chối ("${reason.trim()}"). Bạn muốn chỉnh lại thế nào?`
         : "Mình chưa thay đổi gì. Bạn muốn chỉnh lại thế nào?", () => end(key), 400);
@@ -385,6 +438,7 @@ export const refineAssistant = {
     if (r.streamId) patch(key, r.streamId, { streaming: false, full: undefined });
     refineChatStore.update(key, l => l.map(m => (m.kind === "tool" && !m.done ? { ...m, done: true } as RefineMsg
       : m.kind === "approval" && m.running ? { ...m, running: false } as RefineMsg : m)));
+    closePlan(key);
     end(key);
     push(key, { kind: "text", role: "ai", text: "Đã dừng theo yêu cầu của bạn." });
   },
@@ -404,6 +458,8 @@ export const refineAssistant = {
       }
       refineChatStore.update(key, l => l.map(m => (m.kind === "tool" && !m.done ? { ...m, done: true, outcome: "stopped", reason: "Agent đã bị thay đổi thông tin" } as RefineMsg
         : m.kind === "approval" && (m.status === "pending" || m.running) ? { ...m, status: "stopped", running: false, reason: "Agent đã bị thay đổi thông tin" } as RefineMsg : m)));
+      closePlan(key);
+      refineChatStore.update(key, l => l.map(m => (m.kind === "plan" ? ({ ...m, items: m.items.map(i => (i.status === "waiting" ? { ...i, status: "skipped" as const } : i)) } as RefineMsg) : m)));
       push(key, { kind: "text", role: "ai", text: `Agent đã bị thay đổi thông tin: ${why}. ${CHANGED_TAIL}` });
     }
     // Runs in another tab notice the turn is gone and stop at their next step.
