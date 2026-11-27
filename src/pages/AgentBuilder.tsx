@@ -2039,14 +2039,14 @@ function KnowledgeSourceRow({ icon, name, chip, revoked, onOpen, onRemove, remov
  * synthetic "Cá nhân" card, which isn't a real Knowledge Base record and so only ever offers
  * "Mở". The destructive action is "Gỡ liên kết": it only detaches the KB from this Agent, without
  * touching the KB's Console listing or its attachment to any other Agent. */
-function AgentKbCardMenu({ onOpen, onEdit, onScope, onShare, onRetrieval, onDetach, onDelete, editBlocked, shareBlocked, removeBlocked, openOnly }: {
+function AgentKbCardMenu({ onOpen, onEdit, onScope, onShare, onRetrieval, onDetach, onDelete, editBlocked, shareBlocked, removeBlocked, openBlocked, openOnly }: {
   onOpen: () => void; onEdit?: () => void; onScope?: () => void; onShare?: () => void; onRetrieval?: () => void; onDetach?: () => void; onDelete?: () => void;
-  editBlocked?: string; shareBlocked?: string; removeBlocked?: string; openOnly?: boolean;
+  editBlocked?: string; shareBlocked?: string; removeBlocked?: string; openBlocked?: string; openOnly?: boolean;
 }) {
   const items: ActionMenuItem[] = openOnly
     ? [{ label: "Xem chi tiết", icon: EyeIcon, onSelect: onOpen }]
     : [
-        { label: "Xem chi tiết", icon: EyeIcon, onSelect: onOpen },
+        { label: "Xem chi tiết", icon: EyeIcon, onSelect: onOpen, disabledReason: openBlocked },
         ...(onEdit ? [{ label: "Đổi tên", icon: PencilEdit01Icon, onSelect: onEdit, disabledReason: editBlocked }] : []),
         ...(onScope ? [{ label: "Đổi phạm vi liên kết", icon: ConnectIcon, onSelect: onScope, disabledReason: removeBlocked }] : []),
         ...(onShare ? [{ label: "Chia sẻ", icon: UserMultipleIcon, onSelect: onShare, disabledReason: shareBlocked }] : []),
@@ -2063,7 +2063,7 @@ function AgentKbCardMenu({ onOpen, onEdit, onScope, onShare, onRetrieval, onDeta
  * "attached resource" grids in Agent Details read as one consistent card system. `icon` is a
  * fully-formed node (the same tinted tile Console uses — see KnowledgeTypeIcon) rather than a
  * bare glyph, so a real linked KB renders with the exact same color coding as its Console card. */
-function AgentKbCard({ icon, name, description, onOpen, menu, scope, revoked, answerNote, meta, origin }: {
+function AgentKbCard({ icon, name, description, onOpen, menu, scope, revoked, answerNote, meta, origin, blockedReason }: {
   /** Linked knowledge base only: "Từ Space · Mai Hoang", on its own line so it never gets cut. */
   origin?: string;
   icon: React.ReactNode; name: string; description?: string;
@@ -2078,14 +2078,18 @@ function AgentKbCard({ icon, name, description, onOpen, menu, scope, revoked, an
   scope?: { label: string; empty: boolean };
   /** Linked knowledge base whose owner revoked this Agent's access. */
   revoked?: { ownerName: string; deletedBy?: string; id?: string };
+  /** The viewer may not open this knowledge base (no View permission on it): the card stays in
+   * the list so the Builder knows it is attached, but it cannot be opened. */
+  blockedReason?: string;
 }) {
-  return (
+  const card = (
     <div
-      role="button"
+      role={blockedReason ? undefined : "button"}
       tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={e => { if (e.key === "Enter") onOpen(); }}
-      className={`flex flex-col gap-3 p-4 rounded-xl border ${revoked ? REVOKED_ROW_CLASS : "border-border bg-white hover:border-primary/30"} hover:shadow-soft transition-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+      aria-disabled={blockedReason ? true : undefined}
+      onClick={blockedReason ? undefined : onOpen}
+      onKeyDown={blockedReason ? undefined : (e => { if (e.key === "Enter") onOpen(); })}
+      className={`flex flex-col gap-3 p-4 rounded-xl border ${revoked ? REVOKED_ROW_CLASS : blockedReason ? "border-border bg-surface-muted/40" : "border-border bg-white hover:border-primary/30"} transition-base ${blockedReason ? "cursor-default" : "hover:shadow-soft cursor-pointer"} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
     >
       <div className="flex items-start gap-3">
         {icon}
@@ -2127,6 +2131,13 @@ function AgentKbCard({ icon, name, description, onOpen, menu, scope, revoked, an
         {menu}
       </div>
     </div>
+  );
+  if (!blockedReason) return card;
+  return (
+    <Tooltip delayDuration={200}>
+      <TooltipTrigger asChild>{card}</TooltipTrigger>
+      <TooltipContent className="max-w-xs">{blockedReason}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -2238,9 +2249,14 @@ function AgentKnowledgeGrid({ agentId, onOpenKb }: { agentId: string; onOpenKb: 
     const blocks = kbActionBlocks(kb, kbAccess, agentLevelForKb);
     // Opens in place (section=knowledge&kb=…), like Skills / Guardrails details on this page.
     const onOpen = () => onOpenKb(kb.id);
+    // Linked from the Space and the viewer has no View permission on it: listed, not openable.
+    const cannotView = !isOwn && !kbAccess.canSeeAll && !isKbAccessibleTo(kb, kbAccess.userId)
+      && !(kbAccess.hasPermission("view") || kbAccess.hasPermission("manage"));
+    const blockedReason = cannotView ? "Bạn không có quyền xem kho tri thức này. Liên hệ " + kb.ownerName + " nếu cần được chia sẻ." : undefined;
     return (
       <AgentKbCard
         key={kb.id}
+        blockedReason={blockedReason}
         icon={<KnowledgeTypeIcon type={kb.type} className="w-10 h-10 rounded-xl" />}
         name={kb.name}
         description={kb.description}
@@ -2262,6 +2278,7 @@ function AgentKnowledgeGrid({ agentId, onOpenKb }: { agentId: string; onOpenKb: 
         menu={
           <AgentKbCardMenu
             onOpen={onOpen}
+            openBlocked={blockedReason}
             onEdit={isOwn ? () => setEditKbTarget(kb) : undefined}
             onShare={isOwn && !isResourceRevoked(agentId, "knowledge", kb.id) ? () => setShareKbTarget(kb) : undefined}
             onDetach={isOwn ? undefined : () => setDetachKbTarget(kb)}

@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Plus, RefreshCw, Square, Check, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Plus, Check, X } from "lucide-react";
 
 // Each page is a few real paragraphs (not one short line) so the document reads like an actual
 // multi-page policy doc, and so chunk bounding boxes below have enough room on the page to sit
@@ -77,6 +77,7 @@ export default function DocumentPreviewPane({
   /** Top/bottom (% of page) of the lines each chunk's own text covers, keyed by chunk id. */
   const [textBands, setTextBands] = useState<Record<string, { t: number; b: number }>>({});
   const [drawMode, setDrawMode] = useState(false);
+  const [overText, setOverText] = useState(false);
   const [marquee, setMarquee] = useState<ChunkBBox | null>(null);
   const [pendingResize, setPendingResize] = useState<{ id: string; bbox: ChunkBBox } | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -301,6 +302,26 @@ export default function DocumentPreviewPane({
     window.addEventListener("mouseup", onUp);
   };
 
+  // Text cursor only over actual letters (so text can be selected); hand on blank space inside a frame.
+  const isOverGlyph = (x: number, y: number): boolean => {
+    const box = textRef.current;
+    if (!box) return false;
+    const d = document as Document & { caretRangeFromPoint?: (x: number, y: number) => Range | null; caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null };
+    let node: Node | null = null; let offset = 0;
+    if (d.caretPositionFromPoint) { const pos = d.caretPositionFromPoint(x, y); if (pos) { node = pos.offsetNode; offset = pos.offset; } }
+    else if (d.caretRangeFromPoint) { const r = d.caretRangeFromPoint(x, y); if (r) { node = r.startContainer; offset = r.startOffset; } }
+    if (!node || node.nodeType !== Node.TEXT_NODE || !box.contains(node)) return false;
+    const len = node.textContent?.length ?? 0;
+    for (const o of [offset - 1, offset]) {
+      if (o < 0 || o >= len) continue;
+      const r = document.createRange(); r.setStart(node, o); r.setEnd(node, o + 1);
+      for (const rect of Array.from(r.getClientRects())) {
+        if (rect.width > 0 && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) return true;
+      }
+    }
+    return false;
+  };
+
   const selected = chunksOnPage.find(c => c.id === selectedChunkId);
 
   return (
@@ -321,38 +342,7 @@ export default function DocumentPreviewPane({
         <button onClick={() => setZoom(z => Math.min(2, z + 0.1))} aria-label="Phóng to" className="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted transition-base">
           <ZoomIn size={14} />
         </button>
-        {!viewOnly && (
-          <>
-            <div className="w-px h-5 bg-border mx-1 shrink-0" />
-            <button
-              onClick={() => { setDrawMode(d => !d); setSelectionBtn(null); }}
-              aria-pressed={drawMode}
-              title="Kéo trên trang để vẽ vùng chọn, tạo đoạn mới"
-              className={`h-8 px-3 shrink-0 rounded-lg border text-xs font-medium transition-base flex items-center gap-1.5 whitespace-nowrap ${
-                drawMode ? "border-primary bg-primary-soft text-primary" : "border-border bg-surface hover:bg-surface-muted"
-              }`}
-            >
-              <Square size={12} className="shrink-0" /> <span className="whitespace-nowrap">Vẽ vùng</span>
-            </button>
-            <div className="w-px h-5 bg-border mx-1 shrink-0" />
-            <button
-              onClick={onReprocess}
-              disabled={!canReprocess}
-              title="Xử lý lại"
-              className="h-8 px-3 shrink-0 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-medium transition-base flex items-center gap-1.5 whitespace-nowrap disabled:opacity-40 disabled:pointer-events-none"
-            >
-              <RefreshCw size={12} className="shrink-0" /> <span className="whitespace-nowrap">Xử lý lại</span>
-            </button>
-            <button onClick={onProcess} title="Xử lý kết quả" className="h-8 px-3 shrink-0 rounded-lg btn-primary text-xs whitespace-nowrap">Xử lý kết quả</button>
-          </>
-        )}
       </div>
-
-      {drawMode && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 rounded-md bg-foreground/90 text-background text-xs px-2.5 py-1 whitespace-nowrap">
-          Kéo trên trang để vẽ vùng chọn - Bấm "Vẽ vùng" lần nữa để hủy
-        </div>
-      )}
 
       <div className="relative flex-1 min-h-0 overflow-auto pt-20 pb-8 px-6 flex justify-center" onMouseUp={handleMouseUp}>
         <div
@@ -363,11 +353,11 @@ export default function DocumentPreviewPane({
             const hit = chunkAt(pctFromEvent(e));
             onSelectChunk(hit ? hit.id : "");
           }}
-          onMouseMove={e => { if (!drawMode) setHoverId(chunkAt(pctFromEvent(e))?.id ?? null); }}
-          onMouseLeave={() => setHoverId(null)}
+          onMouseMove={e => { if (!drawMode) { setHoverId(chunkAt(pctFromEvent(e))?.id ?? null); setOverText(isOverGlyph(e.clientX, e.clientY)); } }}
+          onMouseLeave={() => { setHoverId(null); setOverText(false); }}
           onMouseDown={startMarquee}
           className="relative bg-white shadow-elev rounded-sm h-full max-h-full aspect-[3/4] shrink-0 select-text"
-          style={{ transform: `scale(${zoom})`, transformOrigin: "top center", cursor: drawMode ? "crosshair" : hoverId ? "pointer" : "default" }}
+          style={{ transform: `scale(${zoom})`, transformOrigin: "top center", cursor: drawMode ? "crosshair" : overText ? "text" : hoverId ? "pointer" : "default" }}
         >
           {/* Frames sit under the text so strokes never cover letters and text stays selectable. */}
           {/* Bigger frames first, so a smaller overlapping frame's border is drawn on top and stays

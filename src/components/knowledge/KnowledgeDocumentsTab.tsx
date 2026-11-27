@@ -560,7 +560,7 @@ function RowMenu({ canOpen, openDisabledReason, onOpen, onRename, onMove, onDele
   }, [open]);
 
   const items: { label: string; onClick: () => void; danger?: boolean; disabled?: boolean; disabledTooltip?: string }[] = [
-    { label: "Mở", onClick: onOpen, disabled: !canOpen, disabledTooltip: openDisabledReason },
+    { label: "Xem chi tiết", onClick: onOpen, disabled: !canOpen, disabledTooltip: openDisabledReason },
     { label: "Đổi tên", onClick: onRename },
     { label: "Di chuyển", onClick: onMove },
     { label: "Xóa", onClick: onDelete, danger: true },

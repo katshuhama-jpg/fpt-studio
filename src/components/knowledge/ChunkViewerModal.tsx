@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, X, Check, Pencil, Trash2, Info, Search, Download } from "lucide-react";
+import { ArrowLeft, X, Check, Pencil, Trash2, Info, Search } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -250,6 +250,9 @@ export default function ChunkViewerModal({
   const isLoading = sourceStatus === "processing" && chunks.length === 0;
 
   if (inline) {
+    const hitPages = q && filteredChunks.length > 0 && !filteredChunks.some(c => c.bbox.page === page)
+      ? [...new Set(filteredChunks.map(c => c.bbox.page))].sort((x, y) => x - y)
+      : [];
     return (
       <div className="flex flex-col h-full min-h-0 animate-fade-up">
         {trail && trail.length > 0 && (
@@ -272,7 +275,7 @@ export default function ChunkViewerModal({
             <h2 className="text-base font-semibold truncate" title={sourceName}>{sourceName}</h2>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xs text-muted-foreground whitespace-nowrap tabular-nums">Cập nhật: {formatDate(sourceUpdatedAt ?? sourceCreatedAt)}</span>
+            <span className="text-xs text-muted-foreground whitespace-nowrap tabular-nums">Ngày tạo: {formatDate(sourceCreatedAt)}</span>
             <KnowledgeStatusPill status={sourceStatus} />
             <button onClick={onClose} aria-label="Đóng tài liệu" className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <X size={16} />
@@ -280,36 +283,46 @@ export default function ChunkViewerModal({
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="rounded-lg border border-border bg-card overflow-hidden flex flex-col min-h-[420px]">
-            <div className="flex-1 min-h-0 relative">
-              <DocumentPreviewPane
-                page={page}
-                pageCount={Math.max(previewPageCount(chunks.length), ...chunks.map(c => c.bbox.page + 1))}
-                onPageChange={gotoPage}
-                chunksOnPage={chunks.filter(c => c.bbox.page === page)}
-                matchIds={matchIds}
-                selectedChunkId={selectedChunkId}
-                onSelectChunk={id => {
-                  if (!id) { setSelectedChunkId(null); return; }
-                  const c = chunks.find(x => x.id === id);
-                  if (c) selectChunk(c, true);
-                }}
-                onReprocess={() => undefined}
-                onProcess={() => undefined}
-                canReprocess={false}
-                viewOnly
-              />
-            </div>
-            <div className="flex items-center justify-between gap-3 px-3 py-2 border-t border-border shrink-0">
-              <span className="text-xs text-muted-foreground">Nếu tài liệu không hiển thị, hãy tải xuống để xem.</span>
-              <button onClick={() => toast.success(`Đang tải xuống "${sourceName}".`)} className="h-8 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-medium inline-flex items-center gap-1.5 transition-base shrink-0">
-                <Download size={13} /> Tải xuống
-              </button>
-            </div>
+        <div ref={containerRef} className="flex-1 min-h-[420px] flex rounded-lg border border-border bg-card overflow-hidden">
+          <div className="relative min-w-0 overflow-hidden" style={{ width: `${splitPct}%` }}>
+            {hitPages.length > 0 && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-lg border border-border bg-card shadow-sm px-3 py-2 text-xs whitespace-nowrap" role="status">
+                <span className="text-muted-foreground">Trang này không có đoạn khớp. Có kết quả ở</span>
+                {hitPages.slice(0, 5).map(pg => (
+                  <button key={pg} onClick={() => gotoPage(pg)} className="h-7 px-2 rounded-md border border-border hover:bg-surface-muted font-medium tabular-nums transition-base">
+                    Trang {pg + 1}
+                  </button>
+                ))}
+              </div>
+            )}
+            <DocumentPreviewPane
+              page={page}
+              pageCount={Math.max(previewPageCount(chunks.length), ...chunks.map(c => c.bbox.page + 1))}
+              onPageChange={gotoPage}
+              chunksOnPage={chunks.filter(c => c.bbox.page === page)}
+              matchIds={matchIds}
+              selectedChunkId={selectedChunkId}
+              onSelectChunk={id => {
+                if (!id) { setSelectedChunkId(null); return; }
+                const c = chunks.find(x => x.id === id);
+                if (c) selectChunk(c, true);
+              }}
+              onReprocess={() => undefined}
+              onProcess={() => undefined}
+              canReprocess={false}
+              viewOnly
+            />
           </div>
 
-          <div className="rounded-lg border border-border bg-card overflow-hidden flex flex-col min-h-[420px]">
+          <div
+            onMouseDown={() => { dragging.current = true; }}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Kéo để đổi độ rộng hai cột"
+            className="w-1 shrink-0 cursor-col-resize bg-border hover:bg-primary/40 transition-base"
+          />
+
+          <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
             <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border shrink-0">
               <h3 className="text-sm font-semibold flex items-center gap-1.5">
                 Đoạn <span className="chip chip-muted tabular-nums">{chunks.length}</span>
@@ -324,16 +337,24 @@ export default function ChunkViewerModal({
                   </TooltipContent>
                 </Tooltip>
               </h3>
-              <div className="relative">
-                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  value={query}
-                  onChange={e => setQuery(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Escape") setQuery(""); }}
-                  placeholder="Tìm trong đoạn..."
-                  aria-label="Tìm trong đoạn"
-                  className="h-8 w-52 pl-7 pr-3 rounded-lg bg-surface-muted border border-border text-xs placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-                />
+              <div className="flex items-center gap-2 min-w-0">
+                {q && <span className="text-xs text-muted-foreground tabular-nums whitespace-nowrap" role="status">{filteredChunks.length} kết quả</span>}
+                <div className="relative">
+                  <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    value={query}
+                    onChange={e => setQuery(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Escape") setQuery(""); }}
+                    placeholder="Tìm trong đoạn..."
+                    aria-label="Tìm trong đoạn"
+                    className="h-8 w-48 pl-7 pr-8 rounded-lg bg-surface-muted border border-border text-xs placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                  />
+                  {query && (
+                    <button onClick={() => setQuery("")} aria-label="Xóa nội dung tìm kiếm" className="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base">
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-4">
@@ -348,23 +369,39 @@ export default function ChunkViewerModal({
                   ))}
                 </div>
               ) : chunks.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">Chưa có đoạn nào.</p>
+                <div className="rounded-lg border border-dashed border-border p-8 text-center">
+                  <p className="text-sm text-muted-foreground">Chưa có đoạn nào.</p>
+                </div>
               ) : filteredChunks.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">Không có đoạn phù hợp với tìm kiếm.</p>
+                <div className="rounded-lg border border-dashed border-border p-8 text-center">
+                  <p className="text-sm text-muted-foreground">Không có đoạn phù hợp với tìm kiếm.</p>
+                </div>
               ) : (
-                <div className="space-y-4 pt-2">
-                  {filteredChunks.map(c => (
-                    <div
-                      key={c.id}
-                      ref={el => { chunkRefs.current[c.id] = el; }}
-                      onClick={() => selectChunk(c)}
-                      className={`relative rounded-lg border px-3.5 pt-4 pb-3 cursor-pointer transition-base ${selectedChunkId === c.id ? "border-primary ring-1 ring-primary/30" : "border-border hover:border-primary/40"}`}
-                    >
-                      <span className="absolute -top-2.5 left-2.5 px-1.5 h-5 rounded-md border border-border bg-card text-xs font-semibold tabular-nums inline-flex items-center">Đoạn {c.index}</span>
-                      <p className="text-xs text-muted-foreground mb-1">Nội dung</p>
-                      <p className="text-sm text-foreground leading-6 whitespace-pre-wrap">{c.title ? `${c.title}\n\n${c.content}` : c.content}</p>
-                    </div>
-                  ))}
+                <div className="space-y-3">
+                  {filteredChunks.map(c => {
+                    const sel = selectedChunkId === c.id;
+                    return (
+                      <div
+                        key={c.id}
+                        ref={el => { chunkRefs.current[c.id] = el; }}
+                        onClick={() => selectChunk(c)}
+                        className={`rounded-lg border bg-card cursor-pointer transition-base ${sel ? "border-primary ring-1 ring-primary/30" : "border-border hover:border-primary/40"}`}
+                      >
+                        <div className={`flex items-center gap-2 h-10 px-3 border-b rounded-t-lg ${sel ? "bg-primary-soft/60 border-primary/20" : "bg-surface-muted/50 border-border"}`}>
+                          <span className={`inline-flex items-center h-6 px-2 rounded-md text-xs font-semibold tabular-nums ${sel ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"}`}>
+                            Đoạn {c.index}
+                          </span>
+                          <span className="text-xs text-muted-foreground tabular-nums">Trang {c.bbox.page + 1}</span>
+                          {c.manuallyEdited && <span className="chip chip-warning !text-xs !px-1.5 !py-0">Đã chỉnh sửa thủ công</span>}
+                          {c.status !== "done" && <KnowledgeStatusPill status={c.status} />}
+                        </div>
+                        <div className="p-4 space-y-1.5">
+                          <p className="text-sm font-semibold text-foreground">{c.title}</p>
+                          <p className="text-sm text-foreground/80 leading-6 whitespace-pre-wrap">{c.content}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -459,7 +496,7 @@ export default function ChunkViewerModal({
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="max-w-64 text-xs leading-relaxed">
-                  Hệ thống tự động chia tài liệu thành các đoạn nhỏ để AI tra cứu chính xác hơn khi trả lời. Bạn có thể sửa nội dung hoặc vùng chọn nếu thấy AI chia chưa đúng.
+                  Hệ thống tự động chia tài liệu thành các đoạn nhỏ để Nhân sự số tra cứu chính xác hơn khi trả lời.{!viewOnly && " Bạn có thể sửa nội dung đoạn nếu thấy hệ thống chia chưa đúng."}
                 </TooltipContent>
               </Tooltip>
             </h2>
@@ -515,7 +552,7 @@ export default function ChunkViewerModal({
             ) : chunks.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border bg-surface/50 p-8 text-center">
                 <p className="text-sm text-muted-foreground">
-                  {viewOnly ? "Chưa có đoạn nào." : "Chưa có đoạn nào. Bấm \"Xử lý kết quả\" để hệ thống phân tích tài liệu."}
+                  Chưa có đoạn nào.
                 </p>
               </div>
             ) : filteredChunks.length === 0 ? (
