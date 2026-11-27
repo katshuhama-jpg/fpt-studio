@@ -35,6 +35,7 @@ import { useEffect, useState } from "react";
 import { currentPersona, DEMO_PERSONAS } from "@/lib/demoPersona";
 import { instructionDraftStore } from "./instructionDraftStore";
 import { agentSkillStore } from "./agentSkillStore";
+import { chatOptimizationStore } from "./chatOptimizationStore";
 
 export type RefineMsgRole = "user" | "ai";
 export type RefineToolArgs = Record<string, string>;
@@ -372,12 +373,27 @@ const isVi = (text: string) => VI_CHARS.test(text) || !/\b(the|add|please|make|a
 
 /** What the request asks to change. The prototype recognises a new Skill; everything else goes to
  * the Instructions. */
-type ChangePlan = { kind: "skill" | "instructions"; vi: boolean; args: RefineToolArgs; label: string; change: string; why: string; done: string; plan: string[] };
-function planChange(text: string, instr: string): ChangePlan {
+type ChangePlan = { kind: "skill" | "instructions" | "field"; vi: boolean; args: RefineToolArgs; label: string; change: string; why: string; done: string; plan: string[] };
+function planChange(text: string, instr: string, agentId = ""): ChangePlan {
+  const agentIdFor = (_: string) => agentId;
   const vi = isVi(text);
   const T = (v: string, e: string) => (vi ? v : e);
   const why = vi ? changeWhy(text) : `You asked: "${text.trim().replace(/\s+/g, " ").slice(0, 140)}"`;
   const auto = refineChatStore.getMode() === "auto";
+  if (/câu hỏi gợi ý|suggested question|starter question/i.test(text)) {
+    // A field of the Nhân sự số: shown as old value -> new value. At most 3 questions.
+    const q = wantedLine(text).replace(/\.$/, "").replace(/[?？]*$/, "?");
+    const old = [...chatOptimizationStore.get(agentIdFor(instr)).opener.questions];
+    const next = [...(old.length >= 3 ? old.slice(0, 2) : old), q];
+    return {
+      kind: "field", vi, why,
+      args: { field: T("Câu hỏi gợi ý", "Suggested questions"), old_value: old.join("\n"), new_value: next.join("\n") },
+      label: T("Sửa câu hỏi gợi ý", "Edit the suggested questions"),
+      change: old.length >= 3 ? T("Thay câu hỏi gợi ý cuối bằng câu mới (tối đa 3 câu)", "Replace the last suggested question (3 at most)") : T("Thêm 1 câu hỏi gợi ý", "Add 1 suggested question"),
+      done: T("Đã cập nhật câu hỏi gợi ý trên bản nháp. Thay đổi có hiệu lực khi bạn Publish.", "Updated the suggested questions in the draft. It takes effect when you Publish."),
+      plan: [T("Xem câu hỏi gợi ý hiện có", "Check the current suggested questions"), T("Soạn câu hỏi mới theo yêu cầu của bạn", "Draft the new question"), auto ? T("Cập nhật câu hỏi gợi ý", "Update the suggested questions") : T("Cập nhật sau khi bạn duyệt", "Update after you approve")],
+    };
+  }
   if (/\b(skill|kỹ năng|ky nang)\b/i.test(text)) {
     const raw = wantedLine(text).replace(/\.$/, "");
     const name = raw.length > 48 ? `${raw.slice(0, 48).trimEnd()}...` : raw;
@@ -401,6 +417,11 @@ function planChange(text: string, instr: string): ChangePlan {
 }
 /** Applies a change: a new Skill is added; an Instructions edit goes through applyEdit's checks. */
 function applyChange(agentId: string, getInstr: () => string, args: RefineToolArgs, since: number): { ok: boolean; note?: string } {
+  if (args.field !== undefined) {
+    const cur = chatOptimizationStore.get(agentId);
+    chatOptimizationStore.set(agentId, { ...cur, opener: { ...cur.opener, questions: (args.new_value ?? "").split("\n").filter(Boolean) } });
+    return { ok: true };
+  }
   if (args.skill_name) {
     const me = currentPersona();
     agentSkillStore.create(agentId, { name: args.skill_name, description: args.skill_description ?? "", body: args.skill_description ?? "", ownerId: me.id, ownerName: me.name, sharing: { mode: "private", people: [] } });
@@ -408,7 +429,9 @@ function applyChange(agentId: string, getInstr: () => string, args: RefineToolAr
   }
   return applyEdit(agentId, getInstr, args, since);
 }
-const doneText = (args: RefineToolArgs, vi: boolean) => (args.skill_name
+const doneText = (args: RefineToolArgs, vi: boolean) => (args.field !== undefined
+  ? (vi ? "Đã cập nhật câu hỏi gợi ý trên bản nháp. Thay đổi có hiệu lực khi bạn Publish." : "Updated the suggested questions in the draft. It takes effect when you Publish.")
+  : args.skill_name
   ? (vi ? "Đã thêm Skill mới trên bản nháp. Thay đổi có hiệu lực khi bạn Publish." : "Added the new Skill to the draft. It takes effect when you Publish.")
   : (vi ? "Đã cập nhật Instructions trên bản nháp. Thay đổi có hiệu lực khi bạn Publish." : "Updated the Instructions in the draft. It takes effect when you Publish."));
 
@@ -421,7 +444,7 @@ export const refineAssistant = {
     push(key, { kind: "text", role: "user", text, files: files.length ? files : undefined });
     begin(key);
     const startedAt = Date.now();
-    const cp = planChange(text, ctx.getInstructions());
+    const cp = planChange(text, ctx.getInstructions(), ctx.agentId);
     const T = (v: string, e: string) => (cp.vi ? v : e);
     const auto = refineChatStore.getMode() === "auto";
     push(key, { kind: "plan", items: cp.plan.map((t, i) => ({ text: t, status: i === 0 ? "doing" : "todo" })) });
@@ -430,9 +453,9 @@ export const refineAssistant = {
       const change = { label: cp.label, change: cp.change, why: cp.why };
       planStep(key, 1, "done");
       planStep(key, 2, auto ? "doing" : "waiting");
-      if (!auto) { later(key, 200, () => { push(key, { kind: "approval", tool: cp.kind === "skill" ? "create_skill" : "edit_file", args: cp.args, status: "pending", ...change }); end(key); }); return; }
+      if (!auto) { later(key, 200, () => { push(key, { kind: "approval", tool: cp.kind === "skill" ? "create_skill" : cp.kind === "field" ? "update_config" : "edit_file", args: cp.args, status: "pending", ...change }); end(key); }); return; }
       later(key, 250, () => {
-        const id = push(key, { kind: "tool", name: cp.kind === "skill" ? "create_skill" : "edit_file", args: cp.args, done: false, ...change });
+        const id = push(key, { kind: "tool", name: cp.kind === "skill" ? "create_skill" : cp.kind === "field" ? "update_config" : "edit_file", args: cp.args, done: false, ...change });
         later(key, 900, () => {
           const res = applyChange(ctx.agentId, ctx.getInstructions, cp.args, startedAt);
           if (!res.ok) {
@@ -457,6 +480,14 @@ export const refineAssistant = {
               planStep(key, 0, "done"); planStep(key, 1, "doing");
               say(key, T(`Mình đề xuất thêm Skill "${cp.args.skill_name}".`, `I suggest adding the Skill "${cp.args.skill_name}".`), propose);
             })), 500);
+      return;
+    }
+    if (cp.kind === "field") {
+      say(key, T("Mình sẽ xem câu hỏi gợi ý hiện có trước khi sửa.", "I'll check the current suggested questions first."), () =>
+        tool(key, "read_config", T("Xem câu hỏi gợi ý hiện có", "Check the current suggested questions"), undefined, () => {
+          planStep(key, 0, "done"); planStep(key, 1, "doing");
+          say(key, T("Mình đề xuất sửa câu hỏi gợi ý như bên dưới.", "I suggest the change below."), propose);
+        }), 500);
       return;
     }
     say(key, T("Mình sẽ đọc Instructions hiện tại trước khi sửa.", "I'll read the current Instructions before editing."), () =>

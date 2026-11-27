@@ -1056,6 +1056,8 @@ const STEP_LABEL: Record<string, string> = {
   ls: "Xem cấu hình hiện có",
   explore_tools: "Xem các công cụ có thể dùng",
   read_skill: "Đọc hướng dẫn tự cấu hình",
+  read_config: "Xem cấu hình hiện có",
+  update_config: "Cập nhật cấu hình",
   list_skills: "Xem các Skill đang có",
   create_skill: "Tạo Skill mới",
   search_library: "Tìm Skill phù hợp trong thư viện của Space",
@@ -1064,13 +1066,19 @@ const stepLabel = (m: { name: string; label?: string }) => m.label ?? STEP_LABEL
 const STOPPED_NOTE = "Đã dừng - Nhân sự số đã bị thay đổi thông tin";
 
 type StepMsg = Extract<RefineMsg, { kind: "tool" }>;
-type ChangeArgs = { old_string?: string; new_string?: string; skill_name?: string; skill_description?: string };
+type ChangeArgs = { old_string?: string; new_string?: string; skill_name?: string; skill_description?: string; field?: string; old_value?: string; new_value?: string };
 /** A step that changed something (Instructions or a new Skill) is shown as a change card. */
-const isChangeArgs = (a?: ChangeArgs) => !!a && (a.new_string !== undefined || a.skill_name !== undefined);
+const isChangeArgs = (a?: ChangeArgs) => !!a && (a.new_string !== undefined || a.skill_name !== undefined || a.field !== undefined);
 const CHANGE_PREVIEW_LINES = 8;
 
 /** Lines removed / added by a change, for the "Thay đổi" block (common start and end trimmed). */
 function changeLines(args: ChangeArgs): { removed: string[]; added: string[] } {
+  if (args.field !== undefined) {
+    // A field: old value struck through, new value added (only what actually differs).
+    const o = (args.old_value ?? "").split("\n").filter(l => l.trim());
+    const n = (args.new_value ?? "").split("\n").filter(l => l.trim());
+    return { removed: o.filter(l => !n.includes(l)), added: n.filter(l => !o.includes(l)) };
+  }
   if (args.skill_name !== undefined) return { removed: [], added: [`Tên: ${args.skill_name}`, `Mô tả: ${args.skill_description ?? ""}`] };
   const a = (args.old_string ?? "").split("\n");
   const b = (args.new_string ?? "").split("\n");
@@ -1257,6 +1265,11 @@ function RefineApprovalCard({ msg, readOnly, busy, blockedBy, onDecide }: {
   const pending = msg.status === "pending" && !msg.running;
   // Editing touches only the lines the change adds; the rest of the Instructions stays as is.
   const editAdded = (text: string) => setArgs(a => {
+    if (msg.args.field !== undefined) {
+      const orig = (msg.args.new_value ?? "").split("\n");
+      const keep = (msg.args.old_value ?? "").split("\n").filter(l => l.trim() && orig.includes(l));
+      return { ...a, new_value: [...keep, ...text.split("\n").filter(l => l.trim())].join("\n") };
+    }
     const base = msg.args.old_string ?? "";
     const lines = text.split("\n").filter(l => l.trim());
     const bullet = /^- /.test(base.split("\n").pop() ?? "") ? "- " : "";
