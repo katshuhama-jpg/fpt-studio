@@ -82,6 +82,7 @@ export default function DocumentPreviewPane({
   const [pendingResize, setPendingResize] = useState<{ id: string; bbox: ChunkBBox } | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const pageBoxRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const totalPages = pageCount ?? MOCK_PAGES.length;
   const text = MOCK_PAGES[page % MOCK_PAGES.length];
@@ -322,6 +323,28 @@ export default function DocumentPreviewPane({
     return false;
   };
 
+  // Selecting a chunk (from the list or the original) also scrolls the original so its frame is
+  // in view - mirrors the list scrolling to the card. Only the original's own scroller moves.
+  useEffect(() => {
+    if (!selectedChunkId) return;
+    // Wait for the page switch / frame layout to settle; layout re-measures must not cancel it.
+    const id = window.setTimeout(() => {
+      const sc = scrollRef.current;
+      const el = pageBoxRef.current?.querySelector<HTMLElement>(`[data-chunk-id="${selectedChunkId}"]`);
+      if (!sc || !el) return;
+      const sr = sc.getBoundingClientRect();
+      const er = el.getBoundingClientRect();
+      const topGap = 80; // keep clear of the floating toolbar
+      let top = 0;
+      if (er.top < sr.top + topGap) top = er.top - sr.top - topGap;
+      else if (er.bottom > sr.bottom - 16) top = Math.min(er.bottom - sr.bottom + 16, er.top - sr.top - topGap);
+      const left = er.left < sr.left || er.right > sr.right ? er.left - sr.left - 24 : 0;
+      // One call: a second smooth scrollBy would cancel the first.
+      if (top || left) sc.scrollBy({ top, left, behavior: "smooth" });
+    }, 80);
+    return () => window.clearTimeout(id);
+  }, [selectedChunkId, page]);
+
   const selected = chunksOnPage.find(c => c.id === selectedChunkId);
 
   return (
@@ -344,7 +367,7 @@ export default function DocumentPreviewPane({
         </button>
       </div>
 
-      <div className="relative flex-1 min-h-0 overflow-auto pt-20 pb-8 px-6 flex justify-center" onMouseUp={handleMouseUp}>
+      <div ref={scrollRef} className="relative flex-1 min-h-0 overflow-auto pt-20 pb-8 px-6 flex justify-center" onMouseUp={handleMouseUp}>
         <div
           ref={pageBoxRef}
           onClick={e => {
@@ -379,6 +402,7 @@ export default function DocumentPreviewPane({
             return (
               <div
                 key={c.id}
+                data-chunk-id={c.id}
                 className={`absolute rounded-sm pointer-events-none transition-colors ${
                   isSelected ? "border-2 border-primary bg-primary/10 z-10"
                   : dimmed ? "border border-border bg-transparent"

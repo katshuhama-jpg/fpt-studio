@@ -397,7 +397,8 @@ export default function ChunkViewerModal({
                         </div>
                         <div className="p-4 space-y-1.5">
                           <p className="text-sm font-semibold text-foreground">{c.title}</p>
-                          <p className="text-sm text-foreground/80 leading-6 whitespace-pre-wrap">{c.content}</p>
+                          {/* Keep paragraph breaks only; lines inside a paragraph re-wrap to the card width. */}
+                          <p className="text-sm text-foreground/80 leading-6 whitespace-pre-wrap">{c.content.replace(/([^\n])\n(?!\n)/g, "$1 ")}</p>
                         </div>
                       </div>
                     );
