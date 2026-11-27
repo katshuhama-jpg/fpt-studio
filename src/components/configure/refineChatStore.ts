@@ -372,7 +372,7 @@ export const refineAssistant = {
     const startedAt = Date.now();
     const line = wantedLine(text);
     say(key, "Mình sẽ đọc Instructions hiện tại trước khi sửa.", () =>
-      tool(key, "read_file", "Đọc Instructions hiện tại", { file_path: INSTRUCTIONS_FILE }, () => {
+      tool(key, "ls", "Xem cấu hình hiện có", undefined, () => tool(key, "read_file", "Đọc Instructions hiện tại", { file_path: INSTRUCTIONS_FILE }, () => {
         planStep(key, 0, "done"); planStep(key, 1, "doing");
         say(key, `Thêm dòng "${line.replace(/\.$/, "")}" vào cuối Instructions.`, () => {
           const args = editArgs(ctx.getInstructions(), line);
@@ -399,7 +399,7 @@ export const refineAssistant = {
             later(key, 200, () => { push(key, { kind: "approval", tool: "edit_file", args, status: "pending", ...change }); end(key); });
           }
         });
-      }), 500);
+      })), 500);
   },
   decide(key: string, ctx: RunCtx, id: string, approve: boolean, reason?: string, args?: RefineToolArgs) {
     const card = refineChatStore.get(key).find(m => m.id === id);

@@ -1075,27 +1075,48 @@ function changeLines(args: ChangeArgs): { removed: string[]; added: string[] } {
   return { removed: a.slice(i, a.length - j).filter(l => l.trim()), added: b.slice(i, b.length - j).filter(l => l.trim()) };
 }
 
-/** Consecutive steps shown as one short checklist ("Đã làm 2 bước"). */
+/** Consecutive steps collapsed into one line - "Đang thực hiện 2 bước · 12 giây" while the
+ * assistant works, "Đã làm 3 bước" when done - with a dropdown listing each step in plain words. */
 function RefineSteps({ steps }: { steps: StepMsg[] }) {
+  const [open, setOpen] = useState(false);
   const running = steps.some(s => !s.done);
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (!running) return;
+    const iv = window.setInterval(() => tick(n => n + 1), 1000);
+    return () => clearInterval(iv);
+  }, [running]);
+  const secs = Math.max(0, Math.round((Date.now() - steps[0].at) / 1000));
+  const elapsed = secs < 60 ? `${secs} giây` : `${Math.floor(secs / 60)} phút ${secs % 60} giây`;
+  const stopped = !running && steps.some(s => s.outcome === "stopped");
   return (
-    <div className="rounded-lg border border-border bg-card px-3 py-2">
-      <div className="text-xs font-medium text-muted-foreground mb-1">{running ? "Đang thực hiện" : `Đã làm ${steps.length} bước`}</div>
-      <ul className="space-y-1">
-        {steps.map(s => (
-          <li key={s.id} className="flex items-start gap-2 text-sm">
-            {!s.done
-              ? <span className="w-3.5 h-3.5 mt-0.5 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground animate-spin shrink-0" aria-label="Đang làm" />
-              : s.outcome === "stopped" || s.outcome === "rejected"
-                ? <HugeiconsIcon icon={MinusSignIcon} size={14} strokeWidth={1.5} className="mt-0.5 text-muted-foreground shrink-0" />
-                : <HugeiconsIcon icon={CheckmarkCircle01Icon} size={14} strokeWidth={1.5} className="mt-0.5 text-success shrink-0" />}
-            <span className={s.done ? "text-foreground" : "text-muted-foreground"}>
-              {stepLabel(s)}
-              {s.outcome === "stopped" && <span className="text-muted-foreground"> - {STOPPED_NOTE.replace("Đã dừng - ", "đã dừng vì ")}</span>}
-            </span>
-          </li>
-        ))}
-      </ul>
+    <div>
+      <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
+        className="flex items-center gap-2 px-1 py-1 -mx-1 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-base">
+        {running
+          ? <span className="w-3.5 h-3.5 rounded-full border-2 border-primary/30 border-t-primary animate-spin shrink-0" aria-hidden />
+          : <HugeiconsIcon icon={stopped ? MinusSignIcon : CheckmarkCircle01Icon} size={16} strokeWidth={1.5} className={stopped ? "" : "text-success"} />}
+        <span>{running ? `Đang thực hiện ${steps.length} bước` : stopped ? `Đã dừng sau ${steps.length} bước` : `Đã làm ${steps.length} bước`}</span>
+        {running && <span className="tabular-nums">{elapsed}</span>}
+        <HugeiconsIcon icon={ChevronRightIcon} size={14} strokeWidth={1.5} className={`transition-transform ${open ? "rotate-90" : ""}`} />
+      </button>
+      {open && (
+        <ul className="mt-1 ml-1.5 pl-3 border-l border-border space-y-1">
+          {steps.map(s => (
+            <li key={s.id} className="flex items-start gap-2 text-sm">
+              {!s.done
+                ? <span className="w-3.5 h-3.5 mt-0.5 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground animate-spin shrink-0" aria-label="Đang làm" />
+                : s.outcome === "stopped" || s.outcome === "rejected"
+                  ? <HugeiconsIcon icon={MinusSignIcon} size={14} strokeWidth={1.5} className="mt-0.5 text-muted-foreground shrink-0" />
+                  : <HugeiconsIcon icon={CheckmarkCircle01Icon} size={14} strokeWidth={1.5} className="mt-0.5 text-success shrink-0" />}
+              <span className={s.done ? "text-foreground" : "text-muted-foreground"}>
+                {stepLabel(s)}
+                {s.outcome === "stopped" && <span className="text-muted-foreground"> - đã dừng vì Nhân sự số đã bị thay đổi thông tin</span>}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
