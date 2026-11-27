@@ -86,11 +86,6 @@ export default function KnowledgeBaseView({
   const wrap = (node: React.ReactNode) => (
     <div className={isAgentView ? "p-8 max-w-6xl mx-auto w-full" : "px-4 sm:px-8 py-6 max-w-6xl mx-auto w-full"}>{node}</div>
   );
-  const backLink = (
-    <button onClick={onBack} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-base rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-      <ChevronLeft size={15} /> {backLabel}
-    </button>
-  );
 
   if (loadState === "loading") {
     return wrap(
@@ -145,6 +140,7 @@ export default function KnowledgeBaseView({
   // Inside a Digital Worker, a knowledge base linked from the Space is view-and-use only - its
   // content is edited in the Space library.
   const linkedInAgent = isAgentView && kb.agentOnlyFor !== agentId;
+  const linkedInAgentTag = linkedInAgent;
   const canEdit = canEditBase && !linkedInAgent;
   const canShare = isOwner && access.canAct("publish", accessible);
   const manages = (isOwner || (actor.isAdmin && !kb.agentOnlyFor)) && !kb.deletedFromSpace;
@@ -161,6 +157,10 @@ export default function KnowledgeBaseView({
       <div className={isAgentView ? "p-8 max-w-6xl mx-auto w-full h-full" : "px-4 sm:px-8 py-6 w-full h-[calc(100vh-3rem)]"}>
         <ChunkViewerModal
           inline
+          trail={[
+            { label: backLabel, onClick: onBack },
+            { label: kb.name, onClick: onCloseDoc },
+          ]}
           kbId={kb.id}
           sourceType="document"
           sourceId={openDoc.id}
@@ -203,7 +203,7 @@ export default function KnowledgeBaseView({
     <div className="animate-fade-up">
       {/* Breadcrumb / back */}
       <div className="flex items-center gap-1.5 mb-3 min-w-0">
-        {isAgentView ? backLink : (
+        {(
           <>
             <button onClick={onBack} aria-label={`Về ${backLabel}`} className="h-7 w-7 -ml-1.5 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
               <ChevronLeft size={15} />
@@ -220,7 +220,12 @@ export default function KnowledgeBaseView({
         <div className="flex items-start gap-3 min-w-0 flex-1">
           {!isAgentView && <KnowledgeTypeIcon type={kb.type} className="mt-0.5" />}
           <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight truncate" title={kb.name}>{kb.name}</h1>
+            <div className="flex items-center gap-2 min-w-0">
+              <h1 className="text-2xl font-semibold tracking-tight truncate" title={kb.name}>{kb.name}</h1>
+              {isAgentView && (
+                <span className="chip chip-muted shrink-0">{linkedInAgentTag ? "Liên kết từ Space" : "Kho riêng"}</span>
+              )}
+            </div>
             <p className="text-sm text-muted-foreground mt-1">{kb.description || "Kho tri thức này chưa có mô tả."}</p>
           </div>
         </div>

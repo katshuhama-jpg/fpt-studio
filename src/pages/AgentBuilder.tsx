@@ -134,6 +134,7 @@ import ActionMenu, { type ActionMenuItem } from "@/components/ui/ActionMenu";
 import GuardrailShareModal from "@/components/configure/GuardrailShareModal";
 import CreateKnowledgeBaseModal from "@/components/knowledge/CreateKnowledgeBaseModal";
 import KnowledgeBaseView from "@/components/knowledge/KnowledgeBaseView";
+import { knowledgeDocumentStore } from "@/components/knowledge/knowledgeDocumentStore";
 import { useDrillParam } from "@/components/knowledge/useDrillParam";
 import DeleteKnowledgeBaseDialog from "@/components/knowledge/DeleteKnowledgeBaseDialog";
 import KnowledgeTypeIcon from "@/components/knowledge/KnowledgeTypeIcon";
@@ -1881,8 +1882,10 @@ function AgentKbCardMenu({ onOpen, onEdit, onScope, onShare, onRetrieval, onDeta
  * "attached resource" grids in Agent Details read as one consistent card system. `icon` is a
  * fully-formed node (the same tinted tile Console uses — see KnowledgeTypeIcon) rather than a
  * bare glyph, so a real linked KB renders with the exact same color coding as its Console card. */
-function AgentKbCard({ icon, name, description, onOpen, menu, scope, revoked, answerNote }: {
+function AgentKbCard({ icon, name, description, onOpen, menu, scope, revoked, answerNote, meta }: {
   icon: React.ReactNode; name: string; description?: string;
+  /** "6 tài liệu · 1 đang xử lý · Từ Space · Mai Hoang" - what's inside before opening it. */
+  meta?: string;
   /** The Digital Worker's own knowledge base: "Trả lời: Mọi người trò chuyện với Nhân sự số này"
    * (Production) - who gets answers from it follows the Digital Worker's own audience. */
   answerNote?: boolean;
@@ -1905,6 +1908,7 @@ function AgentKbCard({ icon, name, description, onOpen, menu, scope, revoked, an
         {icon}
         <div className="min-w-0 flex-1">
           <div className="text-sm font-semibold truncate">{name}</div>
+          {meta && <div className="text-xs text-muted-foreground truncate mt-0.5 tabular-nums" title={meta}>{meta}</div>}
         </div>
       </div>
       {revoked?.id ? <RevokedReason type="knowledge" id={revoked.id} className="flex-1" /> : (
@@ -2057,6 +2061,17 @@ function AgentKnowledgeGrid({ agentId, onOpenKb }: { agentId: string; onOpenKb: 
         name={kb.name}
         description={kb.description}
         answerNote={isOwn}
+        meta={(() => {
+          const files = knowledgeDocumentStore.list(kb.id).filter(d => !d.isFolder);
+          const busy = files.filter(d => d.status === "pending" || d.status === "processing").length;
+          const failed = files.filter(d => d.status === "failed").length;
+          return [
+            `${files.length} tài liệu`,
+            busy ? `${busy} đang xử lý` : "",
+            failed ? `${failed} lỗi` : "",
+            !isOwn ? `Từ Space · ${kb.ownerId === KB_CURRENT_USER.id ? "Bạn" : kb.ownerName}` : "",
+          ].filter(Boolean).join(" · ");
+        })()}
         onOpen={onOpen}
         revoked={!isOwn && isResourceRevoked(agentId, "knowledge", kb.id) ? { ownerName: kb.ownerName, deletedBy: kb.deletedFromSpace?.byName, id: kb.id } : undefined}
         scope={!isOwn && PARTIAL_LINK_ENABLED ? scopeLabel(kb.id, knowledgeStore.getLinkScope(agentId, kb.id)) : undefined}

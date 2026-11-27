@@ -91,12 +91,15 @@ function markParentDone(kbId: string, sourceType: ChunkSourceType, sourceId: str
 }
 
 export default function ChunkViewerModal({
-  kbId, sourceType, sourceId, sourceName, sourceStatus, sourceChunkCount, sourceCreatedAt, urlMeta, onClose, viewOnly, inline = false, sourceUpdatedAt,
+  kbId, sourceType, sourceId, sourceName, sourceStatus, sourceChunkCount, sourceCreatedAt, urlMeta, onClose, viewOnly, inline = false, sourceUpdatedAt, trail,
 }: {
   /** Production layout: rendered inside the page's content area (the sidebar / Digital Worker
    * header stay visible), read-only - original on the left, chunks on the right. Without it the
    * older full-screen chunk editor overlay is used. */
   inline?: boolean;
+  /** Inline only: where this document sits, e.g. "Tri thức của Nhân sự số / Tên kho" - keeps the
+   * user oriented so the document never reads as a separate screen. */
+  trail?: { label: string; onClick: () => void }[];
   /** "Cập nhật: …" in the inline header (falls back to the creation time). */
   sourceUpdatedAt?: number;
   kbId: string; sourceType: ChunkSourceType; sourceId: string; sourceName: string;
@@ -249,6 +252,17 @@ export default function ChunkViewerModal({
   if (inline) {
     return (
       <div className="flex flex-col h-full min-h-0 animate-fade-up">
+        {trail && trail.length > 0 && (
+          <nav aria-label="Đường dẫn" className="flex items-center gap-1.5 mb-2 text-sm min-w-0">
+            {trail.map((t, i) => (
+              <span key={i} className="flex items-center gap-1.5 min-w-0">
+                <button onClick={t.onClick} className="text-muted-foreground hover:text-foreground truncate transition-base rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{t.label}</button>
+                <span className="text-muted-foreground/60" aria-hidden>/</span>
+              </span>
+            ))}
+            <span className="font-medium truncate" aria-current="page">{sourceName}</span>
+          </nav>
+        )}
         <div className="flex items-center justify-between gap-3 pb-3 mb-4 border-b border-border shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <button onClick={onClose} aria-label="Quay lại danh sách tài liệu" className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
